@@ -1,0 +1,65 @@
+# ─── macOS ───────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
+
+# ─── Editors & IDEs ──────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# ─── Environment & Secrets ───────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# ─── Node / npm (if tooling is added later) ──────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ─── Python (if tooling is added later) ──────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ─── Plugin Runtime Output Files ─────────────────────────
+# These are generated at analysis time — not source files.
+# Commit them intentionally if you want to version saved analyses.
+opportunity-ranking.md
+product-opportunity-report.md
+product-ranking.json
+brand-builder-report.md
+investment-analysis.md
+
+# ─── Logs & Temp ─────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+.cache/

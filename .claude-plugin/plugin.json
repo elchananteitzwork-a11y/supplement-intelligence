@@ -1,0 +1,24 @@
+{
+  "name": "ecommerce-opportunity-hunter",
+  "version": "0.4.0",
+  "description": "Amazon Product Opportunity Intelligence System. Identify products with real customer demand, beatable competition, strong margins, low legal risk, strong brand potential, and long-term scalability. Ranks by probability of building a successful Amazon brand.",
+  "skills": [
+    "skills/product-hunt",
+    "skills/find-products-under-budget"
+  ],
+  "agents": [
+    "agents/amazon-demand-analyzer",
+    "agents/competition-analyzer",
+    "agents/small-seller-success-detector",
+    "agents/profit-opportunity-analyzer",
+    "agents/trend-validator",
+    "agents/supplier-analyzer",
+    "agents/legal-risk-analyzer",
+    "agents/product-validation-analyzer",
+    "agents/launch-difficulty-analyzer",
+    "agents/opportunity-size-analyzer",
+    "agents/brand-builder-agent",
+    "agents/product-opportunity-ranker"
+  ],
+  "hooks": {}
+}
