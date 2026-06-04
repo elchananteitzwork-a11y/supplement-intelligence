@@ -306,8 +306,7 @@ def score_product(
 ) -> ProductScore:
     current      = product.get("current", {})
     pkg          = product.get("package", {}) or {}
-    price        = (current.get("amazon_price") or current.get("new_3p_price")
-                    or current.get("buybox_price") or pa.category_avg_price)
+    price        = current.get("price") or pa.category_avg_price
     review_count = current.get("review_count")
     review_hist  = product.get("history", {}).get("review_count", [])
     bsr_hist     = product.get("history", {}).get("bsr", [])

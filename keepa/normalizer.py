@@ -199,6 +199,35 @@ def normalize_product(raw: Dict[str, Any]) -> Dict[str, Any]:
             return None if val == _KEEPA_NO_DATA else val
         return None
 
+    def _last_csv_price(csv_index: int) -> Optional[float]:
+        """Return the last non-sentinel price (USD) from a flat Keepa CSV array."""
+        arr = _get_csv(csv_index)
+        if not arr:
+            return None
+        for i in range(len(arr) - 2, -1, -2):
+            if arr[i + 1] != _KEEPA_NO_DATA:
+                return keepa_price_to_usd(arr[i + 1])
+        return None
+
+    def _resolve_price() -> Optional[float]:
+        """
+        4-level price cascade (zero extra tokens):
+          1. stats.current[0]  — Amazon direct price
+          2. stats.current[1]  — Marketplace-new price
+          3. csv[2] last entry — New 3P price history
+          4. csv[0] last entry — Amazon price history
+        """
+        v = _current(0)
+        if v is not None:
+            return keepa_price_to_usd(v)
+        v = _current(1)
+        if v is not None:
+            return keepa_price_to_usd(v)
+        p = _last_csv_price(2)   # csv[2] = new third-party price history
+        if p is not None:
+            return p
+        return _last_csv_price(0)  # csv[0] = Amazon price history
+
     return {
         # Identity
         "asin":            raw.get("asin"),
@@ -216,9 +245,10 @@ def normalize_product(raw: Dict[str, Any]) -> Dict[str, Any]:
         # Current snapshot
         "current": {
             "bsr":           _current(3),
-            "amazon_price":  keepa_price_to_usd(_current(0)) if _current(0) else None,
-            "new_3p_price":  keepa_price_to_usd(_current(1)) if _current(1) else None,
-            "buybox_price":  keepa_price_to_usd(_current(18)) if _current(18) else None,
+            "amazon_price":  keepa_price_to_usd(_current(0)) if _current(0) is not None else None,
+            "new_3p_price":  keepa_price_to_usd(_current(1)) if _current(1) is not None else None,
+            "buybox_price":  keepa_price_to_usd(_current(18)) if _current(18) is not None else None,
+            "price":         _resolve_price(),
             "review_count":  _current(17),
             "rating":        keepa_rating_to_float(_current(16)) if _current(16) else None,
             "offer_count":   _current(11),
