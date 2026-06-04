@@ -190,9 +190,6 @@ def normalize_product(raw: Dict[str, Any]) -> Dict[str, Any]:
         "weight_g":  raw.get("packageWeight"),
     }
 
-    # Current values (last known data point from stats)
-    current_bsr   = _stat("current", None) if isinstance(stats.get("current"), list) else None
-    # stats.current is an array indexed by csv position
     current_stats = stats.get("current") or []
 
     def _current(idx: int) -> Any:
@@ -241,7 +238,7 @@ def normalize_product(raw: Dict[str, Any]) -> Dict[str, Any]:
                 stats["max90"][0] if isinstance(stats.get("max90"), list) and len(stats.get("max90", [])) > 0 and stats["max90"][0] != _KEEPA_NO_DATA else _KEEPA_NO_DATA
             ),
             "review_count_delta": (
-                stats.get("deltaViews90") if stats.get("deltaViews90") != _KEEPA_NO_DATA else None
+                stats.get("deltaReviews90") if stats.get("deltaReviews90") != _KEEPA_NO_DATA else None
             ),
         },
 
