@@ -18,7 +18,7 @@ from keepa.models import (
     PriceAnalysis,
     KeepaReport,
 )
-from keepa import bsr, reviews, prices, sales_estimate, scoring
+from keepa import bsr, reviews, prices, sales_estimate, scoring, fba
 from keepa.models import FactorScore, ProductScore
 
 __all__ = [

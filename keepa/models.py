@@ -202,12 +202,18 @@ class FactorScore:
 class ProductScore:
     asin: str
     title: str
-    total_score: float          # 0–100
-    grade: str                  # A / B / C / D / F
-    verdict: str                # Excellent / Good / Average / Below Average / Poor
+    total_score: float              # 0–100 (after data-quality penalty)
+    raw_score: float                # 0–100 (before penalty)
+    data_penalty: float             # points deducted for thin/missing data
+    grade: str                      # A / B / C / D / F
+    verdict: str                    # Excellent / Good / Average / Below Average / Poor
     factors: List[FactorScore]
-    estimated_monthly_sales: Optional[int]
-    estimated_monthly_revenue: Optional[float]
+    estimated_monthly_sales: Optional[int]      # raw BSR → sales (uncalibrated)
+    calibrated_monthly_sales: Optional[int]     # after category velocity factor
+    estimated_monthly_revenue: Optional[float]  # calibrated sales × price
+    fba_size_tier: str                          # small_standard / large_standard / oversize / unknown
+    estimated_fba_fee: Optional[float]          # USD
+    estimated_net_margin_pct: Optional[float]   # after FBA fee, referral, and assumed COGS
 
 
 # ------------------------------------------------------------------

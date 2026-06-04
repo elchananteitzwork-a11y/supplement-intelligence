@@ -56,6 +56,54 @@ def bsr_to_monthly_sales(bsr: Optional[int]) -> Optional[int]:
     return 1
 
 
+# ──────────────────────────────────────────────────────────────────
+# Category velocity calibration
+#
+# Amazon BSR is relative within a category. BSR 3,000 in Kitchen means
+# something very different from BSR 3,000 in Industrial & Scientific.
+# These multipliers scale the baseline Kitchen estimate to each category.
+# Values are approximate — calibrate with live sales data post-launch.
+# ──────────────────────────────────────────────────────────────────
+
+CATEGORY_VELOCITY_FACTORS: dict = {
+    284507:      1.00,   # Kitchen & Dining (baseline)
+    1055398:     0.90,   # Home & Kitchen
+    2619533:     0.75,   # Pet Supplies
+    2975312091:  0.65,   # Dog
+    2975313011:  0.65,   # Cat
+    3375251:     0.70,   # Sports & Outdoors
+    3407731:     0.65,   # Exercise & Fitness
+    3760901:     0.85,   # Health & Personal Care
+    165796011:   0.55,   # Baby Products
+    15684181:    0.35,   # Automotive
+    1064954:     0.45,   # Office Products
+    7141123011:  1.20,   # Clothing (high volume)
+    3760911:     0.85,   # Beauty & Personal Care
+    16310101:    0.12,   # Industrial & Scientific
+    228013:      0.30,   # Computers & Accessories
+    172282:      0.40,   # Electronics
+    130:         0.25,   # Software
+}
+
+# Used when root_category is not in the table
+DEFAULT_VELOCITY_FACTOR = 0.70
+
+
+def calibrated_monthly_sales(
+    bsr: Optional[int],
+    root_category: Optional[int],
+) -> Optional[int]:
+    """
+    BSR → monthly sales with category-specific velocity calibration.
+    More accurate than the raw estimate for non-Kitchen categories.
+    """
+    raw = bsr_to_monthly_sales(bsr)
+    if raw is None:
+        return None
+    factor = CATEGORY_VELOCITY_FACTORS.get(root_category, DEFAULT_VELOCITY_FACTOR)
+    return max(1, round(raw * factor))
+
+
 def monthly_revenue(monthly_sales: Optional[int], price: Optional[float]) -> Optional[float]:
     """Estimate gross monthly revenue from sales volume and selling price."""
     if monthly_sales and price:
