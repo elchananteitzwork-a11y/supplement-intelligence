@@ -217,6 +217,7 @@ def normalize_product(raw: Dict[str, Any]) -> Dict[str, Any]:
         "current": {
             "bsr":           _current(3),
             "amazon_price":  keepa_price_to_usd(_current(0)) if _current(0) else None,
+            "new_3p_price":  keepa_price_to_usd(_current(1)) if _current(1) else None,
             "buybox_price":  keepa_price_to_usd(_current(18)) if _current(18) else None,
             "review_count":  _current(17),
             "rating":        keepa_rating_to_float(_current(16)) if _current(16) else None,
