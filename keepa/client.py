@@ -139,9 +139,9 @@ class KeepaClient:
             "stats": stats,
             "history": int(include_history),
             "rating": int(include_rating),
-            "offers": 0,
+            # offers parameter omitted — Keepa rejects offers=0; omitting it
+            # disables live seller details while keeping offer_count from stats
             "update": 0,   # serve from Keepa's cache, no force-refresh
-            "stock": 1,    # stock availability, included in standard data
         }
         return self._get("product", params)
 

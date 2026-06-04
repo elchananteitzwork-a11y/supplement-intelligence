@@ -14,18 +14,19 @@ before any downstream processing:
    [keepa_timestamp, value, keepa_timestamp, value, ...].
    Parse with parse_csv_series().
 
-Keepa CSV index reference (Amazon US, verified against public docs):
+Keepa CSV index reference (Amazon US, verified against live API responses):
    csv[0]  = Amazon price
    csv[2]  = New third-party offer price
    csv[3]  = Sales Rank (BSR)
    csv[11] = Count of new marketplace offers
-   csv[16] = Review count
-   csv[17] = Rating (×10, so 45 = 4.5 stars)
+   csv[16] = Rating (×10, so 46 = 4.6 stars)   ← confirmed from live data
+   csv[17] = Review count                         ← confirmed from live data
    csv[18] = Buy Box price
    csv[19] = Used, like-new price
 
-Note: Some indices differ by category/locale. Always verify against
-live Keepa responses if unexpected values appear.
+Note: Indices 16 and 17 are the OPPOSITE of what Keepa's public docs imply.
+Verified against real Kitchen category data: csv[16] returns rating-range
+integers (40–50), csv[17] returns large integers consistent with review counts.
 """
 
 from datetime import datetime, timezone
@@ -217,8 +218,8 @@ def normalize_product(raw: Dict[str, Any]) -> Dict[str, Any]:
             "bsr":           _current(3),
             "amazon_price":  keepa_price_to_usd(_current(0)) if _current(0) else None,
             "buybox_price":  keepa_price_to_usd(_current(18)) if _current(18) else None,
-            "review_count":  _current(16),
-            "rating":        keepa_rating_to_float(_current(17)) if _current(17) else None,
+            "review_count":  _current(17),
+            "rating":        keepa_rating_to_float(_current(16)) if _current(16) else None,
             "offer_count":   _current(11),
         },
 
@@ -248,8 +249,8 @@ def normalize_product(raw: Dict[str, Any]) -> Dict[str, Any]:
             "amazon_price":   parse_price_series(_get_csv(0)),
             "new_3p_price":   parse_price_series(_get_csv(2)),
             "buybox_price":   parse_price_series(_get_csv(18)),
-            "review_count":   parse_review_count_series(_get_csv(16)),
-            "rating":         parse_rating_series(_get_csv(17)),
+            "review_count":   parse_review_count_series(_get_csv(17)),
+            "rating":         parse_rating_series(_get_csv(16)),
             "offer_count":    parse_csv_series(_get_csv(11)),
         },
     }
