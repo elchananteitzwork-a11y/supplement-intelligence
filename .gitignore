@@ -62,9 +62,12 @@ brand-builder-report.md
 investment-analysis.md
 
 # ─── Keepa Integration ───────────────────────────────────
-# API cache — do not commit (contains raw product data, rebuilt on each run)
+# API cache and large output files — do not commit
 keepa_cache/
-# keepa-report.json is tracked — it serves as the output schema for Phase 1
+keepa-report.json
+keepa-discovery-report.json
+kitchen_opportunities.csv
+discovery-opportunities.csv
 
 # ─── Logs & Temp ─────────────────────────────────────────
 *.log
