@@ -1,0 +1,185 @@
+{
+  "_schema_version": "0.5.0",
+  "_note": "This is the output schema for keepa-report.json. Populated by run_keepa_phase1.py after a live analysis run. All values below are placeholder examples showing the structure and data types.",
+
+  "generated_at": "2026-06-03T18:00:00+00:00",
+  "elapsed_seconds": 12.4,
+  "phase": "1 — Fetch and Normalize",
+  "niche": "dog lick mats",
+  "marketplace": "US",
+  "category_id": 2619533,
+  "category_name": "Pet Supplies",
+
+  "keepa_tokens_used_estimate": 680,
+  "keepa_tokens_remaining": 570,
+
+  "asins_fetched": 100,
+  "products_normalized": 98,
+
+  "bsr_summary": {
+    "total_analyzed": 98,
+    "with_sales_estimate": 94,
+    "improving_trend_count": 41,
+    "declining_trend_count": 18,
+    "seasonal_count": 7,
+    "top_5_by_demand": [
+      {
+        "asin": "B0EXAMPLE01",
+        "title": "Example Pet Lick Mat — Slow Feeder for Dogs",
+        "avg_bsr_90d": 812.0,
+        "est_monthly_sales": 1840,
+        "trend": "Improving",
+        "velocity": "Accelerating"
+      },
+      {
+        "asin": "B0EXAMPLE02",
+        "title": "Example Lick Mat with Suction Cup",
+        "avg_bsr_90d": 1204.0,
+        "est_monthly_sales": 1210,
+        "trend": "Stable",
+        "velocity": "Stable"
+      }
+    ]
+  },
+
+  "review_analysis": {
+    "tier_under_100": [
+      {
+        "asin": "B0EXAMPLE05",
+        "title": "New Entrant Lick Mat Brand",
+        "review_count": 67,
+        "monthly_review_velocity": 12.3,
+        "estimated_monthly_sales": 380,
+        "estimated_monthly_revenue": 6460.0,
+        "review_to_revenue_efficiency": 96.42,
+        "brand": "ExampleBrand",
+        "listing_age_months": 6
+      }
+    ],
+    "tier_under_500": [],
+    "tier_under_1000": [],
+    "avg_reviews_page1": 284.5,
+    "median_reviews_page1": 198.0,
+    "min_reviews_page1": 42,
+    "avg_monthly_velocity": 18.7,
+    "fastest_grower_asin": "B0EXAMPLE03",
+    "fastest_grower_velocity": 62.4,
+    "category_avg_r2r_efficiency": 54.20,
+    "best_r2r_efficiency": 96.42,
+    "best_r2r_asin": "B0EXAMPLE05",
+    "accessibility_verdict": "Accessible"
+  },
+
+  "price_analysis": {
+    "category_min_price": 9.99,
+    "category_max_price": 34.99,
+    "category_avg_price": 16.82,
+    "category_median_price": 15.99,
+    "price_band_usd": 25.00,
+    "price_compression": false,
+    "price_trend": "Stable",
+    "avg_price_delta_90d": -0.42,
+    "amazon_holds_buybox_pct": 34.2,
+    "has_lightning_deal_activity": true,
+    "coupon_price_detected": false,
+    "product_summaries": [
+      {
+        "asin": "B0EXAMPLE01",
+        "title": "Example Pet Lick Mat",
+        "current_amazon_price": 16.99,
+        "current_buybox_price": 15.99,
+        "avg_price_90d": 16.45,
+        "min_price_90d": 12.99,
+        "max_price_90d": 18.99,
+        "price_trend": "Stable",
+        "promo_detected": false
+      }
+    ]
+  },
+
+  "bsr_analyses": [
+    {
+      "asin": "B0EXAMPLE01",
+      "title": "Example Pet Lick Mat",
+      "avg_bsr_90d": 812.0,
+      "avg_bsr_30d": 695.0,
+      "avg_bsr_365d": 1240.0,
+      "trend_direction": "Improving",
+      "trend_slope_per_day": -4.2,
+      "bsr_volatility": "Low",
+      "bsr_std_dev": 98.4,
+      "estimated_monthly_sales": 1840,
+      "sales_estimate_confidence": 78,
+      "demand_velocity": "Accelerating",
+      "is_seasonal": false,
+      "seasonal_peak_month": null
+    }
+  ],
+
+  "products": [
+    {
+      "asin": "B0EXAMPLE01",
+      "title": "Example Pet Lick Mat — Slow Feeder for Dogs and Cats",
+      "brand": "ExampleBrand",
+      "manufacturer": null,
+      "root_category": 2619533,
+      "category_tree": [
+        { "catId": 2619533, "name": "Pet Supplies" },
+        { "catId": 2975312091, "name": "Dogs" }
+      ],
+      "package": {
+        "height_mm": 15,
+        "width_mm": 200,
+        "length_mm": 200,
+        "weight_g": 180
+      },
+      "current": {
+        "bsr": 742,
+        "amazon_price": 16.99,
+        "buybox_price": 15.99,
+        "review_count": 1842,
+        "rating": 4.6,
+        "offer_count": 8
+      },
+      "stats_90d": {
+        "avg_bsr": 812.0,
+        "min_bsr": 612,
+        "avg_amazon_price": 16.45,
+        "min_amazon_price": 12.99,
+        "max_amazon_price": 18.99,
+        "review_count_delta": 247
+      },
+      "history": {
+        "bsr": [
+          { "timestamp": "2026-03-05T00:00:00+00:00", "value": 1240 },
+          { "timestamp": "2026-04-05T00:00:00+00:00", "value": 920 },
+          { "timestamp": "2026-05-05T00:00:00+00:00", "value": 812 },
+          { "timestamp": "2026-06-03T00:00:00+00:00", "value": 742 }
+        ],
+        "amazon_price": [
+          { "timestamp": "2026-03-05T00:00:00+00:00", "value": 17.99 },
+          { "timestamp": "2026-04-05T00:00:00+00:00", "value": 16.99 },
+          { "timestamp": "2026-06-03T00:00:00+00:00", "value": 16.99 }
+        ],
+        "new_3p_price": [],
+        "buybox_price": [
+          { "timestamp": "2026-03-05T00:00:00+00:00", "value": 17.49 },
+          { "timestamp": "2026-06-03T00:00:00+00:00", "value": 15.99 }
+        ],
+        "review_count": [
+          { "timestamp": "2026-03-05T00:00:00+00:00", "value": 1595 },
+          { "timestamp": "2026-04-05T00:00:00+00:00", "value": 1698 },
+          { "timestamp": "2026-05-05T00:00:00+00:00", "value": 1780 },
+          { "timestamp": "2026-06-03T00:00:00+00:00", "value": 1842 }
+        ],
+        "rating": [
+          { "timestamp": "2026-03-05T00:00:00+00:00", "value": 4.5 },
+          { "timestamp": "2026-06-03T00:00:00+00:00", "value": 4.6 }
+        ],
+        "offer_count": [
+          { "timestamp": "2026-06-03T00:00:00+00:00", "value": 8 }
+        ]
+      }
+    }
+  ]
+}

@@ -24,7 +24,10 @@ Thumbs.db
 
 # ─── Environment & Secrets ───────────────────────────────
 .env
-.env.*
+.env.local
+.env.production
+.env.staging
+# .env.example is intentionally committed as documentation
 *.pem
 *.key
 secrets.json
@@ -57,6 +60,11 @@ product-opportunity-report.md
 product-ranking.json
 brand-builder-report.md
 investment-analysis.md
+
+# ─── Keepa Integration ───────────────────────────────────
+# API cache — do not commit (contains raw product data, rebuilt on each run)
+keepa_cache/
+# keepa-report.json is tracked — it serves as the output schema for Phase 1
 
 # ─── Logs & Temp ─────────────────────────────────────────
 *.log
