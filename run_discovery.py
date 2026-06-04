@@ -1,19 +1,22 @@
 """
-run_discovery.py — Private-label opportunity scanner.
+run_discovery.py — Category-agnostic private-label opportunity scanner.
 
-Scans Kitchen subcategories for products a new seller can realistically
-enter: BSR 500–5000, reviews < 200, price ≥ $20, no dominant brand,
-≥ 300 calibrated sales/month, stable or improving BSR trend.
+Loads per-category configuration (BSR range, subcategories, excluded brands)
+from the categories/ package and runs the same analysis pipeline regardless
+of category.  Pass a known category short name or a custom niche with flags.
 
 Usage:
-  python run_discovery.py "kitchen"
-  python run_discovery.py "kitchen" --max-subcategories 6
-  python run_discovery.py "kitchen" --min-bsr 300 --max-bsr 8000 --max-reviews 300
-  python run_discovery.py "kitchen" --force-refresh
+  python run_discovery.py kitchen
+  python run_discovery.py pet
+  python run_discovery.py beauty
+  python run_discovery.py supplements
+  python run_discovery.py kitchen --max-subcategories 6
+  python run_discovery.py kitchen --min-bsr 300 --max-bsr 8000 --max-reviews 300
+  python run_discovery.py kitchen --force-refresh
   python run_discovery.py --check-tokens
 
-The analysis pipeline (BSR, reviews, prices, scoring) is identical to
-run_keepa_phase1.py. Only the product sourcing step is different.
+The analysis pipeline (BSR, reviews, prices, scoring) is unchanged.
+Category-specific values come from categories/<name>.py.
 """
 
 import argparse
@@ -41,6 +44,7 @@ import importlib.util
 
 from keepa.client import KeepaClient, KeepaAPIError
 from keepa.discovery import apply_post_analysis_filter, KITCHEN_PL_SUBCATEGORIES
+import categories as _cat
 
 
 def _load(name: str, rel_path: str):
@@ -150,15 +154,16 @@ def _write_csv(scores: List[Any], products: Dict[str, Any], bsr_map: Dict[str, A
 
 
 def run_discovery(
-    niche:            str,
-    parent_cat_id:    int  = 284507,
-    min_bsr:          int  = 500,
-    max_bsr:          int  = 5000,
-    max_reviews:      int  = 200,
-    min_price:        float = 20.0,
-    min_monthly_sales: int = 300,
-    max_subcategories: int = 5,
-    force_refresh:    bool = False,
+    niche:             str,
+    parent_cat_id:     int  = 284507,
+    subcategory_ids:   Optional[Dict[str, int]] = None,
+    min_bsr:           int  = 500,
+    max_bsr:           int  = 5000,
+    max_reviews:       int  = 200,
+    min_price:         float = 20.0,
+    min_monthly_sales: int  = 300,
+    max_subcategories: int  = 5,
+    force_refresh:     bool = False,
 ) -> Dict[str, Any]:
 
     start = datetime.now(tz=timezone.utc)
@@ -197,6 +202,7 @@ def run_discovery(
     disc = discovery_agent.run(
         niche=niche,
         parent_cat_id=parent_cat_id,
+        subcategory_ids=subcategory_ids,
         min_bsr=min_bsr,
         max_bsr=max_bsr,
         max_reviews=max_reviews,
@@ -351,24 +357,37 @@ def check_tokens() -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Scan Kitchen subcategories for private-label opportunities.",
+        description="Scan Amazon subcategories for private-label opportunities.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""
+Known categories (loaded automatically from categories/<name>.py):
+  {_cat.available()}
+
 Examples:
-  python run_discovery.py "kitchen"
-  python run_discovery.py "kitchen" --max-subcategories 6 --max-reviews 300
-  python run_discovery.py "kitchen" --min-bsr 300 --max-bsr 8000
+  python run_discovery.py kitchen
+  python run_discovery.py pet
+  python run_discovery.py beauty
+  python run_discovery.py supplements
+  python run_discovery.py kitchen --max-subcategories 6 --max-reviews 300
+  python run_discovery.py kitchen --min-bsr 300 --max-bsr 8000
   python run_discovery.py --check-tokens
         """,
     )
     parser.add_argument("niche", nargs="?", default="kitchen",
-                        help='Niche name (default: "kitchen")')
-    parser.add_argument("--category-id",       type=int,   default=284507)
-    parser.add_argument("--min-bsr",           type=int,   default=500)
-    parser.add_argument("--max-bsr",           type=int,   default=5000)
-    parser.add_argument("--max-reviews",       type=int,   default=200)
-    parser.add_argument("--min-price",         type=float, default=20.0)
-    parser.add_argument("--min-monthly-sales", type=int,   default=300)
+                        help=f'Category name or custom niche label (default: "kitchen"). '
+                             f'Known: {_cat.available()}')
+    parser.add_argument("--category-id",       type=int,   default=None,
+                        help="Keepa parent category node ID (required for custom niches)")
+    parser.add_argument("--min-bsr",           type=int,   default=None,
+                        help="Override category config min BSR")
+    parser.add_argument("--max-bsr",           type=int,   default=None,
+                        help="Override category config max BSR")
+    parser.add_argument("--max-reviews",       type=int,   default=None,
+                        help="Override category config max reviews")
+    parser.add_argument("--min-price",         type=float, default=None,
+                        help="Override category config min price")
+    parser.add_argument("--min-monthly-sales", type=int,   default=None,
+                        help="Override category config min monthly sales")
     parser.add_argument("--max-subcategories", type=int,   default=5)
     parser.add_argument("--force-refresh",     action="store_true")
     parser.add_argument("--check-tokens",      action="store_true")
@@ -379,14 +398,37 @@ Examples:
         check_tokens()
         sys.exit(0)
 
-    run_discovery(
-        niche=args.niche,
-        parent_cat_id=args.category_id,
-        min_bsr=args.min_bsr,
-        max_bsr=args.max_bsr,
-        max_reviews=args.max_reviews,
-        min_price=args.min_price,
-        min_monthly_sales=args.min_monthly_sales,
-        max_subcategories=args.max_subcategories,
-        force_refresh=args.force_refresh,
-    )
+    if _cat.is_known(args.niche):
+        # ── Known category: load config, allow CLI overrides ──────────────
+        _cfg = _cat.load(args.niche)
+        _cat.activate(_cfg)   # set keepa.discovery.EXCLUDED_BRANDS for this category
+        run_discovery(
+            niche=args.niche,
+            parent_cat_id=_cfg.parent_cat_id,
+            subcategory_ids=_cfg.subcategories,
+            min_bsr=           args.min_bsr           if args.min_bsr           is not None else _cfg.min_bsr,
+            max_bsr=           args.max_bsr           if args.max_bsr           is not None else _cfg.max_bsr,
+            max_reviews=       args.max_reviews       if args.max_reviews       is not None else _cfg.max_reviews,
+            min_price=         args.min_price         if args.min_price         is not None else _cfg.min_price,
+            min_monthly_sales= args.min_monthly_sales if args.min_monthly_sales is not None else _cfg.min_monthly_sales,
+            max_subcategories= args.max_subcategories,
+            force_refresh=     args.force_refresh,
+        )
+    else:
+        # ── Custom/manual mode: --category-id required ────────────────────
+        if not args.category_id:
+            parser.error(
+                f"'{args.niche}' is not a known category.  "
+                f"Provide --category-id, or use one of: {_cat.available()}"
+            )
+        run_discovery(
+            niche=args.niche,
+            parent_cat_id=args.category_id,
+            min_bsr=           args.min_bsr           if args.min_bsr           is not None else 500,
+            max_bsr=           args.max_bsr           if args.max_bsr           is not None else 5000,
+            max_reviews=       args.max_reviews       if args.max_reviews       is not None else 200,
+            min_price=         args.min_price         if args.min_price         is not None else 20.0,
+            min_monthly_sales= args.min_monthly_sales if args.min_monthly_sales is not None else 300,
+            max_subcategories= args.max_subcategories,
+            force_refresh=     args.force_refresh,
+        )
