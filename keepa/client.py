@@ -109,7 +109,6 @@ class KeepaClient:
         stats: int = 90,
         include_history: bool = True,
         include_rating: bool = True,
-        offers: int = 20,
     ) -> Dict[str, Any]:
         """
         Fetch full product data for up to 100 ASINs in one request.
@@ -120,9 +119,11 @@ class KeepaClient:
             stats:           Statistics window in days (30, 90, 180, 365, 730).
             include_history: Include full CSV time-series history.
             include_rating:  Include review count and rating history.
-            offers:          Number of live seller offers to include.
 
         Returns raw Keepa response dict. Normalization happens in normalizer.py.
+
+        Note: live seller offer details (offers=N) are intentionally excluded.
+        offer_count comes from stats.current[11] at no extra token cost.
         """
         if not asins:
             raise ValueError("asins list is empty.")
@@ -138,10 +139,9 @@ class KeepaClient:
             "stats": stats,
             "history": int(include_history),
             "rating": int(include_rating),
-            "offers": offers,
-            "only-live-offers": 1,
-            "update": 0,          # serve from Keepa's cache, no force-refresh
-            "stock": 1,           # include stock availability
+            "offers": 0,
+            "update": 0,   # serve from Keepa's cache, no force-refresh
+            "stock": 1,    # stock availability, included in standard data
         }
         return self._get("product", params)
 
