@@ -52,10 +52,11 @@ def _load(name: str, rel_path: str):
     return mod
 
 
-data_fetcher  = _load("fetcher",       ".claude-plugin/agents/keepa-data-fetcher/fetcher.py")
-bsr_analyzer  = _load("bsr_analyzer",  ".claude-plugin/agents/bsr-trend-analyzer/analyzer.py")
-rv_tracker    = _load("rv_tracker",    ".claude-plugin/agents/review-velocity-tracker/tracker.py")
+data_fetcher   = _load("fetcher",        ".claude-plugin/agents/keepa-data-fetcher/fetcher.py")
+bsr_analyzer   = _load("bsr_analyzer",   ".claude-plugin/agents/bsr-trend-analyzer/analyzer.py")
+rv_tracker     = _load("rv_tracker",     ".claude-plugin/agents/review-velocity-tracker/tracker.py")
 price_analyzer = _load("price_analyzer", ".claude-plugin/agents/price-history-analyzer/analyzer.py")
+product_scorer = _load("product_scorer", ".claude-plugin/agents/product-scorer/scorer.py")
 
 
 OUTPUT_FILE = Path("keepa-report.json")
@@ -121,13 +122,25 @@ def run_phase1(
     # ── Step 4: Price history ────────────────────────────────────
     price_result = price_analyzer.run(products)
 
-    # ── Step 5: Build and write report ───────────────────────────
+    # ── Step 5: Score products ───────────────────────────────────
+    score_results = product_scorer.run(products, bsr_results, review_result, price_result)
+
+    # Inject opportunity score into each product dict for easy access
+    scores_by_asin = {s.asin: s for s in score_results}
+    for p in products:
+        s = scores_by_asin.get(p.get("asin"))
+        if s:
+            p["opportunity_score"] = s.total_score
+            p["grade"] = s.grade
+            p["verdict"] = s.verdict
+
+    # ── Step 6: Build and write report ───────────────────────────
     elapsed = (datetime.now(tz=timezone.utc) - start).total_seconds()
 
     report = {
         "generated_at": start.isoformat(),
         "elapsed_seconds": round(elapsed, 1),
-        "phase": "1 — Fetch and Normalize",
+        "phase": "1+2 — Fetch, Normalize, Score",
         "niche": niche,
         "marketplace": "US",
         "category_id": metadata.get("category_id"),
@@ -140,13 +153,20 @@ def run_phase1(
         # Counts
         "asins_fetched": len(fetch_result.get("raw_asin_list", [])),
         "products_normalized": len(products),
+        "products_scored": len(score_results),
+
+        # Scoring summary (top-level overview)
+        "scoring_summary": _scoring_summary(score_results),
 
         # Analysis outputs
         "bsr_summary": _bsr_summary(bsr_results),
         "review_analysis": review_result,
         "price_analysis": price_result,
 
-        # Full product list (normalized — for Phase 2 scoring engine)
+        # Per-product scores (full factor breakdown)
+        "product_scores": score_results,
+
+        # Full product list (with opportunity_score, grade, verdict injected)
         "products": products,
 
         # Per-product BSR analyses
@@ -156,15 +176,52 @@ def run_phase1(
     _write_report(report)
 
     # ── Console summary ──────────────────────────────────────────
+    sm = report["scoring_summary"]
     print(f"\n{'='*60}")
-    print(f"  PHASE 1 COMPLETE")
+    print(f"  PHASE 1+2 COMPLETE")
     print(f"  Products fetched:    {len(products)}")
+    print(f"  Products scored:     {len(score_results)}")
+    print(f"  Grade A (Excellent): {sm.get('grade_A', 0)}")
+    print(f"  Grade B (Good):      {sm.get('grade_B', 0)}")
+    print(f"  Grade C (Average):   {sm.get('grade_C', 0)}")
+    print(f"  Grade D/F (Poor):    {sm.get('grade_D', 0) + sm.get('grade_F', 0)}")
+    if sm.get("top_opportunity"):
+        t = sm["top_opportunity"]
+        print(f"  Top opportunity:     {t['asin']} — {t['score']}/100 ({t['grade']})")
     print(f"  Tokens used:         ~{metadata.get('tokens_used_estimate', 0)}")
     print(f"  Elapsed:             {elapsed:.1f}s")
     print(f"  Output:              {OUTPUT_FILE}")
     print(f"{'='*60}\n")
 
     return report
+
+
+def _scoring_summary(score_results: List[Any]) -> Dict[str, Any]:
+    """Top-level scoring overview for the report header."""
+    if not score_results:
+        return {}
+    grade_counts = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
+    for s in score_results:
+        grade_counts[s.grade] = grade_counts.get(s.grade, 0) + 1
+    top = score_results[0] if score_results else None
+    return {
+        "total_scored": len(score_results),
+        "grade_A": grade_counts["A"],
+        "grade_B": grade_counts["B"],
+        "grade_C": grade_counts["C"],
+        "grade_D": grade_counts["D"],
+        "grade_F": grade_counts["F"],
+        "avg_score": round(sum(s.total_score for s in score_results) / len(score_results), 1),
+        "top_opportunity": {
+            "asin": top.asin,
+            "title": top.title,
+            "score": top.total_score,
+            "grade": top.grade,
+            "verdict": top.verdict,
+            "est_monthly_sales": top.estimated_monthly_sales,
+            "est_monthly_revenue": top.estimated_monthly_revenue,
+        } if top else None,
+    }
 
 
 def _bsr_summary(bsr_results: List[Any]) -> Dict[str, Any]:

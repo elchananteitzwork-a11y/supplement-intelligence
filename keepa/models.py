@@ -187,6 +187,30 @@ class PriceAnalysis:
 
 
 # ------------------------------------------------------------------
+# Scoring output (product-scorer — Phase 2)
+# ------------------------------------------------------------------
+
+@dataclass
+class FactorScore:
+    name: str
+    weight: int       # maximum points possible
+    score: float      # points awarded (0 to weight)
+    rationale: str    # one-line explanation
+
+
+@dataclass
+class ProductScore:
+    asin: str
+    title: str
+    total_score: float          # 0–100
+    grade: str                  # A / B / C / D / F
+    verdict: str                # Excellent / Good / Average / Below Average / Poor
+    factors: List[FactorScore]
+    estimated_monthly_sales: Optional[int]
+    estimated_monthly_revenue: Optional[float]
+
+
+# ------------------------------------------------------------------
 # Top-level Keepa report (written to keepa-report.json)
 # ------------------------------------------------------------------
 
@@ -213,3 +237,6 @@ class KeepaReport:
 
     # Raw normalized products (for downstream use by scoring engine)
     products: List[NormalizedProduct]
+
+    # Scoring (Phase 2)
+    product_scores: List[ProductScore] = field(default_factory=list)

@@ -18,12 +18,13 @@ from keepa.models import (
     PriceAnalysis,
     KeepaReport,
 )
-from keepa import bsr, reviews, prices, sales_estimate
+from keepa import bsr, reviews, prices, sales_estimate, scoring
+from keepa.models import FactorScore, ProductScore
 
 __all__ = [
     "KeepaClient", "KeepaAPIError", "KeepaRateLimitError",
     "normalize_product", "KeepaCache",
     "NormalizedProduct", "BSRAnalysis", "ReviewVelocityAnalysis",
-    "PriceAnalysis", "KeepaReport",
-    "bsr", "reviews", "prices", "sales_estimate",
+    "PriceAnalysis", "KeepaReport", "FactorScore", "ProductScore",
+    "bsr", "reviews", "prices", "sales_estimate", "scoring",
 ]
