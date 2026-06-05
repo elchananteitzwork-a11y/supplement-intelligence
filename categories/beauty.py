@@ -41,9 +41,12 @@ CONFIG = CategoryConfig(
         # Amazon private label
         "amazon", "solimo", "basics",
     },
-    min_bsr=1000,
-    max_bsr=12000,
+    expansion_potential=80,
+    repeat_purchase_potential=75,
+    subscription_eligible=True,
+    min_bsr=500,
+    max_bsr=50_000,
     min_price=15.0,
-    min_monthly_sales=200,
-    max_reviews=200,
+    min_monthly_sales=150,
+    # max_reviews intentionally omitted — review count is no longer a gate
 )

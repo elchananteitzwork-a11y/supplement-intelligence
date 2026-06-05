@@ -24,7 +24,7 @@ Usage
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Set
+from typing import Dict, Optional, Set
 import importlib
 
 
@@ -35,20 +35,40 @@ class CategoryConfig:
     parent_cat_id:      int
     subcategories:      Dict[str, int]   # {label: keepa_node_id}
     excluded_brands:    Set[str]         # lowercase substrings; case-insensitive match
-    min_bsr:            int   = 500
-    max_bsr:            int   = 5000
-    min_price:          float = 20.0
-    min_monthly_sales:  int   = 300
-    max_reviews:        int   = 200
+    min_bsr:            int            = 500
+    max_bsr:            int            = 50_000
+    min_price:          float          = 20.0
+    min_monthly_sales:  int            = 150
+    max_reviews:        Optional[int]  = None   # None = no review-count gate
+    expansion_potential:       int  = 50    # 0–100 brand-building upside for V3/V4
+    repeat_purchase_potential: int  = 50    # 0–100 consumable/reorder likelihood for V5
+    subscription_eligible:     bool = False # True if monthly subscription model viable
 
 
 # ── Registry ────────────────────────────────────────────────────────────────
 
 _REGISTRY: Dict[str, str] = {
-    "kitchen":     "categories.kitchen",
-    "pet":         "categories.pet",
-    "beauty":      "categories.beauty",
-    "supplements": "categories.supplements",
+    "kitchen":       "categories.kitchen",
+    "pet":           "categories.pet",
+    "beauty":        "categories.beauty",
+    "supplements":   "categories.supplements",
+    # Brand-first supplement categories (no review-count gate)
+    "gut_health":    "categories.gut_health",
+    "sleep":         "categories.sleep",
+    "collagen":      "categories.collagen",
+    "protein":       "categories.protein",
+    "womens_health": "categories.womens_health",
+    # Cross-category validation set
+    "candles":           "categories.candles",
+    "yoga_mats":         "categories.yoga_mats",
+    "resistance_bands":  "categories.resistance_bands",
+    "teeth_whitening":   "categories.teeth_whitening",
+    "dog_treats":        "categories.dog_treats",
+    "ice_cube_molds":    "categories.ice_cube_molds",
+    "reusable_straws":   "categories.reusable_straws",
+    "cooking_utensils":  "categories.cooking_utensils",
+    "dog_kennels":       "categories.dog_kennels",
+    "potholders":        "categories.potholders",
 }
 
 

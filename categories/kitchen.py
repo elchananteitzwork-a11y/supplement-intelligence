@@ -37,9 +37,12 @@ CONFIG = CategoryConfig(
         "viking", "all-clad", "le creuset", "calphalon",
         "ninja foodi",
     },
+    expansion_potential=60,
+    repeat_purchase_potential=20,
+    subscription_eligible=False,
     min_bsr=500,
-    max_bsr=5000,
+    max_bsr=25_000,
     min_price=20.0,
-    min_monthly_sales=300,
-    max_reviews=200,
+    min_monthly_sales=200,
+    # max_reviews intentionally omitted — review count is no longer a gate
 )

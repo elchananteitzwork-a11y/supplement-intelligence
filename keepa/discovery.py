@@ -60,14 +60,18 @@ def is_excluded(product: Dict[str, Any]) -> bool:
 
 def meets_initial_criteria(
     product: Dict[str, Any],
-    min_bsr:     int   = 500,
-    max_bsr:     int   = 5000,
-    max_reviews: int   = 200,
-    min_price:   float = 20.0,
+    min_bsr:     int            = 500,
+    max_bsr:     int            = 50_000,
+    max_reviews: Optional[int] = None,
+    min_price:   float          = 20.0,
 ) -> bool:
     """
     Quick pre-analysis filter — rejects obvious non-starters without running
     the full analysis pipeline.
+
+    max_reviews: if None (default), review count is NOT used as a filter.
+    Review-based competition is now measured via R2R / S2R efficiency metrics
+    in the scoring layer, not as a binary pass/fail gate here.
     """
     cur = product.get("current", {})
     bsr    = cur.get("bsr")
@@ -78,7 +82,7 @@ def meets_initial_criteria(
         return False
     if not (min_bsr <= bsr <= max_bsr):
         return False
-    if rc is not None and rc >= max_reviews:
+    if max_reviews is not None and rc is not None and rc >= max_reviews:
         return False
     if price is not None and price < min_price:
         return False

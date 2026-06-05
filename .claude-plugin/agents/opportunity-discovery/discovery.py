@@ -172,7 +172,7 @@ def run(
 
         if bsr is None or not (min_bsr <= bsr <= max_bsr):
             rejected_bsr += 1; continue
-        if rc is not None and rc >= max_reviews:
+        if max_reviews is not None and rc is not None and rc >= max_reviews:
             rejected_reviews += 1; continue
         if price is not None and price < min_price:
             rejected_price += 1; continue
