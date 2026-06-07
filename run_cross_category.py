@@ -1,15 +1,17 @@
 """
 run_cross_category.py — Engine consistency validation across 10 diverse categories.
 
-Categories: candles, yoga_mats, resistance_bands, teeth_whitening, dog_treats,
-            ice_cube_molds, reusable_straws, cooking_utensils, dog_kennels, potholders
-
-Low-token settings: 1 subcategory × 15 ASINs per category ≈ 1,000 tokens total.
+V2: Now uses automatic node validation before every scan.
+    - Checks verified_node_library.json first (free)
+    - Discovers and validates new nodes if library has no entry
+    - Prints validation header before product scoring
+    - Skips scoring if validation fails (< 80% category match)
 
 Usage:
   python run_cross_category.py
   python run_cross_category.py --check-tokens
   python run_cross_category.py --category candles yoga_mats
+  python run_cross_category.py --force-revalidate   # bypass library cache
 """
 
 import argparse, importlib.util, os, sys, time
@@ -28,6 +30,7 @@ if _env.exists():
 sys.path.insert(0, str(Path(__file__).parent))
 
 import categories as _cat
+from keepa.node_validator import NodeValidator, CANDIDATE_NODES
 from keepa.client import KeepaClient, KeepaAPIError
 from keepa.discovery import apply_post_analysis_filter
 from keepa.sales_estimate import calibrated_monthly_sales
@@ -43,9 +46,10 @@ CROSS_CATEGORIES = [
     "dog_kennels", "potholders",
 ]
 
-MAX_SUBCATEGORIES = 1
-MAX_ASINS_PER_SUB = 15
-TOP_N = 5
+MAX_SUBCATEGORIES    = 1
+MAX_ASINS_PER_SUB    = 15
+TOP_N                = 5
+LIBRARY_PATH         = "verified_node_library.json"
 
 
 def _load(name, rel):
@@ -107,12 +111,41 @@ def _integrity_score(s: V5OpportunityScore) -> str:
     return f"{ri:.0f}/100 — {w} wipes (⚠ reject)"
 
 
-def _scan(cat_name: str, cfg, trend_sources) -> Tuple[List[V5OpportunityScore], dict]:
+def _scan(
+    cat_name: str,
+    cfg,
+    trend_sources,
+    validator: NodeValidator,
+    force_revalidate: bool = False,
+) -> Tuple[List[V5OpportunityScore], dict]:
+
+    # ── Step 1: Node validation ───────────────────────────────────────────────
     print(f"\n{'─'*60}")
-    print(f"  {cfg.display_name.upper()}")
-    print(f"  BSR {cfg.min_bsr:,}–{cfg.max_bsr:,} | min_sales {cfg.min_monthly_sales}/mo")
+    print(f"  VALIDATING: {cfg.display_name.upper()}")
     print(f"{'─'*60}")
 
+    validation = validator.get_or_validate(cat_name, force=force_revalidate)
+
+    if validation is None:
+        print(f"  ❌ VALIDATION FAILED — no valid node found for {cat_name!r}")
+        print(f"     All {len(CANDIDATE_NODES.get(cat_name, []))} candidates rejected.")
+        print(f"     Skipping product scoring.")
+        return [], {}
+
+    validator.print_header(validation, cfg.display_name)
+
+    if not validation.passed:
+        print(f"  Skipping product scoring — validation score {validation.validation_score:.0%} < 80%")
+        return [], {}
+
+    # ── Step 2: Update config subcategories with the validated node ───────────
+    validated_node_id = validation.node_id
+    cfg.subcategories = {cfg.display_name: validated_node_id}
+
+    print(f"\n  Scanning with validated node {validated_node_id}")
+    print(f"  BSR {cfg.min_bsr:,}–{cfg.max_bsr:,} | min_sales {cfg.min_monthly_sales}/mo")
+
+    # ── Step 3: Run discovery ─────────────────────────────────────────────────
     _cat.activate(cfg)
     disc = discovery_agent.run(
         niche=cat_name,
@@ -122,13 +155,13 @@ def _scan(cat_name: str, cfg, trend_sources) -> Tuple[List[V5OpportunityScore], 
         max_reviews=cfg.max_reviews, min_price=cfg.min_price,
         max_subcategories=MAX_SUBCATEGORIES,
         max_asins_per_sub=MAX_ASINS_PER_SUB,
-        exclude_asins=set(), force_refresh=False,
+        exclude_asins=set(), force_refresh=True,  # force: node may have changed
     )
     products = disc.get("normalized_products", [])
     pmap     = {p.get("asin"): p for p in disc.get("all_normalized", [])}
 
     if not products:
-        print("  No products found.")
+        print("  No products passed initial criteria.")
         return [], pmap
 
     bsr_results = bsr_analyzer.run(products)
@@ -186,25 +219,49 @@ def _print(cat_name: str, cfg, scores: List[V5OpportunityScore], pmap: dict) -> 
             print(f"       Action:                 {s.narrative.recommended_action[:80]}")
 
 
-def run(cats: Optional[List[str]] = None) -> None:
+def run(cats: Optional[List[str]] = None, force_revalidate: bool = False) -> None:
     cats = cats or CROSS_CATEGORIES
     trend_sources = [GoogleTrendsLive(), TikTokStub(), RedditStub()]
 
+    api_key = os.environ.get("KEEPA_API_KEY", "")
+    validator = NodeValidator(api_key=api_key, library_path=LIBRARY_PATH)
+
     print(f"\n{'#'*65}")
-    print(f"  CROSS-CATEGORY ENGINE CONSISTENCY TEST")
+    print(f"  CROSS-CATEGORY ENGINE CONSISTENCY TEST — V2 (with node validation)")
     print(f"  Categories: {', '.join(cats)}")
-    print(f"  Token budget: ~{len(cats) * MAX_SUBCATEGORIES * MAX_ASINS_PER_SUB * 10} tokens est.")
+    print(f"  Node validation: ON (threshold 80%)")
+    print(f"  Library: {LIBRARY_PATH}")
     print(f"  {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"{'#'*65}")
+    print(validator.library.summary())
 
-    all_results: Dict[str, Tuple] = {}
+    all_results:   Dict[str, Tuple]          = {}
+    validation_log: Dict[str, Optional[object]] = {}
+
     for name in cats:
         if not _cat.is_known(name):
             print(f"\n  SKIP: {name!r} not registered"); continue
         cfg = _cat.load(name)
-        scores, pmap = _scan(name, cfg, trend_sources)
-        all_results[name] = (scores, pmap)
+        scores, pmap = _scan(name, cfg, trend_sources, validator,
+                             force_revalidate=force_revalidate)
+        all_results[name]    = (scores, pmap)
+        validation_log[name] = validator.library.get(name)
         time.sleep(1)
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    print(f"\n\n{'#'*65}")
+    print(f"  VALIDATION SUMMARY")
+    print(f"{'#'*65}")
+    passed  = sum(1 for v in validation_log.values() if v and v.passed)
+    failed  = len(cats) - passed
+    print(f"  Passed: {passed}/{len(cats)} categories ({passed/len(cats):.0%} accuracy)")
+    print(f"  Failed: {failed}")
+    for name in cats:
+        v = validation_log.get(name)
+        if v and v.passed:
+            print(f"    ✅ {name:22} node={v.node_id:12} score={v.validation_score:.0%}")
+        else:
+            print(f"    ❌ {name:22} no valid node found")
 
     print(f"\n\n{'#'*65}")
     print(f"  RESULTS")
@@ -220,8 +277,10 @@ def run(cats: Optional[List[str]] = None) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--category", "-c", nargs="+", choices=CROSS_CATEGORIES, default=None)
-    parser.add_argument("--check-tokens", action="store_true")
+    parser.add_argument("--category",        "-c", nargs="+", choices=CROSS_CATEGORIES, default=None)
+    parser.add_argument("--check-tokens",         action="store_true")
+    parser.add_argument("--force-revalidate",     action="store_true",
+                        help="Ignore library cache and re-validate every node")
     args = parser.parse_args()
 
     if args.check_tokens:
@@ -230,4 +289,4 @@ if __name__ == "__main__":
         print(f"\n  Tokens: {s['tokens_left']}  | Refill: {s['refill_rate_per_minute']}/min\n")
         sys.exit(0)
 
-    run(args.category)
+    run(args.category, force_revalidate=args.force_revalidate)

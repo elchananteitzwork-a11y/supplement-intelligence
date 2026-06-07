@@ -12,7 +12,7 @@ CONFIG = CategoryConfig(
     name="resistance_bands",
     display_name="Resistance Bands",
     parent_cat_id=3375251,
-    subcategories={"Resistance Bands": 3413771},
+    subcategories={"Resistance Bands": 23533915011},  # confirmed by node_validator 2026-06-07
     excluded_brands={
         "theraband", "bodylastics", "amazon", "basics",
     },

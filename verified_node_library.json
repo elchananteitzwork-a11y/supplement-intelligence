@@ -1,0 +1,107 @@
+{
+  "version": "1.0",
+  "nodes": {
+    "ice_cube_molds": {
+      "category": "ice_cube_molds",
+      "node_id": 2469549011,
+      "validation_score": 1.0,
+      "matched": 20,
+      "total": 20,
+      "sample_products": [
+        "Ice Cube Trays Set of 2, Easy Release Silicone Ice Cube Tray",
+        "DOQAUS Ice Cube Tray with Lids, Stackable Silicone Ice Cube Trays",
+        "3 Pack Ice Cube Trays with Lid for Freezer, Flexible Silicone",
+        "Large Silicone Ice Cube Tray for Freezer with Lid",
+        "Optish 3 Pack Ice Trays for Freezer, 99 PCS Ice Cube Tray"
+      ],
+      "validated_at": "2026-06-05",
+      "passed": true,
+      "confidence": "HIGH"
+    },
+    "reusable_straws": {
+      "category": "reusable_straws",
+      "node_id": 21331300011,
+      "validation_score": 1.0,
+      "matched": 20,
+      "total": 20,
+      "sample_products": [
+        "XZESH Metal Straw Replacement for Owala Water Bottle 24 oz 32 oz",
+        "Piteno 16-Pack Reusable Glass Straws, Clear Glass Drinking Straws",
+        "HIWARE Reusable Jumbo Wide Boba Straws & Smoothie Straws",
+        "Kynup Reusable Metal Straws, Collapsible Travel Drinking Straws",
+        "YOTIME Silicone Straw Cleaner Brush, Reusable Straw Brush Set"
+      ],
+      "validated_at": "2026-06-05",
+      "passed": true,
+      "confidence": "HIGH"
+    },
+    "cooking_utensils": {
+      "category": "cooking_utensils",
+      "node_id": 16439841,
+      "validation_score": 1.0,
+      "matched": 20,
+      "total": 20,
+      "sample_products": [
+        "4 Pcs Silicone Jar Spatula Set - Long Handle Sourdough Scraper",
+        "Riveira Bamboo Wooden Spoons for Cooking 9-Piece with Holder",
+        "15PCS Mini Tongs for Serving, Metal Tong Stainless Steel Gold",
+        "NileHome Silicone Spatula Set, 6 Packs Food Grade Kitchen Utensils",
+        "JETKONG 2 Pcs 12-Inch Kitchen Tweezers Fine Tweezer Tongs"
+      ],
+      "validated_at": "2026-06-05",
+      "passed": true,
+      "confidence": "HIGH"
+    },
+    "potholders": {
+      "category": "potholders",
+      "node_id": 3742011,
+      "validation_score": 1.0,
+      "matched": 20,
+      "total": 20,
+      "sample_products": [
+        "Oven Mitts and Pan Racks 4-Piece Set, Extended Kitchen Oven Mitts",
+        "KEGOUU Oven Mitts and Pot Holders 6pcs Set, Kitchen Oven Gloves",
+        "sungwoo Extra Long Silicone Oven Mitts, Heat Resistant Oven Gloves",
+        "RITZ Terry Potholder & Hot Pad: Unparalleled Heat Resistant",
+        "BPA-Free Soft Silicone 4 Piece Oven Mitts & Trivets Set"
+      ],
+      "validated_at": "2026-06-05",
+      "passed": true,
+      "confidence": "HIGH"
+    },
+    "candles": {
+      "category": "candles",
+      "node_id": 3734291,
+      "validation_score": 1.0,
+      "matched": 20,
+      "total": 20,
+      "sample_products": [
+        "khtumeware Chic Clear Bubble Glass Candle Dish \u2013 Modern Clear Glass Candle Holder for Tealights & Diffusers, Decorative Tray for Home & Tabletop Decor\uff082 Pack\uff09",
+        "DARJEN Blue Glass Votive Candle Holders Set of 24 - Round Tea Lights for Wedding, Shower, Party & Gift",
+        "12 Pcs Clear Votive Candle Holders for Table Centerpieces, Glass Candle Holders Bulk for Wedding, Bridal Shower, Birthday, Home, Baby Shower Birthday, Party Decoration\uff08Clear,12\uff09",
+        "LETINE Silver Votive Candle Holders Set of 36 - Speckled Mercury Silver Glass Candle Holder Bulk - Ideal for Valentine's Day Decorations Indoor\uff0cSpring&Summer Wedding Centerpieces\uff0cHome Decor",
+        "NITIME 12Pcs Assorted Blue Votive Candle Holders, Tea Lights Candle Holder for Wedding Decor, Blue Candle Holders for Table Centerpiece, Bridal Shower, Baby Shower Decorations"
+      ],
+      "validated_at": "2026-06-05",
+      "passed": true,
+      "confidence": "HIGH"
+    },
+    "resistance_bands": {
+      "category": "resistance_bands",
+      "node_id": 23533915011,
+      "validation_score": 0.95,
+      "matched": 19,
+      "total": 20,
+      "sample_products": [
+        "Fit Simplify Resistance Loop Exercise Bands with Instruction Guide and Carry Bag, Set of 5",
+        "Resistance Bands for Working Out, 5-Pack Elastic Exercise Bands for Strength Training, Stretching, Workout; Home Gym Equipment for Women Men, Pilates Yoga Physical Therapy, Leg Glute Arm Exercise Kit",
+        "Lianjindun 5 Pcs Professional Resistance Bands. Latex-Free, Pilates Band, Work Out Bands, Stretch Bands for Working Out Women or Men, Exercise Bands Set for Pilates, Physical Therapy, Yoga",
+        "Pull Up Assistance Bands, 5-Level Resistance Bands for Working Out, Pull Up Bands for Men & Women, Exercise Bands for Full-Body Training, Fitness, Physical Therapy, Stretch Workout Bands at Home, Gym",
+        "A AZURELIFE Resistance Bands,Professional Long Non-Latex Elastic Stretch Bands,Exercise Bands for Physical Therapy, Yoga, Pilates, Rehab, at-Home or The Gym Workouts, Strength Training"
+      ],
+      "validated_at": "2026-06-07",
+      "passed": true,
+      "confidence": "HIGH"
+    }
+  }
+}

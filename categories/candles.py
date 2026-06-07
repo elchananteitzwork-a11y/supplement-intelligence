@@ -12,7 +12,7 @@ CONFIG = CategoryConfig(
     name="candles",
     display_name="Scented Candles",
     parent_cat_id=1055398,
-    subcategories={"Candles": 3734271},
+    subcategories={"Candles": 3734291},
     excluded_brands={
         "yankee candle", "bath & body works", "woodwick",
         "voluspa", "chesapeake bay", "glade", "febreze",

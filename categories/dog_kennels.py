@@ -12,7 +12,7 @@ CONFIG = CategoryConfig(
     name="dog_kennels",
     display_name="Dog Kennels & Crates",
     parent_cat_id=2619533,
-    subcategories={"Dog Kennels & Crates": 2975314011},
+    subcategories={"Dog Kennels & Crates": 0},  # placeholder; node_validator discovers the correct ID
     excluded_brands={
         "midwest homes", "petmate", "diggs", "gunner",
         "precision pet", "frisco", "amazon", "basics",
