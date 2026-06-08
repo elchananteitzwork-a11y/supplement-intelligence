@@ -155,7 +155,7 @@ def _scan(
         max_reviews=cfg.max_reviews, min_price=cfg.min_price,
         max_subcategories=MAX_SUBCATEGORIES,
         max_asins_per_sub=MAX_ASINS_PER_SUB,
-        exclude_asins=set(), force_refresh=True,  # force: node may have changed
+        exclude_asins=set(), force_refresh=False,  # nodes confirmed; use cache when available
     )
     products = disc.get("normalized_products", [])
     pmap     = {p.get("asin"): p for p in disc.get("all_normalized", [])}

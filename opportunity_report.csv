@@ -1,0 +1,51 @@
+rank,category,asin,brand,product_name,opportunity_score,recommendation,monthly_revenue,monthly_units,competition,review_count,trend_score,trend_direction,subscription_signal,integrity_score,integrity_label,price
+1,teeth_whitening,B0FVRQ2QTL,Orrhomi,"Teeth Whitening Strips 7 Treatments, Enamel Safe for Sensitive Tooth, Whitens Te",71,STRONG OPPORTUNITY,"1,558",195,MEDIUM,515,54,Stable,YES (RPP 69),100,CLEAN (100),0.00
+2,teeth_whitening,B082TPDTM2,Lumineux,Lumineux Teeth Whitening Strips - 21 Treatments (3 Months) - Peroxide Free - Ena,65,REJECT,"118,864","2,642",VERY HIGH,"62,574",64,Stable,YES (RPP 69),10,SUSPICIOUS (10),0.00
+3,teeth_whitening,B0F4CQD54V,Pdoo,"Teeth Whitening Strip 22 Treatments - Whitening Strips for Sensitive People, Fas",60,REJECT,"4,923",197,VERY HIGH,"4,964",42,Declining,YES (RPP 69),10,SUSPICIOUS (10),0.00
+4,teeth_whitening,B0CXYSDC2H,InoPro,"InoPro Teeth Whitening Strips 7 Treatments Kit - Sensitive Teeth Whitener, Perox",60,REJECT,"21,998","1,048",VERY HIGH,"7,309",26,Declining,YES (RPP 69),20,SUSPICIOUS (20),0.00
+5,teeth_whitening,B07QC8LFQP,Zimba,Zimba Teeth Whitening Strips Vegan Whitening Strip Enamel Safe Teeth Whitening H,60,REJECT,"8,173",442,VERY HIGH,"15,891",37,Declining,YES (RPP 69),10,SUSPICIOUS (10),0.00
+6,resistance_bands,B0BTWBXN3G,WIKDAY,WIKDAY Resistance Bands for Working Out Exercise Loop Bands Workout Bands Set fo,56,WORTH RESEARCH,"20,150","4,038",VERY HIGH,"3,898",50,Stable,NO,100,CLEAN (100),0.00
+7,ice_cube_molds,B091MFVW9Y,Tvmania,"Ice Cube Trays Set of 2, Easy Release 15 Flexible Silicone Ice Cube Molds with R",54,REJECT,"22,230","1,483",VERY HIGH,"5,334",75,Rising,NO,10,SUSPICIOUS (10),0.00
+8,teeth_whitening,B0FWC65QCN,SAKYPRORAL,"SAKYPRORAL Purple Whitening Strips, 90-Day Long-Lasting Results, Enamel Safe & L",53,REJECT,"7,078",236,MEDIUM,479,0,Declining,YES (RPP 69),10,SUSPICIOUS (10),0.00
+9,reusable_straws,B0DCC4RWT3,XZESH,"XZESH Metal Straw Replacement for Owala Water Bottle 24 oz 32 oz Accessories, Wi",53,WORTH RESEARCH,"5,475",914,HIGH,993,50,Stable,NO,100,CLEAN (100),0.00
+10,ice_cube_molds,B0D6QVBSZP,DclobTop,"3 Pack Ice Cube Trays with Lid for Freezer, Flexible Silicone Bottom for Easy Re",53,REJECT,"9,782","1,633",VERY HIGH,"4,063",75,Rising,NO,10,SUSPICIOUS (10),0.00
+11,yoga_mats,B0D5CNRLVN,MIAOMIAO,"MIAOMIAO Non-Slip Hot Yoga Towel Set,Super Absorbent Microfiber in, 24.5"" x 72"" ",52,WORTH RESEARCH,"11,079",341,VERY LOW,4,50,Stable,NO,100,CLEAN (100),0.00
+12,ice_cube_molds,B0GJSRZ6M6,DOQAUS,DOQAUS Ice Cube Tray with Lids - 2 Pack Stackable Silicone Ice Trays for Freezer,52,WORTH RESEARCH,"8,536","1,425",VERY HIGH,"46,423",50,Stable,NO,100,CLEAN (100),0.00
+13,cooking_utensils,B0DXB36698,GZLT,"4 Pcs Silicone Jar Spatula Set - Long Handle Sourdough Scraper, Skinny Spatula f",51,WORTH RESEARCH,"7,410","1,180",MEDIUM,611,50,Stable,NO,100,CLEAN (100),0.00
+14,yoga_mats,B092XNCFF7,Retrospec,"Retrospec Solana Yoga Mat 1"" Thick w/Nylon Strap for Men & Women - Non Slip Exer",51,REJECT,"236,661","5,918",VERY HIGH,"14,420",3,Declining,NO,10,SUSPICIOUS (10),39.99
+15,reusable_straws,B0D2XN54BB,Piteno,"Piteno® 16-Pack Reusable Glass Straws, Clear Glass Drinking Straws, 10''x10MM, S",51,WORTH RESEARCH,"14,816","1,648",VERY HIGH,"4,065",50,Stable,NO,100,CLEAN (100),0.00
+16,yoga_mats,B091FWPJCL,Retrospec,"Retrospec Solana Yoga Mat 1/2"" Thick w/Nylon Strap for Men & Women - Non Slip Ex",51,REJECT,"89,914","3,598",VERY HIGH,"8,794",3,Declining,NO,10,SUSPICIOUS (10),24.99
+17,reusable_straws,B07RY765XD,HIWARE,"[Angled Tips] 8 Pcs Reusable Jumbo Wide Boba Straws & Smoothie Straws, Multi Col",50,WORTH RESEARCH,"5,145",859,VERY HIGH,"26,080",50,Stable,NO,100,CLEAN (100),0.00
+18,resistance_bands,B0CMHL2S9Z,Vergali,Resistance Bands for Working Out with Workout Bands Guide. 4 Booty Bands for Wom,49,WORTH RESEARCH,"97,548","4,436",VERY HIGH,"21,650",9,Declining,NO,100,CLEAN (100),0.00
+19,reusable_straws,B07ZBZ6CCC,Kynup,"Kynup Reusable Metal Straws (4Packs), Collapsible Travel Drinking Straws with Ca",48,WORTH RESEARCH,"19,341","2,038",VERY HIGH,"12,474",50,Stable,NO,75,CAUTION (75),0.00
+20,potholders,B0CYWY41B5,XUKOKELY,"Oven Mitts and Pan Racks 4-Piece Set, Extended Kitchen Oven Mitts and Pan Racks,",48,WORTH RESEARCH,"7,327",815,HIGH,"1,323",50,Stable,NO,100,CLEAN (100),0.00
+21,cooking_utensils,B0D96T9D69,Riveira,"Riveira Bamboo Wooden Spoons for Cooking 9-Piece with Holder, Apartment Essentia",48,WORTH RESEARCH,"56,042","3,320",VERY HIGH,"14,521",50,Stable,NO,100,CLEAN (100),0.00
+22,cooking_utensils,B0C3T91CR7,Sunenlyst,"15PCS Mini Tongs for Serving, Metal Tong Stainless Steel Gold Tongs, 4.25Inch Sm",48,WORTH RESEARCH,"5,132",428,VERY HIGH,"3,134",50,Stable,NO,100,CLEAN (100),0.00
+23,ice_cube_molds,B0DDBBFZ8L,KitchFort,Large Silicone Ice cube Tray,44,REJECT,,"1,113",LOW,78,50,Stable,NO,100,CLEAN (100),0.00
+24,yoga_mats,B0F7R8SDC6,Fitvids,"Fitvids 1/2-Inch Thick High Density Foam Exercise Yoga Mat with Carrying Strap, ",44,REJECT,"27,026","1,352",VERY HIGH,"93,553",0,Declining,NO,100,CLEAN (100),0.00
+25,reusable_straws,B086H3D4DC,Ecoangel,"Ecoangel Cruise Ship Essentials,4-Pack reusable Collapsible Stainless Steel Drin",44,REJECT,"11,295","1,272",VERY HIGH,"6,444",50,Stable,NO,30,CAUTION (30),0.00
+26,resistance_bands,B07Y2XXFF2,A AZURELIFE,"A AZURELIFE Resistance Bands,Professional Long Non-Latex Elastic Stretch Bands,E",43,REJECT,"47,572","4,762",VERY HIGH,"15,426",0,Declining,NO,100,CLEAN (100),0.00
+27,reusable_straws,B0B1H893CF,Softy Straws,Premium Reusable Silicone Drinking Straws + Patented Straw Squeegee - 9” Long Wi,43,REJECT,"11,496","1,046",MEDIUM,363,50,Stable,NO,30,CAUTION (30),0.00
+28,ice_cube_molds,B0C1FMW2L1,Optish,"Optish 3 Pack Ice Trays for Freezer, 99 PCS Ice Cube Tray with Lid and Bin, Roun",42,REJECT,"22,951","2,553",VERY HIGH,"5,287",50,Stable,NO,75,CAUTION (75),0.00
+29,cooking_utensils,B0CPLPQSWG,NileHome,"NileHome Silicone Spatula Set, 6 Packs Food Grade Kitchen Utensils with Silicone",42,REJECT,"9,325","1,336",VERY HIGH,"4,716",50,Stable,NO,10,SUSPICIOUS (10),0.00
+30,cooking_utensils,B095C7V7TB,JETKONG,"JETKONG 2 Pcs 12-Inch Kitchen Tweezers Fine Tweezer Tongs, Extra-Long Stainless ",42,REJECT,"20,180","2,022",VERY HIGH,"5,078",50,Stable,NO,30,CAUTION (30),0.00
+31,reusable_straws,B0DLJT4DXD,YOTIME,"YOTIME Silicone Straw Cleaner Brush, 2Pcs Reusable Straw Brush Extra Long for Cl",42,REJECT,"14,847","2,124",HIGH,"1,667",50,Stable,NO,10,SUSPICIOUS (10),0.00
+32,reusable_straws,B07SPLCP8P,ALINK,"ALINK 50-Pack Tropical Fruit Plastic Drinking Straws, Hawaiian Beach Cocktail Lu",42,REJECT,"3,998",572,VERY HIGH,"10,325",50,Stable,NO,20,SUSPICIOUS (20),0.00
+33,reusable_straws,B07D34ZNMH,HIWARE,Hiware 12-Pack Reusable Stainless Steel Metal Straws with Case - Long Drinking S,42,REJECT,"18,209","2,605",VERY HIGH,"57,082",50,Stable,NO,10,SUSPICIOUS (10),0.00
+34,potholders,B09SFTS2Q8,KEGOUU,"KEGOUU Oven Mitts and Pot Holders 6pcs Set, Kitchen Oven Glove High Heat Resista",42,REJECT,"55,636","2,420",VERY HIGH,"13,619",50,Stable,NO,30,CAUTION (30),0.00
+35,potholders,B096F5Y71J,sungwoo,"sungwoo Extra Long Silicone Oven Mitts, Heat Resistant Oven Gloves with Quilted ",41,REJECT,"8,651",541,VERY HIGH,"10,671",50,Stable,NO,30,CAUTION (30),0.00
+36,potholders,B0DXM173LV,Ritz,"RITZ Terry Potholder & Hot Pad: Unparalleled Heat Resistant, Durable 100% Cotton",41,REJECT,,"1,220",VERY HIGH,"9,499",50,Stable,NO,30,CAUTION (30),0.00
+37,resistance_bands,B0CS9HGWQP,Tribe Lifting,Tribe Lifting Fabric Resistance Bands for Working Out - 5 Exercise Bands Set for,41,REJECT,"62,067","3,108",VERY HIGH,"4,842",5,Declining,NO,30,CAUTION (30),0.00
+38,cooking_utensils,B0GRMMHWSN,NileHome,"NileHome Mini Whisks Stainless Steel Whisk 11"" Kitchen Small Wisk Balloon Wire T",41,REJECT,"13,044","2,614",VERY LOW,2,50,Stable,NO,20,SUSPICIOUS (20),0.00
+39,potholders,B08LB245T4,HOMWE,BPA-Free Soft Silicone 4 Piece Oven Mitts & Trivets Set - Ultra Heat Resistant O,40,REJECT,"27,597","1,255",VERY HIGH,"19,059",50,Stable,NO,20,SUSPICIOUS (20),0.00
+40,potholders,B09X31L4ZY,joyhalo,joyhalo 4 Pack Buffalo Plaid Pot Holders for Kitchen Heat Resistant Pot Holders ,40,REJECT,,"1,061",VERY HIGH,"6,620",50,Stable,NO,20,SUSPICIOUS (20),0.00
+41,cooking_utensils,B085W92DL4,Zulay Kitchen,Zulay Kitchen 6 Piece Wooden Spoons for Cooking – Natural Teak Wooden Utensil Se,40,REJECT,"67,889","2,953",VERY HIGH,"7,062",50,Stable,NO,20,SUSPICIOUS (20),0.00
+42,resistance_bands,B087R16BPW,Renoj,"Booty Resistance Bands Set, Renoj Non Slip Hip Exercise Bands for Legs and Butt ",39,REJECT,"26,349","2,030",VERY HIGH,"42,727",7,Declining,NO,10,SUSPICIOUS (10),0.00
+43,cooking_utensils,B08573DQ39,Umite Chef,"Umite Chef Kitchen Cooking Utensils Set, 33 pcs Non-Stick Silicone Cooking Kitch",39,REJECT,"89,717","3,452",VERY HIGH,"30,281",50,Stable,NO,10,SUSPICIOUS (10),0.00
+44,cooking_utensils,B089FBYT3W,BESTZMWK,Kitchen Utensil Set-Silicone Cooking Utensils-33 Kitchen Gadgets & Spoons for No,39,REJECT,"95,856","2,397",VERY HIGH,"7,364",50,Stable,NO,10,SUSPICIOUS (10),0.00
+45,resistance_bands,B0BPC9BK8H,WHATAFIT,"WHATAFIT Resistance Bands, Exercise Bands，Resistance Bands for Working Out, Work",39,REJECT,"166,173","4,054",VERY HIGH,"35,795",1,Declining,NO,10,SUSPICIOUS (10),0.00
+46,yoga_mats,B0B74PXT8X,KEEP,"Extra Wide & Thick TPE Yoga Mat, 7mm, Navy Blue",39,REJECT,"33,312",833,MEDIUM,512,14,Declining,NO,20,SUSPICIOUS (20),0.00
+47,yoga_mats,B0722VRW3V,BalanceFrom,"BalanceFrom All Purpose 4'x10'x2"" Extra Thick High Density Anti Tear Gymnastics ",38,REJECT,"55,294",553,VERY HIGH,"12,568",13,Declining,NO,10,SUSPICIOUS (10),0.00
+48,cooking_utensils,B0DK1DWVXJ,Coukre,"Coukre 2 Pack Silicone Spatula Set, High Heat Resistant, BPA Free Kitchen Spatul",38,REJECT,"28,968","2,416",HIGH,"2,269",50,Stable,NO,30,CAUTION (30),0.00
+49,resistance_bands,B0FMQ5DY8W,Spechance,"Pedal Resistance Bands with Handles, Upgrade 6-Tubes Manual Tension Training Ped",38,REJECT,"43,716","2,430",HIGH,935,25,Declining,NO,10,SUSPICIOUS (10),17.99
+50,cooking_utensils,B0D49BSNKJ,HOTEC,"HOTEC Premium Stainless Steel Locking Kitchen Tongs with Silicon Tips, Set of 3-",38,REJECT,"21,070","1,622",VERY HIGH,"35,729",50,Stable,NO,10,SUSPICIOUS (10),0.00
