@@ -12,7 +12,7 @@ CONFIG = CategoryConfig(
     name="dog_treats",
     display_name="Dog Treats & Chews",
     parent_cat_id=2619533,
-    subcategories={"Dog Treats": 0},  # placeholder; node_validator discovers the correct ID
+    subcategories={"Dog Treats": 2975436011},  # confirmed by node_validator 2026-06-08 (100%)
     excluded_brands={
         "purina", "blue buffalo", "zesty paws", "milk-bone",
         "greenies", "pedigree", "nutro", "rachael ray",

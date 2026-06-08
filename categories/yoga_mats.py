@@ -12,7 +12,7 @@ CONFIG = CategoryConfig(
     name="yoga_mats",
     display_name="Yoga Mats",
     parent_cat_id=3375251,
-    subcategories={"Yoga Mats": 0},  # placeholder; node_validator discovers the correct ID
+    subcategories={"Yoga Mats": 3422301},  # confirmed by node_validator 2026-06-08 (95%)
     excluded_brands={
         "lululemon", "manduka", "gaiam", "jade yoga",
         "amazon", "basics",

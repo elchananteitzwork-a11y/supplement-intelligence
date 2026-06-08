@@ -119,26 +119,28 @@ CANDIDATE_NODES: Dict[str, List[int]] = {
         8509892011, 8509893011, 3734301,
     ],
     "yoga_mats": [
+        3422301,     # DISCOVERED 2026-06-08 via parent-category scan (Amazon Basics Yoga Mat)
         # 3413761 KNOWN BAD — maps to "Tree Steps" (hunting), not yoga
-        # All adjacent guesses waste tokens; go straight to ASIN seeds.
     ],
     "resistance_bands": [
-        # 3413771 KNOWN BAD — maps to "Trophy Mounts" (hunting game handling)
-        # 3407811 got 70% on first attempt — keep as sole candidate
-        3407811,
-        # ASIN-seed fallback will discover the exact leaf node
+        23533915011,  # CONFIRMED 2026-06-07 via ASIN seed (95% Resistance Bands)
+        # 3413771 KNOWN BAD — maps to "Trophy Mounts" (hunting)
     ],
     "teeth_whitening": [
+        21193189011, # DISCOVERED 2026-06-08 via Health bestsellers (Crest 3D Whitestrips)
+        3778371,     # Whitening Toothpaste — 65% match (fallback)
         # 3760951 KNOWN BAD — maps to "Allergy, Sinus & Asthma"
-        # All 3760xxx nodes return allergy medicine; skip to ASIN seeds
     ],
     "dog_treats": [
+        2975436011,  # DISCOVERED 2026-06-08 via Dogs node scan (Greenies Pill Pockets)
         # 2975322011 KNOWN BAD — maps to "Necklaces & Pendants" (pet apparel)
-        # Skip to ASIN seeds for the actual Dog Treats node
     ],
     "dog_kennels": [
+        # 2975330011 CONFIRMED as "Dog Beds" (NOT kennels — all 20 top products are beds/mats)
         # 2975314011 KNOWN BAD — maps to "Backpacks" (pet apparel)
-        # Skip to ASIN seeds for the actual Dog Kennels node
+        # Explored ranges: 2975313xxx, 2975330xxx–2975395xxx, 3024177xxx–3024195xxx — no kennels found
+        # Actual kennels node is unknown; ASIN seeds also not in Keepa DB for crate products
+        # Discovery skipped until correct node is found
     ],
     "ice_cube_molds": [
         2469549011,  # CONFIRMED CORRECT

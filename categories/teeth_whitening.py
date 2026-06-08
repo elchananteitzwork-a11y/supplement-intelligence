@@ -12,7 +12,7 @@ CONFIG = CategoryConfig(
     name="teeth_whitening",
     display_name="Teeth Whitening",
     parent_cat_id=3760901,
-    subcategories={"Teeth Whitening": 0},  # placeholder; node_validator discovers the correct ID
+    subcategories={"Teeth Whitening": 21193189011},  # confirmed by node_validator 2026-06-08 (100%)
     excluded_brands={
         "crest", "colgate", "arm & hammer", "listerine",
         "oral-b", "sensodyne", "hismile",

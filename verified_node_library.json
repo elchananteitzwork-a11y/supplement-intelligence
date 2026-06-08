@@ -102,6 +102,57 @@
       "validated_at": "2026-06-07",
       "passed": true,
       "confidence": "HIGH"
+    },
+    "yoga_mats": {
+      "category": "yoga_mats",
+      "node_id": 3422301,
+      "validation_score": 0.95,
+      "matched": 19,
+      "total": 20,
+      "sample_products": [
+        "Amazon Basics 1/2 Inch Extra Thick Exercise Yoga Mat with Carrying Strap for Home Workouts and Fitness, 74\" x 24\", Black",
+        "Gaiam Essentials Thick Yoga Mat Fitness & Exercise Mat with Easy-Cinch Carrier Strap, Purple, 72\"L X 24\"W X 2/5 Inch Thick, 10mm",
+        "Retrospec Solana Yoga Mat 1\" Thick w/Nylon Strap for Men & Women - Non Slip Exercise Mat for Home Yoga, Pilates, Stretching, Floor & Fitness Workouts - Black",
+        "Yoga Mat Non Slip, Eco Friendly Fitness Exercise Mat with Carrying Strap,Pro Yoga Mats for Women,Workout Mats for Home, Pilates and Floor Exercises (Gold Pink/Grey, Thickness-6mm)",
+        "CAP Barbell High Density Exercise Yoga Mat with strap, 68\"x24\"x 1/2\" - Sage Green"
+      ],
+      "validated_at": "2026-06-08",
+      "passed": true,
+      "confidence": "HIGH"
+    },
+    "dog_treats": {
+      "category": "dog_treats",
+      "node_id": 2975436011,
+      "validation_score": 1.0,
+      "matched": 20,
+      "total": 20,
+      "sample_products": [
+        "Greenies Pill Pockets for Dogs Large Size, Dog Treat Pouch for Capsule Medication, Peanut Butter Flavor, 15.8 oz. Pouch",
+        "Pur Luv Chicken Wrapped Sweet Potato Dog Treats, Rawhide Free Jerky Wraps, Made with Real Chicken, 16 Oz, Healthy, Easily Digestible, Long Lasting, High Protein Treat, Satisfies Dog's Urge to Chew",
+        "Milk-Bone Original Biscuits, Large Dog Treats, 10 Lb. Box",
+        "Blue Buffalo Health Bars Crunchy Dog Biscuits, Oven-Baked with Natural Ingredients, Pumpkin & Cinnamon, 16-oz Bag",
+        "Pedigree Dentastix Large Dog Treats, Original, Beef & Fresh, 2.73 lb. Variety Pack (51 Treats Total)"
+      ],
+      "validated_at": "2026-06-08",
+      "passed": true,
+      "confidence": "HIGH"
+    },
+    "teeth_whitening": {
+      "category": "teeth_whitening",
+      "node_id": 21193189011,
+      "validation_score": 1.0,
+      "matched": 20,
+      "total": 20,
+      "sample_products": [
+        "Crest 3D Whitestrips Professional Effects \u2013 Teeth Whitening Kit, 22 Treatments (20 + 2 Bonus), Each with 1 Upper/1Lower, 44 Strips \u2013 Crest 3DWhite Teeth Whitening Strips",
+        "Lumineux Teeth Whitening Strips - 21 Treatments (3 Months) - Peroxide Free - Enamel Safe for Whiter Teeth - Whitening Without The Sensitivity - Dentist Formulated - Sensitivity",
+        "InoPro Teeth Whitening Strips 7 Treatments Kit - Sensitive Teeth Whitener, Peroxide Free, Enamel Safe Green White Strips, Deep Stains Removal - Instant Teeth Whitening Without The Harm (14 Strips)",
+        "DrDent Professional Teeth Whitening Strips 21 Treatments - Safe for Enamel - Non Sensitive Teeth Whitening - Whitening Without Any Harm - Pack of 42 Strips + Mouth Opener Included",
+        "Zimba Teeth Whitening Strips Vegan Whitening Strip Enamel Safe Teeth Whitening Hydrogen Peroxide Teeth Whitener for Coffee, Wine, Tobacco, and Other Stains, 28 Strips (14 Day Treatment), Mint"
+      ],
+      "validated_at": "2026-06-08",
+      "passed": true,
+      "confidence": "HIGH"
     }
   }
 }
