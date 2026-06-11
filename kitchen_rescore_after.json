@@ -1,0 +1,122 @@
+{
+  "B0GC3CMXDS": {
+    "score": 76,
+    "grade": "B",
+    "fba_margin_score": 15,
+    "revenue_score": 8,
+    "cal_sales": 809,
+    "rev": 53385.91,
+    "fba_fee": 5.69,
+    "net_margin_pct": 46.4
+  },
+  "B0FC5T7DR3": {
+    "score": 72,
+    "grade": "B",
+    "fba_margin_score": 15,
+    "revenue_score": 8,
+    "cal_sales": 806,
+    "rev": 20947.94,
+    "fba_fee": 5.69,
+    "net_margin_pct": 33.1
+  },
+  "B0FR4JZM3L": {
+    "score": 64,
+    "grade": "C",
+    "fba_margin_score": 8,
+    "revenue_score": 5,
+    "cal_sales": 870,
+    "rev": 9561.3,
+    "fba_fee": 4.08,
+    "net_margin_pct": 17.9
+  },
+  "B0D1PFH6BK": {
+    "score": 53,
+    "grade": "C",
+    "fba_margin_score": 0,
+    "revenue_score": 0,
+    "cal_sales": 2420,
+    "rev": null,
+    "fba_fee": null,
+    "net_margin_pct": null
+  },
+  "B0CSCSWMYZ": {
+    "score": 53,
+    "grade": "C",
+    "fba_margin_score": 0,
+    "revenue_score": 0,
+    "cal_sales": 531,
+    "rev": null,
+    "fba_fee": null,
+    "net_margin_pct": null
+  },
+  "B0CGBZ6X4R": {
+    "score": 52,
+    "grade": "C",
+    "fba_margin_score": 0,
+    "revenue_score": 0,
+    "cal_sales": 1508,
+    "rev": null,
+    "fba_fee": null,
+    "net_margin_pct": null
+  },
+  "B0CPPZL4L1": {
+    "score": 51,
+    "grade": "C",
+    "fba_margin_score": 0,
+    "revenue_score": 0,
+    "cal_sales": 924,
+    "rev": null,
+    "fba_fee": null,
+    "net_margin_pct": null
+  },
+  "B0GR5SN87G": {
+    "score": 48,
+    "grade": "D",
+    "fba_margin_score": 0,
+    "revenue_score": 0,
+    "cal_sales": 2011,
+    "rev": null,
+    "fba_fee": null,
+    "net_margin_pct": null
+  },
+  "B0FZRQL44D": {
+    "score": 48,
+    "grade": "D",
+    "fba_margin_score": 0,
+    "revenue_score": 0,
+    "cal_sales": 1213,
+    "rev": null,
+    "fba_fee": null,
+    "net_margin_pct": null
+  },
+  "B0DKBY5HMB": {
+    "score": 46,
+    "grade": "D",
+    "fba_margin_score": 0,
+    "revenue_score": 0,
+    "cal_sales": 1114,
+    "rev": null,
+    "fba_fee": null,
+    "net_margin_pct": null
+  },
+  "B0D2LGGM8K": {
+    "score": 44,
+    "grade": "D",
+    "fba_margin_score": 0,
+    "revenue_score": 0,
+    "cal_sales": 505,
+    "rev": null,
+    "fba_fee": null,
+    "net_margin_pct": null
+  },
+  "B0DS23ZQHH": {
+    "score": 43,
+    "grade": "D",
+    "fba_margin_score": 0,
+    "revenue_score": 0,
+    "cal_sales": 568,
+    "rev": null,
+    "fba_fee": null,
+    "net_margin_pct": null
+  }
+}

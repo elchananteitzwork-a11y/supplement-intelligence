@@ -1,0 +1,1070 @@
+{
+  "B0GC3CMXDS": {
+    "asin": "B0GC3CMXDS",
+    "title": "Titanium Cutting Board, 100% Pure Titanium Cutting Boards for Kitchen, Double-Si",
+    "total_score": 76,
+    "raw_score": 76,
+    "data_penalty": 0,
+    "grade": "B",
+    "verdict": "Good Opportunity",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 10,
+        "rationale": "809 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 6,
+        "rationale": "Stable demand, acceleration signal"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 8,
+        "rationale": "$53,386/mo \u2014 excellent"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 4,
+        "rationale": "103 reviews \u2014 moderate barrier"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 6,
+        "rationale": "0.0/mo \u2014 slow market"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: May (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 15,
+        "rationale": "$65.99 price / $5.69 FBA fee / ~46% net margin \u2014 excellent"
+      }
+    ],
+    "estimated_monthly_sales": 960,
+    "calibrated_monthly_sales": 809,
+    "estimated_monthly_revenue": 53385.91,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": 5.69,
+    "estimated_net_margin_pct": 46.4
+  },
+  "B0CGBZ6X4R": {
+    "asin": "B0CGBZ6X4R",
+    "title": "GEOMETRY Kitchen Tea Towels - Quick Dry Microfiber Dish Towels for Kitchen Gold ",
+    "total_score": 75,
+    "raw_score": 75,
+    "data_penalty": 0,
+    "grade": "B",
+    "verdict": "Good Opportunity",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 13,
+        "rationale": "1,505 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 2,
+        "rationale": "Stable demand but decelerating"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 8,
+        "rationale": "$41,959/mo \u2014 excellent"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 7,
+        "rationale": "56 reviews \u2014 low barrier"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 3,
+        "rationale": "No velocity data"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: December (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 15,
+        "rationale": "$27.88 price / $4.75 FBA fee / ~38% net margin \u2014 excellent"
+      }
+    ],
+    "estimated_monthly_sales": 1561,
+    "calibrated_monthly_sales": 1505,
+    "estimated_monthly_revenue": 41959.4,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": 4.75,
+    "estimated_net_margin_pct": 38.0
+  },
+  "B0FC5T7DR3": {
+    "asin": "B0FC5T7DR3",
+    "title": "Kiss Core Upgrade Bread Slicer for Homemade Bread, Bread Slicer Guide Adjustable",
+    "total_score": 72,
+    "raw_score": 72,
+    "data_penalty": 0,
+    "grade": "B",
+    "verdict": "Good Opportunity",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 10,
+        "rationale": "806 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 2,
+        "rationale": "Stable demand but decelerating"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 8,
+        "rationale": "$20,948/mo \u2014 excellent"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 4,
+        "rationale": "149 reviews \u2014 moderate barrier"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 6,
+        "rationale": "0.0/mo \u2014 slow market"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: January (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 15,
+        "rationale": "$25.99 price / $5.69 FBA fee / ~33% net margin \u2014 excellent"
+      }
+    ],
+    "estimated_monthly_sales": 708,
+    "calibrated_monthly_sales": 806,
+    "estimated_monthly_revenue": 20947.94,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": 5.69,
+    "estimated_net_margin_pct": 33.1
+  },
+  "B0FR4JZM3L": {
+    "asin": "B0FR4JZM3L",
+    "title": "HapiRm Sink Caddy Sponge Holder - 2 Installation Ways Kitchen Sink Organizer wit",
+    "total_score": 64,
+    "raw_score": 68,
+    "data_penalty": 4,
+    "grade": "C",
+    "verdict": "Average Opportunity",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 10,
+        "rationale": "870 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 6,
+        "rationale": "Stable demand, acceleration signal"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 5,
+        "rationale": "$9,561/mo \u2014 good"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 6,
+        "rationale": "2 reviews \u2014 very early stage"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 6,
+        "rationale": "0.3/mo \u2014 slow market"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: May (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 8,
+        "rationale": "$10.99 price / $4.08 FBA fee / ~18% net margin \u2014 adequate"
+      }
+    ],
+    "estimated_monthly_sales": 1130,
+    "calibrated_monthly_sales": 870,
+    "estimated_monthly_revenue": 9561.3,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": 4.08,
+    "estimated_net_margin_pct": 17.9
+  },
+  "B0D1PFH6BK": {
+    "asin": "B0D1PFH6BK",
+    "title": "LANE LINEN 100% Cotton Kitchen Dish Cloths, Ultra Soft Absorbent Quick Drying Di",
+    "total_score": 53,
+    "raw_score": 53,
+    "data_penalty": 0,
+    "grade": "C",
+    "verdict": "Average Opportunity",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 13,
+        "rationale": "2,420 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 4,
+        "rationale": "Stable demand"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 0,
+        "rationale": "Insufficient data for revenue estimate"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 6,
+        "rationale": "8 reviews \u2014 very early stage"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 3,
+        "rationale": "No velocity data"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: November (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 0,
+        "rationale": "No price data"
+      }
+    ],
+    "estimated_monthly_sales": 2011,
+    "calibrated_monthly_sales": 2420,
+    "estimated_monthly_revenue": null,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": null,
+    "estimated_net_margin_pct": null
+  },
+  "B0CSCSWMYZ": {
+    "asin": "B0CSCSWMYZ",
+    "title": "Stainless Steel Cutting Board for Kitchen \u2013 15.7 * 11.8\" Large Metal Chopping Bo",
+    "total_score": 53,
+    "raw_score": 53,
+    "data_penalty": 0,
+    "grade": "C",
+    "verdict": "Average Opportunity",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 10,
+        "rationale": "529 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 4,
+        "rationale": "Stable demand"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 0,
+        "rationale": "Insufficient data for revenue estimate"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 9,
+        "rationale": "11 reviews \u2014 very low barrier \u2713"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 3,
+        "rationale": "No velocity data"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: May (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 0,
+        "rationale": "No price data"
+      }
+    ],
+    "estimated_monthly_sales": 537,
+    "calibrated_monthly_sales": 529,
+    "estimated_monthly_revenue": null,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": null,
+    "estimated_net_margin_pct": null
+  },
+  "B0CPPZL4L1": {
+    "asin": "B0CPPZL4L1",
+    "title": "Food Scale, Digital Kitchen Scale Batteries and USB Charging,1g/0.05oz Precise G",
+    "total_score": 51,
+    "raw_score": 51,
+    "data_penalty": 0,
+    "grade": "C",
+    "verdict": "Average Opportunity",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 10,
+        "rationale": "924 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 4,
+        "rationale": "Stable demand"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 0,
+        "rationale": "Insufficient data for revenue estimate"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 7,
+        "rationale": "64 reviews \u2014 low barrier"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 3,
+        "rationale": "No velocity data"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: March (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 0,
+        "rationale": "No price data"
+      }
+    ],
+    "estimated_monthly_sales": 1052,
+    "calibrated_monthly_sales": 924,
+    "estimated_monthly_revenue": null,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": null,
+    "estimated_net_margin_pct": null
+  },
+  "B0GR5SN87G": {
+    "asin": "B0GR5SN87G",
+    "title": "Bumble Dish Cloths (6 Pack) | 12\u201d x 12\u201d | 100% Cotton Kitchen Towels | 405 GSM |",
+    "total_score": 48,
+    "raw_score": 53,
+    "data_penalty": 5,
+    "grade": "D",
+    "verdict": "Below Average",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 13,
+        "rationale": "2,011 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 4,
+        "rationale": "Stable demand"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 0,
+        "rationale": "Insufficient data for revenue estimate"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 4,
+        "rationale": "No review data"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 3,
+        "rationale": "No velocity data [sparse history: 0 pts]"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 5,
+        "rationale": "Year-round demand \u2014 lower timing risk"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 0,
+        "rationale": "No price data"
+      }
+    ],
+    "estimated_monthly_sales": 1922,
+    "calibrated_monthly_sales": 2011,
+    "estimated_monthly_revenue": null,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": null,
+    "estimated_net_margin_pct": null
+  },
+  "B0FZRQL44D": {
+    "asin": "B0FZRQL44D",
+    "title": "Titanium Cutting Boards 100% Pure Titanium Kitchen Cutting Board, Double-Sided N",
+    "total_score": 48,
+    "raw_score": 53,
+    "data_penalty": 5,
+    "grade": "D",
+    "verdict": "Below Average",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 13,
+        "rationale": "1,213 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 4,
+        "rationale": "Stable demand"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 0,
+        "rationale": "Insufficient data for revenue estimate"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 6,
+        "rationale": "8 reviews \u2014 very early stage"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 3,
+        "rationale": "No velocity data [sparse history: 1 pts]"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: May (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 0,
+        "rationale": "No price data"
+      }
+    ],
+    "estimated_monthly_sales": 960,
+    "calibrated_monthly_sales": 1213,
+    "estimated_monthly_revenue": null,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": null,
+    "estimated_net_margin_pct": null
+  },
+  "B0DKBY5HMB": {
+    "asin": "B0DKBY5HMB",
+    "title": "Drawer Liner Non-Slip 2-Layer Shelf Liners for Kitchen Cupboards -45x900cm Gold ",
+    "total_score": 46,
+    "raw_score": 51,
+    "data_penalty": 5,
+    "grade": "D",
+    "verdict": "Below Average",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 13,
+        "rationale": "1,114 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 4,
+        "rationale": "Stable demand"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 0,
+        "rationale": "Insufficient data for revenue estimate"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 4,
+        "rationale": "No review data"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 3,
+        "rationale": "No velocity data [sparse history: 0 pts]"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: April (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 0,
+        "rationale": "No price data"
+      }
+    ],
+    "estimated_monthly_sales": 1516,
+    "calibrated_monthly_sales": 1114,
+    "estimated_monthly_revenue": null,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": null,
+    "estimated_net_margin_pct": null
+  },
+  "B0D2LGGM8K": {
+    "asin": "B0D2LGGM8K",
+    "title": "Utopia Kitchen Can Organizer For Pantry - Soda Can Organizer For Refrigerator - ",
+    "total_score": 44,
+    "raw_score": 48,
+    "data_penalty": 4,
+    "grade": "D",
+    "verdict": "Below Average",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 10,
+        "rationale": "505 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 2,
+        "rationale": "Stable demand but decelerating"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 0,
+        "rationale": "Insufficient data for revenue estimate"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 6,
+        "rationale": "1 reviews \u2014 very early stage"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 3,
+        "rationale": "No velocity data"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: July (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 0,
+        "rationale": "No price data"
+      }
+    ],
+    "estimated_monthly_sales": 788,
+    "calibrated_monthly_sales": 505,
+    "estimated_monthly_revenue": null,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": null,
+    "estimated_net_margin_pct": null
+  },
+  "B0DS23ZQHH": {
+    "asin": "B0DS23ZQHH",
+    "title": "304 Stainless Steel Chopping Board with Lip for Kitchen | With 2 Steel Straw | B",
+    "total_score": 43,
+    "raw_score": 48,
+    "data_penalty": 5,
+    "grade": "D",
+    "verdict": "Below Average",
+    "factors": [
+      {
+        "name": "demand_level",
+        "weight": 13,
+        "score": 10,
+        "rationale": "565 units/mo (calibrated)"
+      },
+      {
+        "name": "demand_trend",
+        "weight": 9,
+        "score": 4,
+        "rationale": "Stable demand"
+      },
+      {
+        "name": "revenue_potential",
+        "weight": 8,
+        "score": 0,
+        "rationale": "Insufficient data for revenue estimate"
+      },
+      {
+        "name": "competition_accessibility",
+        "weight": 10,
+        "score": 10,
+        "rationale": "3+ sellers < 100 reviews making real sales"
+      },
+      {
+        "name": "review_barrier",
+        "weight": 9,
+        "score": 4,
+        "rationale": "No review data"
+      },
+      {
+        "name": "review_velocity_threat",
+        "weight": 6,
+        "score": 3,
+        "rationale": "No velocity data [sparse history: 0 pts]"
+      },
+      {
+        "name": "price_stability",
+        "weight": 6,
+        "score": 2,
+        "rationale": "Insufficient price history"
+      },
+      {
+        "name": "price_compression_risk",
+        "weight": 7,
+        "score": 3,
+        "rationale": "No price band data"
+      },
+      {
+        "name": "buybox_opportunity",
+        "weight": 7,
+        "score": 4,
+        "rationale": "Buy Box data unavailable \u2014 neutral assumption"
+      },
+      {
+        "name": "promotional_pressure",
+        "weight": 5,
+        "score": 5,
+        "rationale": "No promotional activity \u2014 organic pricing"
+      },
+      {
+        "name": "seasonality_risk",
+        "weight": 5,
+        "score": 3,
+        "rationale": "Seasonal \u2014 peak: July (predictable timing)"
+      },
+      {
+        "name": "fba_margin",
+        "weight": 15,
+        "score": 0,
+        "rationale": "No price data"
+      }
+    ],
+    "estimated_monthly_sales": 575,
+    "calibrated_monthly_sales": 565,
+    "estimated_monthly_revenue": null,
+    "fba_size_tier": "large_standard",
+    "estimated_fba_fee": null,
+    "estimated_net_margin_pct": null
+  }
+}

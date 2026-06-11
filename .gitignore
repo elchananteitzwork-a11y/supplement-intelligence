@@ -74,3 +74,6 @@ discovery-opportunities.csv
 *.tmp
 *.temp
 .cache/
+.env.local
+.env.local
+.env.local
