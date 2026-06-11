@@ -9,7 +9,7 @@ export function createClient() {
     {
       cookies: {
         getAll:  () => jar.getAll(),
-        setAll: (list) => {
+        setAll: (list: { name: string; value: string; options: Record<string, unknown> }[]) => {
           try { list.forEach(({ name, value, options }) => jar.set(name, value, options)) }
           catch { /* server component – middleware handles refresh */ }
         },

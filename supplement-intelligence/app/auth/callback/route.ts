@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
     {
       cookies: {
         getAll:  () => jar.getAll(),
-        setAll: (list) => list.forEach(({ name, value, options }) => jar.set(name, value, options)),
+        setAll: (list: { name: string; value: string; options: Record<string, unknown> }[]) =>
+          list.forEach(({ name, value, options }) => jar.set(name, value, options)),
       },
     }
   )

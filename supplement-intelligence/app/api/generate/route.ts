@@ -24,7 +24,8 @@ function supabaseFromCookies() {
     {
       cookies: {
         getAll:  () => jar.getAll(),
-        setAll: (l) => l.forEach(({ name, value, options }) => jar.set(name, value, options)),
+        setAll: (items: { name: string; value: string; options: Record<string, unknown> }[]) =>
+          items.forEach(({ name, value, options }) => jar.set(name, value, options)),
       },
     }
   )

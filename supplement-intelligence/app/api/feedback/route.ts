@@ -10,8 +10,7 @@ function sb() {
     {
       cookies: {
         getAll:  () => jar.getAll(),
-        setAll: (l) => l.forEach(({ name, value, options }) => jar.set(name, value, options)),
-      },
+      },setAll: (items: any[]) => items.forEach(({ name, value, options }) => jar.set(name, value, options)),
     }
   )
 }

@@ -10,7 +10,8 @@ export async function POST() {
     {
       cookies: {
         getAll:  () => jar.getAll(),
-        setAll: (l) => l.forEach(({ name, value, options }) => jar.set(name, value, options)),
+        setAll: (l: { name: string; value: string; options: Record<string, unknown> }[]) =>
+          l.forEach(({ name, value, options }) => jar.set(name, value, options)),
       },
     }
   )
