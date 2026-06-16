@@ -16,5 +16,5 @@ export async function POST() {
     }
   )
   await sb.auth.signOut()
-  return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'))
+  return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'https://supplement-intelligence.vercel.app'))
 }
