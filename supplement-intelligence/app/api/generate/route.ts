@@ -138,7 +138,10 @@ export async function POST(req: Request) {
     memo = parseJSON(rawText)
   } catch (e) {
     console.error('JSON parse error', { snippet: rawText.slice(0, 600), length: rawText.length })
-    return err('Failed to parse AI output. Please try again.', 500)
+    return NextResponse.json({
+      error: 'Failed to parse AI output. Please try again.',
+      _d: { len: rawText.length, head: rawText.slice(0, 200), tail: rawText.slice(-100) },
+    }, { status: 500 })
   }
 
   // basic structural validation
