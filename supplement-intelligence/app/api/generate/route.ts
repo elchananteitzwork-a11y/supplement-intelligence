@@ -32,11 +32,21 @@ function supabaseFromCookies() {
 }
 
 function parseJSON(raw: string): MemoData {
-  const stripped = raw
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/, '')
-    .trim()
-  return JSON.parse(stripped) as MemoData
+  // Strip markdown fences
+  let s = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
+  // If Claude prefixed with explanation text, jump to the first '{'
+  const start = s.indexOf('{')
+  if (start > 0) s = s.slice(start)
+  // Fast path — well-formed response
+  try { return JSON.parse(s) as MemoData } catch { /* fall through */ }
+  // Slow path — find the outermost complete JSON object by brace depth
+  let depth = 0, end = -1
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '{') depth++
+    else if (s[i] === '}') { depth--; if (depth === 0) { end = i; break } }
+  }
+  if (end === -1) throw new Error('No complete JSON object in response')
+  return JSON.parse(s.slice(0, end + 1)) as MemoData
 }
 
 function err(msg: string, status = 400) {
@@ -101,7 +111,7 @@ export async function POST(req: Request) {
     const msg = await ai.messages.create(
       {
         model:      'claude-sonnet-4-6',
-        max_tokens: 1200,
+        max_tokens: 1800,
         system:     SYSTEM_PROMPT,
         messages:   [{ role: 'user', content: userMessage }],
       },
@@ -127,7 +137,7 @@ export async function POST(req: Request) {
   try {
     memo = parseJSON(rawText)
   } catch (e) {
-    console.error('JSON parse error — raw snippet:', rawText.slice(0, 400))
+    console.error('JSON parse error', { snippet: rawText.slice(0, 600), length: rawText.length })
     return err('Failed to parse AI output. Please try again.', 500)
   }
 
