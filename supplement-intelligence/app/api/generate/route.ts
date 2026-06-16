@@ -136,22 +136,21 @@ export async function POST(req: Request) {
   if (pricePoint !== undefined && pricePoint !== '' && !VALID_PRICES.has(pricePoint))
     return err('Invalid price point value', 400)
 
-  // ── atomic rate-limit slot consumption ────────────────────────
-  // Uses a SECURITY DEFINER DB function to prevent TOCTOU race:
-  // two simultaneous requests cannot both pass the limit check.
-  const { data: slotGranted, error: slotErr } = await sb
-    .rpc('consume_analysis_slot', { p_user_id: user.id })
+  // ── pre-flight limit check (non-consuming) ───────────────────
+  // Reads current usage before calling Claude so we don't waste an API
+  // call on a user who is already at their limit. The atomic consume
+  // below is the authoritative gate; this is just an early exit.
+  const { data: profile, error: profileErr } = await sb
+    .from('profiles')
+    .select('analyses_used, analyses_limit')
+    .eq('id', user.id)
+    .maybeSingle()
 
-  if (slotErr) {
-    console.error('Rate limit RPC error', {
-      code:    slotErr.code,
-      message: slotErr.message,
-      details: slotErr.details,
-      hint:    slotErr.hint,
-    })
+  if (profileErr) {
+    console.error('Profile read error', profileErr)
     return err('Server error checking usage limit.', 500)
   }
-  if (!slotGranted) {
+  if (profile && profile.analyses_used >= profile.analyses_limit) {
     return err('Analysis limit reached for beta access.', 429)
   }
 
@@ -162,7 +161,9 @@ export async function POST(req: Request) {
   if (context?.trim())        lines.push(`Additional context: ${context.trim()}`)
   const userMessage = lines.join('\n')
 
-  // call Claude — hard abort at 45 s so we return cleanly before Vercel kills us
+  // ── call Claude (slot NOT yet consumed) ───────────────────────
+  // Slot is consumed only after a successful parse. AI failures (network
+  // error, timeout, bad response) do not charge the user.
   const t0         = Date.now()
   const controller = new AbortController()
   const abortTimer = setTimeout(() => controller.abort(), 45_000)
@@ -189,31 +190,43 @@ export async function POST(req: Request) {
       (e.name === 'APIUserAbortError' || e.name === 'AbortError')
     if (isAbort) {
       console.error('Anthropic request aborted after 45 s')
-      return err('Analysis timed out — please try again.', 504)
+      return err('Analysis timed out — no slot used. Please try again.', 504)
     }
     console.error('Anthropic error', e)
-    return err('AI service error. Please try again.', 500)
+    return err('AI service error — no slot used. Please try again.', 500)
   }
   const generationMs = Date.now() - t0
 
-  // parse memo — never surface a raw parse failure to the user
+  // ── parse memo (slot NOT yet consumed) ────────────────────────
   let memo: MemoData
   try {
     memo = parseJSON(rawText)
   } catch (e) {
     console.error('JSON parse error', { snippet: rawText.slice(0, 500), length: rawText.length })
-    // Last resort: save a SKIP record so the user always sees a result
     memo = buildSkipMemo(input.trim())
   }
-
-  // Structural guard: if required fields are still missing after parsing + fallback,
-  // swap in the skip memo rather than sending a broken record to the DB.
   if (!memo.category_name || typeof memo.opportunity_score !== 'number' || !memo.scores) {
-    console.error('Incomplete memo after parse — using skip fallback', { category_name: memo.category_name })
+    console.error('Incomplete memo — using skip fallback', { category_name: memo.category_name })
     memo = buildSkipMemo(input.trim())
   }
 
-  // save analysis
+  // ── atomic slot consumption — AFTER successful parse ──────────
+  // consume_analysis_slot auto-creates the profiles row if absent (migration 003).
+  const { data: slotGranted, error: slotErr } = await sb
+    .rpc('consume_analysis_slot', { p_user_id: user.id })
+
+  if (slotErr) {
+    console.error('Rate limit RPC error', {
+      code: slotErr.code, message: slotErr.message,
+      details: slotErr.details, hint: slotErr.hint,
+    })
+    return err('Server error checking usage limit — no slot used.', 500)
+  }
+  if (!slotGranted) {
+    return err('Analysis limit reached for beta access.', 429)
+  }
+
+  // ── save analysis ─────────────────────────────────────────────
   const { data: analysis, error: dbErr } = await sb
     .from('analyses')
     .insert({
@@ -242,8 +255,10 @@ export async function POST(req: Request) {
     .single()
 
   if (dbErr || !analysis) {
-    console.error('DB insert error', dbErr)
-    return err('Failed to save analysis.', 500)
+    console.error('DB insert error — refunding slot', dbErr)
+    // Slot was consumed but the record wasn't saved — give it back.
+    await sb.rpc('refund_analysis_slot', { p_user_id: user.id })
+    return err('Failed to save analysis — your slot was refunded.', 500)
   }
 
   // upsert leaderboard — keep highest score per category
