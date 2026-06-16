@@ -227,25 +227,30 @@ export async function POST(req: Request) {
         model:      'claude-sonnet-4-6',
         max_tokens: 1800,
         system:     SYSTEM_PROMPT,
-        messages:   [
-          { role: 'user',      content: userMessage },
-          { role: 'assistant', content: '{' },  // prefill — forces JSON, blocks refusals
-        ],
+        messages:   [{ role: 'user', content: userMessage }],
       },
       { signal: controller.signal },
     )
     clearTimeout(abortTimer)
-    // Prepend the '{' we sent as prefill — the API returns only the continuation
-    rawText = '{' + (msg.content[0].type === 'text' ? msg.content[0].text : '')
+    rawText = msg.content[0].type === 'text' ? msg.content[0].text : ''
   } catch (e: unknown) {
     clearTimeout(abortTimer)
     const isAbort = e instanceof Error &&
       (e.name === 'APIUserAbortError' || e.name === 'AbortError')
     if (isAbort) {
-      console.error('Anthropic request aborted after 45 s')
+      console.error('Anthropic timeout after 45 s')
       return err('Analysis timed out — no slot used. Please try again.', 504)
     }
-    console.error('Anthropic error', e)
+    // Log the full Anthropic error body so it appears in Vercel function logs
+    if (e instanceof Anthropic.APIError) {
+      console.error('Anthropic API error', {
+        status:  e.status,
+        message: e.message,
+        error:   e.error,
+      })
+    } else {
+      console.error('Anthropic error', e)
+    }
     return err('AI service error — no slot used. Please try again.', 500)
   }
   const generationMs = Date.now() - t0
