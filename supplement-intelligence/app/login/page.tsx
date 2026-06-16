@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
-type Mode = 'signin' | 'signup'
+type Mode = 'signin' | 'signup' | 'forgot'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [awaitingConfirm, setAwaitingConfirm] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   function switchMode(next: Mode) {
     setMode(next)
@@ -23,11 +24,23 @@ export default function LoginPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!email.trim() || !password) return
     setLoading(true)
     setError('')
 
     const sb = createClient()
+
+    if (mode === 'forgot') {
+      const { error } = await sb.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        { redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password` },
+      )
+      setLoading(false)
+      if (error) setError(error.message)
+      else setResetSent(true)
+      return
+    }
+
+    if (!email.trim() || !password) { setLoading(false); return }
 
     if (mode === 'signin') {
       const { error } = await sb.auth.signInWithPassword({
@@ -58,6 +71,43 @@ export default function LoginPage() {
         setAwaitingConfirm(true)
       }
     }
+  }
+
+  if (resetSent) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-sm space-y-6">
+          <div className="text-center">
+            <Link href="/" className="font-semibold text-lg">
+              Supplement<span className="text-emerald-400">Intelligence</span>
+            </Link>
+          </div>
+          <div className="card p-8 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-400/10 border border-emerald-400/20 grid place-items-center mx-auto">
+              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-semibold text-lg">Check your email</p>
+              <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
+                Password reset link sent to <span className="text-white">{email}</span>.
+                <br />Click it to choose a new password.
+              </p>
+            </div>
+            <button
+              onClick={() => { setResetSent(false); switchMode('signin') }}
+              className="btn-ghost text-xs"
+            >
+              Back to sign in
+            </button>
+          </div>
+          <p className="text-center">
+            <Link href="/" className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors">← Back to home</Link>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (awaitingConfirm) {
@@ -111,12 +161,14 @@ export default function LoginPage() {
           <form onSubmit={submit} className="space-y-5">
             <div>
               <p className="text-lg font-semibold mb-1">
-                {mode === 'signin' ? 'Sign in' : 'Create account'}
+                {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Reset password'}
               </p>
               <p className="text-sm text-zinc-400">
                 {mode === 'signin'
                   ? 'Enter your credentials to continue.'
-                  : 'Sign up for beta access.'}
+                  : mode === 'signup'
+                  ? 'Sign up for beta access.'
+                  : 'Enter your email and we\'ll send a reset link.'}
               </p>
             </div>
 
@@ -132,19 +184,32 @@ export default function LoginPage() {
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm text-zinc-400 mb-1.5">
-                Password
-              </label>
-              <input
-                id="password" type="password" required
-                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                minLength={6}
-                value={password} onChange={e => setPassword(e.target.value)}
-                placeholder={mode === 'signin' ? '••••••••' : 'Min. 6 characters'}
-                className="field"
-              />
-            </div>
+            {mode !== 'forgot' && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="password" className="block text-sm text-zinc-400">
+                    Password
+                  </label>
+                  {mode === 'signin' && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode('forgot')}
+                      className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <input
+                  id="password" type="password" required
+                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                  minLength={6}
+                  value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder={mode === 'signin' ? '••••••••' : 'Min. 6 characters'}
+                  className="field"
+                />
+              </div>
+            )}
 
             {error && (
               <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
@@ -154,7 +219,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading || !email.trim() || password.length < 6}
+              disabled={loading || !email.trim() || (mode !== 'forgot' && password.length < 6)}
               className="btn-white w-full py-3"
             >
               {loading ? (
@@ -163,20 +228,46 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                   </svg>
-                  {mode === 'signin' ? 'Signing in…' : 'Creating account…'}
+                  {mode === 'signin' ? 'Signing in…' : mode === 'signup' ? 'Creating account…' : 'Sending link…'}
                 </span>
-              ) : mode === 'signin' ? 'Sign in →' : 'Create account →'}
+              ) : mode === 'signin' ? 'Sign in →' : mode === 'signup' ? 'Create account →' : 'Send reset link →'}
             </button>
 
             <p className="text-xs text-zinc-500 text-center">
-              {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
-              <button
-                type="button"
-                onClick={() => switchMode(mode === 'signin' ? 'signup' : 'signin')}
-                className="text-zinc-300 hover:text-white transition-colors underline"
-              >
-                {mode === 'signin' ? 'Sign up' : 'Sign in'}
-              </button>
+              {mode === 'forgot' ? (
+                <>
+                  Remember your password?{' '}
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signin')}
+                    className="text-zinc-300 hover:text-white transition-colors underline"
+                  >
+                    Sign in
+                  </button>
+                </>
+              ) : mode === 'signin' ? (
+                <>
+                  Don&apos;t have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signup')}
+                    className="text-zinc-300 hover:text-white transition-colors underline"
+                  >
+                    Sign up
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signin')}
+                    className="text-zinc-300 hover:text-white transition-colors underline"
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
             </p>
           </form>
         </div>
