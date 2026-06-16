@@ -57,24 +57,24 @@ function parseJSON(raw: string): MemoData {
 
 // Last-resort memo returned when parsing fails completely.
 // Saves a SKIP record so the user sees a result instead of an error.
-function buildSkipMemo(input: string): MemoData {
+function buildSkipMemo(input: string, skipReason: string): MemoData {
   const NA = 'N/A'
   const noScore = (note: string) => ({ score: 0, notes: note })
-  const safety = 'Not assessed — idea skipped due to safety or regulatory concerns.'
+  const parseNote = 'Not assessed — AI response could not be parsed. Please try again.'
   return {
     category_name:     input.slice(0, 60),
-    executive_summary: 'This idea could not be analyzed due to safety, regulatory, or content concerns.',
+    executive_summary: 'This category could not be analyzed due to a technical error. Please resubmit.',
     build_verdict:     'NO',
     build_decision:    'SKIP',
-    build_explanation: 'The idea contains ingredients or claims that create unacceptable regulatory or safety risk. Review and resubmit with a compliant supplement concept.',
+    build_explanation: `Analysis failed (${skipReason}). This is a technical issue, not a safety concern — please resubmit.`,
     opportunity_score: 0,
     scores: {
-      demand:        noScore(safety),
-      competition:   noScore(safety),
-      virality:      noScore(safety),
-      subscription:  noScore(safety),
-      manufacturing: noScore(safety),
-      defensibility: noScore(safety),
+      demand:        noScore(parseNote),
+      competition:   noScore(parseNote),
+      virality:      noScore(parseNote),
+      subscription:  noScore(parseNote),
+      manufacturing: noScore(parseNote),
+      defensibility: noScore(parseNote),
     },
     biggest_competitor: { name: NA, revenue: NA, gap: NA },
     market_size:  NA,
@@ -225,7 +225,7 @@ export async function POST(req: Request) {
     const msg = await ai.messages.create(
       {
         model:      'claude-sonnet-4-6',
-        max_tokens: 1800,
+        max_tokens: 2500,
         system:     SYSTEM_PROMPT,
         messages:   [{ role: 'user', content: userMessage }],
       },
@@ -257,16 +257,40 @@ export async function POST(req: Request) {
 
   // ── parse memo (slot NOT yet consumed) ────────────────────────
   let memo: MemoData
+  let skipReason: string | null = null
   try {
     memo = parseJSON(rawText)
   } catch (e) {
-    console.error('JSON parse error', { snippet: rawText.slice(0, 500), length: rawText.length })
-    memo = buildSkipMemo(input.trim())
+    skipReason = 'json_parse_failure'
+    console.error('JSON parse error — SKIP fallback triggered', {
+      category:    input.trim(),
+      skip_reason: skipReason,
+      raw_length:  rawText.length,
+      snippet:     rawText.slice(0, 500),
+    })
+    memo = buildSkipMemo(input.trim(), skipReason)
   }
   if (!memo.category_name || typeof memo.opportunity_score !== 'number' || !memo.scores) {
-    console.error('Incomplete memo — using skip fallback', { category_name: memo.category_name })
-    memo = buildSkipMemo(input.trim())
+    skipReason = 'incomplete_memo'
+    console.error('Incomplete memo — SKIP fallback triggered', {
+      category:          input.trim(),
+      skip_reason:       skipReason,
+      has_category_name: !!memo.category_name,
+      has_score:         typeof memo.opportunity_score === 'number',
+      has_scores:        !!memo.scores,
+    })
+    memo = buildSkipMemo(input.trim(), skipReason)
   }
+
+  console.log('Analysis decision', {
+    category:        input.trim(),
+    category_name:   memo.category_name,
+    safety_decision: skipReason ? 'technical_skip' : (memo.build_decision === 'SKIP' ? 'content_skip' : 'passed'),
+    skip_reason:     skipReason ?? (memo.build_decision === 'SKIP' ? memo.build_explanation : null),
+    final_score:     memo.opportunity_score,
+    build_decision:  memo.build_decision,
+    generation_ms:   generationMs,
+  })
 
   // ── atomic slot consumption — AFTER successful parse ──────────
   // consume_analysis_slot auto-creates the profiles row if absent (migration 003).
