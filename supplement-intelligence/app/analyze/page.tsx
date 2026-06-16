@@ -68,6 +68,7 @@ export default function AnalyzePage() {
 
       if (res.status === 429) { setError('You have used all your beta analyses. Thank you for testing!'); setLoading(false); return }
       if (res.status === 401) { router.push('/login'); return }
+      if (res.status === 504) { setError('Analysis timed out. The AI took too long — please try again, it usually works on retry.'); setLoading(false); return }
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Generation failed') }
 
       const { analysisId } = await res.json()

@@ -92,21 +92,32 @@ export async function POST(req: Request) {
   if (context?.trim())        lines.push(`Additional context: ${context.trim()}`)
   const userMessage = lines.join('\n')
 
-  // call Claude
-  const t0 = Date.now()
+  // call Claude — hard abort at 45 s so we return cleanly before Vercel kills us
+  const t0         = Date.now()
+  const controller = new AbortController()
+  const abortTimer = setTimeout(() => controller.abort(), 45_000)
   let rawText = ''
   try {
-    const msg = await ai.messages.create({
-      model:      'claude-sonnet-4-6',
-      max_tokens: 4096,
-      system:     SYSTEM_PROMPT,
-      messages:   [{ role: 'user', content: userMessage }],
-    })
+    const msg = await ai.messages.create(
+      {
+        model:      'claude-sonnet-4-6',
+        max_tokens: 1200,
+        system:     SYSTEM_PROMPT,
+        messages:   [{ role: 'user', content: userMessage }],
+      },
+      { signal: controller.signal },
+    )
+    clearTimeout(abortTimer)
     rawText = msg.content[0].type === 'text' ? msg.content[0].text : ''
-  } catch (e) {
+  } catch (e: unknown) {
+    clearTimeout(abortTimer)
+    const isAbort = e instanceof Error &&
+      (e.name === 'APIUserAbortError' || e.name === 'AbortError')
+    if (isAbort) {
+      console.error('Anthropic request aborted after 45 s')
+      return err('Analysis timed out — please try again.', 504)
+    }
     console.error('Anthropic error', e)
-    // Note: slot is already consumed. User loses one slot on AI failure.
-    // Acceptable for beta — prevents retry-spam abuse.
     return err('AI service error. Please try again.', 500)
   }
   const generationMs = Date.now() - t0
