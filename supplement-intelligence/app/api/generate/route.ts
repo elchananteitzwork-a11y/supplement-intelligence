@@ -73,7 +73,12 @@ export async function POST(req: Request) {
     .rpc('consume_analysis_slot', { p_user_id: user.id })
 
   if (slotErr) {
-    console.error('Rate limit RPC error', slotErr)
+    console.error('Rate limit RPC error', {
+      code:    slotErr.code,
+      message: slotErr.message,
+      details: slotErr.details,
+      hint:    slotErr.hint,
+    })
     return err('Server error checking usage limit.', 500)
   }
   if (!slotGranted) {
