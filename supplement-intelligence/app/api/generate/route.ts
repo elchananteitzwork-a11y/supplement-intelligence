@@ -34,19 +34,79 @@ function supabaseFromCookies() {
 function parseJSON(raw: string): MemoData {
   // Strip markdown fences
   let s = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
-  // If Claude prefixed with explanation text, jump to the first '{'
+  // Jump to the first '{' (handles any preamble Claude might add despite instructions)
   const start = s.indexOf('{')
+  if (start < 0) throw new Error('No JSON object in response')
   if (start > 0) s = s.slice(start)
   // Fast path — well-formed response
   try { return JSON.parse(s) as MemoData } catch { /* fall through */ }
-  // Slow path — find the outermost complete JSON object by brace depth
-  let depth = 0, end = -1
+  // Slow path — string-aware brace scanner to find the outermost complete object.
+  // The naive scanner breaks on '}' inside string values; this one tracks string state.
+  let depth = 0, inStr = false, esc = false, end = -1
   for (let i = 0; i < s.length; i++) {
-    if (s[i] === '{') depth++
-    else if (s[i] === '}') { depth--; if (depth === 0) { end = i; break } }
+    const c = s[i]
+    if (esc)   { esc = false; continue }
+    if (inStr) { if (c === '\\') esc = true; else if (c === '"') inStr = false; continue }
+    if (c === '"') { inStr = true; continue }
+    if (c === '{') depth++
+    else if (c === '}') { if (--depth === 0) { end = i; break } }
   }
-  if (end === -1) throw new Error('No complete JSON object in response')
+  if (end === -1) throw new Error('No complete JSON object found')
   return JSON.parse(s.slice(0, end + 1)) as MemoData
+}
+
+// Last-resort memo returned when parsing fails completely.
+// Saves a SKIP record so the user sees a result instead of an error.
+function buildSkipMemo(input: string): MemoData {
+  const NA = 'N/A'
+  const noScore = (note: string) => ({ score: 0, notes: note })
+  const safety = 'Not assessed — idea skipped due to safety or regulatory concerns.'
+  return {
+    category_name:     input.slice(0, 60),
+    executive_summary: 'This idea could not be analyzed due to safety, regulatory, or content concerns.',
+    build_verdict:     'NO',
+    build_decision:    'SKIP',
+    build_explanation: 'The idea contains ingredients or claims that create unacceptable regulatory or safety risk. Review and resubmit with a compliant supplement concept.',
+    opportunity_score: 0,
+    scores: {
+      demand:        noScore(safety),
+      competition:   noScore(safety),
+      virality:      noScore(safety),
+      subscription:  noScore(safety),
+      manufacturing: noScore(safety),
+      defensibility: noScore(safety),
+    },
+    biggest_competitor: { name: NA, revenue: NA, gap: NA },
+    market_size:  NA,
+    sub_ltv:      NA,
+    gross_margin: NA,
+    market_gaps:         [NA, NA, NA, NA, NA],
+    brand_opportunities: [NA, NA, NA, NA, NA],
+    customer_language: {
+      frustrations: [NA, NA],
+      desires:      [NA, NA],
+      fears:        [NA, NA],
+      ad_phrases:   [{ they_say: NA, use_in_copy: NA }, { they_say: NA, use_in_copy: NA }],
+    },
+    product_recommendation: {
+      format:        'capsule',
+      dosing:        NA,
+      formula:       [{ ingredient: NA, dose: NA, role: NA, evidence: '★' }],
+      avoid:         [NA, NA],
+      cogs_estimate: NA,
+      retail_price:  NA,
+      gross_margin:  NA,
+    },
+    financial_projections: {
+      ten_k_probability:     NA,
+      hundred_k_probability: NA,
+      one_m_probability:     NA,
+      gross_margin:          NA,
+      net_margin_at_scale:   NA,
+      subscription_ltv:      NA,
+      path_to_10m:           NA,
+    },
+  }
 }
 
 function err(msg: string, status = 400) {
@@ -113,12 +173,16 @@ export async function POST(req: Request) {
         model:      'claude-sonnet-4-6',
         max_tokens: 1800,
         system:     SYSTEM_PROMPT,
-        messages:   [{ role: 'user', content: userMessage }],
+        messages:   [
+          { role: 'user',      content: userMessage },
+          { role: 'assistant', content: '{' },  // prefill — forces JSON, blocks refusals
+        ],
       },
       { signal: controller.signal },
     )
     clearTimeout(abortTimer)
-    rawText = msg.content[0].type === 'text' ? msg.content[0].text : ''
+    // Prepend the '{' we sent as prefill — the API returns only the continuation
+    rawText = '{' + (msg.content[0].type === 'text' ? msg.content[0].text : '')
   } catch (e: unknown) {
     clearTimeout(abortTimer)
     const isAbort = e instanceof Error &&
@@ -132,18 +196,21 @@ export async function POST(req: Request) {
   }
   const generationMs = Date.now() - t0
 
-  // parse memo
+  // parse memo — never surface a raw parse failure to the user
   let memo: MemoData
   try {
     memo = parseJSON(rawText)
   } catch (e) {
-    console.error('JSON parse error', { snippet: rawText.slice(0, 600), length: rawText.length })
-    return err('Failed to parse AI output. Please try again.', 500)
+    console.error('JSON parse error', { snippet: rawText.slice(0, 500), length: rawText.length })
+    // Last resort: save a SKIP record so the user always sees a result
+    memo = buildSkipMemo(input.trim())
   }
 
-  // basic structural validation
+  // Structural guard: if required fields are still missing after parsing + fallback,
+  // swap in the skip memo rather than sending a broken record to the DB.
   if (!memo.category_name || typeof memo.opportunity_score !== 'number' || !memo.scores) {
-    return err('Incomplete analysis returned. Please try again.', 500)
+    console.error('Incomplete memo after parse — using skip fallback', { category_name: memo.category_name })
+    memo = buildSkipMemo(input.trim())
   }
 
   // save analysis
