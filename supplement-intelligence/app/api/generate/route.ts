@@ -113,6 +113,53 @@ function err(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status })
 }
 
+// ── supplement relevance gate ──────────────────────────────────
+// Single-word and two-word tokens. Any one match lets the request through.
+// Conservative: err on the side of passing ambiguous inputs to Claude.
+const SUPPLEMENT_TOKENS = new Set([
+  // explicit supplement/nutrition terms
+  'supplement','supplements','vitamin','vitamins','mineral','minerals',
+  'protein','collagen','probiotic','probiotics','prebiotic','prebiotics',
+  'omega','fiber','fibre','amino','herb','herbal','botanical','extract',
+  'adaptogen','nootropic','peptide','nutraceutical','superfood',
+  'capsule','capsules','gummy','gummies','powder','tincture','softgel',
+  // health conditions and symptoms
+  'sleep','stress','anxiety','energy','fatigue','tired','tiredness',
+  'muscle','gut','digestion','digestive','bloat','bloating',
+  'immune','immunity','hormone','hormones','hormonal','cortisol',
+  'hair','skin','nail','nails','mood','focus','memory','cognitive','brain',
+  'libido','fertility','menopause','perimenopause','pcos','acne',
+  'joint','joints','pain','inflammation','inflammatory','metabolism','metabolic',
+  'insulin','thyroid','adrenal','detox','cleanse','appetite',
+  'weight loss','fat loss','fat burning','muscle gain','muscle growth',
+  // specific ingredients
+  'magnesium','zinc','iron','calcium','potassium','ashwagandha','turmeric',
+  'curcumin','melatonin','creatine','glutamine','maca','rhodiola','ginseng',
+  'mushroom','mushrooms','berberine','inositol','glycine','taurine','carnitine',
+  'biotin','folate','b12','d3','coq10','nad','colostrum','elderberry',
+  'echinacea','spirulina','chlorella','reishi','lion\'s mane','ashwa',
+  // wellness goals and contexts
+  'recovery','endurance','strength','antioxidant','longevity','wellness',
+  'health','healthy','nutrition','nutritional','dietary','diet',
+  'postpartum','prenatal','pregnancy','breastfeeding','fasting','fast',
+  // body systems used in supplement context
+  'liver','heart','bone','cartilage','blood','blood sugar',
+])
+
+function isSupplementIdea(raw: string): boolean {
+  const lower = raw.toLowerCase()
+  const words = lower.split(/\W+/).filter(Boolean)
+  // single-word check
+  for (const w of words) {
+    if (SUPPLEMENT_TOKENS.has(w)) return true
+  }
+  // two-word phrase check
+  for (let i = 0; i < words.length - 1; i++) {
+    if (SUPPLEMENT_TOKENS.has(`${words[i]} ${words[i + 1]}`)) return true
+  }
+  return false
+}
+
 // ── route ──────────────────────────────────────────────────────
 export async function POST(req: Request) {
   const sb = supabaseFromCookies()
@@ -135,6 +182,12 @@ export async function POST(req: Request) {
     return err(`Context too long — max ${MAX_CONTEXT} characters`, 400)
   if (pricePoint !== undefined && pricePoint !== '' && !VALID_PRICES.has(pricePoint))
     return err('Invalid price point value', 400)
+
+  // ── supplement relevance gate ─────────────────────────────────
+  // Must pass before touching the DB or calling Anthropic.
+  if (!isSupplementIdea(input.trim())) {
+    return err('This tool currently analyzes supplement ideas only. Try something like "magnesium for sleep" or "collagen for women 40+".', 400)
+  }
 
   // ── pre-flight limit check (non-consuming) ───────────────────
   // Reads current usage before calling Claude so we don't waste an API
