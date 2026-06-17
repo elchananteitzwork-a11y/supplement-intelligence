@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     const msg = await ai.messages.create(
       {
         model:      'claude-sonnet-4-6',
-        max_tokens: 6000,
+        max_tokens: 3000,
         system:     DISCOVERY_PROMPT,
         messages:   [{ role: 'user', content: `Supplement category: "${input.trim()}"` }],
       },
