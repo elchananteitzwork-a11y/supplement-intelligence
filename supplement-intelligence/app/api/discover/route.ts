@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     const msg = await ai.messages.create(
       {
         model:      'claude-sonnet-4-6',
-        max_tokens: 3000,
+        max_tokens: 4000,
         system:     DISCOVERY_PROMPT,
         messages:   [{ role: 'user', content: `Supplement category: "${input.trim()}"` }],
       },
@@ -77,6 +77,13 @@ export async function POST(req: Request) {
     )
     clearTimeout(abortTimer)
     rawText = msg.content[0].type === 'text' ? msg.content[0].text : ''
+    console.log('Discovery raw response', {
+      stop_reason:   msg.stop_reason,
+      input_tokens:  msg.usage?.input_tokens,
+      output_tokens: msg.usage?.output_tokens,
+      raw_length:    rawText.length,
+      raw_tail:      rawText.slice(-200),
+    })
   } catch (e: unknown) {
     clearTimeout(abortTimer)
     const isAbort = e instanceof Error &&
