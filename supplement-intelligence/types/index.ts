@@ -1,4 +1,18 @@
 export type BuildDecision = 'BUILD_NOW' | 'VALIDATE_FURTHER' | 'SKIP'
+
+export interface OpportunityCard {
+  name: string
+  score: number
+  rationale: string
+  scores: {
+    demand: number
+    competition: number
+    virality: number
+    subscription: number
+    manufacturing: number
+    defensibility: number
+  }
+}
 export type BuildVerdict  = 'YES' | 'MAYBE' | 'NO'
 
 export interface DimScore {
