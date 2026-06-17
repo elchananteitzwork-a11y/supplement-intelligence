@@ -74,20 +74,85 @@ function dimColor(s: number) {
 
 // ── sub-components ─────────────────────────────────────────────
 
-function DimGrid({ scores }: { scores: OpportunityCard['scores'] }) {
+function DifficultyBadge({ d }: { d: OpportunityCard['difficulty'] }) {
+  const styles = {
+    Easy:   'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+    Medium: 'text-amber-400  bg-amber-400/10  border-amber-400/20',
+    Hard:   'text-red-400    bg-red-400/10    border-red-400/20',
+  }
   return (
-    <div className="grid grid-cols-6 gap-1 mt-3">
-      {([
-        ['Demand',  scores.demand],
-        ['Comp',    scores.competition],
-        ['Viral',   scores.virality],
-        ['Sub',     scores.subscription],
-        ['Mfg',     scores.manufacturing],
-        ['Defense', scores.defensibility],
-      ] as [string, number][]).map(([l, s]) => (
-        <div key={l} className="bg-zinc-800/60 rounded p-1.5 text-center">
-          <p className="text-[9px] text-zinc-600 mb-0.5">{l}</p>
-          <span className={`text-xs font-mono font-semibold ${dimColor(s)}`}>{s}</span>
+    <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border ${styles[d]}`}>
+      {d}
+    </span>
+  )
+}
+
+function MetaRow({ opp }: { opp: OpportunityCard }) {
+  return (
+    <div className="grid grid-cols-3 gap-2 mt-3">
+      <div className="bg-zinc-800/60 rounded-lg p-2.5 text-center">
+        <p className="text-[10px] text-zinc-500 mb-1">Startup Cost</p>
+        <p className="text-xs font-semibold text-white">{opp.startup_cost}</p>
+      </div>
+      <div className="bg-zinc-800/60 rounded-lg p-2.5 text-center">
+        <p className="text-[10px] text-zinc-500 mb-1">Difficulty</p>
+        <DifficultyBadge d={opp.difficulty} />
+      </div>
+      <div className="bg-zinc-800/60 rounded-lg p-2.5 text-center">
+        <p className="text-[10px] text-zinc-500 mb-1">Launch Time</p>
+        <p className="text-xs font-semibold text-white">{opp.launch_time}</p>
+      </div>
+    </div>
+  )
+}
+
+function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
+  const dims: { label: string; score: number; facts: string[] }[] = [
+    {
+      label: 'Demand',
+      score: scores.demand.score,
+      facts: [scores.demand.search_volume, scores.demand.trend, `Signal: ${scores.demand.signal}`],
+    },
+    {
+      label: 'Competition',
+      score: scores.competition.score,
+      facts: [`${scores.competition.competing_brands} brands`, `Sat: ${scores.competition.saturation}`, `Barrier: ${scores.competition.barrier}`],
+    },
+    {
+      label: 'Virality',
+      score: scores.virality.score,
+      facts: [`TikTok: ${scores.virality.tiktok}`, `Content: ${scores.virality.content_potential}`, `UGC: ${scores.virality.ugc}`],
+    },
+    {
+      label: 'Subscription',
+      score: scores.subscription.score,
+      facts: [scores.subscription.repeat_cycle, `Retention: ${scores.subscription.retention}`],
+    },
+    {
+      label: 'Manufacturing',
+      score: scores.manufacturing.score,
+      facts: [`Complexity: ${scores.manufacturing.complexity}`, `MOQ: ${scores.manufacturing.moq}`],
+    },
+    {
+      label: 'Defensibility',
+      score: scores.defensibility.score,
+      facts: [scores.defensibility.rationale],
+    },
+  ]
+
+  return (
+    <div className="grid grid-cols-2 gap-2 mt-3">
+      {dims.map(({ label, score, facts }) => (
+        <div key={label} className="bg-zinc-800/60 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">{label}</span>
+            <span className={`font-mono text-xs font-bold ${dimColor(score)}`}>{score}/10</span>
+          </div>
+          <div className="space-y-0.5">
+            {facts.map(f => (
+              <p key={f} className="text-[11px] text-zinc-400 leading-snug">{f}</p>
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -228,6 +293,7 @@ export default function AnalyzePage() {
           targetAudience: audience.trim() || undefined,
           pricePoint:     price          || undefined,
           context:        extra.trim()   || undefined,
+          fromDiscovery:  from === 'results',
         }),
       })
       clearInterval(timer)
@@ -334,7 +400,8 @@ export default function AnalyzePage() {
                       </span>
                     </div>
                     <p className="text-sm text-zinc-400 mt-1.5">{opp.rationale}</p>
-                    <DimGrid scores={opp.scores} />
+                    <MetaRow opp={opp} />
+                    <EvidenceGrid scores={opp.scores} />
                     <button
                       onClick={() => handleAnalyze(opp.name, 'results')}
                       className="btn-white w-full mt-4 py-2.5 text-sm"
@@ -364,8 +431,12 @@ export default function AnalyzePage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm group-hover:text-white">{opp.name}</p>
                       <p className="text-xs text-zinc-500 mt-0.5 truncate">{opp.rationale}</p>
+                      <p className="text-[10px] text-zinc-600 mt-1 truncate">
+                        {opp.scores.demand.search_volume} · {opp.scores.competition.competing_brands} brands · TikTok: {opp.scores.virality.tiktok}
+                      </p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
+                      <DifficultyBadge d={opp.difficulty} />
                       <span className={`font-mono font-bold text-lg ${scoreColor(opp.score)}`}>
                         {opp.score}
                       </span>

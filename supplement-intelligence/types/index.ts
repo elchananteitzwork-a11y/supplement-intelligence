@@ -4,13 +4,42 @@ export interface OpportunityCard {
   name: string
   score: number
   rationale: string
+  startup_cost: string
+  difficulty: 'Easy' | 'Medium' | 'Hard'
+  launch_time: string
   scores: {
-    demand: number
-    competition: number
-    virality: number
-    subscription: number
-    manufacturing: number
-    defensibility: number
+    demand: {
+      score: number
+      search_volume: string              // e.g. "82k/month"
+      trend: string                      // e.g. "+21% YoY" | "Stable"
+      signal: 'Strong' | 'Moderate' | 'Weak'
+    }
+    competition: {
+      score: number
+      competing_brands: string           // e.g. "120+" | "15–30"
+      saturation: 'Low' | 'Medium' | 'Medium-High' | 'High'
+      barrier: 'Low' | 'Medium' | 'High'
+    }
+    virality: {
+      score: number
+      tiktok: 'High' | 'Medium' | 'Low'
+      content_potential: 'High' | 'Medium' | 'Low'
+      ugc: 'High' | 'Medium' | 'Low'
+    }
+    subscription: {
+      score: number
+      repeat_cycle: string               // e.g. "30 days"
+      retention: 'High' | 'Medium' | 'Low'
+    }
+    manufacturing: {
+      score: number
+      complexity: 'Low' | 'Medium' | 'High'
+      moq: string                        // e.g. "500–1,000 units"
+    }
+    defensibility: {
+      score: number
+      rationale: string                  // ≤10-word reason why differentiation is easy/hard
+    }
   }
 }
 export type BuildVerdict  = 'YES' | 'MAYBE' | 'NO'

@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     const msg = await ai.messages.create(
       {
         model:      'claude-sonnet-4-6',
-        max_tokens: 3500,
+        max_tokens: 6000,
         system:     DISCOVERY_PROMPT,
         messages:   [{ role: 'user', content: `Supplement category: "${input.trim()}"` }],
       },
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
         typeof o.score === 'number' &&
         typeof o.rationale === 'string' &&
         o.scores &&
-        typeof o.scores.demand === 'number'
+        typeof o.scores.demand?.score === 'number'
       )
       .slice(0, 25)
       .sort((a, b) => b.score - a.score)
