@@ -204,7 +204,7 @@ export async function POST(req: Request) {
     const msg = await ai.messages.create(
       {
         model:      'claude-haiku-4-5-20251001',
-        max_tokens: 8192,
+        max_tokens: 16000,
         system:     systemPrompt,
         messages:   [{ role: 'user', content: `Supplement category: "${input.trim()}"` }],
       },
