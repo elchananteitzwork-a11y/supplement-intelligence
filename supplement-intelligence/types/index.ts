@@ -1,5 +1,15 @@
 export type BuildDecision = 'BUILD_NOW' | 'VALIDATE_FURTHER' | 'SKIP'
 
+// Server-computed; never produced by the AI. Optional for backward compat.
+export interface OpportunityMeta {
+  week_added:  string   // ISO week this opp first appeared, e.g. "2026-W25"
+  is_new:      boolean  // true on the week it first appeared in the cache
+  score_delta: number   // 0 for new items; signed Δ vs previous week for retained items
+  trending:    boolean  // score_delta > 0
+}
+
+export type CacheStatus = 'generated' | 'refreshed' | 'cached' | 'updated'
+
 export interface OpportunityCard {
   name: string
   score: number
@@ -7,6 +17,7 @@ export interface OpportunityCard {
   startup_cost: string
   difficulty: 'Easy' | 'Medium' | 'Hard'
   launch_time: string
+  _meta?: OpportunityMeta  // server-added after AI response, not in AI output
   scores: {
     demand: {
       score: number

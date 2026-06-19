@@ -1,9 +1,9 @@
-import { NextResponse }       from 'next/server'
-import { cookies }            from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
-import Anthropic              from '@anthropic-ai/sdk'
-import { DISCOVERY_PROMPT }   from '@/lib/prompts/discovery'
-import type { OpportunityCard } from '@/types/index'
+import { NextResponse }         from 'next/server'
+import { cookies }              from 'next/headers'
+import { createServerClient }   from '@supabase/ssr'
+import Anthropic                from '@anthropic-ai/sdk'
+import { DISCOVERY_PROMPT, buildRefreshPrompt } from '@/lib/prompts/discovery'
+import type { OpportunityCard, OpportunityMeta, CacheStatus } from '@/types/index'
 
 export const maxDuration = 60
 
@@ -30,18 +30,22 @@ function normalizeQuery(input: string): string {
   return input.toLowerCase().trim().replace(/\s+/g, ' ')
 }
 
-function getCacheWeek(): string {
-  const now = new Date()
-  const d   = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
-  const day = d.getUTCDay() || 7           // make Sunday = 7
-  d.setUTCDate(d.getUTCDate() + 4 - day)  // Thursday of this week
+// ISO-8601 week string, e.g. "2026-W25"
+function getCacheWeek(date: Date = new Date()): string {
+  const d   = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const day = d.getUTCDay() || 7           // Sunday → 7
+  d.setUTCDate(d.getUTCDate() + 4 - day)  // shift to Thursday of current week
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
   const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7)
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
-// Deterministic Fisher-Yates using a simple LCG seeded from a string.
-// Keeps top-3 stable; only used on positions 3+ (slice is passed in).
+function getPreviousCacheWeek(): string {
+  return getCacheWeek(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+}
+
+// Deterministic Fisher-Yates via LCG seeded from a string.
+// Only applied to positions 3+ so the top-3 remain stable.
 function seededShuffle<T>(arr: T[], seed: string): T[] {
   const result = [...arr]
   let h = 0
@@ -54,6 +58,47 @@ function seededShuffle<T>(arr: T[], seed: string): T[] {
     ;[result[i], result[j]] = [result[j], result[i]]
   }
   return result
+}
+
+// Attaches server-computed _meta to each opportunity.
+// On first generation all items are new; on refresh items are compared by
+// exact lowercase name to detect retained vs new entries.
+function enrichWithMeta(
+  opps:         OpportunityCard[],
+  cacheWeek:    string,
+  prevWeek:     string,
+  previousOpps: OpportunityCard[] | null,
+): OpportunityCard[] {
+  if (!previousOpps) {
+    return opps.map(o => ({
+      ...o,
+      _meta: { week_added: cacheWeek, is_new: true, score_delta: 0, trending: false } satisfies OpportunityMeta,
+    }))
+  }
+
+  const prevScoreMap = new Map(previousOpps.map(o => [o.name.toLowerCase().trim(), o.score]))
+  const prevMetaMap  = new Map(
+    previousOpps
+      .filter((o): o is OpportunityCard & { _meta: OpportunityMeta } => !!o._meta)
+      .map(o => [o.name.toLowerCase().trim(), o._meta]),
+  )
+
+  return opps.map(o => {
+    const key       = o.name.toLowerCase().trim()
+    const prevScore = prevScoreMap.get(key)
+    const prevMeta  = prevMetaMap.get(key)
+    const isNew     = prevScore === undefined
+    const delta     = isNew ? 0 : o.score - prevScore
+    return {
+      ...o,
+      _meta: {
+        week_added:  isNew ? cacheWeek : (prevMeta?.week_added ?? prevWeek),
+        is_new:      isNew,
+        score_delta: delta,
+        trending:    !isNew && delta > 0,
+      } satisfies OpportunityMeta,
+    }
+  })
 }
 
 function parseOpportunities(raw: string): OpportunityCard[] {
@@ -95,6 +140,7 @@ export async function POST(req: Request) {
 
   const normalizedQuery = normalizeQuery(input)
   const cacheWeek       = getCacheWeek()
+  const prevCacheWeek   = getPreviousCacheWeek()
 
   // ── cache check ────────────────────────────────────────────────
   const { data: hit } = await sb
@@ -106,26 +152,50 @@ export async function POST(req: Request) {
 
   if (hit) {
     const opps = hit.opportunities as OpportunityCard[]
+
+    // Determine badge: 'updated' if we refreshed off a previous week, else 'cached'
+    const { data: prevHit } = await sb
+      .from('discovery_cache')
+      .select('id')
+      .eq('normalized_query', normalizedQuery)
+      .eq('cache_week', prevCacheWeek)
+      .maybeSingle()
+
+    const cacheStatus: CacheStatus = prevHit ? 'updated' : 'cached'
+
     const top3 = opps.slice(0, 3)
-    const rest = seededShuffle(
-      opps.slice(3),
-      `${user.id}:${normalizedQuery}:${cacheWeek}`,
-    )
-    console.log('Discovery cache hit', {
-      query:        normalizedQuery,
-      cache_week:   cacheWeek,
-      generated_at: hit.generated_at,
-    })
+    const rest = seededShuffle(opps.slice(3), `${user.id}:${normalizedQuery}:${cacheWeek}`)
+
+    console.log('Discovery cache hit', { query: normalizedQuery, cache_week: cacheWeek, cache_status: cacheStatus })
     return NextResponse.json({
       opportunities: [...top3, ...rest],
       category:      input.trim(),
       cached:        true,
+      cache_status:  cacheStatus,
       cache_week:    cacheWeek,
       generated_at:  hit.generated_at,
     })
   }
 
-  // ── cache miss → call Anthropic ────────────────────────────────
+  // ── cache miss: check previous week for refresh context ────────
+  const { data: prevEntry } = await sb
+    .from('discovery_cache')
+    .select('opportunities')
+    .eq('normalized_query', normalizedQuery)
+    .eq('cache_week', prevCacheWeek)
+    .maybeSingle()
+
+  const previousOpps = prevEntry
+    ? (prevEntry.opportunities as OpportunityCard[])
+    : null
+
+  const systemPrompt = previousOpps
+    ? buildRefreshPrompt(previousOpps.map(o => ({ name: o.name, score: o.score })))
+    : DISCOVERY_PROMPT
+
+  const isRefresh = !!previousOpps
+
+  // ── call Anthropic ─────────────────────────────────────────────
   const controller = new AbortController()
   const abortTimer = setTimeout(() => controller.abort(), 50_000)
   let rawText = ''
@@ -135,7 +205,7 @@ export async function POST(req: Request) {
       {
         model:      'claude-sonnet-4-6',
         max_tokens: 4000,
-        system:     DISCOVERY_PROMPT,
+        system:     systemPrompt,
         messages:   [{ role: 'user', content: `Supplement category: "${input.trim()}"` }],
       },
       { signal: controller.signal },
@@ -147,7 +217,7 @@ export async function POST(req: Request) {
       input_tokens:  msg.usage?.input_tokens,
       output_tokens: msg.usage?.output_tokens,
       raw_length:    rawText.length,
-      raw_tail:      rawText.slice(-200),
+      is_refresh:    isRefresh,
     })
   } catch (e: unknown) {
     clearTimeout(abortTimer)
@@ -170,7 +240,7 @@ export async function POST(req: Request) {
     return err('AI service error — please try again.', 500)
   }
 
-  // ── parse ──────────────────────────────────────────────────────
+  // ── parse + validate ───────────────────────────────────────────
   let opportunities: OpportunityCard[]
   try {
     const parsed = parseOpportunities(rawText)
@@ -186,45 +256,46 @@ export async function POST(req: Request) {
       .sort((a, b) => b.score - a.score)
   } catch (e) {
     console.error('Discovery parse error', {
-      category:   input.trim(),
-      raw_length: rawText.length,
-      snippet:    rawText.slice(0, 400),
+      category:    input.trim(),
+      is_refresh:  isRefresh,
+      raw_length:  rawText.length,
+      raw_snippet: rawText.slice(0, 400),
     })
     return err('Failed to parse opportunities — please try again.', 500)
   }
+
+  // ── attach per-opportunity metadata ───────────────────────────
+  const enriched = enrichWithMeta(opportunities, cacheWeek, prevCacheWeek, previousOpps)
 
   // ── write cache ────────────────────────────────────────────────
   const generatedAt = new Date().toISOString()
   const { error: cacheWriteErr } = await sb
     .from('discovery_cache')
     .upsert(
-      { normalized_query: normalizedQuery, cache_week: cacheWeek, opportunities, generated_at: generatedAt },
+      { normalized_query: normalizedQuery, cache_week: cacheWeek, opportunities: enriched, generated_at: generatedAt },
       { onConflict: 'normalized_query,cache_week' },
     )
   if (cacheWriteErr) {
-    // Non-fatal — log and continue. The user still gets their results.
     console.error('Discovery cache write failed', cacheWriteErr)
   }
 
   console.log('Discovery complete', {
     category:    input.trim(),
-    count:       opportunities.length,
-    top_score:   opportunities[0]?.score,
-    top_name:    opportunities[0]?.name,
+    count:       enriched.length,
+    is_refresh:  isRefresh,
+    new_count:   enriched.filter(o => o._meta?.is_new).length,
+    trending:    enriched.filter(o => o._meta?.trending).length,
     cache_week:  cacheWeek,
   })
 
-  // Apply user-specific shuffle to positions 4-20 on first-load too
-  const top3 = opportunities.slice(0, 3)
-  const rest = seededShuffle(
-    opportunities.slice(3),
-    `${user.id}:${normalizedQuery}:${cacheWeek}`,
-  )
+  const top3 = enriched.slice(0, 3)
+  const rest = seededShuffle(enriched.slice(3), `${user.id}:${normalizedQuery}:${cacheWeek}`)
 
   return NextResponse.json({
     opportunities: [...top3, ...rest],
     category:      input.trim(),
     cached:        false,
+    cache_status:  (isRefresh ? 'refreshed' : 'generated') as CacheStatus,
     cache_week:    cacheWeek,
     generated_at:  generatedAt,
   })

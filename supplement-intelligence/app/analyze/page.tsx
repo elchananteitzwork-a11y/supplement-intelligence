@@ -225,6 +225,7 @@ export default function AnalyzePage() {
   const [prevMode,      setPrevMode]      = useState<'form' | 'results'>('form')
   const [cached,        setCached]        = useState(false)
   const [cacheWeek,     setCacheWeek]     = useState('')
+  const [cacheStatus,   setCacheStatus]   = useState('')
 
   const broad = isBroadCategory(input)
 
@@ -264,10 +265,11 @@ export default function AnalyzePage() {
         throw new Error(d.error || 'Discovery failed')
       }
 
-      const { opportunities: opps, cached: isCached, cache_week: week } = await res.json()
+      const { opportunities: opps, cached: isCached, cache_week: week, cache_status: status } = await res.json()
       setOpportunities(opps)
       setCached(isCached ?? false)
       setCacheWeek(week ?? '')
+      setCacheStatus(status ?? '')
       setMode('results')
     } catch (err: unknown) {
       clearInterval(timer)
@@ -374,7 +376,7 @@ export default function AnalyzePage() {
             <p className="label">{opportunities.length} opportunities found</p>
             {cached && cacheWeek && (
               <span className="text-[10px] font-medium text-zinc-500 bg-zinc-800/80 border border-zinc-700 px-2 py-0.5 rounded-full">
-                Cached · {cacheWeek}
+                {cacheStatus === 'updated' ? 'Updated this week' : 'Cached this week'} · {cacheWeek}
               </span>
             )}
           </div>
@@ -406,10 +408,31 @@ export default function AnalyzePage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <h3 className="font-semibold text-base leading-snug">{opp.name}</h3>
-                      <span className={`font-mono font-bold text-2xl shrink-0 ${scoreColor(opp.score)}`}>
-                        {opp.score}
-                      </span>
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className={`font-mono font-bold text-2xl ${scoreColor(opp.score)}`}>
+                          {opp.score}
+                        </span>
+                        {opp._meta && opp._meta.score_delta !== 0 && (
+                          <span className={`text-xs font-mono leading-none mt-0.5 ${opp._meta.score_delta > 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                            {opp._meta.score_delta > 0 ? `+${opp._meta.score_delta}` : opp._meta.score_delta}
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    {(opp._meta?.is_new || opp._meta?.trending) && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        {opp._meta.is_new && (
+                          <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-full">
+                            New this week
+                          </span>
+                        )}
+                        {opp._meta.trending && (
+                          <span className="text-[10px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded-full">
+                            Trending ↑
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <p className="text-sm text-zinc-400 mt-1.5">{opp.rationale}</p>
                     <MetaRow opp={opp} />
                     <EvidenceGrid scores={opp.scores} />
@@ -440,7 +463,15 @@ export default function AnalyzePage() {
                       {i + 4}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm group-hover:text-white">{opp.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium text-sm group-hover:text-white truncate">{opp.name}</p>
+                        {opp._meta?.is_new && (
+                          <span className="text-[10px] font-semibold text-emerald-400 shrink-0">New</span>
+                        )}
+                        {opp._meta?.trending && (
+                          <span className="text-[10px] text-amber-400 shrink-0">↑</span>
+                        )}
+                      </div>
                       <p className="text-xs text-zinc-500 mt-0.5 truncate">{opp.rationale}</p>
                       <p className="text-[10px] text-zinc-600 mt-1 truncate">
                         {opp.scores.demand.search_volume} · {opp.scores.competition.competing_brands} brands · TikTok: {opp.scores.virality.tiktok}

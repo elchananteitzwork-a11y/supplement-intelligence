@@ -109,3 +109,29 @@ Rules:
 - Sort by opportunity_score descending
 - Be analytically skeptical — most scores should land in the 5–8 range, not 9–10
 - Every score field MUST have its accompanying evidence fields — omitting evidence is not allowed`
+
+// Builds a weekly-refresh system prompt that layers continuity instructions
+// on top of the base DISCOVERY_PROMPT. Claude uses the previous list as
+// context but still applies all evidence + scoring rules from above.
+export function buildRefreshPrompt(
+  previous: Array<{ name: string; score: number }>,
+): string {
+  const list = previous
+    .map((o, i) => `${i + 1}. ${o.name} (score: ${o.score})`)
+    .join('\n')
+
+  return `${DISCOVERY_PROMPT}
+
+---
+WEEKLY REFRESH CONTEXT
+
+Last week's opportunities (reference only — do not copy blindly):
+${list}
+
+Refresh rules (apply after all rules above):
+- Keep opportunities that remain strong and relevant; use their EXACT same name if retaining them
+- Retained opportunity scores may shift ±4 points based on current perspective
+- Replace 4–6 of the weakest or most stale entries with completely new ideas not in the list above
+- New ideas must follow the same specificity and evidence standards as the main prompt
+- Return exactly 20 total, sorted by opportunity_score descending`
+}
