@@ -32,7 +32,7 @@ function normalizeQuery(input: string): string {
 
 // ISO-8601 week string, e.g. "2026-W25"
 function getCacheWeek(date: Date = new Date()): string {
-  const d   = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const d   = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
   const day = d.getUTCDay() || 7           // Sunday → 7
   d.setUTCDate(d.getUTCDate() + 4 - day)  // shift to Thursday of current week
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))

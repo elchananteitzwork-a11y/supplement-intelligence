@@ -361,6 +361,9 @@ export default function AnalyzePage() {
   if (mode === 'results') {
     const top3 = opportunities.slice(0, 3)
     const rest = opportunities.slice(3)
+    // Only show _meta badges when results have meaningful refresh context.
+    // 'generated' means all items are vacuously is_new=true (first-ever call).
+    const showMeta = cacheStatus !== '' && cacheStatus !== 'generated'
 
     return (
       <div className="min-h-screen py-14 px-4">
@@ -412,21 +415,21 @@ export default function AnalyzePage() {
                         <span className={`font-mono font-bold text-2xl ${scoreColor(opp.score)}`}>
                           {opp.score}
                         </span>
-                        {opp._meta && opp._meta.score_delta !== 0 && (
+                        {showMeta && opp._meta && opp._meta.score_delta !== 0 && (
                           <span className={`text-xs font-mono leading-none mt-0.5 ${opp._meta.score_delta > 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>
                             {opp._meta.score_delta > 0 ? `+${opp._meta.score_delta}` : opp._meta.score_delta}
                           </span>
                         )}
                       </div>
                     </div>
-                    {(opp._meta?.is_new || opp._meta?.trending) && (
+                    {showMeta && (opp._meta?.is_new || opp._meta?.trending) && (
                       <div className="flex items-center gap-1.5 mt-1.5">
-                        {opp._meta.is_new && (
+                        {opp._meta!.is_new && (
                           <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-full">
                             New this week
                           </span>
                         )}
-                        {opp._meta.trending && (
+                        {opp._meta!.trending && (
                           <span className="text-[10px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded-full">
                             Trending ↑
                           </span>
@@ -465,10 +468,10 @@ export default function AnalyzePage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="font-medium text-sm group-hover:text-white truncate">{opp.name}</p>
-                        {opp._meta?.is_new && (
+                        {showMeta && opp._meta?.is_new && (
                           <span className="text-[10px] font-semibold text-emerald-400 shrink-0">New</span>
                         )}
-                        {opp._meta?.trending && (
+                        {showMeta && opp._meta?.trending && (
                           <span className="text-[10px] text-amber-400 shrink-0">↑</span>
                         )}
                       </div>
