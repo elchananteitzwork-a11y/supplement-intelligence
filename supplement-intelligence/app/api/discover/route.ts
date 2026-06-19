@@ -9,6 +9,8 @@ export const maxDuration = 60
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+// ── helpers ────────────────────────────────────────────────────
+
 function supabaseFromCookies() {
   const jar = cookies()
   return createServerClient(
@@ -24,14 +26,42 @@ function supabaseFromCookies() {
   )
 }
 
+function normalizeQuery(input: string): string {
+  return input.toLowerCase().trim().replace(/\s+/g, ' ')
+}
+
+function getCacheWeek(): string {
+  const now = new Date()
+  const d   = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
+  const day = d.getUTCDay() || 7           // make Sunday = 7
+  d.setUTCDate(d.getUTCDate() + 4 - day)  // Thursday of this week
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7)
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
+// Deterministic Fisher-Yates using a simple LCG seeded from a string.
+// Keeps top-3 stable; only used on positions 3+ (slice is passed in).
+function seededShuffle<T>(arr: T[], seed: string): T[] {
+  const result = [...arr]
+  let h = 0
+  for (let i = 0; i < seed.length; i++) {
+    h = (Math.imul(h, 31) + seed.charCodeAt(i)) >>> 0
+  }
+  for (let i = result.length - 1; i > 0; i--) {
+    h = (Math.imul(h, 1_664_525) + 1_013_904_223) >>> 0
+    const j = h % (i + 1)
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
 function parseOpportunities(raw: string): OpportunityCard[] {
   let s = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
   const start = s.indexOf('[')
   if (start < 0) throw new Error('No JSON array in response')
   if (start > 0) s = s.slice(start)
-  // Fast path
   try { return JSON.parse(s) as OpportunityCard[] } catch { /* fall through */ }
-  // String-aware bracket scanner
   let depth = 0, inStr = false, esc = false, end = -1
   for (let i = 0; i < s.length; i++) {
     const c = s[i]
@@ -49,6 +79,8 @@ function err(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status })
 }
 
+// ── route ──────────────────────────────────────────────────────
+
 export async function POST(req: Request) {
   const sb = supabaseFromCookies()
   const { data: { user } } = await sb.auth.getUser()
@@ -58,9 +90,42 @@ export async function POST(req: Request) {
   try { body = await req.json() } catch { return err('Invalid JSON body') }
 
   const { input } = body
-  if (!input?.trim())              return err('input is required')
-  if (input.trim().length > 200)   return err('Input too long — max 200 characters', 400)
+  if (!input?.trim())            return err('input is required')
+  if (input.trim().length > 200) return err('Input too long — max 200 characters', 400)
 
+  const normalizedQuery = normalizeQuery(input)
+  const cacheWeek       = getCacheWeek()
+
+  // ── cache check ────────────────────────────────────────────────
+  const { data: hit } = await sb
+    .from('discovery_cache')
+    .select('opportunities, generated_at')
+    .eq('normalized_query', normalizedQuery)
+    .eq('cache_week', cacheWeek)
+    .maybeSingle()
+
+  if (hit) {
+    const opps = hit.opportunities as OpportunityCard[]
+    const top3 = opps.slice(0, 3)
+    const rest = seededShuffle(
+      opps.slice(3),
+      `${user.id}:${normalizedQuery}:${cacheWeek}`,
+    )
+    console.log('Discovery cache hit', {
+      query:        normalizedQuery,
+      cache_week:   cacheWeek,
+      generated_at: hit.generated_at,
+    })
+    return NextResponse.json({
+      opportunities: [...top3, ...rest],
+      category:      input.trim(),
+      cached:        true,
+      cache_week:    cacheWeek,
+      generated_at:  hit.generated_at,
+    })
+  }
+
+  // ── cache miss → call Anthropic ────────────────────────────────
   const controller = new AbortController()
   const abortTimer = setTimeout(() => controller.abort(), 50_000)
   let rawText = ''
@@ -87,19 +152,25 @@ export async function POST(req: Request) {
   } catch (e: unknown) {
     clearTimeout(abortTimer)
     const isAbort = e instanceof Error &&
-      (e.name === 'APIUserAbortError' || e.name === 'AbortError')
+      (e.name === 'APIUserAbortError' || e.name === 'AbortError' ||
+       (e.message ?? '').toLowerCase().includes('abort'))
     if (isAbort) {
       console.error('Discovery timeout after 50 s', { category: input.trim() })
       return err('Discovery timed out — please try again.', 504)
     }
     if (e instanceof Anthropic.APIError) {
-      console.error('Anthropic API error (discover)', { status: e.status, message: e.message })
+      console.error('Anthropic API error (discover)', {
+        status:  e.status,
+        message: e.message,
+        error:   JSON.stringify(e.error),
+      })
     } else {
       console.error('Discovery error', e)
     }
     return err('AI service error — please try again.', 500)
   }
 
+  // ── parse ──────────────────────────────────────────────────────
   let opportunities: OpportunityCard[]
   try {
     const parsed = parseOpportunities(rawText)
@@ -115,11 +186,24 @@ export async function POST(req: Request) {
       .sort((a, b) => b.score - a.score)
   } catch (e) {
     console.error('Discovery parse error', {
-      category: input.trim(),
+      category:   input.trim(),
       raw_length: rawText.length,
-      snippet: rawText.slice(0, 400),
+      snippet:    rawText.slice(0, 400),
     })
     return err('Failed to parse opportunities — please try again.', 500)
+  }
+
+  // ── write cache ────────────────────────────────────────────────
+  const generatedAt = new Date().toISOString()
+  const { error: cacheWriteErr } = await sb
+    .from('discovery_cache')
+    .upsert(
+      { normalized_query: normalizedQuery, cache_week: cacheWeek, opportunities, generated_at: generatedAt },
+      { onConflict: 'normalized_query,cache_week' },
+    )
+  if (cacheWriteErr) {
+    // Non-fatal — log and continue. The user still gets their results.
+    console.error('Discovery cache write failed', cacheWriteErr)
   }
 
   console.log('Discovery complete', {
@@ -127,7 +211,21 @@ export async function POST(req: Request) {
     count:       opportunities.length,
     top_score:   opportunities[0]?.score,
     top_name:    opportunities[0]?.name,
+    cache_week:  cacheWeek,
   })
 
-  return NextResponse.json({ opportunities, category: input.trim() })
+  // Apply user-specific shuffle to positions 4-20 on first-load too
+  const top3 = opportunities.slice(0, 3)
+  const rest = seededShuffle(
+    opportunities.slice(3),
+    `${user.id}:${normalizedQuery}:${cacheWeek}`,
+  )
+
+  return NextResponse.json({
+    opportunities: [...top3, ...rest],
+    category:      input.trim(),
+    cached:        false,
+    cache_week:    cacheWeek,
+    generated_at:  generatedAt,
+  })
 }

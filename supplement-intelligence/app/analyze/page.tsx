@@ -223,6 +223,8 @@ export default function AnalyzePage() {
   const [opportunities, setOpportunities] = useState<OpportunityCard[]>([])
   const [analyzingName, setAnalyzingName] = useState('')
   const [prevMode,      setPrevMode]      = useState<'form' | 'results'>('form')
+  const [cached,        setCached]        = useState(false)
+  const [cacheWeek,     setCacheWeek]     = useState('')
 
   const broad = isBroadCategory(input)
 
@@ -262,8 +264,10 @@ export default function AnalyzePage() {
         throw new Error(d.error || 'Discovery failed')
       }
 
-      const { opportunities: opps } = await res.json()
+      const { opportunities: opps, cached: isCached, cache_week: week } = await res.json()
       setOpportunities(opps)
+      setCached(isCached ?? false)
+      setCacheWeek(week ?? '')
       setMode('results')
     } catch (err: unknown) {
       clearInterval(timer)
@@ -366,7 +370,14 @@ export default function AnalyzePage() {
           </button>
 
           {/* header */}
-          <p className="label mb-1">{opportunities.length} opportunities found</p>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="label">{opportunities.length} opportunities found</p>
+            {cached && cacheWeek && (
+              <span className="text-[10px] font-medium text-zinc-500 bg-zinc-800/80 border border-zinc-700 px-2 py-0.5 rounded-full">
+                Cached · {cacheWeek}
+              </span>
+            )}
+          </div>
           <h1 className="text-2xl font-bold mb-2">
             Top Opportunities in <span className="text-emerald-400">{input}</span>
           </h1>

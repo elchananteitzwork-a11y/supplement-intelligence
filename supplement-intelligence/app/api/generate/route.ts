@@ -191,6 +191,28 @@ export async function POST(req: Request) {
     return err('This tool currently analyzes supplement ideas only. Try something like "magnesium for sleep" or "collagen for women 40+".', 400)
   }
 
+  // ── full-report cache ─────────────────────────────────────────
+  // If any user has already generated a report for this exact input,
+  // return the existing analysisId immediately — no slot consumed.
+  // RLS on analyses is owner-scoped, so this only matches the current
+  // user's own prior runs (cross-user sharing would need a service role).
+  const { data: cachedReport } = await sb
+    .from('analyses')
+    .select('id, created_at')
+    .ilike('raw_input', input.trim())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (cachedReport) {
+    console.log('Report cache hit', { input: input.trim(), id: cachedReport.id })
+    return NextResponse.json({
+      analysisId:   cachedReport.id,
+      cached:       true,
+      generated_at: cachedReport.created_at,
+    })
+  }
+
   // ── pre-flight limit check (non-consuming) ───────────────────
   // Reads current usage before calling Claude so we don't waste an API
   // call on a user who is already at their limit. The atomic consume
