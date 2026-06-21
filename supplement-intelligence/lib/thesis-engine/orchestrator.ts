@@ -548,14 +548,32 @@ interface ClaudeSynthesisResult {
 async function callClaudeSynthesis(prompt: string): Promise<ClaudeSynthesisResult> {
   const msg = await ai.messages.create({
     model:      'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: 8000,   // MarketThesis JSON is ~5-7k tokens; 4096 truncates it
     messages:   [{ role: 'user', content: prompt }],
   })
   const raw = msg.content[0].type === 'text' ? msg.content[0].text : ''
   let s = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
   const start = s.indexOf('{')
   if (start > 0) s = s.slice(start)
-  return JSON.parse(s) as ClaudeSynthesisResult
+
+  // If the response was still truncated, find the last complete top-level value
+  // by scanning for a position where the outer object brace count reaches zero.
+  try {
+    return JSON.parse(s) as ClaudeSynthesisResult
+  } catch {
+    // Walk backwards to find the last valid JSON boundary
+    let depth = 0, inStr = false, esc = false, last = -1
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i]
+      if (esc)   { esc = false; continue }
+      if (inStr) { if (c === '\\') esc = true; else if (c === '"') inStr = false; continue }
+      if (c === '"') { inStr = true; continue }
+      if (c === '{' || c === '[') depth++
+      else if (c === '}' || c === ']') { if (--depth === 0) last = i }
+    }
+    if (last > 0) return JSON.parse(s.slice(0, last + 1)) as ClaudeSynthesisResult
+    throw new Error('Claude response was truncated and could not be recovered')
+  }
 }
 
 // ── Main synthesis function ────────────────────────────────────────────────
@@ -584,6 +602,18 @@ export async function synthesize(
   }
 
   // ── Signal collection ───────────────────────────────────────
+  // Canonical thesis-engine ProviderId for each signal-engine provider name.
+  // The signal engine uses hyphens (e.g. 'google-trends') while ProviderId
+  // uses underscores ('google_trends'). This map normalises at the boundary.
+  const SIGNAL_ENGINE_ID_MAP: Record<string, ProviderId> = {
+    'keepa':          'keepa',
+    'google-trends':  'google_trends',
+    'tiktok':         'tiktok',
+    'reddit':         'reddit',
+    'amazon-reviews': 'amazon_reviews',
+    'meta-ads':       'meta_ads',
+    'amazon-ads':     'amazon_ads',
+  }
   const allProviders: ProviderId[] = ['keepa', 'google_trends', 'reddit', 'tiktok', 'amazon_reviews', 'meta_ads', 'amazon_ads']
   let agg: AggregatedSignals | null = null
 
@@ -592,7 +622,8 @@ export async function synthesize(
     agg = await signalEngine.fetch(query, 15_000)
     if (agg) {
       for (const p of agg.providers_used) {
-        emit?.({ event: 'source:completed', provider: p as ProviderId, signal_count: 1 })
+        const canonicalId = SIGNAL_ENGINE_ID_MAP[p] ?? p as ProviderId
+        emit?.({ event: 'source:completed', provider: canonicalId, signal_count: 1 })
       }
     }
   } catch (err) {
@@ -603,8 +634,11 @@ export async function synthesize(
   const signals  = agg ? adaptAggregatedSignals(agg, query) : []
   const clusters = buildSignalClusters(signals)
 
-  const providersSucceeded = (agg?.providers_used ?? []) as ProviderId[]
-  const providersFailed    = allProviders.filter(p => !providersSucceeded.includes(p))
+  // Normalise succeeded IDs to canonical ProviderId form
+  const providersSucceeded = (agg?.providers_used ?? []).map(
+    p => SIGNAL_ENGINE_ID_MAP[p] ?? p as ProviderId
+  )
+  const providersFailed = allProviders.filter(p => !providersSucceeded.includes(p))
 
   // ── Claude synthesis ────────────────────────────────────────
   emit?.({ event: 'synthesis:started' })
