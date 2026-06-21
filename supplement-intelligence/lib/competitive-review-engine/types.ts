@@ -86,10 +86,12 @@ export interface MarketReport {
   // Per-product breakdown (sorted by opportunity_score desc)
   products: ProductInsight[]
 
-  // Market-level scores
-  market_pain_score:        number   // 0–10
-  market_opportunity_score: number   // 0–10
-  market_confidence:        number   // 0–1
+  // Market-level scores (all 5 required dimensions)
+  market_pain_score:        number   // 0–10: weighted avg customer pain across products
+  market_opportunity_score: number   // 0–10: gap density × per-product opportunity
+  gap_score:                number   // 0–10: prevalence-weighted unmet-need density
+  competition_risk:         number   // 0–10: how hard it is to win this market
+  market_confidence:        number   // 0–1: reliability of this analysis
 
   // Cross-ASIN gap tiers (sorted by prevalence desc within each tier)
   universal_gaps: MarketGap[]   // ≥ 70% of products — category-defining problems
