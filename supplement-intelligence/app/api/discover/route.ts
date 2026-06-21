@@ -2,7 +2,12 @@ import { NextResponse }         from 'next/server'
 import { cookies }              from 'next/headers'
 import { createServerClient }   from '@supabase/ssr'
 import Anthropic                from '@anthropic-ai/sdk'
-import { DISCOVERY_PROMPT, buildRefreshPrompt } from '@/lib/prompts/discovery'
+import {
+  DISCOVERY_PROMPT,
+  buildRefreshPrompt,
+  buildSignalAugmentedSystemPrompt,
+} from '@/lib/prompts/discovery'
+import { signalEngine }         from '@/lib/signal-engine'
 import type { OpportunityCard, OpportunityMeta, CacheStatus } from '@/types/index'
 
 export const maxDuration = 60
@@ -189,11 +194,36 @@ export async function POST(req: Request) {
     ? (prevEntry.opportunities as OpportunityCard[])
     : null
 
-  const systemPrompt = previousOpps
+  const baseSystemPrompt = previousOpps
     ? buildRefreshPrompt(previousOpps.map(o => ({ name: o.name, score: o.score })))
     : DISCOVERY_PROMPT
 
   const isRefresh = !!previousOpps
+
+  // ── Signal Engine ──────────────────────────────────────────────
+  // Run all enabled providers in parallel before calling Anthropic.
+  // Any provider that fails, times out, or lacks credentials returns null
+  // and is silently skipped. If no providers return data, signals is null
+  // and the system prompt is unchanged — identical behavior to before.
+  // Budget: 12 s max so the 50 s Anthropic abort still has ample headroom.
+  const signals = await signalEngine.fetch(input.trim(), 12_000)
+
+  if (signals) {
+    console.log('Signal Engine result', {
+      category:           input.trim(),
+      providers_used:     signals.providers_used,
+      overall_confidence: signals.overall_confidence,
+      has_demand:         !!signals.demand,
+      has_competition:    !!signals.competition,
+      has_pricing:        !!signals.pricing,
+    })
+  }
+
+  const systemPrompt = buildSignalAugmentedSystemPrompt(
+    baseSystemPrompt,
+    input.trim(),
+    signals,
+  )
 
   // ── call Anthropic ─────────────────────────────────────────────
   const controller = new AbortController()
@@ -213,11 +243,12 @@ export async function POST(req: Request) {
     clearTimeout(abortTimer)
     rawText = msg.content[0].type === 'text' ? msg.content[0].text : ''
     console.log('Discovery raw response', {
-      stop_reason:   msg.stop_reason,
-      input_tokens:  msg.usage?.input_tokens,
-      output_tokens: msg.usage?.output_tokens,
-      raw_length:    rawText.length,
-      is_refresh:    isRefresh,
+      stop_reason:        msg.stop_reason,
+      input_tokens:       msg.usage?.input_tokens,
+      output_tokens:      msg.usage?.output_tokens,
+      raw_length:         rawText.length,
+      is_refresh:         isRefresh,
+      signal_providers:   signals?.providers_used ?? [],
     })
   } catch (e: unknown) {
     clearTimeout(abortTimer)

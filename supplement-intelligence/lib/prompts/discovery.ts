@@ -1,3 +1,102 @@
+import type { AggregatedSignals } from '@/lib/signal-engine/types'
+
+// ── Signal context formatter ───────────────────────────────────────
+// Converts AggregatedSignals into a structured text block that is injected
+// into the discovery prompt. Claude uses these verified values in place of
+// estimates wherever they apply. Dimensions missing from the signals are
+// omitted from the block so Claude fills them in with its own reasoning.
+
+export function buildSignalContext(
+  category: string,
+  signals: AggregatedSignals,
+): string {
+  if (signals.overall_confidence < 0.2) return ''
+
+  const confPct = Math.round(signals.overall_confidence * 100)
+  const sourceList = signals.providers_used.join(', ')
+  const lines: string[] = [
+    `VERIFIED MARKET DATA for category: "${category}"`,
+    `Sources: ${sourceList} | Overall confidence: ${confPct}%`,
+    `Use these values where they apply. Do not override verified data with estimates.`,
+    `For dimensions not listed here, continue to reason and estimate as normal.`,
+    '',
+  ]
+
+  if (signals.demand) {
+    const d = signals.demand.value
+    lines.push('DEMAND (verified):')
+    if (d.search_volume) lines.push(`  - Amazon sales volume (proxy): ${d.search_volume}`)
+    if (d.trend)         lines.push(`  - Trend direction: ${d.trend}`)
+    if (d.signal)        lines.push(`  - Signal strength: ${d.signal}`)
+    lines.push(`  - Confidence: ${Math.round(signals.demand.confidence * 100)}%`)
+    lines.push('')
+  }
+
+  if (signals.competition) {
+    const c = signals.competition.value
+    lines.push('COMPETITION (verified):')
+    if (c.competing_brands) lines.push(`  - Competing sellers (new offers/listing): ${c.competing_brands}`)
+    if (c.saturation)       lines.push(`  - Market saturation: ${c.saturation}`)
+    if (c.barrier)          lines.push(`  - Entry barrier: ${c.barrier}`)
+    lines.push(`  - Confidence: ${Math.round(signals.competition.confidence * 100)}%`)
+    lines.push('')
+  }
+
+  if (signals.growth) {
+    const g = signals.growth.value
+    lines.push('GROWTH (verified):')
+    if (g.yoy_change) lines.push(`  - Year-over-year BSR trend: ${g.yoy_change}`)
+    if (g.momentum)   lines.push(`  - Momentum: ${g.momentum}`)
+    lines.push(`  - Confidence: ${Math.round(signals.growth.confidence * 100)}%`)
+    lines.push('')
+  }
+
+  if (signals.pricing) {
+    const p = signals.pricing.value
+    lines.push('PRICING (verified):')
+    if (p.avg_price)      lines.push(`  - Category average price: ${p.avg_price}`)
+    if (p.price_range)    lines.push(`  - Price range: ${p.price_range}`)
+    if (p.premium_viable !== undefined) {
+      lines.push(`  - Premium brand viable (20%+ above avg): ${p.premium_viable ? 'Yes' : 'No'}`)
+    }
+    lines.push(`  - Confidence: ${Math.round(signals.pricing.confidence * 100)}%`)
+    lines.push('')
+  }
+
+  if (signals.review_velocity) {
+    const r = signals.review_velocity.value
+    lines.push('REVIEW VELOCITY (verified):')
+    if (r.monthly_reviews) lines.push(`  - Monthly new reviews: ${r.monthly_reviews}`)
+    if (r.avg_rating)      lines.push(`  - Average customer rating: ${r.avg_rating}★`)
+    if (r.sentiment)       lines.push(`  - Overall sentiment: ${r.sentiment}`)
+    lines.push(`  - Confidence: ${Math.round(signals.review_velocity.confidence * 100)}%`)
+    lines.push('')
+  }
+
+  if (signals.virality) {
+    const v = signals.virality.value
+    lines.push('VIRALITY (verified):')
+    if (v.tiktok)            lines.push(`  - TikTok signal: ${v.tiktok}`)
+    if (v.content_potential) lines.push(`  - Content potential: ${v.content_potential}`)
+    if (v.ugc)               lines.push(`  - UGC signal: ${v.ugc}`)
+    lines.push(`  - Confidence: ${Math.round(signals.virality.confidence * 100)}%`)
+    lines.push('')
+  }
+
+  if (signals.seasonality) {
+    const s = signals.seasonality.value
+    lines.push('SEASONALITY (verified):')
+    if (s.pattern)     lines.push(`  - Pattern: ${s.pattern}`)
+    if (s.peak_months?.length) lines.push(`  - Peak months: ${s.peak_months.join(', ')}`)
+    lines.push(`  - Confidence: ${Math.round(signals.seasonality.confidence * 100)}%`)
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}
+
+// ── Base discovery prompt ─────────────────────────────────────────
+
 export const DISCOVERY_PROMPT = `You are a supplement market analyst specializing in consumer brand opportunity identification.
 
 Given a broad supplement category, generate exactly 20 specific supplement product opportunities within that category. Each must be a distinct, concrete product concept targeting a specific problem, mechanism, or audience — not just a rephrasing of the category name.
@@ -134,4 +233,23 @@ Refresh rules (apply after all rules above):
 - Replace 4–6 of the weakest or most stale entries with completely new ideas not in the list above
 - New ideas must follow the same specificity and evidence standards as the main prompt
 - Return exactly 20 total, sorted by opportunity_score descending`
+}
+
+// Augments any system prompt (base or refresh) with Signal Engine data.
+// If signals are null or below the minimum confidence threshold the original
+// prompt is returned unchanged — the route behaves exactly as before.
+export function buildSignalAugmentedSystemPrompt(
+  baseSystemPrompt: string,
+  category:         string,
+  signals:          AggregatedSignals | null,
+): string {
+  if (!signals || signals.overall_confidence < 0.2) return baseSystemPrompt
+
+  const ctx = buildSignalContext(category, signals)
+  if (!ctx) return baseSystemPrompt
+
+  return `${baseSystemPrompt}
+
+---
+${ctx}---`
 }
