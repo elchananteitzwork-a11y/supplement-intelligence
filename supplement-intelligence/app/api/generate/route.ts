@@ -217,18 +217,23 @@ export async function POST(req: Request) {
   // Reads current usage before calling Claude so we don't waste an API
   // call on a user who is already at their limit. The atomic consume
   // below is the authoritative gate; this is just an early exit.
-  const { data: profile, error: profileErr } = await sb
-    .from('profiles')
-    .select('analyses_used, analyses_limit')
-    .eq('id', user.id)
-    .maybeSingle()
+  // Skipped when DEV_UNLIMITED_ANALYSES=true so all analyses are allowed.
+  const devUnlimited = process.env.DEV_UNLIMITED_ANALYSES === 'true'
 
-  if (profileErr) {
-    console.error('Profile read error', profileErr)
-    return err('Server error checking usage limit.', 500)
-  }
-  if (profile && profile.analyses_used >= profile.analyses_limit) {
-    return err('Analysis limit reached for beta access.', 429)
+  if (!devUnlimited) {
+    const { data: profile, error: profileErr } = await sb
+      .from('profiles')
+      .select('analyses_used, analyses_limit')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profileErr) {
+      console.error('Profile read error', profileErr)
+      return err('Server error checking usage limit.', 500)
+    }
+    if (profile && profile.analyses_used >= profile.analyses_limit) {
+      return err('Analysis limit reached for beta access.', 429)
+    }
   }
 
   // build user message
@@ -318,18 +323,21 @@ export async function POST(req: Request) {
 
   // ── atomic slot consumption — AFTER successful parse ──────────
   // consume_analysis_slot auto-creates the profiles row if absent (migration 003).
-  const { data: slotGranted, error: slotErr } = await sb
-    .rpc('consume_analysis_slot', { p_user_id: user.id })
+  // Skipped when DEV_UNLIMITED_ANALYSES=true — set to false to re-enable quotas.
+  if (!devUnlimited) {
+    const { data: slotGranted, error: slotErr } = await sb
+      .rpc('consume_analysis_slot', { p_user_id: user.id })
 
-  if (slotErr) {
-    console.error('Rate limit RPC error', {
-      code: slotErr.code, message: slotErr.message,
-      details: slotErr.details, hint: slotErr.hint,
-    })
-    return err('Server error checking usage limit — no slot used.', 500)
-  }
-  if (!slotGranted) {
-    return err('Analysis limit reached for beta access.', 429)
+    if (slotErr) {
+      console.error('Rate limit RPC error', {
+        code: slotErr.code, message: slotErr.message,
+        details: slotErr.details, hint: slotErr.hint,
+      })
+      return err('Server error checking usage limit — no slot used.', 500)
+    }
+    if (!slotGranted) {
+      return err('Analysis limit reached for beta access.', 429)
+    }
   }
 
   // ── save analysis ─────────────────────────────────────────────

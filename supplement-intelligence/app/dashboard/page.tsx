@@ -35,7 +35,9 @@ export default async function Dashboard() {
   const pro  = profile as Profile | null
   const used = pro?.analyses_used  ?? 0
   const limit = pro?.analyses_limit ?? 3
+  const devUnlimited = process.env.DEV_UNLIMITED_ANALYSES === 'true'
   const left  = Math.max(0, limit - used)
+  const canAnalyze = devUnlimited || left > 0
 
   return (
     <div className="min-h-screen py-10 px-4">
@@ -53,11 +55,11 @@ export default async function Dashboard() {
             </div>
             <p className="text-xs text-zinc-500">
               {used} of {limit} analyses used
-              {left > 0 && <span className="text-zinc-600"> · {left} remaining</span>}
+              {!devUnlimited && left > 0 && <span className="text-zinc-600"> · {left} remaining</span>}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {left > 0
+            {canAnalyze
               ? <Link href="/analyze" className="btn-white text-sm py-2 px-5">+ New Analysis</Link>
               : <span className="text-xs text-zinc-600 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">No analyses left</span>
             }
@@ -97,7 +99,7 @@ export default async function Dashboard() {
             <p className="text-sm text-zinc-400 mb-6 max-w-xs mx-auto">
               Type any supplement idea. Get a complete investment memo in 60 seconds.
             </p>
-            {left > 0 && <Link href="/analyze" className="btn-white">Start analyzing →</Link>}
+            {canAnalyze && <Link href="/analyze" className="btn-white">Start analyzing →</Link>}
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
