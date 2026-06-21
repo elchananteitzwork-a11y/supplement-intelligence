@@ -78,3 +78,15 @@ export {
   FAILURE_TIER_THRESHOLDS,
   SOURCE_STALENESS_THRESHOLDS_MS,
 } from './types'
+
+export {
+  synthesize,
+  normalizeQuery,
+  classifyIntent,
+} from './orchestrator'
+
+export {
+  getThesis,
+  setThesis,
+  buildCacheKey,
+} from './cache'
