@@ -2,11 +2,7 @@ import { NextResponse }         from 'next/server'
 import { cookies }              from 'next/headers'
 import { createServerClient }   from '@supabase/ssr'
 import Anthropic                from '@anthropic-ai/sdk'
-import {
-  DISCOVERY_PROMPT,
-  buildRefreshPrompt,
-  buildSignalAugmentedSystemPrompt,
-} from '@/lib/prompts/discovery'
+import { categoryRegistry }     from '@/lib/categories'
 import { signalEngine }         from '@/lib/signal-engine'
 import type { OpportunityCard, OpportunityMeta, CacheStatus } from '@/types/index'
 
@@ -66,8 +62,6 @@ function seededShuffle<T>(arr: T[], seed: string): T[] {
 }
 
 // Attaches server-computed _meta to each opportunity.
-// On first generation all items are new; on refresh items are compared by
-// exact lowercase name to detect retained vs new entries.
 function enrichWithMeta(
   opps:         OpportunityCard[],
   cacheWeek:    string,
@@ -136,12 +130,15 @@ export async function POST(req: Request) {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return err('Unauthorized', 401)
 
-  let body: { input?: string }
+  let body: { input?: string; categoryId?: string }
   try { body = await req.json() } catch { return err('Invalid JSON body') }
 
-  const { input } = body
+  const { input, categoryId } = body
   if (!input?.trim())            return err('input is required')
   if (input.trim().length > 200) return err('Input too long — max 200 characters', 400)
+
+  // Resolve category module (defaults to supplements for backwards compatibility)
+  const module = categoryRegistry.resolve(categoryId)
 
   const normalizedQuery = normalizeQuery(input)
   const cacheWeek       = getCacheWeek()
@@ -158,7 +155,6 @@ export async function POST(req: Request) {
   if (hit) {
     const opps = hit.opportunities as OpportunityCard[]
 
-    // Determine badge: 'updated' if we refreshed off a previous week, else 'cached'
     const { data: prevHit } = await sb
       .from('discovery_cache')
       .select('id')
@@ -171,10 +167,11 @@ export async function POST(req: Request) {
     const top3 = opps.slice(0, 3)
     const rest = seededShuffle(opps.slice(3), `${user.id}:${normalizedQuery}:${cacheWeek}`)
 
-    console.log('Discovery cache hit', { query: normalizedQuery, cache_week: cacheWeek, cache_status: cacheStatus })
+    console.log('Discovery cache hit', { query: normalizedQuery, cache_week: cacheWeek, cache_status: cacheStatus, category: module.id })
     return NextResponse.json({
       opportunities: [...top3, ...rest],
       category:      input.trim(),
+      categoryId:    module.id,
       cached:        true,
       cache_status:  cacheStatus,
       cache_week:    cacheWeek,
@@ -195,31 +192,24 @@ export async function POST(req: Request) {
     : null
 
   const baseSystemPrompt = previousOpps
-    ? buildRefreshPrompt(previousOpps.map(o => ({ name: o.name, score: o.score })))
-    : DISCOVERY_PROMPT
+    ? module.buildRefreshPrompt(previousOpps.map(o => ({ name: o.name, score: o.score })))
+    : module.discoverySystemPrompt
 
   const isRefresh = !!previousOpps
 
   // ── Signal Engine ──────────────────────────────────────────────
-  // Run all enabled providers in parallel before calling Anthropic.
-  // Any provider that fails, times out, or lacks credentials returns null
-  // and is silently skipped. If no providers return data, signals is null
-  // and the system prompt is unchanged — identical behavior to before.
-  // Budget: 12 s max so the 50 s Anthropic abort still has ample headroom.
   const signals = await signalEngine.fetch(input.trim(), 12_000)
 
   if (signals) {
     console.log('Signal Engine result', {
       category:           input.trim(),
+      categoryId:         module.id,
       providers_used:     signals.providers_used,
       overall_confidence: signals.overall_confidence,
-      has_demand:         !!signals.demand,
-      has_competition:    !!signals.competition,
-      has_pricing:        !!signals.pricing,
     })
   }
 
-  const systemPrompt = buildSignalAugmentedSystemPrompt(
+  const systemPrompt = module.buildSignalAugmentedPrompt(
     baseSystemPrompt,
     input.trim(),
     signals,
@@ -236,7 +226,7 @@ export async function POST(req: Request) {
         model:      'claude-haiku-4-5-20251001',
         max_tokens: 16000,
         system:     systemPrompt,
-        messages:   [{ role: 'user', content: `Supplement category: "${input.trim()}"` }],
+        messages:   [{ role: 'user', content: `${module.name} category: "${input.trim()}"` }],
       },
       { signal: controller.signal },
     )
@@ -249,6 +239,7 @@ export async function POST(req: Request) {
       raw_length:         rawText.length,
       is_refresh:         isRefresh,
       signal_providers:   signals?.providers_used ?? [],
+      category:           module.id,
     })
   } catch (e: unknown) {
     clearTimeout(abortTimer)
@@ -288,6 +279,7 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error('Discovery parse error', {
       category:    input.trim(),
+      categoryId:  module.id,
       is_refresh:  isRefresh,
       raw_length:  rawText.length,
       raw_snippet: rawText.slice(0, 400),
@@ -312,6 +304,7 @@ export async function POST(req: Request) {
 
   console.log('Discovery complete', {
     category:    input.trim(),
+    categoryId:  module.id,
     count:       enriched.length,
     is_refresh:  isRefresh,
     new_count:   enriched.filter(o => o._meta?.is_new).length,
@@ -325,6 +318,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     opportunities: [...top3, ...rest],
     category:      input.trim(),
+    categoryId:    module.id,
     cached:        false,
     cache_status:  (isRefresh ? 'refreshed' : 'generated') as CacheStatus,
     cache_week:    cacheWeek,

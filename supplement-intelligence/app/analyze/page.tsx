@@ -3,6 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link          from 'next/link'
+import {
+  CATEGORY_CLIENT_CONFIGS,
+  DEFAULT_CATEGORY_ID,
+  getCategoryClientConfig,
+} from '@/lib/categories/client-config'
 import type { OpportunityCard } from '@/types/index'
 
 // ── constants ─────────────────────────────────────────────────
@@ -25,17 +30,6 @@ const ANALYSIS_STEPS = [
   'Writing investment memo...',
 ]
 
-const EXAMPLES_BROAD = [
-  'Gut Health', 'Sleep', "Women's Health",
-  'Weight Loss', 'Hair Loss', 'Energy', 'Hydration', 'Longevity',
-]
-
-const EXAMPLES_SPECIFIC = [
-  'Cortisol support for women 35+',
-  'PCOS weight loss supplement',
-  'Postpartum recovery supplement',
-]
-
 const PRICES = [
   { value: '',         label: 'Not sure' },
   { value: 'under-30', label: 'Under $30/mo' },
@@ -43,24 +37,6 @@ const PRICES = [
   { value: '50-75',    label: '$50–$75/mo' },
   { value: '75-plus',  label: '$75+/mo' },
 ]
-
-// ── broad-vs-specific detection ────────────────────────────────
-// Broad: ≤4 words, no qualifiers (numbers, "for/with", specific pops, ingredients)
-const SPECIFIC_INGREDIENTS = new Set([
-  'ashwagandha','magnesium','melatonin','creatine','inositol','berberine',
-  'maca','collagen','vitamin','zinc','iron','glycine','taurine','biotin',
-  'rhodiola','ginseng','turmeric','curcumin','coq10','nad','d3','b12',
-])
-
-function isBroadCategory(input: string): boolean {
-  const t = input.trim().toLowerCase()
-  if (/\bfor\b|\bwith\b/.test(t))                                 return false
-  if (/\d/.test(t))                                               return false
-  if (/\b(athlete|postpartum|pregnant|vegan|keto|pcos|adhd)\b/.test(t)) return false
-  const words = t.split(/\s+/)
-  if (words.some(w => SPECIFIC_INGREDIENTS.has(w)))              return false
-  return words.length <= 4
-}
 
 // ── helpers ────────────────────────────────────────────────────
 
@@ -207,11 +183,44 @@ function ProgressRing({ stepIdx, total }: { stepIdx: number; total: number }) {
   )
 }
 
+// ── Category selector ──────────────────────────────────────────
+
+function CategorySelector({
+  selected,
+  onSelect,
+}: {
+  selected: string
+  onSelect: (id: string) => void
+}) {
+  return (
+    <div className="card p-4 mb-6">
+      <p className="text-xs text-zinc-500 uppercase tracking-widest mb-3">Category</p>
+      <div className="flex flex-wrap gap-2">
+        {CATEGORY_CLIENT_CONFIGS.map(cat => (
+          <button
+            key={cat.id}
+            type="button"
+            onClick={() => onSelect(cat.id)}
+            className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+              selected === cat.id
+                ? 'bg-emerald-400/10 border-emerald-400/40 text-emerald-400'
+                : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600'
+            }`}
+          >
+            <span className="mr-1.5">{cat.icon}</span>{cat.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── page ───────────────────────────────────────────────────────
 
 export default function AnalyzePage() {
   const router = useRouter()
 
+  const [categoryId,    setCategoryId]    = useState(DEFAULT_CATEGORY_ID)
   const [input,         setInput]         = useState('')
   const [audience,      setAudience]      = useState('')
   const [price,         setPrice]         = useState('')
@@ -227,7 +236,16 @@ export default function AnalyzePage() {
   const [cacheWeek,     setCacheWeek]     = useState('')
   const [cacheStatus,   setCacheStatus]   = useState('')
 
-  const broad = isBroadCategory(input)
+  const category = getCategoryClientConfig(categoryId)
+  const broad    = category.isBroadQuery(input)
+
+  // Reset input when the category changes so stale context doesn't leak.
+  function handleCategorySelect(id: string) {
+    setCategoryId(id)
+    setInput('')
+    setError('')
+    setMode('form')
+  }
 
   // ── discovery ──
   async function handleDiscover(e: React.FormEvent) {
@@ -250,7 +268,7 @@ export default function AnalyzePage() {
       const res = await fetch('/api/discover', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ input: input.trim() }),
+        body:    JSON.stringify({ input: input.trim(), categoryId }),
       })
       clearInterval(timer)
 
@@ -300,6 +318,7 @@ export default function AnalyzePage() {
           pricePoint:     price          || undefined,
           context:        extra.trim()   || undefined,
           fromDiscovery:  from === 'results',
+          categoryId,
         }),
       })
       clearInterval(timer)
@@ -361,8 +380,6 @@ export default function AnalyzePage() {
   if (mode === 'results') {
     const top3 = opportunities.slice(0, 3)
     const rest = opportunities.slice(3)
-    // Only show _meta badges when results have meaningful refresh context.
-    // 'generated' means all items are vacuously is_new=true (first-ever call).
     const showMeta = cacheStatus !== '' && cacheStatus !== 'generated'
 
     return (
@@ -514,17 +531,20 @@ export default function AnalyzePage() {
           Enter a broad category to explore opportunities, or a specific idea for a direct full analysis.
         </p>
 
+        {/* Category selector */}
+        <CategorySelector selected={categoryId} onSelect={handleCategorySelect} />
+
         <form onSubmit={handleDiscover} className="space-y-5">
 
           {/* main input */}
           <div className="card p-6 space-y-3">
             <label className="block text-sm font-medium">
-              Category or supplement idea
+              {category.name} category or idea
               <span className="text-red-400 ml-1">*</span>
             </label>
             <textarea
               value={input} onChange={e => setInput(e.target.value)}
-              placeholder={`Broad: "Gut Health"  →  discovers 20 opportunities\nSpecific: "Cortisol support for women 35+"  →  full memo`}
+              placeholder={`Broad: "${category.examples.broad[0]}"  →  discovers 20 opportunities\nSpecific: "${category.examples.specific[0]}"  →  full memo`}
               className="field resize-none h-24 text-sm leading-relaxed"
               maxLength={200} required autoFocus
             />
@@ -597,7 +617,7 @@ export default function AnalyzePage() {
             <div>
               <p className="text-xs text-zinc-600 mb-2">Broad categories (discovery mode):</p>
               <div className="flex flex-wrap gap-2">
-                {EXAMPLES_BROAD.map(ex => (
+                {category.examples.broad.map(ex => (
                   <button key={ex} type="button" onClick={() => setInput(ex)}
                     className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
                     {ex}
@@ -608,7 +628,7 @@ export default function AnalyzePage() {
             <div>
               <p className="text-xs text-zinc-600 mb-2">Specific ideas (direct analysis):</p>
               <div className="flex flex-wrap gap-2">
-                {EXAMPLES_SPECIFIC.map(ex => (
+                {category.examples.specific.map(ex => (
                   <button key={ex} type="button" onClick={() => setInput(ex)}
                     className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
                     {ex}

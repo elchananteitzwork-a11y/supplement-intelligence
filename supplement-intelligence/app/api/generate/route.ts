@@ -2,7 +2,7 @@ import { NextResponse }    from 'next/server'
 import { cookies }         from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import Anthropic           from '@anthropic-ai/sdk'
-import { SYSTEM_PROMPT }   from '@/lib/prompts/system'
+import { categoryRegistry } from '@/lib/categories'
 import type { MemoData }   from '@/types/index'
 
 export const maxDuration = 60   // Vercel Pro required; free plan caps at 10s
@@ -32,16 +32,11 @@ function supabaseFromCookies() {
 }
 
 function parseJSON(raw: string): MemoData {
-  // Strip markdown fences
   let s = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
-  // Jump to the first '{' (handles any preamble Claude might add despite instructions)
   const start = s.indexOf('{')
   if (start < 0) throw new Error('No JSON object in response')
   if (start > 0) s = s.slice(start)
-  // Fast path — well-formed response
   try { return JSON.parse(s) as MemoData } catch { /* fall through */ }
-  // Slow path — string-aware brace scanner to find the outermost complete object.
-  // The naive scanner breaks on '}' inside string values; this one tracks string state.
   let depth = 0, inStr = false, esc = false, end = -1
   for (let i = 0; i < s.length; i++) {
     const c = s[i]
@@ -55,8 +50,6 @@ function parseJSON(raw: string): MemoData {
   return JSON.parse(s.slice(0, end + 1)) as MemoData
 }
 
-// Last-resort memo returned when parsing fails completely.
-// Saves a SKIP record so the user sees a result instead of an error.
 function buildSkipMemo(input: string, skipReason: string): MemoData {
   const NA = 'N/A'
   const noScore = (note: string) => ({ score: 0, notes: note })
@@ -113,64 +106,23 @@ function err(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status })
 }
 
-// ── supplement relevance gate ──────────────────────────────────
-// Single-word and two-word tokens. Any one match lets the request through.
-// Conservative: err on the side of passing ambiguous inputs to Claude.
-const SUPPLEMENT_TOKENS = new Set([
-  // explicit supplement/nutrition terms
-  'supplement','supplements','vitamin','vitamins','mineral','minerals',
-  'protein','collagen','probiotic','probiotics','prebiotic','prebiotics',
-  'omega','fiber','fibre','amino','herb','herbal','botanical','extract',
-  'adaptogen','nootropic','peptide','nutraceutical','superfood',
-  'capsule','capsules','gummy','gummies','powder','tincture','softgel',
-  // health conditions and symptoms
-  'sleep','stress','anxiety','energy','fatigue','tired','tiredness',
-  'muscle','gut','digestion','digestive','bloat','bloating',
-  'immune','immunity','hormone','hormones','hormonal','cortisol',
-  'hair','skin','nail','nails','mood','focus','memory','cognitive','brain',
-  'libido','fertility','menopause','perimenopause','pcos','acne',
-  'joint','joints','pain','inflammation','inflammatory','metabolism','metabolic',
-  'insulin','thyroid','adrenal','detox','cleanse','appetite',
-  'weight loss','fat loss','fat burning','muscle gain','muscle growth',
-  // specific ingredients
-  'magnesium','zinc','iron','calcium','potassium','ashwagandha','turmeric',
-  'curcumin','melatonin','creatine','glutamine','maca','rhodiola','ginseng',
-  'mushroom','mushrooms','berberine','inositol','glycine','taurine','carnitine',
-  'biotin','folate','b12','d3','coq10','nad','colostrum','elderberry',
-  'echinacea','spirulina','chlorella','reishi','lion\'s mane','ashwa',
-  // wellness goals and contexts
-  'recovery','endurance','strength','antioxidant','longevity','wellness',
-  'health','healthy','nutrition','nutritional','dietary','diet',
-  'postpartum','prenatal','pregnancy','breastfeeding','fasting','fast',
-  // body systems used in supplement context
-  'liver','heart','bone','cartilage','blood','blood sugar',
-])
-
-function isSupplementIdea(raw: string): boolean {
-  const lower = raw.toLowerCase()
-  const words = lower.split(/\W+/).filter(Boolean)
-  // single-word check
-  for (const w of words) {
-    if (SUPPLEMENT_TOKENS.has(w)) return true
-  }
-  // two-word phrase check
-  for (let i = 0; i < words.length - 1; i++) {
-    if (SUPPLEMENT_TOKENS.has(`${words[i]} ${words[i + 1]}`)) return true
-  }
-  return false
-}
-
 // ── route ──────────────────────────────────────────────────────
 export async function POST(req: Request) {
   const sb = supabaseFromCookies()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return err('Unauthorized', 401)
 
-  // parse body first so we can validate before touching the DB
-  let body: { input?: string; targetAudience?: string; pricePoint?: string; context?: string; fromDiscovery?: boolean }
+  let body: {
+    input?:         string
+    targetAudience?: string
+    pricePoint?:    string
+    context?:       string
+    fromDiscovery?: boolean
+    categoryId?:    string
+  }
   try { body = await req.json() } catch { return err('Invalid JSON body') }
 
-  const { input, targetAudience, pricePoint, context, fromDiscovery } = body
+  const { input, targetAudience, pricePoint, context, fromDiscovery, categoryId } = body
 
   // ── server-side input validation ──────────────────────────────
   if (!input?.trim()) return err('input is required')
@@ -183,19 +135,20 @@ export async function POST(req: Request) {
   if (pricePoint !== undefined && pricePoint !== '' && !VALID_PRICES.has(pricePoint))
     return err('Invalid price point value', 400)
 
-  // ── supplement relevance gate ─────────────────────────────────
+  // Resolve category module (defaults to supplements for backwards compatibility)
+  const module = categoryRegistry.resolve(categoryId)
+
+  // ── relevance gate ─────────────────────────────────────────────
   // Skipped for discovery-originated inputs — names generated by the discovery
-  // engine are supplement opportunities by construction and won't match the
-  // keyword list (e.g. "GLP-1 Companion Nutrient Stack").
-  if (!fromDiscovery && !isSupplementIdea(input.trim())) {
-    return err('This tool currently analyzes supplement ideas only. Try something like "magnesium for sleep" or "collagen for women 40+".', 400)
+  // engine are relevant by construction and won't always match keyword lists.
+  if (!fromDiscovery && !module.isRelevantQuery(input.trim())) {
+    return err(
+      `This tool currently analyzes ${module.name.toLowerCase()} ideas only. Try something like "${module.examples.specific[0]}".`,
+      400,
+    )
   }
 
   // ── full-report cache ─────────────────────────────────────────
-  // If any user has already generated a report for this exact input,
-  // return the existing analysisId immediately — no slot consumed.
-  // RLS on analyses is owner-scoped, so this only matches the current
-  // user's own prior runs (cross-user sharing would need a service role).
   const { data: cachedReport } = await sb
     .from('analyses')
     .select('id, created_at')
@@ -214,10 +167,6 @@ export async function POST(req: Request) {
   }
 
   // ── pre-flight limit check (non-consuming) ───────────────────
-  // Reads current usage before calling Claude so we don't waste an API
-  // call on a user who is already at their limit. The atomic consume
-  // below is the authoritative gate; this is just an early exit.
-  // Skipped when DEV_UNLIMITED_ANALYSES=true so all analyses are allowed.
   const devUnlimited = process.env.DEV_UNLIMITED_ANALYSES === 'true'
 
   if (!devUnlimited) {
@@ -237,15 +186,13 @@ export async function POST(req: Request) {
   }
 
   // build user message
-  const lines = [`Supplement idea: "${input.trim()}"`]
+  const lines = [`${module.name} idea: "${input.trim()}"`]
   if (targetAudience?.trim()) lines.push(`Target audience: ${targetAudience.trim()}`)
   if (pricePoint?.trim())     lines.push(`Price point: ${pricePoint.trim()}`)
   if (context?.trim())        lines.push(`Additional context: ${context.trim()}`)
   const userMessage = lines.join('\n')
 
   // ── call Claude (slot NOT yet consumed) ───────────────────────
-  // Slot is consumed only after a successful parse. AI failures (network
-  // error, timeout, bad response) do not charge the user.
   const t0         = Date.now()
   const controller = new AbortController()
   const abortTimer = setTimeout(() => controller.abort(), 45_000)
@@ -255,7 +202,7 @@ export async function POST(req: Request) {
       {
         model:      'claude-sonnet-4-6',
         max_tokens: 2500,
-        system:     SYSTEM_PROMPT,
+        system:     module.analysisSystemPrompt,
         messages:   [{ role: 'user', content: userMessage }],
       },
       { signal: controller.signal },
@@ -270,7 +217,6 @@ export async function POST(req: Request) {
       console.error('Anthropic timeout after 45 s')
       return err('Analysis timed out — no slot used. Please try again.', 504)
     }
-    // Log the full Anthropic error body so it appears in Vercel function logs
     if (e instanceof Anthropic.APIError) {
       console.error('Anthropic API error', {
         status:  e.status,
@@ -313,6 +259,7 @@ export async function POST(req: Request) {
 
   console.log('Analysis decision', {
     category:        input.trim(),
+    categoryId:      module.id,
     category_name:   memo.category_name,
     safety_decision: skipReason ? 'technical_skip' : (memo.build_decision === 'SKIP' ? 'content_skip' : 'passed'),
     skip_reason:     skipReason ?? (memo.build_decision === 'SKIP' ? memo.build_explanation : null),
@@ -322,8 +269,6 @@ export async function POST(req: Request) {
   })
 
   // ── atomic slot consumption — AFTER successful parse ──────────
-  // consume_analysis_slot auto-creates the profiles row if absent (migration 003).
-  // Skipped when DEV_UNLIMITED_ANALYSES=true — set to false to re-enable quotas.
   if (!devUnlimited) {
     const { data: slotGranted, error: slotErr } = await sb
       .rpc('consume_analysis_slot', { p_user_id: user.id })
@@ -370,7 +315,6 @@ export async function POST(req: Request) {
 
   if (dbErr || !analysis) {
     console.error('DB insert error — refunding slot', dbErr)
-    // Slot was consumed but the record wasn't saved — give it back.
     await sb.rpc('refund_analysis_slot', { p_user_id: user.id })
     return err('Failed to save analysis — your slot was refunded.', 500)
   }
