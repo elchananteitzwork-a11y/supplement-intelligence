@@ -261,6 +261,23 @@ export async function POST(req: Request) {
     memo = buildSkipMemo(input.trim(), skipReason)
   }
 
+  // ── Server-side score recalculation ───────────────────────────
+  // Guarantees opportunity_score matches the published formula
+  // round((demand + competition + virality + subscription + manufacturing + defensibility) / 60 × 100)
+  // regardless of what the LLM calculated.  Only applied to valid memos (skipReason == null).
+  if (!skipReason && memo.scores) {
+    const dimSum =
+      (memo.scores.demand?.score        ?? 0) +
+      (memo.scores.competition?.score   ?? 0) +
+      (memo.scores.virality?.score      ?? 0) +
+      (memo.scores.subscription?.score  ?? 0) +
+      (memo.scores.manufacturing?.score ?? 0) +
+      (memo.scores.defensibility?.score ?? 0)
+    const computed = Math.round((dimSum / 60) * 100)
+    memo.opportunity_score = computed
+    memo.build_decision = computed >= 65 ? 'BUILD_NOW' : computed >= 50 ? 'VALIDATE_FURTHER' : 'SKIP'
+  }
+
   console.log('Analysis decision', {
     categoryId:      module.id,
     category:        input.trim(),
