@@ -7,12 +7,19 @@ import {
   CATEGORY_CLIENT_CONFIGS,
   DEFAULT_CATEGORY_ID,
   getCategoryClientConfig,
+  type CategoryClientConfig,
 } from '@/lib/categories/client-config'
 import type { OpportunityCard } from '@/types/index'
 
 // ── constants ─────────────────────────────────────────────────
 
-type PageMode = 'form' | 'discovering' | 'results' | 'analyzing'
+type PageMode = 'form' | 'classifying' | 'discovering' | 'results' | 'analyzing'
+
+const CLASSIFYING_STEPS = [
+  'Reading your query...',
+  'Detecting category...',
+  'Routing to best module...',
+]
 
 const DISCOVERY_STEPS = [
   'Scanning the category...',
@@ -25,7 +32,7 @@ const ANALYSIS_STEPS = [
   'Mapping market conditions...',
   'Scoring demand and competition...',
   'Analyzing virality potential...',
-  'Building formula recommendation...',
+  'Building product recommendation...',
   'Calculating financial projections...',
   'Writing investment memo...',
 ]
@@ -125,8 +132,8 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
             <span className={`font-mono text-xs font-bold ${dimColor(score)}`}>{score}/10</span>
           </div>
           <div className="space-y-0.5">
-            {facts.map(f => (
-              <p key={f} className="text-[11px] text-zinc-400 leading-snug">{f}</p>
+            {facts.map((f, i) => (
+              <p key={i} className="text-[11px] text-zinc-400 leading-snug">{f}</p>
             ))}
           </div>
         </div>
@@ -192,26 +199,59 @@ function CategorySelector({
   selected: string
   onSelect: (id: string) => void
 }) {
+  const autoConfig  = CATEGORY_CLIENT_CONFIGS.find(c => c.isAuto)!
+  const otherConfigs = CATEGORY_CLIENT_CONFIGS.filter(c => !c.isAuto)
+
   return (
     <div className="card p-4 mb-6">
-      <p className="text-xs text-zinc-500 uppercase tracking-widest mb-3">Category</p>
+      <p className="text-xs text-zinc-500 uppercase tracking-widest mb-3">Mode</p>
+
+      {/* Open Discovery — full-width first */}
+      <button
+        type="button"
+        onClick={() => onSelect(autoConfig.id)}
+        className={`w-full mb-3 px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors text-left flex items-center gap-2 ${
+          selected === autoConfig.id
+            ? 'bg-emerald-400/10 border-emerald-400/40 text-emerald-400'
+            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600'
+        }`}
+      >
+        <span className="text-base">{autoConfig.icon}</span>
+        <div>
+          <span className="font-semibold">{autoConfig.name}</span>
+          <span className="ml-2 text-xs opacity-70">{autoConfig.tagline}</span>
+        </div>
+      </button>
+
+      {/* Category chips */}
+      <p className="text-xs text-zinc-600 mb-2">Or choose a specific category:</p>
       <div className="flex flex-wrap gap-2">
-        {CATEGORY_CLIENT_CONFIGS.map(cat => (
+        {otherConfigs.map(cat => (
           <button
             key={cat.id}
             type="button"
             onClick={() => onSelect(cat.id)}
-            className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               selected === cat.id
                 ? 'bg-emerald-400/10 border-emerald-400/40 text-emerald-400'
                 : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600'
             }`}
           >
-            <span className="mr-1.5">{cat.icon}</span>{cat.name}
+            <span className="mr-1">{cat.icon}</span>{cat.name}
           </button>
         ))}
       </div>
     </div>
+  )
+}
+
+// ── Detected category badge ────────────────────────────────────
+
+function DetectedCategoryBadge({ config }: { config: CategoryClientConfig }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full">
+      <span>{config.icon}</span> {config.name}
+    </span>
   )
 }
 
@@ -220,28 +260,35 @@ function CategorySelector({
 export default function AnalyzePage() {
   const router = useRouter()
 
-  const [categoryId,    setCategoryId]    = useState(DEFAULT_CATEGORY_ID)
-  const [input,         setInput]         = useState('')
-  const [audience,      setAudience]      = useState('')
-  const [price,         setPrice]         = useState('')
-  const [extra,         setExtra]         = useState('')
-  const [showExtra,     setShowExtra]     = useState(false)
-  const [mode,          setMode]          = useState<PageMode>('form')
-  const [stepIdx,       setStepIdx]       = useState(0)
-  const [error,         setError]         = useState('')
-  const [opportunities, setOpportunities] = useState<OpportunityCard[]>([])
-  const [analyzingName, setAnalyzingName] = useState('')
-  const [prevMode,      setPrevMode]      = useState<'form' | 'results'>('form')
-  const [cached,        setCached]        = useState(false)
-  const [cacheWeek,     setCacheWeek]     = useState('')
-  const [cacheStatus,   setCacheStatus]   = useState('')
+  const [categoryId,         setCategoryId]         = useState(DEFAULT_CATEGORY_ID)
+  const [resolvedCategoryId, setResolvedCategoryId] = useState<string | null>(null)
+  const [input,              setInput]              = useState('')
+  const [audience,           setAudience]           = useState('')
+  const [price,              setPrice]              = useState('')
+  const [extra,              setExtra]              = useState('')
+  const [showExtra,          setShowExtra]          = useState(false)
+  const [mode,               setMode]               = useState<PageMode>('form')
+  const [stepIdx,            setStepIdx]            = useState(0)
+  const [error,              setError]              = useState('')
+  const [opportunities,      setOpportunities]      = useState<OpportunityCard[]>([])
+  const [analyzingName,      setAnalyzingName]      = useState('')
+  const [prevMode,           setPrevMode]           = useState<'form' | 'results'>('form')
+  const [cached,             setCached]             = useState(false)
+  const [cacheWeek,          setCacheWeek]          = useState('')
+  const [cacheStatus,        setCacheStatus]        = useState('')
+  const [resultCategoryName, setResultCategoryName] = useState('')
 
-  const category = getCategoryClientConfig(categoryId)
-  const broad    = category.isBroadQuery(input)
+  const category        = getCategoryClientConfig(categoryId)
+  const resolvedConfig  = resolvedCategoryId ? getCategoryClientConfig(resolvedCategoryId) : null
+  const isAutoMode      = category.isAuto
 
-  // Reset input when the category changes so stale context doesn't leak.
+  // For broad detection: use resolved category if available, else selected
+  const activeConfig   = resolvedConfig ?? (isAutoMode ? null : category)
+  const broad          = activeConfig ? activeConfig.isBroadQuery(input) : true
+
   function handleCategorySelect(id: string) {
     setCategoryId(id)
+    setResolvedCategoryId(null)
     setInput('')
     setError('')
     setMode('form')
@@ -252,14 +299,31 @@ export default function AnalyzePage() {
     e.preventDefault()
     if (!input.trim()) return
 
-    if (!broad) {
+    // For non-auto categories: skip to direct analysis if specific input
+    if (!isAutoMode && !broad) {
       return handleAnalyze(input.trim(), 'form')
     }
 
     setMode('discovering')
     setError('')
     setStepIdx(0)
-    const timer = setInterval(
+
+    // Show a brief "classifying" phase for Open Discovery mode
+    let classifyTimer: ReturnType<typeof setTimeout> | null = null
+    if (isAutoMode) {
+      setMode('classifying')
+      setStepIdx(0)
+      classifyTimer = setInterval(
+        () => setStepIdx(i => Math.min(i + 1, CLASSIFYING_STEPS.length - 1)),
+        600,
+      )
+      await new Promise(r => setTimeout(r, 1800))
+      if (classifyTimer) clearInterval(classifyTimer)
+      setMode('discovering')
+    }
+
+    setStepIdx(0)
+    const discoverTimer = setInterval(
       () => setStepIdx(i => Math.min(i + 1, DISCOVERY_STEPS.length - 1)),
       4500,
     )
@@ -270,7 +334,7 @@ export default function AnalyzePage() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ input: input.trim(), categoryId }),
       })
-      clearInterval(timer)
+      clearInterval(discoverTimer)
 
       if (res.status === 401) { router.push('/login'); return }
       if (res.status === 504) {
@@ -283,14 +347,24 @@ export default function AnalyzePage() {
         throw new Error(d.error || 'Discovery failed')
       }
 
-      const { opportunities: opps, cached: isCached, cache_week: week, cache_status: status } = await res.json()
+      const {
+        opportunities: opps,
+        cached: isCached,
+        cache_week: week,
+        cache_status: status,
+        categoryId: detectedCategoryId,
+        categoryName,
+      } = await res.json()
+
       setOpportunities(opps)
       setCached(isCached ?? false)
       setCacheWeek(week ?? '')
       setCacheStatus(status ?? '')
+      setResultCategoryName(categoryName ?? '')
+      if (detectedCategoryId) setResolvedCategoryId(detectedCategoryId)
       setMode('results')
     } catch (err: unknown) {
-      clearInterval(timer)
+      clearInterval(discoverTimer)
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setMode('form')
     }
@@ -308,6 +382,9 @@ export default function AnalyzePage() {
       8000,
     )
 
+    // When analyzing from results, use the resolved category (from discovery)
+    const effectiveCategoryId = from === 'results' ? (resolvedCategoryId ?? categoryId) : categoryId
+
     try {
       const res = await fetch('/api/generate', {
         method:  'POST',
@@ -318,7 +395,7 @@ export default function AnalyzePage() {
           pricePoint:     price          || undefined,
           context:        extra.trim()   || undefined,
           fromDiscovery:  from === 'results',
-          categoryId,
+          categoryId:     effectiveCategoryId,
         }),
       })
       clearInterval(timer)
@@ -346,6 +423,22 @@ export default function AnalyzePage() {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setMode(from)
     }
+  }
+
+  // ── CLASSIFYING screen ─────────────────────────────────────────
+  if (mode === 'classifying') {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md card p-10 text-center animate-in">
+          <div className="w-10 h-10 rounded-full bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center mx-auto mb-8 text-xl">
+            ⚡
+          </div>
+          <p className="text-base font-semibold mb-1 truncate px-4">&ldquo;{input}&rdquo;</p>
+          <p className="text-sm text-zinc-400 mb-8 h-5">{CLASSIFYING_STEPS[stepIdx]}</p>
+          <StepList steps={CLASSIFYING_STEPS} stepIdx={stepIdx} />
+        </div>
+      </div>
+    )
   }
 
   // ── DISCOVERING screen ─────────────────────────────────────────
@@ -378,22 +471,24 @@ export default function AnalyzePage() {
 
   // ── RESULTS screen ─────────────────────────────────────────────
   if (mode === 'results') {
-    const top3 = opportunities.slice(0, 3)
-    const rest = opportunities.slice(3)
+    const top3     = opportunities.slice(0, 3)
+    const rest     = opportunities.slice(3)
     const showMeta = cacheStatus !== '' && cacheStatus !== 'generated'
+    const detectedConfig = resolvedCategoryId ? getCategoryClientConfig(resolvedCategoryId) : null
 
     return (
       <div className="min-h-screen py-14 px-4">
         <div className="max-w-2xl mx-auto animate-in">
 
-          {/* nav */}
           <button onClick={() => setMode('form')} className="btn-ghost text-xs -ml-2 mb-6">
             ← New Search
           </button>
 
-          {/* header */}
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center flex-wrap gap-2 mb-1">
             <p className="label">{opportunities.length} opportunities found</p>
+            {isAutoMode && detectedConfig && (
+              <DetectedCategoryBadge config={detectedConfig} />
+            )}
             {cached && cacheWeek && (
               <span className="text-[10px] font-medium text-zinc-500 bg-zinc-800/80 border border-zinc-700 px-2 py-0.5 rounded-full">
                 {cacheStatus === 'updated' ? 'Updated this week' : 'Cached this week'} · {cacheWeek}
@@ -401,8 +496,14 @@ export default function AnalyzePage() {
             )}
           </div>
           <h1 className="text-2xl font-bold mb-2">
-            Top Opportunities in <span className="text-emerald-400">{input}</span>
+            Top Opportunities in{' '}
+            <span className="text-emerald-400">{input}</span>
           </h1>
+          {resultCategoryName && resultCategoryName !== 'Supplements' && (
+            <p className="text-xs text-zinc-600 mb-1">
+              Analyzed as: {resultCategoryName}
+            </p>
+          )}
           <p className="text-sm text-zinc-500 mb-8">
             Click any opportunity to generate a full investment memo · costs 1 analysis slot
           </p>
@@ -418,7 +519,7 @@ export default function AnalyzePage() {
           <div className="space-y-3 mb-10">
             {top3.map((opp, i) => (
               <div key={opp.name}
-                className="card p-5 border-emerald-400/20"
+                className="card p-5"
                 style={{ borderColor: 'rgba(52,211,153,.2)' }}
               >
                 <div className="flex items-start gap-4">
@@ -528,10 +629,12 @@ export default function AnalyzePage() {
 
         <h1 className="text-2xl font-bold mb-1">Discover Opportunities</h1>
         <p className="text-sm text-zinc-400 mb-8">
-          Enter a broad category to explore opportunities, or a specific idea for a direct full analysis.
+          {isAutoMode
+            ? 'Type any product idea — Open Discovery routes to the right category automatically.'
+            : 'Enter a broad category to explore opportunities, or a specific idea for a direct analysis.'}
         </p>
 
-        {/* Category selector */}
+        {/* Category / mode selector */}
         <CategorySelector selected={categoryId} onSelect={handleCategorySelect} />
 
         <form onSubmit={handleDiscover} className="space-y-5">
@@ -539,22 +642,28 @@ export default function AnalyzePage() {
           {/* main input */}
           <div className="card p-6 space-y-3">
             <label className="block text-sm font-medium">
-              {category.name} category or idea
+              {isAutoMode ? 'Product idea or category' : `${category.name} category or idea`}
               <span className="text-red-400 ml-1">*</span>
             </label>
             <textarea
               value={input} onChange={e => setInput(e.target.value)}
-              placeholder={`Broad: "${category.examples.broad[0]}"  →  discovers 20 opportunities\nSpecific: "${category.examples.specific[0]}"  →  full memo`}
+              placeholder={
+                isAutoMode
+                  ? `e.g. "dog joint supplement", "anti-aging serum", "viral kitchen gadget"…`
+                  : `Broad: "${category.examples.broad[0]}"  →  discovers 20 opportunities\nSpecific: "${category.examples.specific[0] ?? ''}"  →  full memo`
+              }
               className="field resize-none h-24 text-sm leading-relaxed"
               maxLength={200} required autoFocus
             />
             <div className="flex items-center justify-between">
-              {input.trim() ? (
+              {input.trim() && !isAutoMode ? (
                 <p className="text-xs text-zinc-500">
                   {broad
                     ? '◎  Broad category — will discover 20 ranked opportunities'
                     : '◈  Specific idea — will generate full investment memo'}
                 </p>
+              ) : input.trim() && isAutoMode ? (
+                <p className="text-xs text-zinc-500">⚡ Open Discovery — category detected automatically</p>
               ) : (
                 <p className="text-xs text-zinc-600">Costs 1 slot per full report</p>
               )}
@@ -562,8 +671,8 @@ export default function AnalyzePage() {
             </div>
           </div>
 
-          {/* optional context — only meaningful for specific ideas */}
-          {!broad && input.trim() && (
+          {/* optional context — only for specific (non-auto, non-broad) */}
+          {!isAutoMode && !broad && input.trim() && (
             <div className="card p-6">
               <button type="button" onClick={() => setShowExtra(v => !v)}
                 className="flex items-center justify-between w-full text-left group">
@@ -594,7 +703,7 @@ export default function AnalyzePage() {
                   <div>
                     <label className="block text-sm text-zinc-400 mb-1.5">Additional context</label>
                     <textarea value={extra} onChange={e => setExtra(e.target.value)}
-                      placeholder="Unique ingredient, competitor you've spotted, your background..."
+                      placeholder="Key ingredient, competitor you've spotted, your background..."
                       className="field text-sm resize-none h-20" maxLength={500}/>
                   </div>
                 </div>
@@ -609,33 +718,57 @@ export default function AnalyzePage() {
           )}
 
           <button type="submit" disabled={!input.trim()} className="btn-white w-full py-3 text-base">
-            {broad && input.trim() ? 'Discover Opportunities →' : 'Generate Investment Memo →'}
+            {isAutoMode
+              ? 'Discover with Open Discovery →'
+              : broad && input.trim()
+                ? 'Discover Opportunities →'
+                : 'Generate Investment Memo →'}
           </button>
 
           {/* example chips */}
           <div className="space-y-3 pt-1">
-            <div>
-              <p className="text-xs text-zinc-600 mb-2">Broad categories (discovery mode):</p>
-              <div className="flex flex-wrap gap-2">
-                {category.examples.broad.map(ex => (
-                  <button key={ex} type="button" onClick={() => setInput(ex)}
-                    className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
-                    {ex}
-                  </button>
-                ))}
+            {isAutoMode ? (
+              <div>
+                <p className="text-xs text-zinc-600 mb-2">Try any of these:</p>
+                <div className="flex flex-wrap gap-2">
+                  {category.examples.broad.map(ex => (
+                    <button key={ex} type="button" onClick={() => setInput(ex)}
+                      className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
+                      {ex}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-600 mb-2">Specific ideas (direct analysis):</p>
-              <div className="flex flex-wrap gap-2">
-                {category.examples.specific.map(ex => (
-                  <button key={ex} type="button" onClick={() => setInput(ex)}
-                    className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
-                    {ex}
-                  </button>
-                ))}
-              </div>
-            </div>
+            ) : (
+              <>
+                {category.examples.broad.length > 0 && (
+                  <div>
+                    <p className="text-xs text-zinc-600 mb-2">Broad categories (discovery mode):</p>
+                    <div className="flex flex-wrap gap-2">
+                      {category.examples.broad.map(ex => (
+                        <button key={ex} type="button" onClick={() => setInput(ex)}
+                          className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
+                          {ex}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {category.examples.specific.length > 0 && (
+                  <div>
+                    <p className="text-xs text-zinc-600 mb-2">Specific ideas (direct analysis):</p>
+                    <div className="flex flex-wrap gap-2">
+                      {category.examples.specific.map(ex => (
+                        <button key={ex} type="button" onClick={() => setInput(ex)}
+                          className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
+                          {ex}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
         </form>

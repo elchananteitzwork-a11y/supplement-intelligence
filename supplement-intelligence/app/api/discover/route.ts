@@ -2,7 +2,7 @@ import { NextResponse }         from 'next/server'
 import { cookies }              from 'next/headers'
 import { createServerClient }   from '@supabase/ssr'
 import Anthropic                from '@anthropic-ai/sdk'
-import { categoryRegistry }     from '@/lib/categories'
+import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }         from '@/lib/signal-engine'
 import type { OpportunityCard, OpportunityMeta, CacheStatus } from '@/types/index'
 
@@ -34,8 +34,8 @@ function normalizeQuery(input: string): string {
 // ISO-8601 week string, e.g. "2026-W25"
 function getCacheWeek(date: Date = new Date()): string {
   const d   = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
-  const day = d.getUTCDay() || 7           // Sunday → 7
-  d.setUTCDate(d.getUTCDate() + 4 - day)  // shift to Thursday of current week
+  const day = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - day)
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
   const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7)
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
@@ -45,8 +45,7 @@ function getPreviousCacheWeek(): string {
   return getCacheWeek(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
 }
 
-// Deterministic Fisher-Yates via LCG seeded from a string.
-// Only applied to positions 3+ so the top-3 remain stable.
+// Deterministic Fisher-Yates via LCG — keeps top-3 stable.
 function seededShuffle<T>(arr: T[], seed: string): T[] {
   const result = [...arr]
   let h = 0
@@ -61,7 +60,6 @@ function seededShuffle<T>(arr: T[], seed: string): T[] {
   return result
 }
 
-// Attaches server-computed _meta to each opportunity.
 function enrichWithMeta(
   opps:         OpportunityCard[],
   cacheWeek:    string,
@@ -133,22 +131,37 @@ export async function POST(req: Request) {
   let body: { input?: string; categoryId?: string }
   try { body = await req.json() } catch { return err('Invalid JSON body') }
 
-  const { input, categoryId } = body
+  const { input, categoryId: rawCategoryId } = body
   if (!input?.trim())            return err('input is required')
   if (input.trim().length > 200) return err('Input too long — max 200 characters', 400)
 
-  // Resolve category module (defaults to supplements for backwards compatibility)
-  const module = categoryRegistry.resolve(categoryId)
+  // ── Open Discovery: classify query before proceeding ──────────
+  let resolvedCategoryId = rawCategoryId
+  if (!rawCategoryId || rawCategoryId === 'auto') {
+    resolvedCategoryId = await classifyQuery(input.trim())
+    console.log('Open Discovery classification', {
+      input:    input.trim(),
+      resolved: resolvedCategoryId,
+    })
+  }
+
+  const module = categoryRegistry.resolve(resolvedCategoryId)
 
   const normalizedQuery = normalizeQuery(input)
   const cacheWeek       = getCacheWeek()
   const prevCacheWeek   = getPreviousCacheWeek()
 
+  // Cache key includes category so different categories don't share cached results.
+  // We prefix only non-supplement queries to preserve existing supplement cache entries.
+  const cacheKey = module.id === 'supplements'
+    ? normalizedQuery
+    : `${module.id}:${normalizedQuery}`
+
   // ── cache check ────────────────────────────────────────────────
   const { data: hit } = await sb
     .from('discovery_cache')
     .select('opportunities, generated_at')
-    .eq('normalized_query', normalizedQuery)
+    .eq('normalized_query', cacheKey)
     .eq('cache_week', cacheWeek)
     .maybeSingle()
 
@@ -158,24 +171,27 @@ export async function POST(req: Request) {
     const { data: prevHit } = await sb
       .from('discovery_cache')
       .select('id')
-      .eq('normalized_query', normalizedQuery)
+      .eq('normalized_query', cacheKey)
       .eq('cache_week', prevCacheWeek)
       .maybeSingle()
 
     const cacheStatus: CacheStatus = prevHit ? 'updated' : 'cached'
-
     const top3 = opps.slice(0, 3)
-    const rest = seededShuffle(opps.slice(3), `${user.id}:${normalizedQuery}:${cacheWeek}`)
+    const rest = seededShuffle(opps.slice(3), `${user.id}:${cacheKey}:${cacheWeek}`)
 
-    console.log('Discovery cache hit', { query: normalizedQuery, cache_week: cacheWeek, cache_status: cacheStatus, category: module.id })
+    console.log('Discovery cache hit', {
+      query: normalizedQuery, cache_week: cacheWeek,
+      cache_status: cacheStatus, categoryId: module.id,
+    })
     return NextResponse.json({
-      opportunities: [...top3, ...rest],
-      category:      input.trim(),
-      categoryId:    module.id,
-      cached:        true,
-      cache_status:  cacheStatus,
-      cache_week:    cacheWeek,
-      generated_at:  hit.generated_at,
+      opportunities:     [...top3, ...rest],
+      category:          input.trim(),
+      categoryId:        module.id,
+      categoryName:      module.name,
+      cached:            true,
+      cache_status:      cacheStatus,
+      cache_week:        cacheWeek,
+      generated_at:      hit.generated_at,
     })
   }
 
@@ -183,19 +199,15 @@ export async function POST(req: Request) {
   const { data: prevEntry } = await sb
     .from('discovery_cache')
     .select('opportunities')
-    .eq('normalized_query', normalizedQuery)
+    .eq('normalized_query', cacheKey)
     .eq('cache_week', prevCacheWeek)
     .maybeSingle()
 
-  const previousOpps = prevEntry
-    ? (prevEntry.opportunities as OpportunityCard[])
-    : null
+  const previousOpps = prevEntry ? (prevEntry.opportunities as OpportunityCard[]) : null
 
   const baseSystemPrompt = previousOpps
     ? module.buildRefreshPrompt(previousOpps.map(o => ({ name: o.name, score: o.score })))
     : module.discoverySystemPrompt
-
-  const isRefresh = !!previousOpps
 
   // ── Signal Engine ──────────────────────────────────────────────
   const signals = await signalEngine.fetch(input.trim(), 12_000)
@@ -209,11 +221,7 @@ export async function POST(req: Request) {
     })
   }
 
-  const systemPrompt = module.buildSignalAugmentedPrompt(
-    baseSystemPrompt,
-    input.trim(),
-    signals,
-  )
+  const systemPrompt = module.buildSignalAugmentedPrompt(baseSystemPrompt, input.trim(), signals)
 
   // ── call Anthropic ─────────────────────────────────────────────
   const controller = new AbortController()
@@ -233,13 +241,13 @@ export async function POST(req: Request) {
     clearTimeout(abortTimer)
     rawText = msg.content[0].type === 'text' ? msg.content[0].text : ''
     console.log('Discovery raw response', {
-      stop_reason:        msg.stop_reason,
-      input_tokens:       msg.usage?.input_tokens,
-      output_tokens:      msg.usage?.output_tokens,
-      raw_length:         rawText.length,
-      is_refresh:         isRefresh,
-      signal_providers:   signals?.providers_used ?? [],
-      category:           module.id,
+      stop_reason:      msg.stop_reason,
+      input_tokens:     msg.usage?.input_tokens,
+      output_tokens:    msg.usage?.output_tokens,
+      raw_length:       rawText.length,
+      is_refresh:       !!previousOpps,
+      signal_providers: signals?.providers_used ?? [],
+      categoryId:       module.id,
     })
   } catch (e: unknown) {
     clearTimeout(abortTimer)
@@ -252,9 +260,7 @@ export async function POST(req: Request) {
     }
     if (e instanceof Anthropic.APIError) {
       console.error('Anthropic API error (discover)', {
-        status:  e.status,
-        message: e.message,
-        error:   JSON.stringify(e.error),
+        status: e.status, message: e.message, error: JSON.stringify(e.error),
       })
     } else {
       console.error('Discovery error', e)
@@ -276,52 +282,49 @@ export async function POST(req: Request) {
       )
       .slice(0, 25)
       .sort((a, b) => b.score - a.score)
-  } catch (e) {
+  } catch {
     console.error('Discovery parse error', {
-      category:    input.trim(),
       categoryId:  module.id,
-      is_refresh:  isRefresh,
+      is_refresh:  !!previousOpps,
       raw_length:  rawText.length,
       raw_snippet: rawText.slice(0, 400),
     })
     return err('Failed to parse opportunities — please try again.', 500)
   }
 
-  // ── attach per-opportunity metadata ───────────────────────────
-  const enriched = enrichWithMeta(opportunities, cacheWeek, prevCacheWeek, previousOpps)
-
-  // ── write cache ────────────────────────────────────────────────
+  // ── attach metadata + cache ────────────────────────────────────
+  const enriched    = enrichWithMeta(opportunities, cacheWeek, prevCacheWeek, previousOpps)
   const generatedAt = new Date().toISOString()
+
   const { error: cacheWriteErr } = await sb
     .from('discovery_cache')
     .upsert(
-      { normalized_query: normalizedQuery, cache_week: cacheWeek, opportunities: enriched, generated_at: generatedAt },
+      { normalized_query: cacheKey, cache_week: cacheWeek, opportunities: enriched, generated_at: generatedAt },
       { onConflict: 'normalized_query,cache_week' },
     )
-  if (cacheWriteErr) {
-    console.error('Discovery cache write failed', cacheWriteErr)
-  }
+  if (cacheWriteErr) console.error('Discovery cache write failed', cacheWriteErr)
 
   console.log('Discovery complete', {
-    category:    input.trim(),
     categoryId:  module.id,
+    input:       input.trim(),
     count:       enriched.length,
-    is_refresh:  isRefresh,
+    is_refresh:  !!previousOpps,
     new_count:   enriched.filter(o => o._meta?.is_new).length,
     trending:    enriched.filter(o => o._meta?.trending).length,
     cache_week:  cacheWeek,
   })
 
   const top3 = enriched.slice(0, 3)
-  const rest = seededShuffle(enriched.slice(3), `${user.id}:${normalizedQuery}:${cacheWeek}`)
+  const rest = seededShuffle(enriched.slice(3), `${user.id}:${cacheKey}:${cacheWeek}`)
 
   return NextResponse.json({
-    opportunities: [...top3, ...rest],
-    category:      input.trim(),
-    categoryId:    module.id,
-    cached:        false,
-    cache_status:  (isRefresh ? 'refreshed' : 'generated') as CacheStatus,
-    cache_week:    cacheWeek,
-    generated_at:  generatedAt,
+    opportunities:     [...top3, ...rest],
+    category:          input.trim(),
+    categoryId:        module.id,
+    categoryName:      module.name,
+    cached:            false,
+    cache_status:      (!!previousOpps ? 'refreshed' : 'generated') as CacheStatus,
+    cache_week:        cacheWeek,
+    generated_at:      generatedAt,
   })
 }
