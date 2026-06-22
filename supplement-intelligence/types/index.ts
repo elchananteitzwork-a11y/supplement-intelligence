@@ -80,6 +80,10 @@ export interface MemoData {
   build_explanation: string
   opportunity_score: number
 
+  // ── Analyst-voice synthesis (added v2) — optional for backward compat ──
+  market_thesis?: string   // 2–4 sentence investment thesis in senior analyst voice
+  why_now?:       string   // 2–3 sentences on why this timing window is open
+
   scores: {
     demand:        DimScore
     competition:   DimScore

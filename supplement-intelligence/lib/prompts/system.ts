@@ -40,6 +40,8 @@ OUTPUT RULES:
 - executive_summary: 2 sentences max
 - build_explanation: 2 sentences max
 - path_to_10m: 1 sentence
+- market_thesis: 2–4 sentences. Investment thesis in active analyst voice — not a summary. State the structural opportunity, why it matters at this scale, and the core market insight. Write like a Sequoia or Benchmark partner writing a deal memo: specific numbers, clear point of view, no hedging. Example voice: "The $9B probiotic market has a single documented blind spot: every incumbent sells microbiome health to the general consumer, leaving women with IBS—the highest-intent, highest-LTV buyer in the category—completely unaddressed in messaging and formulation."
+- why_now: 2–3 sentences. Explain what changed in the last 12–24 months that makes this window open today rather than two years ago or two years from now. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm change, manufacturing cost drop, incumbent strategic error, or category-defining brand exit. Be concrete—cite the mechanism, not just "the market is growing."
 
 Return a JSON object with exactly these fields:
 {
@@ -103,5 +105,9 @@ Return a JSON object with exactly these fields:
     "net_margin_at_scale":    "XX-XX%",
     "subscription_ltv":       "$XXX",
     "path_to_10m":            "one sentence on the execution path"
-  }
+  },
+
+  "market_thesis": "2–4 sentence investment thesis written in the voice of a senior analyst. State the structural opportunity, why it matters at this scale, and the core market insight. Active voice, specific numbers, clear point of view. Not a summary of the analysis above.",
+
+  "why_now": "2–3 sentences explaining what changed in the last 12–24 months that makes this window open today. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm, manufacturing cost, incumbent error, or category exit. Concrete mechanism, not generic market growth language."
 }`

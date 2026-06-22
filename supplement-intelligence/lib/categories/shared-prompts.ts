@@ -105,6 +105,10 @@ Rules:
 // All categories produce the same MemoData shape so the existing UI renders them.
 
 export const SHARED_MEMO_SCHEMA = `
+ADDITIONAL OUTPUT RULES:
+- market_thesis: 2–4 sentences. Investment thesis in active analyst voice — not a summary. State the structural opportunity, why it matters at this scale, and the core market insight. Write like a senior VC partner writing a deal memo: specific numbers, clear point of view, no hedging. This field must appear at the END of the JSON object, after financial_projections.
+- why_now: 2–3 sentences. Explain what changed in the last 12–24 months that makes this window open today rather than 2 years ago. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm change, manufacturing cost drop, incumbent strategic error, or category-defining brand exit. Concrete mechanism, not generic growth language. This field must appear at the END of the JSON object, after market_thesis.
+
 Return a JSON object with exactly these fields:
 {
   "category_name": "2–4 word category name",
@@ -167,5 +171,9 @@ Return a JSON object with exactly these fields:
     "net_margin_at_scale":    "XX-XX%",
     "subscription_ltv":       "$XXX",
     "path_to_10m":            "one sentence on the execution path"
-  }
+  },
+
+  "market_thesis": "2–4 sentence investment thesis in senior analyst voice. State the structural opportunity, why it matters at this scale, and the core market insight. Active voice, specific numbers, clear POV. Not a summary.",
+
+  "why_now": "2–3 sentences on what changed in the last 12–24 months that makes this window open today. Specific drivers: search acceleration, consumer behavior shift, platform change, manufacturing cost, incumbent error. Concrete mechanism, not generic growth language."
 }`
