@@ -33,7 +33,7 @@ export default async function MemoPage({ params }: { params: { id: string } }) {
         </div>
 
         {/* memo */}
-        <MemoDisplay memo={a.memo_data} />
+        <MemoDisplay memo={a.memo_data} generatedAt={a.created_at} />
 
         {/* feedback */}
         <div className="mt-8">

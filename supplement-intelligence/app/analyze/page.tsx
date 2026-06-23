@@ -131,7 +131,7 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
   return (
     <div className="grid grid-cols-2 gap-2 mt-3">
       {dims.map(({ label, score, facts }) => (
-        <div key={label} className="bg-zinc-800/60 rounded-lg p-3">
+        <div key={label} className="bg-zinc-800/40 border border-white/[0.04] rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">{label}</span>
             {score >= 0
@@ -527,8 +527,8 @@ export default function AnalyzePage() {
           <div className="space-y-3 mb-10">
             {top3.map((opp, i) => (
               <div key={opp.name}
-                className="card p-5"
-                style={{ borderColor: 'rgba(52,211,153,.2)' }}
+                className="card-premium p-5 sm:p-6"
+                style={{ borderColor: 'rgba(52,211,153,.16)' }}
               >
                 <div className="flex items-start gap-4">
                   <span className="font-mono font-bold text-xl text-zinc-600 shrink-0 pt-0.5 w-5 text-right">
@@ -586,7 +586,7 @@ export default function AnalyzePage() {
                   <button
                     key={opp.name}
                     onClick={() => handleAnalyze(opp.name, 'results')}
-                    className="card-hover w-full p-4 text-left flex items-center gap-4 group"
+                    className="card-premium card-premium-hover w-full p-4 text-left flex items-center gap-4 group"
                   >
                     <span className="font-mono text-xs text-zinc-600 w-5 text-right shrink-0">
                       {i + 4}

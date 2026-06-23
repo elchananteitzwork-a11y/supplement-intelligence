@@ -17,6 +17,56 @@
   .card  { @apply bg-zinc-900 border border-zinc-800 rounded-xl; }
   .card-hover { @apply card transition-colors hover:border-zinc-700 hover:bg-zinc-800/60; }
 
+  /* premium dossier card — softer border, layered depth, used by the report */
+  .card-premium {
+    @apply bg-zinc-900/80 border border-white/[0.06] rounded-2xl;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.04),
+      0 12px 32px -16px rgba(0,0,0,.6);
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+  }
+  .card-premium-hover:hover {
+    @apply border-white/[0.1];
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.05),
+      0 16px 40px -16px rgba(0,0,0,.65);
+  }
+
+  /* sticky in-report section nav */
+  .section-nav {
+    @apply sticky top-0 z-30 -mx-4 px-4 sm:-mx-0 sm:px-0 backdrop-blur-md bg-zinc-950/85 border-b border-white/[0.06];
+  }
+  .nav-pill {
+    @apply text-xs font-medium text-zinc-500 px-3 py-1.5 rounded-full whitespace-nowrap transition-colors hover:text-zinc-300;
+  }
+  .nav-pill-active {
+    @apply text-zinc-100 bg-white/[0.08];
+  }
+
+  /* rich-media placeholder tile (Higgs Field — future) */
+  .media-tile {
+    @apply flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700/70 bg-zinc-800/20 py-6 px-3 text-center transition-colors hover:border-zinc-600 hover:bg-zinc-800/35;
+  }
+
+  /* consumer-intelligence message bubbles */
+  .bubble-them {
+    @apply bg-zinc-800/70 border border-zinc-700/50 rounded-2xl rounded-tl-sm px-3.5 py-2.5 max-w-[88%];
+  }
+  .bubble-us {
+    @apply bg-emerald-400/[0.07] border border-emerald-400/15 rounded-2xl rounded-tr-sm px-3.5 py-2.5 max-w-[88%];
+  }
+
+  /* accordion expand/collapse via CSS grid-rows — no JS height measurement needed */
+  .accordion-grid {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .32s cubic-bezier(.4,0,.2,1);
+    overflow: hidden;
+  }
+  .accordion-grid.is-open { grid-template-rows: 1fr; }
+  .accordion-grid > div { overflow: hidden; min-height: 0; }
+
   /* decisions — chip-* (inline usage) and badge-* (component usage) */
   .chip-build    { @apply inline-flex items-center gap-1.5 rounded-full text-sm font-semibold px-3 py-1 text-emerald-400 bg-emerald-400/10 border border-emerald-400/20; }
   .chip-validate { @apply inline-flex items-center gap-1.5 rounded-full text-sm font-semibold px-3 py-1 text-amber-400  bg-amber-400/10  border border-amber-400/20;  }
@@ -48,6 +98,8 @@
   .animate-in       { animation: fadeSlideUp .35s ease both; }
   .animate-fade-in  { animation: fadeSlideUp .35s ease both; }
   .animate-slide-up { animation: fadeSlideUp .25s ease both; }
+  .no-scrollbar     { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 }
 
 @keyframes fadeSlideUp {
