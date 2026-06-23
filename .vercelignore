@@ -1,0 +1,13 @@
+/keepa_cache/
+/.git/
+/.playwright-mcp/
+/.claude-plugin/
+/keepa/
+/v3/
+/v4/
+/v5/
+/categories/
+/tests/
+/keepa-report.json
+supplement-intelligence/node_modules/
+supplement-intelligence/.next/

@@ -22,11 +22,10 @@ DEMAND (score + evidence):
 - signal: "Strong" (proven consumer demand + trending), "Moderate" (consistent demand), or "Weak" (niche, declining)
 - score 8–10: >80k/month + growing; 5–7: 20–80k/month or stable; 0–4: <20k/month or declining
 
-COMPETITION (score + evidence) — 10 = wide-open market, 0 = dominated with no gap:
-- competing_brands: established brands in this exact niche
-- saturation: "Low" (<20 brands), "Medium" (20–60), "Medium-High" (60–120), "High" (120+)
-- barrier: "Low" (simple white-label import, no tech), "Medium" (design differentiation, moderate tooling cost), "High" (patented design, complex manufacturing, dominant incumbents with retail relationships)
-- score 8–10: few brands + low barrier; 5–7: moderate; 0–4: saturated
+MARKET SATURATION (qualitative — no score):
+- level: "Low" (<20 brands), "Medium" (20–60), "High" (60–120), "Very High" (120+)
+- barrier: "Low" (white-label friendly), "Medium" (proprietary formula or compliance needed), "High" (vet backing, clinical trials, dominant incumbents)
+- note: one sentence on who dominates and where the opportunity sits
 
 VIRALITY (score + evidence):
 - tiktok: "High" (#CleanTok #HomeOrganization viral potential, aesthetic content), "Medium", "Low"
@@ -48,7 +47,7 @@ DEFENSIBILITY (score + evidence):
 - rationale: 8–12 words on why the brand story / design / community can or cannot be replicated
 - score 8–10: proprietary design, patent, strong aesthetic brand identity; 5–7: differentiated; 0–4: generic commodity
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 
 STARTUP COST — tooling/sourcing + MOQ + packaging + brand + initial marketing:
 - Simple import with no tooling: "$3k–$10k"
@@ -79,13 +78,12 @@ If the idea requires certifications that cannot realistically be obtained at DTC
 
 SCORING (integers 0–10, be skeptical, never inflate):
 demand        — search volume + YoY growth + consumer interest
-competition   — 10 = wide-open market, 0 = dominated by incumbents (OXO/Rubbermaid/Amazon basics)
 virality      — TikTok #CleanTok #HomeOrg viral potential + aesthetic content + transformation UGC
 subscription  — consumable replenishment rate + replacement cycle + customer LTV mechanics
 manufacturing — product complexity + tooling cost + supply chain difficulty (10 = easiest)
 defensibility — how hard the design, brand aesthetic, community, or patent is to replicate
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
 
 EVIDENCE TIERS (for product claims and materials):

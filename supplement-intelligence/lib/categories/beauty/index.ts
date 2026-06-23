@@ -20,11 +20,10 @@ DEMAND (score + evidence):
 - signal: "Strong" (clear consumer awareness + growth), "Moderate" (some awareness, flat/mixed), or "Weak" (niche, declining, speculative)
 - score 8–10: >50k/month + growing; 5–7: 10–50k/month or stable; 0–4: <10k/month or declining
 
-COMPETITION (score + evidence) — 10 = wide-open market, 0 = dominated with no gap:
-- competing_brands: estimated number of established brands in this exact niche
-- saturation: "Low" (<20 brands), "Medium" (20–60), "Medium-High" (60–120), "High" (120+)
-- barrier: "Low" (white-label cosmetics, no clinical claims), "Medium" (proven actives, some R&D), "High" (patented tech, clinical trials, celebrity-backed incumbents)
-- score 8–10: few brands + low barrier; 5–7: moderate competition; 0–4: saturated or high barrier
+MARKET SATURATION (qualitative — no score):
+- level: "Low" (<20 brands), "Medium" (20–60), "High" (60–120), "Very High" (120+)
+- barrier: "Low" (white-label cosmetics), "Medium" (proven actives, R&D needed), "High" (patented tech, clinical trials, celebrity-backed incumbents)
+- note: one sentence on who dominates and where the opportunity sits
 
 VIRALITY (score + evidence):
 - tiktok: "High" (visible transformation, before/after, GRWM potential), "Medium", "Low"
@@ -46,7 +45,7 @@ DEFENSIBILITY (score + evidence):
 - rationale: 8–12 words on why the brand story can or cannot be replicated
 - score 8–10: proprietary blend, clinical proof, strong community; 5–7: differentiated but copyable; 0–4: commodity
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 
 STARTUP COST — formulation + MOQ + packaging + brand + initial marketing:
 - Simple emulsion, commodity actives, low MOQ: "$5k–$15k"
@@ -77,13 +76,12 @@ If the idea includes prescription drugs, medical devices requiring FDA 510(k), o
 
 SCORING (integers 0–10, be skeptical, never inflate):
 demand        — search volume + YoY growth + consumer awareness
-competition   — 10 = wide-open market, 0 = dominated with no gap
 virality      — TikTok/Instagram transformation content + before/after + GRWM potential
 subscription  — daily routine use + skin regression without it + replenishment LTV
 manufacturing — formulation simplicity + stability + cosmetic regulatory burden (10 = easiest)
 defensibility — how hard the brand story / positioning / formulation is to replicate
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
 
 EVIDENCE TIERS (for skincare actives):

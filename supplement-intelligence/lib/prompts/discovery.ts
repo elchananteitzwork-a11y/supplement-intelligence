@@ -34,9 +34,9 @@ export function buildSignalContext(
 
   if (signals.competition) {
     const c = signals.competition.value
-    lines.push('COMPETITION (verified):')
-    if (c.competing_brands) lines.push(`  - Competing sellers (new offers/listing): ${c.competing_brands}`)
-    if (c.saturation)       lines.push(`  - Market saturation: ${c.saturation}`)
+    lines.push('MARKET SATURATION (verified from Amazon seller data):')
+    if (c.competing_brands) lines.push(`  - Competing sellers per listing: ${c.competing_brands}`)
+    if (c.saturation)       lines.push(`  - Saturation level: ${c.saturation}`)
     if (c.barrier)          lines.push(`  - Entry barrier: ${c.barrier}`)
     lines.push(`  - Confidence: ${Math.round(signals.competition.confidence * 100)}%`)
     lines.push('')
@@ -109,11 +109,10 @@ DEMAND (score + evidence):
 - signal: "Strong" (clear consumer awareness + growth), "Moderate" (some awareness, flat/mixed trend), or "Weak" (niche, declining, or speculative)
 - score 8–10: >50k/month + growing; 5–7: 10–50k/month or stable; 0–4: <10k/month or declining
 
-COMPETITION (score + evidence) — 10 = wide-open market, 0 = dominated with no gap:
-- competing_brands: estimated number of established brands in this exact niche (e.g. "5–15", "30–60", "100+")
-- saturation: "Low" (<20 brands), "Medium" (20–60), "Medium-High" (60–120), "High" (120+)
-- barrier: "Low" (white-label friendly, no moat needed), "Medium" (some R&D or positioning moat), "High" (clinical claims, patents, or dominant incumbents)
-- score 8–10: few brands + low barrier; 5–7: moderate competition; 0–4: saturated or high barrier
+MARKET SATURATION (qualitative — no score, do not include a numeric score field):
+- level: "Low" (<20 established brands, white space exists), "Medium" (20–60 brands, niches available), "High" (60–120 brands, strong incumbents), "Very High" (120+ brands, dominated)
+- barrier: "Low" (white-label friendly), "Medium" (some R&D or positioning moat needed), "High" (clinical claims, patents, or dominant incumbents)
+- note: one sentence on who dominates and where the real opportunity sits
 
 VIRALITY (score + evidence):
 - tiktok: "High" (strong content angle, active creator ecosystem), "Medium" (some content but not viral), "Low" (boring/clinical category)
@@ -135,7 +134,7 @@ DEFENSIBILITY (score + evidence):
 - rationale: 8–12 words explaining why the brand story can or cannot be replicated
 - score 8–10: unique mechanism, strong community, or proprietary positioning; 5–7: differentiated but copyable; 0–4: commodity with no moat
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 
 STARTUP COST — total capital to first sale (formulation + MOQ + packaging + brand + basic marketing):
 - Commodity formula, low MOQ: "$3k–$8k"
@@ -171,11 +170,10 @@ Start with [ and end with ].
         "trend": "+N% YoY",
         "signal": "Strong | Moderate | Weak"
       },
-      "competition": {
-        "score": 0,
-        "competing_brands": "N–N",
-        "saturation": "Low | Medium | Medium-High | High",
-        "barrier": "Low | Medium | High"
+      "market_saturation": {
+        "level": "Low | Medium | High | Very High",
+        "barrier": "Low | Medium | High",
+        "note": "one sentence on competitive dynamics"
       },
       "virality": {
         "score": 0,

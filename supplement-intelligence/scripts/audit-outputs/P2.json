@@ -1,0 +1,120 @@
+{
+  "id": "P2",
+  "category": "pets",
+  "query": "Calming CBD-free anxiety chews for cats",
+  "ms": 37427,
+  "parsed": {
+    "idea": "Calming CBD-free anxiety chews for cats",
+    "executive_summary": "Cat anxiety is a massively underserved segment versus dogs, with rising owner awareness post-pandemic driving demand for safe, vet-approvable calming solutions. A CBD-free positioning sidesteps regulatory friction while appealing to cautious cat owners and retailers like PetSmart who restrict CBD.",
+    "market_gaps": [
+      "Cat-specific calming products are vastly outnumbered by dog SKUs despite comparable ownership rates",
+      "CBD-free options are scarce yet preferred by cautious owners and major retail buyers",
+      "Most calming chews use dog-centric flavors; feline palatability (chicken liver, tuna) is largely ignored",
+      "Vet-endorsed cat calming supplements with transparent clinical evidence are nearly nonexistent",
+      "Situational dosing formats (travel, fireworks, vet visits) are underdeveloped for cats versus dogs"
+    ],
+    "brand_opportunities": [
+      "Position as the first cat-first calming brand with feline behaviorist and vet advisory board",
+      "Own the 'CBD-free but clinically backed' messaging to win shelf space at national pet retailers",
+      "Build a TikTok content engine around anxious cat transformation stories and owner empathy",
+      "Create a subscription tier tied to ongoing stressors like multi-cat households or indoor-only cats",
+      "Partner with cat rescue networks and shelters to seed product and build social proof at scale"
+    ],
+    "scores": {
+      "demand": 7,
+      "competition": 6,
+      "virality": 7,
+      "subscription": 7,
+      "manufacturing": 7,
+      "defensibility": 5,
+      "notes": {
+        "demand": "Search volume for cat anxiety rising 30%+ YoY; still behind dog anxiety but accelerating.",
+        "competition": "Zesty Paws and VetriScience have cat SKUs but cats are not their core focus, leaving a real gap.",
+        "virality": "Anxious cat content performs extremely well on TikTok; before/after calmness clips are highly shareable.",
+        "subscription": "Monthly auto-ship works well for daily calming regimens; situational use limits pure subscription depth.",
+        "manufacturing": "Soft chew format is well-established; NASC compliance manageable; feline palatability testing adds cost.",
+        "defensibility": "Formula ingredients are largely generic; defensibility must come from brand, vet backing, and community."
+      }
+    },
+    "opportunity_score": 65,
+    "build_decision": "BUILD_NOW",
+    "build_verdict": "YES",
+    "build_explanation": "The cat calming segment is growing fast with a clear white space for a CBD-free, cat-first brand that can win retail and DTC simultaneously. Execution risk is moderate but the brand positioning opportunity is strong enough to warrant moving quickly.",
+    "formula": [
+      {
+        "ingredient": "L-Theanine (Suntheanine®)",
+        "dose": "25–50mg per chew",
+        "evidence_tier": "★★★",
+        "notes": "Promotes relaxed alertness without sedation; small feline studies show reduced stress markers."
+      },
+      {
+        "ingredient": "Alpha-Casozepine (Zylkene®-derived)",
+        "dose": "15–30mg per chew",
+        "evidence_tier": "★★★★",
+        "notes": "Milk-derived peptide with the strongest RCT evidence base for feline anxiety reduction."
+      },
+      {
+        "ingredient": "Valerian Root Extract",
+        "dose": "50mg per chew",
+        "evidence_tier": "★★",
+        "notes": "Traditional calming herb; cats show behavioral attraction to valerian which aids palatability."
+      },
+      {
+        "ingredient": "Thiamine (Vitamin B1)",
+        "dose": "20mg per chew",
+        "evidence_tier": "★★★",
+        "notes": "Supports nervous system regulation; used in multiple commercial feline calming products."
+      },
+      {
+        "ingredient": "Tuna-flavored palatant base",
+        "dose": "To palatability spec",
+        "evidence_tier": "★★",
+        "notes": "Critical for cat acceptance; fish-forward flavors dramatically improve feline chew consumption rates."
+      }
+    ],
+    "avoid": [
+      {
+        "ingredient": "CBD / Hemp Extract",
+        "reason": "FDA has not approved CBD for animal use; triggers retail restrictions at PetSmart, Petco, and Chewy."
+      },
+      {
+        "ingredient": "Melatonin at high doses",
+        "reason": "Feline melatonin metabolism is poorly studied and some xylitol-containing melatonin products are toxic to cats."
+      }
+    ],
+    "product_recommendation": {
+      "format": "soft chew",
+      "dosing": "1 chew per day for cats under 10 lbs; 2 chews per day for cats over 10 lbs; give 30–60 min before stressful event for situational use",
+      "sku_suggestion": "Single 60-count pouch (30-day daily supply) + 30-count 'situational' travel pouch",
+      "retail_price": "$28–$34 per 60-count pouch",
+      "cogs_estimate": "$6–$9 per pouch at 5,000-unit MOQ"
+    },
+    "customer_language": {
+      "frustrations": [
+        "My cat hides and shakes at every vet visit and nothing I try actually works",
+        "I don't trust CBD for my cat because no one can tell me if it's actually safe"
+      ],
+      "desires": [
+        "A gentle, natural solution that visibly calms my cat without making her a zombie",
+        "Something a vet would actually approve of that I can give daily or just when needed"
+      ],
+      "fears": [
+        "Accidentally giving my cat something that harms her liver or causes a bad reaction",
+        "Wasting money on another supplement my cat refuses to eat or that does nothing"
+      ],
+      "ad_phrases": [
+        "Finally — a calming chew made FOR cats, not just rebranded for them.",
+        "CBD-free. Vet-friendly. Tested on the pickiest creatures on earth."
+      ]
+    },
+    "regulatory_flags": [
+      "All claims must be structure/function only — avoid 'treats anxiety disorder' or disease language",
+      "NASC membership and quality seal strongly recommended before retail pitches",
+      "Alpha-casozepine sourcing must confirm dairy allergen labeling compliance",
+      "Ensure no proprietary blends obscure dosing — transparency is a retail buyer requirement"
+    ],
+    "path_to_10m": "Achieve $10M ARR within 36 months by launching DTC via Shopify with a TikTok-first content strategy, converting to subscription at 40%+ rate, then entering PetSmart/Petco with CBD-free retail positioning in year two.",
+    "sub_ltv": "$312 per year based on $26/month subscription at 1-pouch monthly cadence with 65% 12-month retention"
+  },
+  "raw": "{\n  \"idea\": \"Calming CBD-free anxiety chews for cats\",\n  \"executive_summary\": \"Cat anxiety is a massively underserved segment versus dogs, with rising owner awareness post-pandemic driving demand for safe, vet-approvable calming solutions. A CBD-free positioning sidesteps regulatory friction while a"
+}

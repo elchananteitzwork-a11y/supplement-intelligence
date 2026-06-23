@@ -1,0 +1,139 @@
+{
+  "id": "S3",
+  "category": "supplements",
+  "query": "Gut health probiotic for bloating and IBS symptoms",
+  "ms": 35819,
+  "parsed": {
+    "category_name": "Gut Health Probiotic",
+    "executive_summary": "The gut health supplement market is one of the fastest-growing categories in consumer wellness, driven by rising IBS diagnoses and mainstream awareness of the microbiome. The primary buyer is a 25–45-year-old woman who has tried multiple solutions and is frustrated by inconsistent results.",
+    "build_verdict": "YES",
+    "build_decision": "BUILD_NOW",
+    "build_explanation": "Probiotic search volume is enormous and still growing, yet most mass-market brands lack clinical strain specificity and transparent dosing that modern buyers demand. A science-forward, women-first brand with strain-level transparency and a subscription model can carve significant share from legacy players.",
+    "opportunity_score": 72,
+    "scores": {
+      "demand": {
+        "score": 9,
+        "notes": "IBS and bloating are top-searched digestive complaints with double-digit YoY search growth and massive Reddit/TikTok communities."
+      },
+      "competition": {
+        "score": 4,
+        "notes": "Seed, Ritual, and Culturelle dominate with strong brand equity, making differentiation expensive but not impossible via strain specificity."
+      },
+      "virality": {
+        "score": 7,
+        "notes": "Bloating before/after content performs extremely well on TikTok and drives high organic UGC with minimal seeding investment."
+      },
+      "subscription": {
+        "score": 8,
+        "notes": "Daily dosing protocol and symptom return upon stopping create strong subscription stickiness and high predicted LTV."
+      },
+      "manufacturing": {
+        "score": 6,
+        "notes": "Probiotic manufacturing requires cold-chain or lyophilization expertise and CFU viability guarantees, adding moderate production complexity."
+      },
+      "defensibility": {
+        "score": 4,
+        "notes": "Probiotic formulas are easily replicated, so defensibility must be built through brand story, clinical data partnerships, and community."
+      }
+    },
+    "biggest_competitor": {
+      "name": "Seed",
+      "revenue": "~$100M",
+      "gap": "Seed is priced at a premium and markets broadly, leaving room for a brand that speaks directly to IBS-specific strains and symptom relief with clinical language."
+    },
+    "market_size": "$9.1B (2024)",
+    "sub_ltv": "$420",
+    "gross_margin": "68-75%",
+    "market_gaps": [
+      "No leading brand targets IBS-C vs IBS-D subtype differentiation in formulation or messaging",
+      "Most competitors lack published third-party CFU viability testing at end of shelf life",
+      "Minimal brand presence in the GI-focused women's health niche beyond generic 'gut health'",
+      "Existing brands underutilize gastroenterologist endorsement and clinical strain citations in marketing",
+      "No dominant player offers a symptom-tracker app integration to reinforce subscription habit loops"
+    ],
+    "brand_opportunities": [
+      "Position as the first probiotic brand to differentiate formulas by IBS subtype for perceived personalization",
+      "Build brand authority through a gastroenterologist advisory board featured transparently on packaging and ads",
+      "Own the 'de-bloat' visual content niche on TikTok with a before/after community campaign",
+      "Offer a 90-day money-back guarantee to lower trial friction and signal clinical confidence",
+      "Launch a gut symptom quiz funnel that routes customers to a tailored SKU, improving conversion and LTV"
+    ],
+    "customer_language": {
+      "frustrations": [
+        "I've tried every probiotic out there and still feel bloated every single afternoon",
+        "I can't tell if any of these actually work or if it's just expensive yogurt in a capsule"
+      ],
+      "desires": [
+        "I want to eat a normal meal without dreading how my stomach will feel an hour later",
+        "I just want a flat stomach and to not cancel plans because of my gut"
+      ],
+      "fears": [
+        "I'm scared this is just another supplement that does nothing and wastes my money",
+        "What if my gut issues are actually something serious that no supplement can fix"
+      ],
+      "ad_phrases": [
+        {
+          "they_say": "I'm so bloated by noon every day",
+          "use_in_copy": "De-bloat by noon. Finally, a probiotic built for your IBS — not just your gut."
+        },
+        {
+          "they_say": "I don't know which probiotic strains actually do anything",
+          "use_in_copy": "Strain matters. We'll show you exactly which ones work and why."
+        }
+      ]
+    },
+    "product_recommendation": {
+      "format": "capsule",
+      "dosing": "2 capsules/day — 1 with breakfast, 1 with dinner to maximize mucosal colonization",
+      "formula": [
+        {
+          "ingredient": "Lactobacillus plantarum 299v",
+          "dose": "10B CFU",
+          "role": "Clinically studied for IBS bloating and abdominal pain reduction",
+          "evidence": "★★★★"
+        },
+        {
+          "ingredient": "Bifidobacterium longum BB536",
+          "dose": "10B CFU",
+          "role": "Supports bowel regularity and reduces IBS symptom composite scores",
+          "evidence": "★★★★"
+        },
+        {
+          "ingredient": "Lactobacillus acidophilus NCFM",
+          "dose": "5B CFU",
+          "role": "Reduces bloating and improves intestinal barrier integrity",
+          "evidence": "★★★"
+        },
+        {
+          "ingredient": "Partially Hydrolyzed Guar Gum (PHGG)",
+          "dose": "1500mg",
+          "role": "Prebiotic fiber that feeds target strains and reduces IBS-related constipation",
+          "evidence": "★★★"
+        },
+        {
+          "ingredient": "Iberogast (STW-5) Botanical Blend",
+          "dose": "20mg",
+          "role": "Traditional prokinetic botanical shown to ease gastric discomfort and cramping",
+          "evidence": "★★★"
+        }
+      ],
+      "avoid": [
+        "FOS/inulin at high doses — known to worsen bloating and gas in IBS sufferers, defeating the product promise",
+        "Lactobacillus rhamnosus GG alone — overhyped in IBS context with inconsistent outcomes and zero differentiation signal"
+      ],
+      "cogs_estimate": "$8-12 per 30-day unit at 5k MOQ",
+      "retail_price": "$49-59/month",
+      "gross_margin": "72-78%"
+    },
+    "financial_projections": {
+      "ten_k_probability": "85%",
+      "hundred_k_probability": "55%",
+      "one_m_probability": "30%",
+      "gross_margin": "68-75%",
+      "net_margin_at_scale": "18-25%",
+      "subscription_ltv": "$420",
+      "path_to_10m": "Scale Meta and TikTok paid social targeting women 25–45 with IBS content hooks, anchor on a 90-day challenge subscription funnel, and layer in GI influencer and dietitian partnerships to hit $10M ARR within 24 months of launch."
+    }
+  },
+  "raw": "{\n  \"category_name\": \"Gut Health Probiotic\",\n  \"executive_summary\": \"The gut health supplement market is one of the fastest-growing categories in consumer wellness, driven by rising IBS diagnoses and "
+}

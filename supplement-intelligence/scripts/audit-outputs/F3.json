@@ -1,0 +1,118 @@
+{
+  "id": "F3",
+  "category": "fitness",
+  "query": "Collagen peptide protein powder for endurance runners",
+  "ms": 36623,
+  "parsed": {
+    "idea": "Collagen peptide protein powder for endurance runners",
+    "executive_summary": "Collagen peptide protein powder targets a high-intent endurance running audience with a clinically supported joint and connective tissue recovery angle that differentiates from standard whey/plant protein incumbents. The market gap is real but crowded at the commodity level, requiring strong brand positioning and athlete partnerships to break through.",
+    "scores": {
+      "demand": 7,
+      "competition": 3,
+      "virality": 5,
+      "subscription": 8,
+      "manufacturing": 7,
+      "defensibility": 4,
+      "notes": {
+        "demand": "Collagen + running searches growing YoY; marathon/ultra community actively discusses joint health.",
+        "competition": "Vital Proteins, Ancient Nutrition, and Momentous already occupy this shelf with strong DTC presence.",
+        "virality": "Transformation content is harder for joint health vs aesthetics; niche run-community UGC is possible but limited ceiling.",
+        "subscription": "Monthly replenishment powder with 30-day supply is a natural subscription mechanic with high LTC.",
+        "manufacturing": "Collagen peptides are commodity inputs; flavoring and mixability are the only real formulation challenges.",
+        "defensibility": "Formula is easily replicated; defensibility must come from elite runner endorsements and community loyalty."
+      }
+    },
+    "opportunity_score": 57,
+    "build_decision": "VALIDATE_FURTHER",
+    "build_verdict": "MAYBE",
+    "build_explanation": "The endurance runner collagen niche has genuine demand and subscription economics but faces entrenched competitors with established brand trust. Validate with a direct-to-community DTC test targeting ultramarathon and trail running audiences before scaling ad spend.",
+    "path_to_10m": "Partner with 3–5 elite ultramarathon athletes for authentic UGC, launch on Shopify with a subscription-first model targeting running club communities, and cross-sell into triathlon and cycling adjacencies to hit $10M ARR within 36 months.",
+    "market_gaps": [
+      "No dominant brand owns the 'connective tissue recovery' narrative specifically for endurance runners vs strength athletes.",
+      "Most collagen products ignore Vitamin C co-dosing despite RCT evidence supporting it for collagen synthesis.",
+      "Unflavored single-ingredient SKUs rarely come with run-specific dosing protocols tied to training periodization.",
+      "Trail and ultra running communities are underserved by mainstream supplement brands who focus on gym culture.",
+      "No brand has built a strong community layer (training plans, coach partnerships) around a collagen supplement for runners."
+    ],
+    "brand_opportunities": [
+      "Position as the official recovery supplement of the ultra and trail running community with race sponsorships.",
+      "Build a 'Run Long' content platform around injury prevention that drives organic SEO and brand authority.",
+      "Create a Vitamin C + Collagen dual-sachet system backed by the Shaw et al. RCT to signal clinical credibility.",
+      "Partner with physical therapists and running coaches as affiliate educators rather than just athlete influencers.",
+      "Develop a subscription bundle with electrolytes or magnesium to increase LTV and reduce single-SKU churn."
+    ],
+    "customer_language": {
+      "frustrations": [
+        "My knees and tendons break down every time I ramp up mileage and I can never stay healthy long enough to PR.",
+        "Every protein powder is marketed to bodybuilders — nothing is designed for how runners actually train and recover."
+      ],
+      "desires": [
+        "I want to run more miles without my joints falling apart so I can finally qualify for Boston.",
+        "I want a clean, science-backed supplement that fits into my morning routine before a long run."
+      ],
+      "fears": [
+        "I'm afraid a chronic injury will end my running before I hit my big race goals.",
+        "I don't want to waste money on another supplement with no real evidence behind it."
+      ],
+      "ad_phrases": [
+        "Built for the miles that break everyone else.",
+        "More miles. Less breakdown. Science-backed collagen for serious runners."
+      ]
+    },
+    "formula": [
+      {
+        "ingredient": "Hydrolyzed Collagen Peptides (Type I & III)",
+        "dose": "15g per serving",
+        "evidence_tier": "★★★★",
+        "notes": "Shaw et al. 2017 RCT showed 15g before exercise increased collagen synthesis markers in tendons."
+      },
+      {
+        "ingredient": "Vitamin C (Ascorbic Acid)",
+        "dose": "50mg per serving",
+        "evidence_tier": "★★★★",
+        "notes": "Essential co-factor for collagen biosynthesis; co-dosing is supported by the same RCT framework."
+      },
+      {
+        "ingredient": "Glycine",
+        "dose": "3g per serving",
+        "evidence_tier": "★★★",
+        "notes": "Rate-limiting amino acid in collagen synthesis; additional dosing may amplify connective tissue support."
+      },
+      {
+        "ingredient": "Tart Cherry Extract",
+        "dose": "480mg per serving",
+        "evidence_tier": "★★★★",
+        "notes": "Multiple RCTs show reduced muscle soreness and inflammation in endurance runners post-race."
+      },
+      {
+        "ingredient": "Hyaluronic Acid",
+        "dose": "80mg per serving",
+        "evidence_tier": "★★★",
+        "notes": "Emerging evidence for joint lubrication and cartilage support relevant to high-mileage runners."
+      }
+    ],
+    "avoid": [
+      {
+        "ingredient": "High-dose caffeine",
+        "reason": "Conflicts with the recovery and joint-health positioning; alienates runners who take this post-run or at night."
+      },
+      {
+        "ingredient": "Artificial sweeteners (sucralose, acesulfame-K)",
+        "reason": "Clean-label is a core expectation in the trail and ultra running community; synthetic sweeteners trigger churn and negative UGC."
+      }
+    ],
+    "product_recommendation": {
+      "format": "powder",
+      "dosing": "One 20g scoop mixed in water or juice 30–60 minutes before a run or strength session; can double-dose on long run days above 15 miles.",
+      "sub_ltv": "$420/year based on 1 bag/month at $35/bag on 10% subscriber discount.",
+      "notes": "Single-serve stick packs for race-day and travel use should be a priority SKU for trial and retail placement."
+    },
+    "regulatory_flags": {
+      "banned_substances": false,
+      "medical_device_claims": false,
+      "prescription_risk": false,
+      "notes": "Avoid any claims around 'treating' tendinopathy or osteoarthritis; stick to structure/function language like 'supports joint health'."
+    }
+  },
+  "raw": "{\n  \"idea\": \"Collagen peptide protein powder for endurance runners\",\n  \"executive_summary\": \"Collagen peptide protein powder targets a high-intent endurance running audience with a clinically supported joint and connective tissue recovery angle that differentiates from standard whey/plant protein in"
+}

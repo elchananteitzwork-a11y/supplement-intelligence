@@ -14,14 +14,18 @@ and in each scores.*.notes field. Never refuse. Always output the complete JSON.
 
 SCORING (integers 0–10, be skeptical, never inflate):
 demand        — search volume + YoY growth + consumer awareness
-competition   — 10 = wide-open market, 0 = dominated with no gap
 virality      — TikTok/Instagram fit + UGC + before/after potential
-subscription  — daily use + symptom return on stopping + LTV mechanics
+subscription  — daily use + physically runs out within 30 days + benefit reverts on stopping
 manufacturing — formula simplicity + shelf stability + regulatory risk (10 = easiest)
 defensibility — how hard the brand story/positioning is to replicate
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
+
+CALIBRATION RULES — read carefully:
+- virality: Only assign High if there is a documented TikTok/Instagram creator ecosystem, visible before/after potential, or established UGC behavior in this exact supplement niche. Generic supplement categories are Medium unless specifically proven otherwise.
+- subscription: Only score High when: (1) the product is consumed within 30 days, (2) the user physically runs out, (3) the benefit regresses when stopped. Supplements users might forget to reorder are Medium at best.
+- market_size: Only state a specific figure if you can ground it in a named market (e.g. "US dietary supplement market"). If the exact niche has no credible sizing, write "Not independently verified — market estimates vary widely." Never invent a specific dollar figure for a narrow niche.
 
 EVIDENCE TIERS:
 ★ = theoretical  ★★ = traditional/mechanistic  ★★★ = preliminary clinical
@@ -40,7 +44,7 @@ OUTPUT RULES:
 - executive_summary: 2 sentences max
 - build_explanation: 2 sentences max
 - path_to_10m: 1 sentence
-- market_thesis: 2–4 sentences. Investment thesis in active analyst voice — not a summary. State the structural opportunity, why it matters at this scale, and the core market insight. Write like a Sequoia or Benchmark partner writing a deal memo: specific numbers, clear point of view, no hedging. Example voice: "The $9B probiotic market has a single documented blind spot: every incumbent sells microbiome health to the general consumer, leaving women with IBS—the highest-intent, highest-LTV buyer in the category—completely unaddressed in messaging and formulation."
+- market_thesis: 2–4 sentences. Investment thesis in active analyst voice — not a summary. State the structural opportunity, why it matters at this scale, and the core market insight. Write like a Sequoia or Benchmark partner writing a deal memo: specific numbers, clear point of view, no hedging.
 - why_now: 2–3 sentences. Explain what changed in the last 12–24 months that makes this window open today rather than two years ago or two years from now. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm change, manufacturing cost drop, incumbent strategic error, or category-defining brand exit. Be concrete—cite the mechanism, not just "the market is growing."
 
 Return a JSON object with exactly these fields:
@@ -48,17 +52,23 @@ Return a JSON object with exactly these fields:
   "category_name": "2–4 word category name",
   "executive_summary": "2 sentences covering the opportunity and buyer",
   "build_verdict": "YES | MAYBE | NO",
-  "build_decision": "BUILD_NOW | VALIDATE_FURTHER | SKIP",
-  "build_explanation": "2 sentences with the key insight behind the decision",
-  "opportunity_score": 0,
-
   "scores": {
-    "demand":        { "score": 0, "notes": "one sentence" },
-    "competition":   { "score": 0, "notes": "one sentence" },
-    "virality":      { "score": 0, "notes": "one sentence" },
-    "subscription":  { "score": 0, "notes": "one sentence" },
+    "demand":        { "score": 0, "notes": "one sentence with specific evidence" },
+    "virality":      { "score": 0, "notes": "cite specific platform or content evidence" },
+    "subscription":  { "score": 0, "notes": "one sentence on repurchase mechanics" },
     "manufacturing": { "score": 0, "notes": "one sentence" },
     "defensibility": { "score": 0, "notes": "one sentence" }
+  },
+  "opportunity_score": 0,
+  "build_decision": "BUILD_NOW | VALIDATE_FURTHER | SKIP",
+  "build_explanation": "2 sentences with the key insight behind the decision",
+
+  "market_saturation": {
+    "maturity":              "Early Growth | Growing | Mature | Saturated",
+    "dominant_brands":       "who controls this market — name the top 2-3 brands",
+    "concentration":         "Low | Moderate | High | Very High",
+    "entry_difficulty":      "Low | Medium | High",
+    "competitive_intensity": "2-3 sentences on how hard it is to compete, what moats incumbents have, and where white space exists"
   },
 
   "biggest_competitor": {
@@ -67,7 +77,7 @@ Return a JSON object with exactly these fields:
     "gap":     "one sentence on what they are missing"
   },
 
-  "market_size":  "$XB (year)",
+  "market_size":  "$XB (year) or 'Not independently verified — market estimates vary widely'",
   "sub_ltv":      "$XXX",
   "gross_margin": "XX-XX%",
 

@@ -20,11 +20,10 @@ DEMAND (score + evidence):
 - signal: "Strong" (clear pet-owner awareness + growth), "Moderate", or "Weak"
 - score 8–10: >50k/month + growing; 5–7: 10–50k/month or stable; 0–4: <10k/month or declining
 
-COMPETITION (score + evidence) — 10 = wide-open market, 0 = dominated with no gap:
-- competing_brands: estimated number of established brands in this exact niche
-- saturation: "Low" (<20 brands), "Medium" (20–60), "Medium-High" (60–120), "High" (120+)
-- barrier: "Low" (white-label pet goods, no clinical claims), "Medium" (proprietary formulas, NASC compliance), "High" (veterinary backing, clinical trials, dominant incumbents like Purina/Hill's)
-- score 8–10: few brands + low barrier; 5–7: moderate; 0–4: saturated
+MARKET SATURATION (qualitative — no score):
+- level: "Low" (<20 brands), "Medium" (20–60), "High" (60–120), "Very High" (120+)
+- barrier: "Low" (white-label friendly), "Medium" (proprietary formula or compliance needed), "High" (vet backing, clinical trials, dominant incumbents)
+- note: one sentence on who dominates and where the opportunity sits
 
 VIRALITY (score + evidence):
 - tiktok: "High" (cute pet content, transformation, before/after), "Medium", "Low"
@@ -46,7 +45,7 @@ DEFENSIBILITY (score + evidence):
 - rationale: 8–12 words on why the brand story can or cannot be replicated
 - score 8–10: vet-endorsed, clinical proof, proprietary formula; 5–7: differentiated but copyable; 0–4: commodity
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 
 STARTUP COST — formulation/sourcing + MOQ + packaging + brand + initial marketing:
 - Simple treats, chews, or accessories: "$4k–$12k"
@@ -77,13 +76,12 @@ If the idea involves prescription veterinary drugs, controlled substances, or tr
 
 SCORING (integers 0–10, be skeptical, never inflate):
 demand        — search volume + YoY growth + pet-owner awareness
-competition   — 10 = wide-open market, 0 = dominated (Purina/Hill's/Chewy) with no gap
 virality      — TikTok pet content virality + before/after + cute/transformation potential
 subscription  — recurring monthly orders + pet health dependency + LTV mechanics
 manufacturing — formulation simplicity + AAFCO/NASC compliance burden + ingredient sourcing (10 = easiest)
 defensibility — how hard the brand story / formulation / vet backing is to replicate
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
 
 EVIDENCE TIERS (for pet ingredients and claims):

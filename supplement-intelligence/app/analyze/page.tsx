@@ -96,11 +96,16 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
       score: scores.demand.score,
       facts: [scores.demand.search_volume, scores.demand.trend, `Signal: ${scores.demand.signal}`],
     },
-    {
+    // Show market_saturation (new) or legacy competition if present
+    ...(scores.market_saturation ? [{
+      label: 'Market',
+      score: -1,  // no numeric score — qualitative only
+      facts: [`Saturation: ${scores.market_saturation.level}`, `Barrier: ${scores.market_saturation.barrier}`, scores.market_saturation.note ?? ''],
+    }] : scores.competition?.score != null ? [{
       label: 'Competition',
       score: scores.competition.score,
-      facts: [`${scores.competition.competing_brands} brands`, `Sat: ${scores.competition.saturation}`, `Barrier: ${scores.competition.barrier}`],
-    },
+      facts: [scores.competition.competing_brands ? `${scores.competition.competing_brands} brands` : '', `Sat: ${scores.competition.saturation ?? '?'}`, `Barrier: ${scores.competition.barrier ?? '?'}`].filter(Boolean),
+    }] : []),
     {
       label: 'Virality',
       score: scores.virality.score,
@@ -129,7 +134,10 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
         <div key={label} className="bg-zinc-800/60 rounded-lg p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">{label}</span>
-            <span className={`font-mono text-xs font-bold ${dimColor(score)}`}>{score}/10</span>
+            {score >= 0
+              ? <span className={`font-mono text-xs font-bold ${dimColor(score)}`}>{score}/10</span>
+              : <span className="text-[10px] text-zinc-600 uppercase tracking-wide">Qualitative</span>
+            }
           </div>
           <div className="space-y-0.5">
             {facts.map((f, i) => (
@@ -595,7 +603,7 @@ export default function AnalyzePage() {
                       </div>
                       <p className="text-xs text-zinc-500 mt-0.5 truncate">{opp.rationale}</p>
                       <p className="text-[10px] text-zinc-600 mt-1 truncate">
-                        {opp.scores.demand.search_volume} · {opp.scores.competition.competing_brands} brands · TikTok: {opp.scores.virality.tiktok}
+                        {opp.scores.demand.search_volume} · {opp.scores.market_saturation ? `Market: ${opp.scores.market_saturation.level}` : opp.scores.competition?.competing_brands ? `${opp.scores.competition.competing_brands} brands` : ''} · TikTok: {opp.scores.virality.tiktok}
                       </p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">

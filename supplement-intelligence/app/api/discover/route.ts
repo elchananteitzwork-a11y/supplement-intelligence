@@ -6,7 +6,7 @@ import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }         from '@/lib/signal-engine'
 import type { OpportunityCard, OpportunityMeta, CacheStatus } from '@/types/index'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -121,6 +121,48 @@ function err(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status })
 }
 
+// ── Server-side score recalculation ────────────────────────────
+// Phase 2 unification: discovery now uses the same 5-dimension formula as the
+// memo report. formula: round((demand + virality + subscription + manufacturing
+// + defensibility) / 50 × 100). Legacy cached cards that still carry a
+// competition.score use the old 6-dim/60 formula automatically.
+
+const MAX_DISCOVER_ATTEMPTS = 3
+
+function recalculateCardScore(card: OpportunityCard): number {
+  const s = card.scores
+  const hasLegacy = typeof s?.competition?.score === 'number'
+  const dimSum =
+    (s?.demand?.score        ?? 0) +
+    (s?.virality?.score      ?? 0) +
+    (s?.subscription?.score  ?? 0) +
+    (s?.manufacturing?.score ?? 0) +
+    (s?.defensibility?.score ?? 0) +
+    (hasLegacy ? (s!.competition!.score ?? 0) : 0)
+  const maxDim = hasLegacy ? 60 : 50
+  return Math.round((dimSum / maxDim) * 100)
+}
+
+// Type-guard: 5 required scored dimensions + structural fields.
+// competition is optional (legacy) — market_saturation replaces it.
+function isValidCard(o: unknown): o is OpportunityCard {
+  if (!o || typeof o !== 'object') return false
+  const c = o as Partial<OpportunityCard>
+  return (
+    typeof c.name === 'string' && c.name.trim().length > 0 &&
+    typeof c.rationale === 'string' && c.rationale.trim().length > 0 &&
+    typeof c.startup_cost === 'string' &&
+    typeof c.difficulty === 'string' &&
+    typeof c.launch_time === 'string' &&
+    c.scores != null &&
+    typeof c.scores.demand?.score        === 'number' &&
+    typeof c.scores.virality?.score      === 'number' &&
+    typeof c.scores.subscription?.score  === 'number' &&
+    typeof c.scores.manufacturing?.score === 'number' &&
+    typeof c.scores.defensibility?.score === 'number'
+  )
+}
+
 // ── route ──────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
@@ -166,7 +208,12 @@ export async function POST(req: Request) {
     .maybeSingle()
 
   if (hit) {
-    const opps = hit.opportunities as OpportunityCard[]
+    // Re-apply server-side score recalculation so cached data generated before
+    // Phase 1 is corrected before being returned to the client.
+    const opps = (hit.opportunities as OpportunityCard[]).map(o => ({
+      ...o,
+      score: recalculateCardScore(o),
+    }))
 
     const { data: prevHit } = await sb
       .from('discovery_cache')
@@ -223,73 +270,97 @@ export async function POST(req: Request) {
 
   const systemPrompt = module.buildSignalAugmentedPrompt(baseSystemPrompt, input.trim(), signals)
 
-  // ── call Anthropic ─────────────────────────────────────────────
-  const controller = new AbortController()
-  const abortTimer = setTimeout(() => controller.abort(), 50_000)
-  let rawText = ''
+  // ── Discover with retry ────────────────────────────────────────
+  // Up to MAX_DISCOVER_ATTEMPTS attempts. Each attempt calls Claude, parses
+  // the JSON array, validates every card has all 6 dimension scores, and
+  // recalculates the top-level score server-side.
+  // Retries when: parse fails OR fewer than 5 structurally valid cards returned.
+  let opportunities: OpportunityCard[] = []
 
-  try {
-    const msg = await ai.messages.create(
-      {
-        model:      'claude-haiku-4-5-20251001',
-        max_tokens: 16000,
-        system:     systemPrompt,
-        messages:   [{ role: 'user', content: `${module.name} category: "${input.trim()}"` }],
-      },
-      { signal: controller.signal },
-    )
-    clearTimeout(abortTimer)
-    rawText = msg.content[0].type === 'text' ? msg.content[0].text : ''
-    console.log('Discovery raw response', {
-      stop_reason:      msg.stop_reason,
-      input_tokens:     msg.usage?.input_tokens,
-      output_tokens:    msg.usage?.output_tokens,
-      raw_length:       rawText.length,
-      is_refresh:       !!previousOpps,
-      signal_providers: signals?.providers_used ?? [],
-      categoryId:       module.id,
-    })
-  } catch (e: unknown) {
-    clearTimeout(abortTimer)
-    const isAbort = e instanceof Error &&
-      (e.name === 'APIUserAbortError' || e.name === 'AbortError' ||
-       (e.message ?? '').toLowerCase().includes('abort'))
-    if (isAbort) {
-      console.error('Discovery timeout after 50 s', { category: input.trim() })
-      return err('Discovery timed out — please try again.', 504)
-    }
-    if (e instanceof Anthropic.APIError) {
-      console.error('Anthropic API error (discover)', {
-        status: e.status, message: e.message, error: JSON.stringify(e.error),
-      })
-    } else {
-      console.error('Discovery error', e)
-    }
-    return err('AI service error — please try again.', 500)
-  }
+  for (let attempt = 1; attempt <= MAX_DISCOVER_ATTEMPTS; attempt++) {
+    const controller = new AbortController()
+    const abortTimer = setTimeout(() => controller.abort(), 90_000)
+    let rawText = ''
 
-  // ── parse + validate ───────────────────────────────────────────
-  let opportunities: OpportunityCard[]
-  try {
-    const parsed = parseOpportunities(rawText)
-    opportunities = parsed
-      .filter(o =>
-        typeof o.name === 'string' && o.name.trim() &&
-        typeof o.score === 'number' &&
-        typeof o.rationale === 'string' &&
-        o.scores &&
-        typeof o.scores.demand?.score === 'number'
+    try {
+      const msg = await ai.messages.create(
+        {
+          model:      'claude-haiku-4-5-20251001',
+          max_tokens: 16000,
+          system:     systemPrompt,
+          messages:   [{ role: 'user', content: `${module.name} category: "${input.trim()}"` }],
+        },
+        { signal: controller.signal },
       )
+      clearTimeout(abortTimer)
+      rawText = msg.content[0].type === 'text' ? msg.content[0].text : ''
+      console.log('Discovery raw response', {
+        attempt,
+        stop_reason:      msg.stop_reason,
+        input_tokens:     msg.usage?.input_tokens,
+        output_tokens:    msg.usage?.output_tokens,
+        raw_length:       rawText.length,
+        is_refresh:       !!previousOpps,
+        signal_providers: signals?.providers_used ?? [],
+        categoryId:       module.id,
+      })
+    } catch (e: unknown) {
+      clearTimeout(abortTimer)
+      // Anthropic SDK sets constructor.name='APIUserAbortError' but name='Error' from base class.
+      const isAbort = e instanceof Anthropic.APIUserAbortError
+      if (isAbort) {
+        console.error(`Discovery timeout after 90 s (attempt ${attempt}/${MAX_DISCOVER_ATTEMPTS})`, { category: input.trim() })
+        if (attempt < MAX_DISCOVER_ATTEMPTS) continue
+        return err('Discovery timed out — please try again.', 504)
+      }
+      if (e instanceof Anthropic.APIError) {
+        console.error('Anthropic API error (discover)', {
+          status: e.status, message: e.message, error: JSON.stringify(e.error),
+        })
+      } else {
+        console.error('Discovery error', e)
+      }
+      return err('AI service error — please try again.', 500)
+    }
+
+    // ── Parse ────────────────────────────────────────────────────
+    let parsed: OpportunityCard[]
+    try {
+      parsed = parseOpportunities(rawText)
+    } catch {
+      console.error(`Discovery parse error (attempt ${attempt}/${MAX_DISCOVER_ATTEMPTS})`, {
+        categoryId:  module.id,
+        is_refresh:  !!previousOpps,
+        raw_length:  rawText.length,
+        raw_snippet: rawText.slice(0, 400),
+      })
+      if (attempt < MAX_DISCOVER_ATTEMPTS) continue
+      return err('Failed to parse opportunities — please try again.', 500)
+    }
+
+    // ── Validate cards + server-side score recalculation ─────────
+    // isValidCard ensures all 6 dimension scores are present.
+    // recalculateCardScore replaces the LLM's top-level score with the
+    // server-computed value so sorting and display are always consistent.
+    const valid = parsed
+      .filter(isValidCard)
+      .map(o => ({ ...o, score: recalculateCardScore(o) }))
       .slice(0, 25)
       .sort((a, b) => b.score - a.score)
-  } catch {
-    console.error('Discovery parse error', {
-      categoryId:  module.id,
-      is_refresh:  !!previousOpps,
-      raw_length:  rawText.length,
-      raw_snippet: rawText.slice(0, 400),
-    })
-    return err('Failed to parse opportunities — please try again.', 500)
+
+    if (valid.length < 5) {
+      console.error(`Too few valid opportunities (attempt ${attempt}/${MAX_DISCOVER_ATTEMPTS})`, {
+        categoryId: module.id, parsed: parsed.length, valid: valid.length,
+      })
+      if (attempt < MAX_DISCOVER_ATTEMPTS) continue
+      if (valid.length === 0) return err('Failed to parse opportunities — please try again.', 500)
+      // Accept a partial result on the final attempt rather than showing nothing
+      opportunities = valid
+      break
+    }
+
+    opportunities = valid
+    break
   }
 
   // ── attach metadata + cache ────────────────────────────────────

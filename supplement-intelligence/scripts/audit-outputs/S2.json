@@ -1,0 +1,139 @@
+{
+  "id": "S2",
+  "category": "supplements",
+  "query": "Cortisol support adaptogen blend for stressed professionals",
+  "ms": 35036,
+  "parsed": {
+    "category_name": "Stress Adaptogen Blend",
+    "executive_summary": "Chronic workplace stress is a mainstream consumer pain point driving rapid growth in adaptogen and cortisol-management supplements, with a highly educated 28–45-year-old professional as the core buyer. The category is crowded but poorly differentiated, leaving room for a clinically dosed, brand-forward product targeting high-achieving burnout culture.",
+    "build_verdict": "YES",
+    "build_decision": "BUILD_NOW",
+    "build_explanation": "Search volume for 'cortisol supplements' and 'ashwagandha for stress' has grown 200%+ YoY with TikTok fueling mainstream awareness beyond early adopters. The professional-identity angle ('for high performers') is underdeveloped among current leaders, creating a clear positioning gap.",
+    "opportunity_score": 72,
+    "scores": {
+      "demand": {
+        "score": 8,
+        "notes": "Cortisol and adaptogen search terms are among the fastest-growing supplement queries, with strong YoY momentum driven by burnout culture awareness."
+      },
+      "competition": {
+        "score": 4,
+        "notes": "Ashwagandha SKUs are proliferating on Amazon and in retail, making shelf differentiation difficult without a strong brand story."
+      },
+      "virality": {
+        "score": 7,
+        "notes": "Cortisol face, stress belly, and burnout content consistently go viral on TikTok, giving this category strong organic UGC tailwinds."
+      },
+      "subscription": {
+        "score": 8,
+        "notes": "Daily dosing plus noticeable symptom return when stopping creates strong subscription retention and LTV mechanics."
+      },
+      "manufacturing": {
+        "score": 7,
+        "notes": "Ashwagandha, rhodiola, and phosphatidylserine are widely available commodity ingredients with clean regulatory standing."
+      },
+      "defensibility": {
+        "score": 4,
+        "notes": "Formula is easy to replicate; defensibility must come from brand positioning, community, and clinical dose storytelling rather than IP."
+      }
+    },
+    "biggest_competitor": {
+      "name": "Momentous Huberman Stack / Apothékary",
+      "revenue": "~$30M",
+      "gap": "Neither brand owns a sharp professional-identity narrative with clinical dosing transparency and workplace-specific stress messaging."
+    },
+    "market_size": "$22B (2024, global adaptogens)",
+    "sub_ltv": "$380",
+    "gross_margin": "68-75%",
+    "market_gaps": [
+      "No dominant brand specifically positioned for corporate/professional burnout versus general wellness",
+      "Most SKUs underdose key actives (e.g., ashwagandha at 300mg vs clinically studied 600mg KSM-66)",
+      "Lack of third-party cortisol biomarker tracking integration (at-home test + supplement bundle)",
+      "Missing a premium gender-differentiated formula addressing female HPA-axis nuance",
+      "No brand combining adaptogen stack with habit/routine coaching via app or community"
+    ],
+    "brand_opportunities": [
+      "Position as 'the supplement for people who can't afford to burn out' — achievement-identity branding",
+      "Lead with clinical transparency: exact doses, named extract forms (KSM-66, Sensoril, Relora) on front label",
+      "Bundle with a free salivary cortisol test kit at onboarding to personalize and create retention hooks",
+      "Lean into LinkedIn and podcast advertising to reach professionals where they self-identify with stress",
+      "Build a 90-day stress reset program with email/SMS touchpoints to increase subscription LTV"
+    ],
+    "customer_language": {
+      "frustrations": [
+        "I'm exhausted by 2pm every day but can't wind down at night — my body feels completely dysregulated",
+        "I've tried ashwagandha before but I couldn't tell if it was actually doing anything"
+      ],
+      "desires": [
+        "I want calm, steady energy throughout the day without relying on more caffeine",
+        "I want to feel like myself again — sharp, focused, and not constantly on edge"
+      ],
+      "fears": [
+        "I'm worried chronic stress is quietly destroying my health and I won't notice until it's too late",
+        "I don't want to take something that makes me feel sedated or foggy during work hours"
+      ],
+      "ad_phrases": [
+        {
+          "they_say": "I'm always wired but tired",
+          "use_in_copy": "Finally — calm focus without the crash. Built for the wired-but-tired professional."
+        },
+        {
+          "they_say": "I just want my stress levels to chill out",
+          "use_in_copy": "Your cortisol doesn't take weekends off. Now your support routine doesn't have to either."
+        }
+      ]
+    },
+    "product_recommendation": {
+      "format": "capsule",
+      "dosing": "2 capsules/day — 1 with breakfast, 1 with lunch to align with natural cortisol rhythm",
+      "formula": [
+        {
+          "ingredient": "Ashwagandha KSM-66",
+          "dose": "600mg",
+          "role": "Lowers cortisol, reduces perceived stress, improves resilience",
+          "evidence": "★★★★"
+        },
+        {
+          "ingredient": "Rhodiola Rosea (3% rosavins)",
+          "dose": "400mg",
+          "role": "Reduces mental fatigue and burnout, improves stress tolerance",
+          "evidence": "★★★"
+        },
+        {
+          "ingredient": "Phosphatidylserine",
+          "dose": "200mg",
+          "role": "Blunts cortisol spike response, supports cognitive function under stress",
+          "evidence": "★★★★"
+        },
+        {
+          "ingredient": "Relora (Magnolia + Phellodendron)",
+          "dose": "250mg",
+          "role": "Reduces stress-related eating and evening cortisol elevation",
+          "evidence": "★★★"
+        },
+        {
+          "ingredient": "L-Theanine",
+          "dose": "200mg",
+          "role": "Promotes calm alertness, synergizes with adaptogen stack without sedation",
+          "evidence": "★★★★"
+        }
+      ],
+      "avoid": [
+        "Melatonin — shifts product into sleep category and causes grogginess complaints that damage daytime stress positioning",
+        "Valerian root — carries sedative perception that conflicts with high-performance professional brand identity"
+      ],
+      "cogs_estimate": "$7-10 per 30-day unit at 5k MOQ",
+      "retail_price": "$54-64/month",
+      "gross_margin": "70-76%"
+    },
+    "financial_projections": {
+      "ten_k_probability": "85%",
+      "hundred_k_probability": "60%",
+      "one_m_probability": "35%",
+      "gross_margin": "70-76%",
+      "net_margin_at_scale": "18-26%",
+      "subscription_ltv": "$380",
+      "path_to_10m": "Acquire via podcast and LinkedIn ads targeting burnt-out professionals, convert to subscription with a 90-day reset program, then scale with retail placement in Whole Foods and corporate wellness partnerships."
+    }
+  },
+  "raw": "{\n  \"category_name\": \"Stress Adaptogen Blend\",\n  \"executive_summary\": \"Chronic workplace stress is a mainstream consumer pain point driving rapid growth in adaptogen and cortisol-management supplement"
+}

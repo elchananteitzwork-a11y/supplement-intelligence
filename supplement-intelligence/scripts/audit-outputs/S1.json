@@ -1,0 +1,133 @@
+{
+  "id": "S1",
+  "category": "supplements",
+  "query": "Magnesium glycinate sleep supplement for women 35+",
+  "ms": 33982,
+  "parsed": {
+    "category_name": "Women's Sleep Support",
+    "executive_summary": "Magnesium glycinate occupies a high-trust, science-backed position in the booming women's sleep category, with strong search momentum among health-conscious women 35+ who distrust pharma sleep aids. The buyer is a wellness-literate, subscription-friendly consumer already spending on hormonal and stress support supplements.",
+    "build_verdict": "YES",
+    "build_decision": "BUILD_NOW",
+    "build_explanation": "Magnesium glycinate has broad consumer awareness, clinically credible sleep and anxiety mechanisms, and a clean safety profile that invites repeat purchase and high LTV. The 35+ women's niche is underserved by dedicated branding despite being the heaviest supplement-buying demographic.",
+    "opportunity_score": 72,
+    "scores": {
+      "demand": {
+        "score": 8,
+        "notes": "Google Trends shows sustained YoY growth for 'magnesium glycinate' and 'magnesium for sleep' with women 35–54 as top searcher cohort."
+      },
+      "competition": {
+        "score": 4,
+        "notes": "Nested Naturals, Moon Juice, and Nature Made dominate shelf space, leaving a gap for a women-35+-specific brand narrative."
+      },
+      "virality": {
+        "score": 7,
+        "notes": "Sleep transformation content and 'magnesium changed my life' UGC are already viral formats on TikTok with tens of millions of views."
+      },
+      "subscription": {
+        "score": 8,
+        "notes": "Daily-use protocol with noticeable sleep regression on stopping creates strong habitual repurchase and subscription stickiness."
+      },
+      "manufacturing": {
+        "score": 8,
+        "notes": "Magnesium glycinate is widely available, shelf-stable, and requires no special handling or complex formulation steps."
+      },
+      "defensibility": {
+        "score": 4,
+        "notes": "Ingredient is commoditized so defensibility must come from brand story, community, and clinical credibility stacking rather than formula novelty."
+      }
+    },
+    "biggest_competitor": {
+      "name": "Moon Juice Magnesi-Om",
+      "revenue": "~$30M",
+      "gap": "Positioned gender-neutral and spiritually aesthetic, with no clinical messaging or life-stage specificity for perimenopausal women 35+."
+    },
+    "market_size": "$1.2B (2024)",
+    "sub_ltv": "$320",
+    "gross_margin": "68-74%",
+    "market_gaps": [
+      "No leading brand explicitly addresses perimenopause-adjacent sleep disruption in messaging",
+      "Most SKUs ignore cortisol and estrogen fluctuation context that drives sleep loss in this cohort",
+      "Clinical dosing (300–400mg elemental) is inconsistently delivered; many brands underdose",
+      "Subscription bundles pairing magnesium with complementary sleep actives are absent at the premium tier",
+      "Community-driven content around women's sleep identity ('I finally sleep like myself again') is unclaimed"
+    ],
+    "brand_opportunities": [
+      "Build a hormone-aware sleep brand that speaks directly to the 35–50 life stage with credible clinical language",
+      "Lead with a 30-night protocol framing to drive trial-to-subscription conversion and results accountability",
+      "Partner with OB-GYNs, sleep coaches, and women's health podcasts for earned authority and affiliate reach",
+      "Create a 'Sleep Snapshot' quiz funnel that personalizes dosing and upsells into a broader women's wellness stack",
+      "Leverage before/after sleep quality content (Oura Ring data, sleep diary screenshots) as core UGC engine"
+    ],
+    "customer_language": {
+      "frustrations": [
+        "I wake up at 3am for no reason and can't fall back asleep no matter what I try",
+        "Every sleep supplement I've tried either doesn't work or makes me feel groggy the next morning"
+      ],
+      "desires": [
+        "I want to fall asleep naturally and wake up feeling like myself again",
+        "I want something that actually works without messing with my hormones or becoming a dependency"
+      ],
+      "fears": [
+        "I'm scared this is just the beginning of years of bad sleep as I get older",
+        "I don't want to become reliant on a pill just to get a normal night of rest"
+      ],
+      "ad_phrases": [
+        {
+          "they_say": "I just don't sleep well anymore",
+          "use_in_copy": "Your sleep didn't break. Your magnesium levels did."
+        },
+        {
+          "they_say": "Nothing works for me",
+          "use_in_copy": "Most sleep supplements skip the mineral your body is actually missing."
+        }
+      ]
+    },
+    "product_recommendation": {
+      "format": "capsule",
+      "dosing": "2 capsules/day — taken 30–60 minutes before bed with water, away from calcium",
+      "formula": [
+        {
+          "ingredient": "Magnesium Glycinate",
+          "dose": "400mg",
+          "role": "Primary sleep and relaxation support via GABA modulation and muscle relaxation",
+          "evidence": "★★★★"
+        },
+        {
+          "ingredient": "L-Theanine",
+          "dose": "200mg",
+          "role": "Reduces sleep-onset anxiety and promotes alpha-wave calm without sedation",
+          "evidence": "★★★"
+        },
+        {
+          "ingredient": "Ashwagandha KSM-66",
+          "dose": "300mg",
+          "role": "Cortisol modulation supporting nighttime stress reduction and sleep quality",
+          "evidence": "★★★★"
+        },
+        {
+          "ingredient": "Vitamin B6 (as P-5-P)",
+          "dose": "10mg",
+          "role": "Cofactor for magnesium absorption and serotonin-to-melatonin conversion",
+          "evidence": "★★★"
+        }
+      ],
+      "avoid": [
+        "Melatonin — triggers hormone-dependency concerns in the 35+ audience and regulatory complexity at higher doses",
+        "Magnesium oxide — poor bioavailability (~4%) undermines clinical credibility and product efficacy perception"
+      ],
+      "cogs_estimate": "$6-9 per 30-day unit at 5k MOQ",
+      "retail_price": "$38-48/month",
+      "gross_margin": "70-76%"
+    },
+    "financial_projections": {
+      "ten_k_probability": "85%",
+      "hundred_k_probability": "55%",
+      "one_m_probability": "28%",
+      "gross_margin": "70-76%",
+      "net_margin_at_scale": "18-26%",
+      "subscription_ltv": "$320",
+      "path_to_10m": "Scale through women's health podcast sponsorships and TikTok sleep content creators in months 1–12, convert 30% of buyers to subscription by month 6, then layer in a 2-SKU bundle (sleep + magnesium daily) to raise average order value past $70."
+    }
+  },
+  "raw": "{\n  \"category_name\": \"Women's Sleep Support\",\n  \"executive_summary\": \"Magnesium glycinate occupies a high-trust, science-backed position in the booming women's sleep category, with strong search momen"
+}

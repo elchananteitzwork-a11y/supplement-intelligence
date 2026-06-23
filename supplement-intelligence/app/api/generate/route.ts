@@ -3,7 +3,8 @@ import { cookies }         from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import Anthropic           from '@anthropic-ai/sdk'
 import { categoryRegistry, classifyQuery } from '@/lib/categories'
-import type { MemoData }   from '@/types/index'
+import { signalEngine }    from '@/lib/signal-engine'
+import type { MemoData, SignalMetadata } from '@/types/index'
 
 export const maxDuration = 60
 
@@ -106,6 +107,103 @@ function err(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status })
 }
 
+// ── Phase 1: Output validation ─────────────────────────────────
+// Checks every field required for a complete report. Used by the retry
+// loop to decide whether to re-attempt before falling back to buildSkipMemo.
+
+const MAX_GENERATE_ATTEMPTS = 3
+
+function isNonEmpty(v: unknown): boolean {
+  if (v === null || v === undefined) return false
+  if (typeof v === 'string') return v.trim().length > 0
+  if (typeof v === 'number') return !isNaN(v)
+  if (Array.isArray(v)) return v.length > 0
+  if (typeof v === 'object') return Object.keys(v as object).length > 0
+  return true
+}
+
+function validateMemo(memo: MemoData): string[] {
+  const missing: string[] = []
+
+  // Top-level scalars
+  if (!isNonEmpty(memo.category_name))     missing.push('category_name')
+  if (!isNonEmpty(memo.executive_summary)) missing.push('executive_summary')
+  if (!isNonEmpty(memo.build_verdict))     missing.push('build_verdict')
+  if (!isNonEmpty(memo.build_decision))    missing.push('build_decision')
+  if (!isNonEmpty(memo.build_explanation)) missing.push('build_explanation')
+  if (typeof memo.opportunity_score !== 'number') missing.push('opportunity_score')
+  if (!isNonEmpty(memo.market_size))       missing.push('market_size')
+  if (!isNonEmpty(memo.sub_ltv))           missing.push('sub_ltv')
+  if (!isNonEmpty(memo.gross_margin))      missing.push('gross_margin')
+
+  // 5 dimension scores (competition removed in Phase 2; competition is optional for old memos)
+  const dims = ['demand','virality','subscription','manufacturing','defensibility'] as const
+  if (!memo.scores) {
+    missing.push('scores')
+  } else {
+    for (const d of dims) {
+      if (typeof memo.scores[d]?.score !== 'number') missing.push(`scores.${d}.score`)
+      if (!isNonEmpty(memo.scores[d]?.notes))        missing.push(`scores.${d}.notes`)
+    }
+  }
+
+  // market_saturation required for new memos (qualitative replacement for competition score)
+  const ms = memo.market_saturation
+  if (!ms) {
+    missing.push('market_saturation')
+  } else {
+    if (!isNonEmpty(ms.maturity))              missing.push('market_saturation.maturity')
+    if (!isNonEmpty(ms.concentration))         missing.push('market_saturation.concentration')
+    if (!isNonEmpty(ms.entry_difficulty))      missing.push('market_saturation.entry_difficulty')
+    if (!isNonEmpty(ms.competitive_intensity)) missing.push('market_saturation.competitive_intensity')
+  }
+
+  // Arrays: need at least 3 non-empty items each
+  if (!Array.isArray(memo.market_gaps) || memo.market_gaps.filter(isNonEmpty).length < 3)
+    missing.push('market_gaps')
+  if (!Array.isArray(memo.brand_opportunities) || memo.brand_opportunities.filter(isNonEmpty).length < 3)
+    missing.push('brand_opportunities')
+
+  // customer_language
+  const cl = memo.customer_language
+  if (!cl) {
+    missing.push('customer_language')
+  } else {
+    if (!Array.isArray(cl.frustrations) || cl.frustrations.length < 1) missing.push('customer_language.frustrations')
+    if (!Array.isArray(cl.desires)      || cl.desires.length < 1)       missing.push('customer_language.desires')
+    if (!Array.isArray(cl.fears)        || cl.fears.length < 1)         missing.push('customer_language.fears')
+    if (!Array.isArray(cl.ad_phrases)   || cl.ad_phrases.length < 1)    missing.push('customer_language.ad_phrases')
+  }
+
+  // product_recommendation (critical fields only)
+  const pr = memo.product_recommendation
+  if (!pr) {
+    missing.push('product_recommendation')
+  } else {
+    if (!isNonEmpty(pr.format))        missing.push('product_recommendation.format')
+    if (!isNonEmpty(pr.dosing))        missing.push('product_recommendation.dosing')
+    if (!Array.isArray(pr.formula) || pr.formula.length < 1) missing.push('product_recommendation.formula')
+    if (!isNonEmpty(pr.cogs_estimate)) missing.push('product_recommendation.cogs_estimate')
+    if (!isNonEmpty(pr.retail_price))  missing.push('product_recommendation.retail_price')
+  }
+
+  // financial_projections (all 7 fields)
+  const fp = memo.financial_projections
+  if (!fp) {
+    missing.push('financial_projections')
+  } else {
+    const fpFields = [
+      'ten_k_probability','hundred_k_probability','one_m_probability',
+      'gross_margin','net_margin_at_scale','subscription_ltv','path_to_10m',
+    ] as const
+    for (const f of fpFields) {
+      if (!isNonEmpty(fp[f])) missing.push(`financial_projections.${f}`)
+    }
+  }
+
+  return missing
+}
+
 // ── route ──────────────────────────────────────────────────────
 export async function POST(req: Request) {
   const sb = supabaseFromCookies()
@@ -158,6 +256,10 @@ export async function POST(req: Request) {
     )
   }
 
+  // ── Start signal fetch immediately (overlaps with DB round-trips below) ──
+  // Firing this before the cache/profile checks hides most of its 8s latency.
+  const signalPromise = signalEngine.fetch(input.trim(), 8_000).catch(() => null)
+
   // ── Full-report cache ─────────────────────────────────────────
   const { data: cachedReport } = await sb
     .from('analyses')
@@ -202,80 +304,130 @@ export async function POST(req: Request) {
   if (context?.trim())        lines.push(`Additional context: ${context.trim()}`)
   const userMessage = lines.join('\n')
 
-  // ── Call Claude ────────────────────────────────────────────────
-  const t0         = Date.now()
-  const controller = new AbortController()
-  const abortTimer = setTimeout(() => controller.abort(), 45_000)
-  let rawText = ''
-  try {
-    const msg = await ai.messages.create(
-      {
-        model:      'claude-sonnet-4-6',
-        max_tokens: 2500,
-        system:     module.analysisSystemPrompt,
-        messages:   [{ role: 'user', content: userMessage }],
-      },
-      { signal: controller.signal },
-    )
-    clearTimeout(abortTimer)
-    rawText = msg.content[0].type === 'text' ? msg.content[0].text : ''
-  } catch (e: unknown) {
-    clearTimeout(abortTimer)
-    const isAbort = e instanceof Error &&
-      (e.name === 'APIUserAbortError' || e.name === 'AbortError')
-    if (isAbort) {
-      console.error('Anthropic timeout after 45 s')
-      return err('Analysis timed out — no slot used. Please try again.', 504)
-    }
-    if (e instanceof Anthropic.APIError) {
-      console.error('Anthropic API error', { status: e.status, message: e.message, error: e.error })
-    } else {
-      console.error('Anthropic error', e)
-    }
-    return err('AI service error — no slot used. Please try again.', 500)
-  }
-  const generationMs = Date.now() - t0
+  // ── Await signal engine results (most of 8s elapsed during DB checks above) ─
+  const signals = await signalPromise
+  const systemPrompt = signals
+    ? module.buildSignalAugmentedPrompt(module.analysisSystemPrompt, input.trim(), signals)
+    : module.analysisSystemPrompt
 
-  // ── Parse memo ────────────────────────────────────────────────
-  let memo: MemoData
-  let skipReason: string | null = null
-  try {
-    memo = parseJSON(rawText)
-  } catch {
-    skipReason = 'json_parse_failure'
-    console.error('JSON parse error — SKIP fallback triggered', {
-      categoryId: module.id, skip_reason: skipReason,
-      raw_length: rawText.length, snippet: rawText.slice(0, 500),
+  const signalMeta: SignalMetadata | undefined = signals ? {
+    providers_used:     signals.providers_used,
+    overall_confidence: signals.overall_confidence,
+    demand_verified:    !!(signals.demand   || signals.growth),
+    virality_verified:  !!signals.virality,
+    pricing_verified:   !!signals.pricing,
+    growth_verified:    !!signals.growth,
+  } : undefined
+
+  if (signals) {
+    console.log('Generate: signal engine hit', {
+      providers:  signals.providers_used,
+      confidence: signals.overall_confidence,
+      category:   input.trim(),
     })
-    memo = buildSkipMemo(input.trim(), skipReason)
   }
-  if (!memo.category_name || typeof memo.opportunity_score !== 'number' || !memo.scores) {
-    skipReason = 'incomplete_memo'
-    console.error('Incomplete memo — SKIP fallback triggered', {
-      categoryId:        module.id,
-      skip_reason:       skipReason,
-      has_category_name: !!memo.category_name,
-      has_score:         typeof memo.opportunity_score === 'number',
-      has_scores:        !!memo.scores,
-    })
-    memo = buildSkipMemo(input.trim(), skipReason)
+
+  // ── Generate with retry ────────────────────────────────────────
+  // Up to MAX_GENERATE_ATTEMPTS attempts before falling back to buildSkipMemo.
+  // Each attempt calls Claude, parses the JSON, and runs validateMemo().
+  // Only a memo that passes all field checks is accepted; otherwise we retry.
+  // Slot consumption happens AFTER this loop (unchanged) so timeouts still
+  // cost the user nothing.
+  let memo: MemoData        = buildSkipMemo(input.trim(), 'not_started')
+  let skipReason: string | null = 'not_started'
+  let generationMs             = 0
+
+  for (let attempt = 1; attempt <= MAX_GENERATE_ATTEMPTS; attempt++) {
+    const t0         = Date.now()
+    const controller = new AbortController()
+    const abortTimer = setTimeout(() => controller.abort(), 55_000)
+    let rawText = ''
+
+    try {
+      const msg = await ai.messages.create(
+        {
+          model:      'claude-sonnet-4-6',
+          max_tokens: 3500,
+          system:     systemPrompt,
+          messages:   [{ role: 'user', content: userMessage }],
+        },
+        { signal: controller.signal },
+      )
+      clearTimeout(abortTimer)
+      rawText       = msg.content[0].type === 'text' ? msg.content[0].text : ''
+      generationMs += Date.now() - t0
+    } catch (e: unknown) {
+      clearTimeout(abortTimer)
+      generationMs += Date.now() - t0
+      // Don't rely on `e instanceof Anthropic.APIUserAbortError` — in production this SDK
+      // class reference can resolve to a different module instance than the one that threw
+      // the error (Next.js bundles can duplicate dependency modules), so the check silently
+      // fails and a normal timeout gets reported as a generic 500. Our own AbortController's
+      // signal is unambiguous: it's only ever flipped by the timer below.
+      const isAbort = controller.signal.aborted
+      if (isAbort) {
+        console.error(`Anthropic timeout after 55 s (attempt ${attempt}/${MAX_GENERATE_ATTEMPTS})`)
+        if (attempt < MAX_GENERATE_ATTEMPTS) continue
+        return err('Analysis timed out — no slot used. Please try again.', 504)
+      }
+      if (e instanceof Anthropic.APIError) {
+        console.error('Anthropic API error', { status: e.status, message: e.message, error: e.error })
+      } else {
+        console.error('Anthropic error', e)
+      }
+      return err('AI service error — no slot used. Please try again.', 500)
+    }
+
+    // ── Parse ──────────────────────────────────────────────────
+    let parsed: MemoData
+    try {
+      parsed = parseJSON(rawText)
+    } catch {
+      console.error(`JSON parse error (attempt ${attempt}/${MAX_GENERATE_ATTEMPTS})`, {
+        categoryId: module.id, raw_length: rawText.length, snippet: rawText.slice(0, 300),
+      })
+      if (attempt < MAX_GENERATE_ATTEMPTS) continue
+      skipReason = 'json_parse_failure'
+      memo = buildSkipMemo(input.trim(), skipReason)
+      break
+    }
+
+    // ── Validate all required fields ───────────────────────────
+    const missingFields = validateMemo(parsed)
+    if (missingFields.length > 0) {
+      console.error(`Incomplete memo (attempt ${attempt}/${MAX_GENERATE_ATTEMPTS})`, {
+        categoryId: module.id, missing: missingFields,
+      })
+      if (attempt < MAX_GENERATE_ATTEMPTS) continue
+      skipReason = 'incomplete_memo'
+      memo = buildSkipMemo(input.trim(), skipReason)
+      break
+    }
+
+    // Valid memo — accept and exit loop
+    memo       = parsed
+    skipReason = null
+    break
   }
 
   // ── Server-side score recalculation ───────────────────────────
-  // Guarantees opportunity_score matches the published formula
-  // round((demand + competition + virality + subscription + manufacturing + defensibility) / 60 × 100)
-  // regardless of what the LLM calculated.  Only applied to valid memos (skipReason == null).
+  // Phase 2: 5-dimension formula (competition replaced by qualitative market_saturation).
+  // Formula: round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+  // Only applied to valid memos. signal_metadata is attached regardless.
   if (!skipReason && memo.scores) {
     const dimSum =
       (memo.scores.demand?.score        ?? 0) +
-      (memo.scores.competition?.score   ?? 0) +
       (memo.scores.virality?.score      ?? 0) +
       (memo.scores.subscription?.score  ?? 0) +
       (memo.scores.manufacturing?.score ?? 0) +
       (memo.scores.defensibility?.score ?? 0)
-    const computed = Math.round((dimSum / 60) * 100)
+    const computed = Math.round((dimSum / 50) * 100)
     memo.opportunity_score = computed
     memo.build_decision = computed >= 65 ? 'BUILD_NOW' : computed >= 50 ? 'VALIDATE_FURTHER' : 'SKIP'
+  }
+  // Attach signal source metadata for Phase 3 UI attribution
+  if (!skipReason && signalMeta) {
+    memo.signal_metadata = signalMeta
   }
 
   console.log('Analysis decision', {
@@ -314,7 +466,7 @@ export async function POST(req: Request) {
       target_audience:     targetAudience?.trim() ?? null,
       price_point:         pricePoint?.trim()     ?? null,
       score_demand:        memo.scores.demand?.score        ?? null,
-      score_competition:   memo.scores.competition?.score   ?? null,
+      score_competition:   null,  // removed in Phase 2 — column kept for schema compat
       score_virality:      memo.scores.virality?.score      ?? null,
       score_subscription:  memo.scores.subscription?.score  ?? null,
       score_manufacturing: memo.scores.manufacturing?.score ?? null,

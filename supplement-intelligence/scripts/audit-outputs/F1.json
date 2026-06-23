@@ -1,0 +1,106 @@
+{
+  "id": "F1",
+  "category": "fitness",
+  "query": "Stimulant-free pre-workout for women without jitters",
+  "ms": 28485,
+  "parsed": {
+    "idea": "Stimulant-free pre-workout for women without jitters",
+    "executive_summary": "Women are actively searching for clean energy alternatives to caffeine-heavy pre-workouts that cause anxiety and crash. A stimulant-free formula targeting female athletes represents a high-LTV subscription play in an underserved but rapidly growing niche.",
+    "market_gaps": [
+      "Most pre-workouts are caffeine-forward and marketed toward men with aggressive branding",
+      "Women report jitters, heart palpitations, and sleep disruption from standard pre-workouts at high rates",
+      "No dominant stimulant-free female pre-workout brand holds more than 5% category share",
+      "Fitness influencer audiences skew 60-70% female yet product sponsorships remain male-coded",
+      "Hormonal cycle-aware formulation is virtually absent from mainstream pre-workout offerings"
+    ],
+    "brand_opportunities": [
+      "Own the 'clean energy' positioning with female-first branding and pastel minimal aesthetics",
+      "Partner with women-focused fitness creators on TikTok and Instagram for authentic UGC",
+      "Build a cycle-syncing product line extension that deepens loyalty and increases SKU count",
+      "Leverage subscription bundles tied to monthly supply cycles matching menstrual cadence",
+      "Target boutique fitness studios (barre, Pilates, cycling) as B2B retail and sampling channel"
+    ],
+    "customer_language": {
+      "frustrations": [
+        "Every pre-workout I try makes my heart race and I feel anxious for two hours",
+        "I just want energy for my workout without the crash ruining my afternoon"
+      ],
+      "desires": [
+        "I want steady, clean focus that helps me push harder without feeling wired",
+        "I want a pre-workout that was actually made for my body and my goals"
+      ],
+      "fears": [
+        "I'm afraid stimulants are messing with my hormones or sleep long-term",
+        "I don't want to become dependent on a product just to get through a workout"
+      ],
+      "ad_phrases": [
+        "All the fire. None of the jitters.",
+        "Pre-workout finally built for her."
+      ]
+    },
+    "scores": {
+      "demand": 8,
+      "competition": 6,
+      "virality": 7,
+      "subscription": 9,
+      "manufacturing": 7,
+      "defensibility": 5,
+      "notes": {
+        "demand": "Google Trends shows YoY growth in 'stimulant-free pre-workout' and 'pre-workout for women' queries.",
+        "competition": "Legacy brands like Optimum Nutrition and C4 dominate overall but lack a credible stimulant-free female SKU.",
+        "virality": "Jitter transformation and 'no crash' content formats perform well on TikTok wellness feeds.",
+        "subscription": "Monthly powder replenishment creates predictable 12x LTV; cycle-syncing adds upsell hooks.",
+        "manufacturing": "Standard powder contract manufacturing with no controlled substances; straightforward regulatory path.",
+        "defensibility": "Formula ingredients are replicable; defensibility must be built through brand, community, and athlete IP."
+      }
+    },
+    "opportunity_score": 70,
+    "build_decision": "BUILD_NOW",
+    "build_verdict": "YES",
+    "build_explanation": "Strong subscription mechanics, an underserved female audience, and a clean regulatory path make this a fundable opportunity today. The primary risk is defensibility, which must be addressed early through athlete partnerships and community-led brand building.",
+    "path_to_10m": "Achieve $10M ARR within 24 months by converting 15,000 subscribers at a $55/month average order value through a DTC-first TikTok acquisition funnel and studio sampling partnerships.",
+    "sub_ltv": "$660 per year assuming 12 monthly repurchases at $55 average order value with 75% retention",
+    "product_recommendation": {
+      "format": "powder",
+      "name": "FORA Pre-Workout — Stimulant-Free",
+      "dosing": "One scoop (10-12g) mixed with 12oz water, consumed 20-30 minutes before training",
+      "formula": [
+        {
+          "ingredient": "L-Citrulline",
+          "dose": "6000mg",
+          "benefit": "Nitric oxide precursor for blood flow and endurance pump",
+          "evidence": "★★★★"
+        },
+        {
+          "ingredient": "Beta-Alanine",
+          "dose": "3200mg",
+          "benefit": "Buffers lactic acid to delay muscular fatigue during high-rep training",
+          "evidence": "★★★★"
+        },
+        {
+          "ingredient": "Lions Mane Mushroom Extract",
+          "dose": "500mg",
+          "benefit": "Cognitive focus and mental clarity without CNS stimulation",
+          "evidence": "★★★"
+        },
+        {
+          "ingredient": "Rhodiola Rosea",
+          "dose": "300mg",
+          "benefit": "Adaptogenic stress reduction and endurance support under physical load",
+          "evidence": "★★★"
+        },
+        {
+          "ingredient": "Electrolyte Blend (Na, K, Mg)",
+          "dose": "500mg",
+          "benefit": "Hydration optimization and muscle contraction support during training",
+          "evidence": "★★★★"
+        }
+      ],
+      "avoid": [
+        "Caffeine and any methylxanthine derivatives — directly contradict the stimulant-free positioning and core customer promise",
+        "Proprietary blends with hidden dosing — female consumers in this segment are highly label-literate and distrust undisclosed formulas"
+      ]
+    }
+  },
+  "raw": "{\n  \"idea\": \"Stimulant-free pre-workout for women without jitters\",\n  \"executive_summary\": \"Women are actively searching for clean energy alternatives to caffeine-heavy pre-workouts that cause anxiety and crash. A stimulant-free formula targeting female athletes represents a high-LTV subscription pl"
+}

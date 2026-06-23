@@ -1,0 +1,149 @@
+{
+  "id": "H1",
+  "category": "home",
+  "query": "Eco-friendly laundry detergent sheets subscription",
+  "ms": 45993,
+  "parsed": {
+    "product": {
+      "name": "Eco-Friendly Laundry Detergent Sheets Subscription",
+      "category": "consumable kit",
+      "one_liner": "Dissolvable, plastic-free laundry sheets delivered on a recurring schedule — zero-mess, zero-waste alternative to liquid detergent.",
+      "format": "consumable kit"
+    },
+    "scores": {
+      "demand": 8,
+      "competition": 3,
+      "virality": 7,
+      "subscription": 9,
+      "manufacturing": 6,
+      "defensibility": 3
+    },
+    "opportunity_score": 60,
+    "build_decision": "VALIDATE_FURTHER",
+    "market": {
+      "tam": "$21B global laundry care market",
+      "sam": "$2.1B addressable eco-conscious segment (est. 10% eco-converted households)",
+      "som": "$35–80M realistic 3-year capture for DTC challenger brand",
+      "yoy_growth": "Laundry sheets sub-category growing ~38% YoY (2021–2024)",
+      "trend_signal": "Google Trends: 'laundry sheets' up 210% over 36 months; TikTok views on eco laundry content exceed 900M",
+      "evidence_tier": "★★"
+    },
+    "competitive_landscape": {
+      "summary": "Market is increasingly crowded. Tru Earth, Earth Breeze, Sheets Laundry Club, and Dropps have all scaled with heavy Meta/TikTok ad spend. Amazon Basics and private-label entrants are arriving. Brand differentiation is critical and difficult.",
+      "key_competitors": [
+        {
+          "name": "Tru Earth",
+          "threat_level": "HIGH",
+          "notes": "Canadian pioneer, strong DTC and retail presence, loyal subscriber base"
+        },
+        {
+          "name": "Earth Breeze",
+          "threat_level": "HIGH",
+          "notes": "Aggressive charity-linked marketing, massive TikTok ad volume"
+        },
+        {
+          "name": "Sheets Laundry Club",
+          "threat_level": "MEDIUM",
+          "notes": "Retail-distributed, mid-tier positioning"
+        },
+        {
+          "name": "Dropps",
+          "threat_level": "MEDIUM",
+          "notes": "Pod format, B-Corp certified, appeals to premium eco consumer"
+        }
+      ],
+      "moat_risk": "HIGH — formula differentiation is marginal; customer switching cost is very low"
+    },
+    "virality_analysis": {
+      "score_rationale": "Satisfying 'drop in water and dissolve' videos perform well on TikTok. Before/after laundry transformation UGC is proven. Eco guilt-to-solution narrative resonates with Gen Z and Millennials. However, category is now saturated with paid ads mimicking organic content.",
+      "top_hashtags": [
+        "#EcoLaundry",
+        "#CleanTok",
+        "#ZeroWaste",
+        "#LaundrySheets",
+        "#SustainableHome"
+      ],
+      "ugc_potential": "MEDIUM-HIGH",
+      "influencer_fit": "Eco lifestyle, minimalist home, zero-waste creators — CPMs rising due to incumbent spend",
+      "evidence_tier": "★★"
+    },
+    "subscription_model": {
+      "score_rationale": "Near-perfect subscription mechanics: consumable product, predictable depletion cycle (30–60 loads per pack), automatic replenishment maps to household laundry cadence. High LTV potential if churn is managed.",
+      "suggested_cadence": "Every 30, 60, or 90 days",
+      "ltv_estimate": "$180–$360 annual per subscriber at $15–$30/pack",
+      "churn_risk": "MEDIUM — price sensitivity is high; subscribers will switch if a cheaper option appears",
+      "evidence_tier": "★★"
+    },
+    "manufacturing": {
+      "score_rationale": "Sheet manufacturing requires PVA (polyvinyl alcohol) film dissolution technology and specialized sheeting equipment. Not trivially easy but contract manufacturers in China and South Korea are established. Minimum MOQs are manageable. Formulation IP is hard to lock.",
+      "estimated_cogs": "$2.50–$4.50 per 30-sheet pack",
+      "tooling_cost": "LOW–MEDIUM ($15K–$40K for initial contract run)",
+      "lead_time": "12–18 weeks for first production run",
+      "supply_chain_risk": "MEDIUM — PVA supply chains tightened post-COVID; ingredient sourcing requires vetting",
+      "certifications_needed": [
+        "EPA Safer Choice",
+        "Leaping Bunny (cruelty-free)",
+        "USDA Certified Biobased"
+      ],
+      "evidence_tier": "★★"
+    },
+    "defensibility": {
+      "score_rationale": "Formula is largely commoditized. Brand aesthetic and community are the only real moats. A certified dermatologist-tested, clinically validated formula could add a defensibility layer. Patent on a novel sheet architecture is possible but expensive and slow.",
+      "moat_options": [
+        "Hypoallergenic clinical certification (differentiation for sensitive skin niche)",
+        "Proprietary scent IP or exclusive fragrance partnerships",
+        "B-Corp or 1% for the Planet certification for brand trust",
+        "Retail exclusivity agreements (Target, Whole Foods)"
+      ],
+      "evidence_tier": "★"
+    },
+    "product_recommendation": {
+      "format": "consumable kit",
+      "differentiation_angle": "Position as the dermatologist-certified, fragrance-free, sensitive-skin laundry sheet — with EPA Safer Choice certification baked in from day one. Target parents of young children and eczema sufferers, a niche underserved by current eco-sheet brands.",
+      "hero_sku": "60-sheet starter kit (2-month supply) with magnetic reusable tin caddy",
+      "upsell_path": "Fabric softener sheets → stain remover bar → wool dryer balls → full eco-laundry bundle",
+      "retail_price_target": "$18–$24 per pack (subscription: 15% discount)",
+      "target_demographic": "Eco-conscious Millennial and Gen Z households, parents, sensitive-skin sufferers, HHI $60K+"
+    },
+    "financials": {
+      "estimated_cac": "$28–$45 (Meta/TikTok DTC)",
+      "ltv_cac_ratio": "4:1 to 8:1 at scale if churn held below 8% monthly",
+      "gross_margin_target": "62–72%",
+      "break_even_subscribers": "~4,200 active subscribers at $20 AOV",
+      "funding_ask_seed": "$750K–$1.5M (inventory, certifications, paid acquisition test)",
+      "evidence_tier": "★★"
+    },
+    "risks": [
+      {
+        "risk": "Market saturation from incumbents with deep ad budgets",
+        "severity": "HIGH",
+        "mitigation": "Niche down to sensitive skin; avoid head-on competition with Earth Breeze/Tru Earth on generic eco positioning"
+      },
+      {
+        "risk": "PVA environmental controversy — some studies suggest PVA microplastic contribution",
+        "severity": "MEDIUM-HIGH",
+        "mitigation": "Source certified marine-safe PVA; commission third-party biodegradability testing; be transparent"
+      },
+      {
+        "risk": "Customer churn driven by price competition",
+        "severity": "MEDIUM",
+        "mitigation": "Build community, loyalty points, and bundling to increase switching cost"
+      },
+      {
+        "risk": "Amazon private label entry",
+        "severity": "HIGH",
+        "mitigation": "Build brand equity and certifications Amazon cannot easily replicate on a commodity label"
+      }
+    ],
+    "validation_steps": [
+      "Run $5K Meta/TikTok split test on sensitive-skin positioning vs. generic eco to validate niche CPAs",
+      "Survey 300 target consumers on willingness to pay premium for dermatologist-certified sheets",
+      "Secure EPA Safer Choice pre-application consultation before product finalization",
+      "Pilot with 200 subscribers via Kickstarter or direct landing page before full production commitment",
+      "Benchmark 90-day churn vs. industry average (<12% monthly) before scaling ad spend"
+    ],
+    "analyst_verdict": "The laundry sheet category has proven product-market fit but is becoming a commodity battleground. A new entrant can win only with a credible, certified niche angle — sensitive skin and clinical safety is the most defensible white space. Subscription economics are excellent if CAC is controlled. Do not enter as a generic eco-sheet brand. Validate the niche positioning with paid traffic before committing to inventory.",
+    "evidence_tier_summary": "★★ — Standard industry practice and market data; independent clinical testing recommended before launch"
+  },
+  "raw": "{\n  \"product\": {\n    \"name\": \"Eco-Friendly Laundry Detergent Sheets Subscription\",\n    \"category\": \"consumable kit\",\n    \"one_liner\": \"Dissolvable, plastic-free laundry sheets delivered on a recurring"
+}

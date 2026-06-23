@@ -22,11 +22,10 @@ DEMAND (score + evidence):
 - signal: "Strong" (clear fitness-consumer awareness + growth), "Moderate", or "Weak"
 - score 8–10: >50k/month + growing; 5–7: 10–50k/month or stable; 0–4: <10k/month or declining
 
-COMPETITION (score + evidence) — 10 = wide-open market, 0 = dominated with no gap:
-- competing_brands: established brands in this exact niche
-- saturation: "Low" (<20 brands), "Medium" (20–60), "Medium-High" (60–120), "High" (120+)
-- barrier: "Low" (white-label gear or commodity supplements), "Medium" (proprietary formulas or product engineering), "High" (patents, celebrity athletes, dominant incumbents like Nike/Optimum Nutrition)
-- score 8–10: few brands + low barrier; 5–7: moderate; 0–4: saturated
+MARKET SATURATION (qualitative — no score):
+- level: "Low" (<20 brands), "Medium" (20–60), "High" (60–120), "Very High" (120+)
+- barrier: "Low" (white-label gear/supplements), "Medium" (proprietary formula or engineering), "High" (patents, celebrity athletes, dominant incumbents like Nike/Optimum Nutrition)
+- note: one sentence on who dominates and where the opportunity sits
 
 VIRALITY (score + evidence):
 - tiktok: "High" (workout transformation, challenge potential, visible results), "Medium", "Low"
@@ -48,7 +47,7 @@ DEFENSIBILITY (score + evidence):
 - rationale: 8–12 words on why the brand story can or cannot be replicated
 - score 8–10: endorsed by athletes, proprietary tech, community moat; 5–7: differentiated; 0–4: commodity
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 
 STARTUP COST:
 - Commodity sports nutrition or simple accessories: "$5k–$15k"
@@ -79,13 +78,12 @@ If the idea includes banned performance-enhancing substances, prescription drugs
 
 SCORING (integers 0–10, be skeptical, never inflate):
 demand        — search volume + YoY growth + athlete/consumer awareness
-competition   — 10 = wide-open market, 0 = dominated by legacy brands with no gap
 virality      — TikTok workout transformation + challenge potential + athlete UGC
 subscription  — recurring training usage + monthly replenishment LTV mechanics
 manufacturing — product/formula simplicity + sports regulatory burden (10 = easiest)
 defensibility — how hard the positioning, athlete relationships, or product is to replicate
 
-opportunity_score = round((sum of 6 scores / 60) × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
 
 EVIDENCE TIERS (for sports ingredients and claims):

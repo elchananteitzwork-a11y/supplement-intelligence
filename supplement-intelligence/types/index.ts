@@ -25,11 +25,18 @@ export interface OpportunityCard {
       trend: string                      // e.g. "+21% YoY" | "Stable"
       signal: 'Strong' | 'Moderate' | 'Weak'
     }
-    competition: {
-      score: number
-      competing_brands: string           // e.g. "120+" | "15–30"
-      saturation: 'Low' | 'Medium' | 'Medium-High' | 'High'
+    // market_saturation replaces the scored competition dimension (Phase 2 unification)
+    market_saturation?: {
+      level:   'Low' | 'Medium' | 'High' | 'Very High'
       barrier: 'Low' | 'Medium' | 'High'
+      note:    string
+    }
+    // kept optional for backward compat with cached cards from before Phase 2
+    competition?: {
+      score?: number
+      competing_brands?: string
+      saturation?: 'Low' | 'Medium' | 'Medium-High' | 'High'
+      barrier?: 'Low' | 'Medium' | 'High'
     }
     virality: {
       score: number
@@ -49,7 +56,7 @@ export interface OpportunityCard {
     }
     defensibility: {
       score: number
-      rationale: string                  // ≤10-word reason why differentiation is easy/hard
+      rationale: string
     }
   }
 }
@@ -58,6 +65,25 @@ export type BuildVerdict  = 'YES' | 'MAYBE' | 'NO'
 export interface DimScore {
   score: number
   notes: string
+}
+
+// Phase 2: replaces the numeric competition score in MemoData
+export interface MarketSaturation {
+  maturity:              string  // "Early Growth" | "Growing" | "Mature" | "Saturated"
+  dominant_brands:       string  // prose: who controls the market
+  concentration:         string  // "Low" | "Moderate" | "High" | "Very High"
+  entry_difficulty:      string  // "Low" | "Medium" | "High"
+  competitive_intensity: string  // 2-3 sentence qualitative assessment
+}
+
+// Phase 3: which signals were verified by external data sources
+export interface SignalMetadata {
+  providers_used:     string[]
+  overall_confidence: number    // 0–1
+  demand_verified:    boolean   // Keepa returned demand data
+  virality_verified:  boolean   // TikTok returned virality data
+  pricing_verified:   boolean   // Keepa returned pricing data
+  growth_verified:    boolean   // Keepa returned growth data
 }
 
 export interface Ingredient {
@@ -81,12 +107,14 @@ export interface MemoData {
   opportunity_score: number
 
   // ── Analyst-voice synthesis (added v2) — optional for backward compat ──
-  market_thesis?: string   // 2–4 sentence investment thesis in senior analyst voice
-  why_now?:       string   // 2–3 sentences on why this timing window is open
+  market_thesis?:     string           // 2–4 sentence investment thesis in senior analyst voice
+  why_now?:           string           // 2–3 sentences on why this timing window is open
+  market_saturation?: MarketSaturation // Phase 2: qualitative replacement for competition score
+  signal_metadata?:   SignalMetadata   // Phase 3: which metrics came from verified sources
 
   scores: {
     demand:        DimScore
-    competition:   DimScore
+    competition?:  DimScore  // kept optional for backward compat with stored analyses
     virality:      DimScore
     subscription:  DimScore
     manufacturing: DimScore

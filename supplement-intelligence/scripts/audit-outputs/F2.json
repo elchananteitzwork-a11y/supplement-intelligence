@@ -1,0 +1,118 @@
+{
+  "id": "F2",
+  "category": "fitness",
+  "query": "Premium resistance bands set for home gym training",
+  "ms": 39542,
+  "parsed": {
+    "product": "Premium Resistance Bands Set for Home Gym Training",
+    "category": "Equipment / Accessories",
+    "date_analyzed": "2025-01-30",
+    "investment_memo": {
+      "one_liner": "A premium-positioned resistance bands set targeting home gym enthusiasts seeking durable, versatile, and aesthetically designed training equipment.",
+      "problem": "Generic resistance bands sold on Amazon are cheap, snap easily, roll uncomfortably on skin, and come with zero programming guidance — leaving serious home gym users underserved by a commodity market.",
+      "solution": "A premium set featuring layered latex or fabric construction, color-coded progressive resistance, anti-roll design, and bundled digital training content to justify a 3–5x price premium over mass-market alternatives.",
+      "target_customer": "Home gym enthusiasts aged 25–45, predominantly female for glute/mobility training and male for strength assistance work, household income $60K+, active on Instagram and TikTok fitness communities.",
+      "market_size": {
+        "TAM": "$12.4B global resistance band and home fitness equipment market",
+        "SAM": "$2.1B premium home gym accessories segment (US + UK + AUS)",
+        "SOM": "$85M achievable within 36 months at ~4% premium segment share",
+        "source_note": "Grand View Research 2024 estimates; SOM is analyst projection"
+      }
+    },
+    "scores": {
+      "demand": 7,
+      "competition": 2,
+      "virality": 7,
+      "subscription": 3,
+      "manufacturing": 6,
+      "defensibility": 3,
+      "rationale": {
+        "demand": "Post-COVID home gym category remains elevated with sustained search volume; resistance bands consistently top Amazon fitness bestsellers and TikTok fitness hashtags.",
+        "competition": "Extremely crowded — Rogue, Perform Better, Bodylastics, Gymshark accessories, and hundreds of white-label Amazon sellers. Premium gap exists but is narrow and rapidly filling.",
+        "virality": "Glute band challenges, before/after transformation content, and home workout routines drive strong organic TikTok UGC. Visual product design aids shareability.",
+        "subscription": "One-time purchase nature with low replenishment frequency; app or programming subscription possible but adoption is historically low in this category.",
+        "manufacturing": "Fabric or layered latex bands are straightforward to manufacture in Asia; MOQs are low. No regulatory burden. Main risk is quality consistency at scale.",
+        "defensibility": "Physical product is easily replicated; brand and community are primary moats. No meaningful IP protection. Athlete endorsements help but are expensive and transient."
+      }
+    },
+    "opportunity_score": 47,
+    "build_decision": "SKIP",
+    "build_decision_rationale": "The market is deeply commoditized with razor-thin defensibility. A 47/100 opportunity score reflects strong demand undercut by brutal competition and negligible recurring revenue. Capital would be better deployed into adjacent categories with higher LTV mechanics or proprietary formulation barriers.",
+    "product_recommendation": {
+      "format": "equipment",
+      "suggested_skus": [
+        "3-band fabric set (light / medium / heavy)",
+        "5-band latex loop set with carry case",
+        "Long resistance band set for pull-up assistance and mobility"
+      ],
+      "hero_sku": "3-band premium fabric glute set with QR-linked 8-week program",
+      "retail_price_range": "$45 – $89",
+      "cogs_estimate": "$8 – $14 per set landed",
+      "gross_margin_estimate": "68–82%"
+    },
+    "go_to_market": {
+      "primary_channels": [
+        "TikTok Shop",
+        "Instagram DTC",
+        "Amazon Premium Listings"
+      ],
+      "secondary_channels": [
+        "Micro-influencer seeding (10K–200K fitness creators)",
+        "Pinterest SEO"
+      ],
+      "launch_strategy": "Seed 50 fitness micro-influencers with free product + affiliate code before launch. Anchor hero content around glute band challenge on TikTok. Launch DTC Shopify store simultaneously with Amazon listing.",
+      "athlete_partnership_tier": "Micro to mid-tier fitness influencers ($500–$5K per post); avoid expensive macro deals given low defensibility"
+    },
+    "moat_analysis": {
+      "primary_moat": "Brand community and aesthetic differentiation",
+      "secondary_moat": "Bundled digital content / programming subscription",
+      "moat_strength": "WEAK",
+      "moat_notes": "No meaningful patent protection on band design. Brand is replicable within 18 months by a well-funded competitor. Community lock-in is the only durable asset."
+    },
+    "risks": [
+      {
+        "risk": "Amazon commoditization",
+        "severity": "HIGH",
+        "mitigation": "Build DTC channel to >50% of revenue; resist over-reliance on marketplace"
+      },
+      {
+        "risk": "Product quality / snapping liability",
+        "severity": "MEDIUM",
+        "mitigation": "Rigorous QC protocol, manufacturer warranty program, product liability insurance"
+      },
+      {
+        "risk": "Category saturation with no clear differentiation hook",
+        "severity": "HIGH",
+        "mitigation": "Anchor brand around specific sub-niche (e.g., postpartum fitness, mobility training) rather than broad 'home gym'"
+      },
+      {
+        "risk": "Low repeat purchase rate compresses LTV",
+        "severity": "MEDIUM",
+        "mitigation": "Introduce complementary accessories (handles, anchors, mats) and a digital subscription to extend LTV"
+      }
+    ],
+    "clinical_evidence": {
+      "efficacy_claim": "Resistance band training produces comparable strength and hypertrophy gains to free weights at matched resistance levels",
+      "evidence_tier": "★★★★",
+      "key_studies": [
+        "Lopes et al. (2019) JSCR — elastic resistance equivalent to isotonic resistance for strength gains",
+        "Calatayud et al. (2015) — band training matches machine training for upper body EMG activation"
+      ],
+      "regulatory_risk": "LOW — no health claims required; standard consumer product safety (ASTM) compliance needed"
+    },
+    "financials": {
+      "estimated_seed_raise": "$500K – $1.2M",
+      "use_of_funds": {
+        "inventory": "45%",
+        "paid_social_and_influencer": "30%",
+        "tech_and_DTC_build": "15%",
+        "ops_and_team": "10%"
+      },
+      "break_even_units": "~18,000 units at $65 ASP and $12 COGS with $400K fixed cost base",
+      "12_month_revenue_target": "$1.8M",
+      "24_month_revenue_target": "$4.5M"
+    },
+    "verdict_summary": "Resistance bands are a proven, high-demand product with excellent margins and viral potential — but the market is one of the most crowded in consumer fitness. Without a truly differentiated hook (proprietary material, celebrity co-founder, or embedded digital ecosystem), this is a capital-intensive race to the bottom on paid social. Recommend only pursuing if the founding team has a unique distribution or community advantage; otherwise, redirect capital to higher-defensibility fitness verticals."
+  },
+  "raw": "{\n  \"product\": \"Premium Resistance Bands Set for Home Gym Training\",\n  \"category\": \"Equipment / Accessories\",\n  \"date_analyzed\": \"2025-01-30\",\n  \"investment_memo\": {\n    \"one_liner\": \"A premium-positi"
+}

@@ -63,11 +63,10 @@ Start with [ and end with ].
         "trend": "+N% YoY",
         "signal": "Strong | Moderate | Weak"
       },
-      "competition": {
-        "score": 0,
-        "competing_brands": "N–N",
-        "saturation": "Low | Medium | Medium-High | High",
-        "barrier": "Low | Medium | High"
+      "market_saturation": {
+        "level": "Low | Medium | High | Very High",
+        "barrier": "Low | Medium | High",
+        "note": "one sentence on competitive dynamics"
       },
       "virality": {
         "score": 0,
@@ -105,7 +104,23 @@ Rules:
 // All categories produce the same MemoData shape so the existing UI renders them.
 
 export const SHARED_MEMO_SCHEMA = `
+SCORING (integers 0–10, be skeptical, never inflate):
+demand        — search volume + YoY growth + consumer awareness
+virality      — social content potential + UGC + platform creator ecosystem
+subscription  — daily use + runs out within 30 days + benefit reverts on stopping
+manufacturing — formula/product simplicity + regulatory risk + MOQ (10 = easiest)
+defensibility — how hard the brand story/positioning is to replicate
+
+opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
+
+CALIBRATION RULES — read carefully:
+- virality: Utility, cleaning, functional, or commodity products default to Medium or Low. Only assign High if there is a documented creator ecosystem, transformation content, or established UGC behavior in this exact category. Generic "could go viral" reasoning is not sufficient.
+- subscription: Only score High when the product is physically consumed within 30 days AND the benefit regresses when stopped. Wellness products users might forget to reorder are Medium at best.
+- market_size: Only state a specific figure if you can ground it in a named category (e.g. "US dietary supplement market"). If the exact niche has no credible sizing, write "Not independently verified — market estimates vary widely." Never invent a specific dollar figure.
+
 ADDITIONAL OUTPUT RULES:
+- market_saturation: describe the competitive landscape qualitatively — no score.
 - market_thesis: 2–4 sentences. Investment thesis in active analyst voice — not a summary. State the structural opportunity, why it matters at this scale, and the core market insight. Write like a senior VC partner writing a deal memo: specific numbers, clear point of view, no hedging. This field must appear at the END of the JSON object, after financial_projections.
 - why_now: 2–3 sentences. Explain what changed in the last 12–24 months that makes this window open today rather than 2 years ago. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm change, manufacturing cost drop, incumbent strategic error, or category-defining brand exit. Concrete mechanism, not generic growth language. This field must appear at the END of the JSON object, after market_thesis.
 
@@ -119,12 +134,19 @@ Return a JSON object with exactly these fields:
   "opportunity_score": 0,
 
   "scores": {
-    "demand":        { "score": 0, "notes": "one sentence" },
-    "competition":   { "score": 0, "notes": "one sentence" },
-    "virality":      { "score": 0, "notes": "one sentence" },
-    "subscription":  { "score": 0, "notes": "one sentence" },
+    "demand":        { "score": 0, "notes": "one sentence with specific evidence" },
+    "virality":      { "score": 0, "notes": "cite specific platform or content evidence" },
+    "subscription":  { "score": 0, "notes": "one sentence on repurchase mechanics" },
     "manufacturing": { "score": 0, "notes": "one sentence" },
     "defensibility": { "score": 0, "notes": "one sentence" }
+  },
+
+  "market_saturation": {
+    "maturity":              "Early Growth | Growing | Mature | Saturated",
+    "dominant_brands":       "who controls this market — name the top 2-3 brands",
+    "concentration":         "Low | Moderate | High | Very High",
+    "entry_difficulty":      "Low | Medium | High",
+    "competitive_intensity": "2-3 sentences on how hard it is to compete, what moats incumbents have, and where white space exists"
   },
 
   "biggest_competitor": {
@@ -133,7 +155,7 @@ Return a JSON object with exactly these fields:
     "gap":     "one sentence on what they are missing"
   },
 
-  "market_size":  "$XB (year)",
+  "market_size":  "$XB (year) or 'Not independently verified — market estimates vary widely'",
   "sub_ltv":      "$XXX",
   "gross_margin": "XX-XX%",
 
