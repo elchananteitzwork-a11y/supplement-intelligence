@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const GUARDED = ['/dashboard', '/analyze', '/memo', '/leaderboard']
+const GUARDED = ['/dashboard', '/memo', '/leaderboard']
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req })

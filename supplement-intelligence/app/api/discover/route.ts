@@ -126,7 +126,7 @@ function err(msg: string, status = 400) {
 export async function POST(req: Request) {
   const sb = supabaseFromCookies()
   const { data: { user } } = await sb.auth.getUser()
-  if (!user) return err('Unauthorized', 401)
+  // Discovery is public — no auth required. user may be null for anonymous visitors.
 
   let body: { input?: string; categoryId?: string }
   try { body = await req.json() } catch { return err('Invalid JSON body') }
@@ -177,7 +177,7 @@ export async function POST(req: Request) {
 
     const cacheStatus: CacheStatus = prevHit ? 'updated' : 'cached'
     const top3 = opps.slice(0, 3)
-    const rest = seededShuffle(opps.slice(3), `${user.id}:${cacheKey}:${cacheWeek}`)
+    const rest = seededShuffle(opps.slice(3), `${user?.id ?? 'anon'}:${cacheKey}:${cacheWeek}`)
 
     console.log('Discovery cache hit', {
       query: normalizedQuery, cache_week: cacheWeek,
@@ -315,7 +315,7 @@ export async function POST(req: Request) {
   })
 
   const top3 = enriched.slice(0, 3)
-  const rest = seededShuffle(enriched.slice(3), `${user.id}:${cacheKey}:${cacheWeek}`)
+  const rest = seededShuffle(enriched.slice(3), `${user?.id ?? 'anon'}:${cacheKey}:${cacheWeek}`)
 
   return NextResponse.json({
     opportunities:     [...top3, ...rest],
