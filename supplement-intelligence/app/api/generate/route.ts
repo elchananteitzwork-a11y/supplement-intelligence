@@ -5,6 +5,7 @@ import Anthropic           from '@anthropic-ai/sdk'
 import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }    from '@/lib/signal-engine'
 import { keywordEngine }   from '@/lib/keyword-engine'
+import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
 // CONFIRMED VIA LOAD TEST (2026-06-24, 17 real generations): single-attempt
@@ -336,6 +337,20 @@ export async function POST(req: Request) {
     ? module.buildSignalAugmentedPrompt(module.analysisSystemPrompt, input.trim(), signals)
     : module.analysisSystemPrompt
 
+  // ── Consumer Intelligence: real review-text themes ──────────────────────
+  // Depends on competitor ASINs found by Competition Intelligence above —
+  // can't run in parallel with signalPromise, it needs that result first.
+  // Server-computed only, never passed through Claude (same reasoning as
+  // keyword_intelligence: an LLM restating these would reintroduce the
+  // free-form-summarization problem this feature exists to avoid).
+  const topCompetitors = signals?.review_velocity?.value.top_competitors
+  const consumerIntelligence = topCompetitors?.length
+    ? await analyzeConsumerIntelligence(topCompetitors, input.trim()).catch((e: unknown) => {
+        console.error('Consumer Intelligence failed', { error: e instanceof Error ? e.message : e })
+        return null
+      })
+    : null
+
   const signalMeta: SignalMetadata | undefined = signals ? {
     providers_used:     signals.providers_used,
     overall_confidence: signals.overall_confidence,
@@ -464,6 +479,9 @@ export async function POST(req: Request) {
   }
   if (!skipReason && keywordIntelligence) {
     memo.keyword_intelligence = keywordIntelligence
+  }
+  if (!skipReason && consumerIntelligence) {
+    memo.consumer_intelligence = consumerIntelligence
   }
 
   console.log('Analysis decision', {

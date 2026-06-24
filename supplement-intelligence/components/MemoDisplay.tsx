@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import type { MemoData, BuildDecision, SignalMetadata } from '@/types/index'
 import type { ViralitySignal } from '@/lib/signal-engine/types'
 import type { KeywordMetric } from '@/lib/keyword-engine/types'
+import type { ThemeInsight } from '@/lib/consumer-intelligence'
 import {
   IconTrendUp, IconTrendDown, IconBeaker, IconArrowRight, IconX, IconAlert,
 } from '@/components/icons'
@@ -15,7 +16,7 @@ import {
   manufacturingTabProvenance, legacyCompetitionProvenance, toConfidenceBand,
   searchVolumeProvenance, searchGrowthProvenance, unitsSoldProvenance,
   revenueEvidenceProvenance, competitionEvidenceProvenance, categoryReviewDataProvenance,
-  marketAccessibilityProvenance, keywordIntelligenceProvenance,
+  marketAccessibilityProvenance, keywordIntelligenceProvenance, consumerIntelligenceProvenance,
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
 
@@ -1617,6 +1618,115 @@ function KeywordIntelligenceSection({ m }: { m: MemoData }) {
   )
 }
 
+// ═══════════════════════════════════════════════════════════════
+// CONSUMER INTELLIGENCE — real review-text themes (lib/consumer-intelligence).
+// Every row below is traceable to a literal phrase pulled from real
+// customer reviews via deterministic clustering, never LLM summarization.
+// No insight without a review count behind it — that's the whole point.
+// ═══════════════════════════════════════════════════════════════
+
+function ThemeList({ themes, limit, emptyLabel }: { themes: ThemeInsight[]; limit?: number; emptyLabel: string }) {
+  const shown = limit ? themes.slice(0, limit) : themes
+  if (!shown.length) {
+    return <p className="text-xs text-zinc-600 italic py-2">{emptyLabel}</p>
+  }
+  return (
+    <ul className="space-y-2">
+      {shown.map((t, i) => (
+        <li key={i} className="text-sm">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-zinc-200 font-medium">&ldquo;{t.label}&rdquo;</span>
+            <span className="text-[11px] font-mono text-zinc-500 shrink-0">{t.mentionedBy}/{t.outOf} reviews</span>
+          </div>
+          <p className="text-[11px] text-zinc-600 italic mt-0.5 truncate">&ldquo;{t.exampleQuote}&rdquo;</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function SentimentBars({ m }: { m: MemoData }) {
+  const sb = m.consumer_intelligence?.sentimentBreakdown
+  if (!sb) return null
+  return (
+    <div className="space-y-1.5">
+      {sb.distribution.slice().reverse().map(d => (
+        <div key={d.star} className="flex items-center gap-2 text-[11px]">
+          <span className="text-zinc-500 w-10 shrink-0">{d.star}★</span>
+          <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+            <div className="h-full bg-brass/50" style={{ width: `${d.pct}%` }} />
+          </div>
+          <span className="text-zinc-500 font-mono w-10 text-right shrink-0">{d.pct}%</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
+  const ci = m.consumer_intelligence
+  const provenance = consumerIntelligenceProvenance(ci)
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Consumer Intelligence</p>
+        {provenance && <ProvenanceBadge p={provenance} />}
+      </div>
+
+      {!ci ? (
+        <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+      ) : (
+        <div className="space-y-5 mt-3">
+          <p className="text-[11px] text-zinc-600">
+            Source: {ci.totalReviewsCollected} real reviews across {ci.asinsAnalyzed.map(a => a.brand).join(', ')}
+            {' '}({ci.asinsAnalyzed.reduce((s, a) => s + a.reviewsCollected, 0)} collected, {ci.confidence >= 0.7 ? 'high' : ci.confidence >= 0.4 ? 'moderate' : 'low'} confidence)
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div className="rounded-xl border border-white/[0.07] p-4">
+              <p className="text-xs font-semibold text-zinc-200 mb-3">Sentiment Breakdown</p>
+              <p className="text-[11px] text-zinc-500 mb-2">
+                Avg rating <span className="font-mono text-zinc-300">{ci.sentimentBreakdown.avgRating}/5</span> across {ci.sentimentBreakdown.totalReviews} reviews
+                {' '}— {ci.sentimentBreakdown.positivePct}% positive, {ci.sentimentBreakdown.neutralPct}% neutral, {ci.sentimentBreakdown.negativePct}% negative
+              </p>
+              <SentimentBars m={m} />
+            </div>
+
+            <div className="rounded-xl border border-white/[0.07] p-4">
+              <p className="text-xs font-semibold text-zinc-200 mb-3">Top Complaints</p>
+              <ThemeList themes={ci.negativeThemes} limit={5} emptyLabel="No recurring complaints met the minimum review-count threshold." />
+            </div>
+
+            <div className="rounded-xl border border-white/[0.07] p-4">
+              <p className="text-xs font-semibold text-zinc-200 mb-3">What Customers Love</p>
+              <ThemeList themes={ci.positiveThemes} limit={5} emptyLabel="No recurring praise met the minimum review-count threshold." />
+            </div>
+
+            <div className="rounded-xl border border-white/[0.07] p-4">
+              <p className="text-xs font-semibold text-zinc-200 mb-3">Most Mentioned Problems <span className="text-[10px] text-zinc-600 font-normal">(any rating)</span></p>
+              <ThemeList themes={ci.mostMentionedProblems} limit={5} emptyLabel="No problems mentioned widely enough across all ratings." />
+            </div>
+
+            <div className="rounded-xl border border-white/[0.07] p-4">
+              <p className="text-xs font-semibold text-zinc-200 mb-3">Feature Requests</p>
+              <ThemeList themes={ci.featureRequests} limit={5} emptyLabel="No recurring feature requests found in this review sample." />
+            </div>
+
+            <div className="rounded-xl border border-white/[0.07] p-4">
+              <p className="text-xs font-semibold text-zinc-200 mb-3">Customer Pain Points & Positive Themes <span className="text-[10px] text-zinc-600 font-normal">(full lists)</span></p>
+              <p className="text-[10px] text-zinc-600 mb-2">Pain Points / Negative Themes — same data as Top Complaints, full ranked list:</p>
+              <ThemeList themes={ci.negativeThemes} emptyLabel="None." />
+              <p className="text-[10px] text-zinc-600 mt-3 mb-2">Positive Themes — same data as What Customers Love, full ranked list:</p>
+              <ThemeList themes={ci.positiveThemes} emptyLabel="None." />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MarketIntelligenceContent({ m }: { m: MemoData }) {
   const { subscription } = m.scores
   const sig = m.signal_metadata
@@ -1705,6 +1815,11 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
       {/* Keyword Intelligence — real per-keyword search data, when available */}
       <div className="pt-5 border-t border-white/[0.06]">
         <KeywordIntelligenceSection m={m} />
+      </div>
+
+      {/* Consumer Intelligence — real review-text themes, when available */}
+      <div className="pt-5 border-t border-white/[0.06]">
+        <ConsumerIntelligenceSection m={m} />
       </div>
     </div>
   )

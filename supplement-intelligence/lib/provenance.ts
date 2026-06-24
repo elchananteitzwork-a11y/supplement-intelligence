@@ -22,6 +22,7 @@
 import type { MemoData, SignalMetadata } from '@/types/index'
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
+import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 
 export type ProvenanceLevel = 'verified' | 'estimated' | 'synthesized' | 'unknown'
 
@@ -265,6 +266,14 @@ export function keywordIntelligenceProvenance(ki?: KeywordIntelligence | null): 
   return verified(
     'DataForSEO',
     "Search volume, competition, and CPC are pulled directly from DataForSEO's keyword database. Growth % is computed here from their real monthly search-volume history, not requested as a pre-built metric — the bucketing into Top Buying / Opportunity / Long-Tail / Fast-Growing is a deterministic sort/filter over those real numbers, not a model judgment."
+  )
+}
+
+export function consumerIntelligenceProvenance(ci?: ConsumerIntelligenceReport | null): Provenance | null {
+  if (!ci) return null
+  return verified(
+    'Apify (Amazon reviews)',
+    `Every theme is a real, literal phrase pulled from ${ci.totalReviewsCollected} real customer reviews on ${ci.asinsAnalyzed.length} top competitor product(s) — no LLM summarization. Themes are found by deterministic phrase clustering (frequency + stemming, not free-form interpretation) and each one shows exactly how many of the analyzed reviews mentioned it. The review count next to every theme is the actual count, not an estimate.`
   )
 }
 

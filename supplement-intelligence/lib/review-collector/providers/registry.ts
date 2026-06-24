@@ -1,4 +1,5 @@
 import type { ReviewProvider } from './types'
+import { ApifyReviewProvider }   from './apify'
 import { RainforestProvider }    from './rainforest'
 import { AmazonScraperProvider } from './scraper'
 
@@ -13,12 +14,13 @@ import { AmazonScraperProvider } from './scraper'
 //   3. Nothing else changes.
 
 const DEFAULT_PROVIDERS: ReviewProvider[] = [
-  new RainforestProvider(),    // priority 1 — API-backed, most reliable
-  new AmazonScraperProvider(), // priority 2 — best-effort HTML scraper
+  new ApifyReviewProvider(),   // priority 0 — funded and verified, real review text
+  new RainforestProvider(),    // priority 1 — API-backed, not currently funded (no RAINFOREST_API_KEY)
+  new AmazonScraperProvider(), // priority 2 — best-effort HTML scraper, no API key needed
 ]
 
 export function getDefaultProviders(): ReviewProvider[] {
   return DEFAULT_PROVIDERS
 }
 
-export { RainforestProvider, AmazonScraperProvider }
+export { ApifyReviewProvider, RainforestProvider, AmazonScraperProvider }
