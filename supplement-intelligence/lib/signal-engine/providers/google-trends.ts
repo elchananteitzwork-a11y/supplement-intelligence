@@ -63,14 +63,13 @@ function interestToSignal(interest: number): DemandSignal['signal'] {
   return 'Weak'
 }
 
-// Approximate search volume bucket from relative interest
-function interestToVolumeStr(interest: number): string {
-  if (interest >= 70) return '>50k searches/mo'
-  if (interest >= 50) return '20k–50k searches/mo'
-  if (interest >= 30) return '5k–20k searches/mo'
-  if (interest >= 15) return '1k–5k searches/mo'
-  return '<1k searches/mo'
-}
+// REMOVED: interestToVolumeStr used to map Google Trends' relative 0–100
+// interest index onto a fake absolute "searches/mo" bucket. The Trends API
+// fundamentally does not expose absolute search volume — that bucket was a
+// guess, not a measurement. demand.search_volume is intentionally left
+// unset by this provider now; only DataForSEO can give a real number for
+// that field. Trend direction/growth below stays, because it's a real
+// period-over-period computation on real (if relative) data, not a guess.
 
 // Growth score from YoY % change
 function growthToScore(pct: number): number {
@@ -212,11 +211,10 @@ export class GoogleTrendsProvider implements SignalProvider {
     const confidence = Math.min(0.88, 0.55 + (values.length / 54) * 0.2 + (meanVal / 100) * 0.13)
 
     const demand: DemandSignal = {
-      score:         interestToDemandScore(meanVal),
+      score:      interestToDemandScore(meanVal),
       confidence,
-      search_volume: interestToVolumeStr(meanVal),
-      trend:         growthToTrendStr(growthPct),
-      signal:        interestToSignal(meanVal),
+      trend:      growthToTrendStr(growthPct),
+      signal:     interestToSignal(meanVal),
     }
 
     const growth: GrowthSignal = {

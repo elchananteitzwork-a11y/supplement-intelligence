@@ -1,10 +1,23 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import type { MemoData, BuildDecision } from '@/types/index'
+import type { MemoData, BuildDecision, SignalMetadata } from '@/types/index'
+import type { ViralitySignal } from '@/lib/signal-engine/types'
+import type { KeywordMetric } from '@/lib/keyword-engine/types'
 import {
   IconTrendUp, IconTrendDown, IconBeaker, IconArrowRight, IconX, IconAlert,
 } from '@/components/icons'
+import { inferProductShape, ProductRenderHero } from '@/components/ProductGlyph'
+import { LifestyleScene } from '@/components/LifestyleScene'
+import {
+  STATIC_PROVENANCE, demandProvenance, viralityProvenance, subscriptionProvenance,
+  manufacturingScoreProvenance, defensibilityProvenance, marketSaturationProvenance,
+  manufacturingTabProvenance, legacyCompetitionProvenance, toConfidenceBand,
+  searchVolumeProvenance, searchGrowthProvenance, unitsSoldProvenance,
+  revenueEvidenceProvenance, competitionEvidenceProvenance,
+  marketAccessibilityProvenance, keywordIntelligenceProvenance,
+  type Provenance, type ProvenanceLevel,
+} from '@/lib/provenance'
 
 // ── Manufacturing Intelligence local types (mirrors /api/manufacturing response) ──
 interface MfgEstimate {
@@ -105,26 +118,45 @@ function mapAccessibility(score: number) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// EVIDENCE BADGE — source transparency on every section (unchanged)
+// EVIDENCE BADGE — source transparency on every section. Four levels,
+// matching exactly how the data is actually produced (see lib/provenance.ts
+// for the full classification and the reasoning behind each one):
+//   verified    — pulled directly from a real external source, no LLM step
+//   estimated   — real data was retrieved and given to the model as
+//                 grounding, but the model still wrote the final text
+//   synthesized — pure model output, no external data involved
+//   unknown     — provenance can't be reconstructed (legacy fields)
+// Every badge carries a `title` tooltip with the specific one-line
+// explanation for that exact field — hover for the full reasoning.
 // ═══════════════════════════════════════════════════════════════
 
-type EvidenceType = 'verified' | 'ai-synthesis' | 'estimated' | 'multi-source'
+type EvidenceType = ProvenanceLevel
 
 const EVIDENCE_CFG: Record<EvidenceType, { label: string; cls: string }> = {
-  'verified':     { label: 'Verified Signal',    cls: 'text-emerald-400 bg-emerald-400/8 border-emerald-400/20' },
-  'ai-synthesis': { label: 'AI Synthesis',       cls: 'text-zinc-400    bg-white/[0.06]      border-white/[0.1]'       },
-  'estimated':    { label: 'Quantitative Model', cls: 'text-amber-400   bg-amber-400/8   border-amber-400/20'   },
-  'multi-source': { label: 'Multi-Source',       cls: 'text-blue-400    bg-blue-400/8    border-blue-400/20'    },
+  verified:    { label: 'Verified',    cls: 'text-emerald-400 bg-emerald-400/8 border-emerald-400/20' },
+  estimated:   { label: 'Estimated',   cls: 'text-amber-400   bg-amber-400/8   border-amber-400/20'   },
+  synthesized: { label: 'Synthesized', cls: 'text-zinc-400    bg-white/[0.06]  border-white/[0.1]'    },
+  unknown:     { label: 'Unknown',     cls: 'text-blue-400    bg-blue-400/8    border-blue-400/20'    },
 }
 
-function EvidenceBadge({ type }: { type: EvidenceType }) {
+function EvidenceBadge({ type, detail, source }: { type: EvidenceType; detail?: string; source?: string }) {
   const { label, cls } = EVIDENCE_CFG[type]
+  const title = detail ? (source ? `${source} — ${detail}` : detail) : undefined
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold border rounded-full px-2 py-0.5 tracking-wide shrink-0 ${cls}`}>
+    <span
+      className={`inline-flex items-center gap-1 text-[10px] font-semibold border rounded-full px-2 py-0.5 tracking-wide shrink-0 cursor-default ${cls}`}
+      title={title}
+    >
       <span className="w-1 h-1 rounded-full bg-current opacity-70 shrink-0"/>
       {label}
     </span>
   )
+}
+
+// Convenience wrapper — render straight from a lib/provenance.ts Provenance
+// object instead of hand-assembling type/source/detail at every call site.
+function ProvenanceBadge({ p }: { p: Provenance }) {
+  return <EvidenceBadge type={p.level} source={p.source} detail={p.detail} />
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -309,9 +341,18 @@ function NumList({ items }: { items: string[] }) {
 }
 
 
+// Market/LTV/Margin appear in three different always-visible spots (Ticker
+// Strip, Masthead, At-a-Glance rail) — same provenance caveat applies to all
+// three, so it's centralized here rather than repeated at each call site.
+const FACT_TOOLTIP: Record<string, string> = {
+  MARKET: STATIC_PROVENANCE.marketSize.detail,
+  LTV:    STATIC_PROVENANCE.financialProjections.detail,
+  MARGIN: STATIC_PROVENANCE.financialProjections.detail,
+}
+
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="text-center">
+    <div className="text-center" title={FACT_TOOLTIP[label.toUpperCase()]}>
       <p className="text-[10px] text-zinc-600 uppercase tracking-wider">{label}</p>
       <p className="text-xs font-semibold text-zinc-300 mt-0.5 font-mono">{value}</p>
     </div>
@@ -399,7 +440,7 @@ function TickerStrip({
   return (
     <div className="flex items-stretch overflow-x-auto no-scrollbar rounded-md border border-white/[0.08] divide-x divide-white/[0.08] bg-[#0a0a0c] font-mono">
       {items.map(([l, v, accent]) => (
-        <div key={l} className="flex items-center gap-2 px-4 py-2.5 shrink-0">
+        <div key={l} className="flex items-center gap-2 px-4 py-2.5 shrink-0" title={FACT_TOOLTIP[l]}>
           <span className="text-zinc-600 text-[10px] tracking-wider">{l}</span>
           <span className={`text-xs font-semibold uppercase ${accent ? c : 'text-zinc-200'}`}>{v}</span>
         </div>
@@ -487,7 +528,7 @@ function AtAGlanceRail({
       {facts.length > 0 && (
         <div className="mt-4 pt-4 border-t border-white/[0.06] space-y-2.5">
           {facts.map(([l, v]) => (
-            <div key={l} className="flex items-center justify-between gap-3">
+            <div key={l} className="flex items-center justify-between gap-3" title={FACT_TOOLTIP[l.toUpperCase()]}>
               <span className="text-[10px] text-zinc-600 uppercase tracking-wider shrink-0">{l}</span>
               <span className="text-xs font-semibold text-zinc-300 font-mono text-right">{v}</span>
             </div>
@@ -496,6 +537,68 @@ function AtAGlanceRail({
       )}
     </div>
   )
+}
+
+// ── Momentum — turns the "Why Now" claim into a visual instead of pure
+// prose. If the text quantifies its own growth claim (e.g. "+34% YoY"),
+// that exact figure drives an animated trend sparkline. If it doesn't,
+// momentum falls back to the existing demand score via the same SignalBars
+// glyph used in the Signal Terminal — never a number that isn't in the data.
+function extractGrowthPct(text?: string | null): number | null {
+  if (!text) return null
+  const match = text.match(/([+-]?\d+(?:\.\d+)?)\s*%/)
+  return match ? parseFloat(match[1]) : null
+}
+
+function MomentumSparkline({ positive, accent }: { positive: boolean; accent: string }) {
+  const points: [number, number][] = positive
+    ? [[2, 34], [26, 28], [50, 19], [74, 11], [98, 4]]
+    : [[2, 4], [26, 11], [50, 19], [74, 28], [98, 35]]
+  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ')
+  const [lx, ly] = points[points.length - 1]
+  return (
+    <svg viewBox="0 0 100 40" className="w-16 h-7 shrink-0">
+      <path d={d} fill="none" stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+        style={{ strokeDasharray: 130, animation: 'sparklineDraw 1s var(--ease-premium, ease) both' }} />
+      <circle cx={lx} cy={ly} r="3" fill={accent} />
+    </svg>
+  )
+}
+
+function MomentumBadge({ whyNow, demandNotes, demandScore }: { whyNow: string | null; demandNotes?: string; demandScore?: number }) {
+  const pct = extractGrowthPct(whyNow) ?? extractGrowthPct(demandNotes)
+
+  if (pct !== null) {
+    const positive = pct >= 0
+    const color = positive ? '#34d399' : '#f87171'
+    const Icon = positive ? IconTrendUp : IconTrendDown
+    return (
+      <div className="flex items-center gap-3 shrink-0" title="Synthesized — this figure is restated from the Why Now text above, which is itself model-written and not independently sourced.">
+        <MomentumSparkline positive={positive} accent={color} />
+        <div>
+          <div className="flex items-center gap-1" style={{ color }}>
+            <Icon className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-serif font-medium text-xl leading-none">{positive ? '+' : ''}{pct}%</span>
+          </div>
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mt-1">Demand Momentum</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (typeof demandScore === 'number') {
+    const level = demandScore >= 8 ? 'Strong' as const : demandScore >= 6 ? 'Moderate' as const : 'Weak' as const
+    return (
+      <div className="flex items-center gap-2.5 shrink-0" title="Synthesized — derived from the model's own 0–10 demand score, not a measured trend.">
+        <SignalBars level={level} />
+        <div>
+          <p className="text-xs font-medium text-zinc-300">{level}</p>
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider">Momentum</p>
+        </div>
+      </div>
+    )
+  }
+  return null
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -512,7 +615,7 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
     <div className="card-premium p-6 sm:p-8">
       <div className="flex items-center justify-between gap-3 mb-5">
         <p className="label">Executive Summary</p>
-        <EvidenceBadge type="ai-synthesis" />
+        <ProvenanceBadge p={STATIC_PROVENANCE.marketThesis} />
       </div>
 
       <blockquote className="border-l-2 border-brass/40 pl-4 sm:pl-5">
@@ -522,9 +625,15 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
       </blockquote>
 
       {whyNow && (
-        <div className="mt-6 pt-5 border-t border-white/[0.06]">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-2">Why Now</p>
-          <p className="text-sm text-zinc-400 leading-relaxed">{whyNow}</p>
+        <div className="mt-6 pt-5 border-t border-white/[0.06] flex items-start justify-between gap-5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Why Now</p>
+              <ProvenanceBadge p={STATIC_PROVENANCE.whyNow} />
+            </div>
+            <p className="text-sm text-zinc-400 leading-relaxed">{whyNow}</p>
+          </div>
+          <MomentumBadge whyNow={whyNow} demandNotes={m.scores.demand?.notes} demandScore={m.scores.demand?.score} />
         </div>
       )}
     </div>
@@ -608,12 +717,52 @@ function IntelligenceGraph({
 // derive* helpers as before — only the shell changed.
 // ═══════════════════════════════════════════════════════════════
 
-interface DerivedPoint { text: string; tag: string }
-interface DerivedRisk  { text: string; severity: 'High' | 'Medium' | 'Low' }
+interface DerivedPoint { text: string; tag: string; evidence: string | null }
+interface DerivedRisk  { text: string; severity: 'High' | 'Medium' | 'Low'; evidence: string | null }
 interface VBudget      { range: string; breakdown: string }
 
+// Real-data citation for a derived reason/risk, keyed by the same tag used
+// to label it. Returns null — not a fabricated fallback — when no real
+// signal_evidence exists for that tag, so the UI can say "no real evidence"
+// instead of silently showing nothing where evidence should be.
+function evidenceCitation(tag: string, m: MemoData): string | null {
+  const ev = m.signal_evidence
+  if (!ev) return null
+
+  if (tag === 'demand') {
+    const topKeyword = m.keyword_intelligence?.top_buying?.[0]
+    const g = ev.growth?.value
+    const parts = [
+      topKeyword ? `${topKeyword.monthly_searches.toLocaleString()}/mo searches ("${topKeyword.keyword}", DataForSEO)` : null,
+      g?.yoy_change ? `${g.yoy_change} (${ev.growth!.primarySource})` : null,
+    ].filter(Boolean)
+    return parts.length ? parts.join(', ') : null
+  }
+
+  if (tag === 'virality') {
+    const v = ev.virality?.value
+    if (v?.video_count === undefined || v.view_count === undefined) return null
+    return `#${v.hashtag}: ${v.video_count.toLocaleString()} videos, ${v.view_count.toLocaleString()} views (TikTok)`
+  }
+
+  if (tag === 'market') {
+    const rv = ev.review_velocity?.value
+    if (rv?.meaningful_competitor_count === undefined) return null
+    const concentration = rv.review_concentration_ratio !== undefined ? `, ${Math.round(rv.review_concentration_ratio * 100)}% review concentration` : ''
+    return `${rv.meaningful_competitor_count} meaningful competitors${concentration} (${ev.review_velocity!.primarySource})`
+  }
+
+  if (tag === 'revenue') {
+    const rev = ev.revenue?.value
+    if (!rev?.avg_seller_revenue) return null
+    return `Avg seller ${rev.avg_seller_revenue}, top seller ${rev.top_seller_revenue ?? '—'} (${ev.revenue!.primarySource})`
+  }
+
+  return null
+}
+
 function deriveTop3Build(m: MemoData): DerivedPoint[] {
-  const points: DerivedPoint[] = []
+  const points: Omit<DerivedPoint, 'evidence'>[] = []
   const dims = (
     ['demand','virality','subscription','defensibility'] as const
   ).map(k => ({ k, score: m.scores[k]?.score ?? 0, notes: m.scores[k]?.notes ?? '' }))
@@ -642,19 +791,21 @@ function deriveTop3Build(m: MemoData): DerivedPoint[] {
     points.push({ text: m.brand_opportunities[0], tag: 'angle' })
   }
 
-  return points.slice(0, 3)
+  return points.slice(0, 3).map(p => ({ ...p, evidence: evidenceCitation(p.tag, m) }))
 }
 
 function deriveTop3Risks(m: MemoData): DerivedRisk[] {
-  const risks: DerivedRisk[] = []
+  const risks: Omit<DerivedRisk, 'evidence'>[] = []
   const dimRisks = (
     ['demand','virality','subscription','manufacturing','defensibility'] as const
   ).map(k => ({ score: m.scores[k]?.score ?? 10, notes: m.scores[k]?.notes ?? '', k }))
     .filter(d => d.score <= 5 && d.notes)
     .sort((a, b) => a.score - b.score)
 
+  const riskTags: string[] = []
   for (const d of dimRisks.slice(0, 2)) {
     risks.push({ text: d.notes, severity: d.score <= 3 ? 'High' : 'Medium' })
+    riskTags.push(d.k)
   }
 
   const sat = m.market_saturation
@@ -663,6 +814,7 @@ function deriveTop3Risks(m: MemoData): DerivedRisk[] {
     const severity = sat.entry_difficulty === 'High' ? 'High'
                    : sat.entry_difficulty === 'Medium' ? 'Medium' : 'Low'
     risks.push({ text: sentence, severity })
+    riskTags.push('market')
   }
 
   if (risks.length < 3 && m.biggest_competitor?.name && m.biggest_competitor.name !== 'N/A') {
@@ -670,6 +822,7 @@ function deriveTop3Risks(m: MemoData): DerivedRisk[] {
       text: `${m.biggest_competitor.name} (${m.biggest_competitor.revenue}) already occupies the space — ${m.biggest_competitor.gap}`,
       severity: 'Medium',
     })
+    riskTags.push('market')
   }
 
   if (risks.length < 3) {
@@ -677,9 +830,10 @@ function deriveTop3Risks(m: MemoData): DerivedRisk[] {
       text: 'Market timing requires validation before committing capital — demand signals should be confirmed with a pre-sell test.',
       severity: 'Low',
     })
+    riskTags.push('demand')
   }
 
-  return risks.slice(0, 3)
+  return risks.slice(0, 3).map((r, i) => ({ ...r, evidence: evidenceCitation(riskTags[i], m) }))
 }
 
 function deriveValidationSteps(m: MemoData): string[] {
@@ -812,7 +966,10 @@ function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionB
     <div className="card-premium overflow-hidden">
       <div className="px-6 py-5 border-b border-white/[0.05] flex items-center justify-between gap-3">
         <p className="label">Investment Thesis</p>
-        <EvidenceBadge type="ai-synthesis" />
+        <EvidenceBadge
+          type="synthesized"
+          detail="This section re-ranks and restates the dimension scores and market fields shown elsewhere in this memo — it does not add independent evidence of its own. Check Market Intelligence for which specific inputs were signal-grounded."
+        />
       </div>
 
       <div className="px-6 py-6 space-y-6">
@@ -833,13 +990,16 @@ function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionB
         <div className="grid sm:grid-cols-2 gap-5">
           <div>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2.5">Top 3 Reasons to Build</p>
-            <ol className="space-y-2">
+            <ol className="space-y-2.5">
               {buildPts.map((pt, i) => (
                 <li key={i} className="flex gap-2.5 text-xs text-zinc-300 leading-relaxed">
                   <span className="font-mono text-zinc-600 shrink-0 mt-px w-4 text-right">{i+1}</span>
                   <span>
                     {pt.text}{' '}
                     <span className="text-[10px] text-zinc-600 ml-1">[{TAG_LABEL[pt.tag] ?? pt.tag}]</span>
+                    <span className="block text-[10px] mt-1 font-mono" style={{ color: pt.evidence ? '#34d399' : '#52525b' }}>
+                      {pt.evidence ? `Evidence: ${pt.evidence}` : 'No real evidence available — model judgment only'}
+                    </span>
                   </span>
                 </li>
               ))}
@@ -847,7 +1007,7 @@ function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionB
           </div>
           <div>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2.5">Top 3 Risks</p>
-            <ol className="space-y-2">
+            <ol className="space-y-2.5">
               {risks.map((r, i) => {
                 const cfg = SEVERITY_CFG[r.severity]
                 return (
@@ -857,6 +1017,9 @@ function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionB
                       {r.text}{' '}
                       <span className={`inline-flex items-center gap-1 text-[10px] border rounded-full px-1.5 py-0.5 ml-1 ${cfg.cls}`}>
                         <span className={`w-1 h-1 rounded-full ${cfg.dot}`}/>{r.severity}
+                      </span>
+                      <span className="block text-[10px] mt-1 font-mono" style={{ color: r.evidence ? '#34d399' : '#52525b' }}>
+                        {r.evidence ? `Evidence: ${r.evidence}` : 'No real evidence available — model judgment only'}
                       </span>
                     </span>
                   </li>
@@ -915,6 +1078,58 @@ function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionB
 // CONSUMER INTELLIGENCE — customer voice as real conversation threads
 // ═══════════════════════════════════════════════════════════════
 
+// ── Consumer Archetype — the person behind the data, not just a transcript
+// of quotes. An abstract, explicitly-synthesized subject card: a geometric
+// signal-scan glyph (never implies a real photo) paired with the four
+// customer_language fields recomposed as a profile instead of a pinboard.
+// Every line is a literal pull from existing fields — nothing invented.
+function PersonaGlyph({ accent }: { accent: string }) {
+  return (
+    <svg viewBox="0 0 120 136" className="w-[72px] h-20 shrink-0" style={{ animation: 'heroRenderIn .6s var(--ease-premium, ease) both' }}>
+      <circle cx="60" cy="68" r="54" fill="none" stroke={accent} strokeOpacity="0.10" />
+      <circle cx="60" cy="68" r="42" fill="none" stroke={accent} strokeOpacity="0.16" strokeDasharray="2 4" />
+      <path d="M16,132 Q16,92 60,88 Q104,92 104,132" fill="none" stroke={accent} strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="60" cy="46" r="26" fill="#0d0d10" stroke={accent} strokeWidth="2.5" />
+      <circle cx="60" cy="46" r="3" fill={accent} />
+    </svg>
+  )
+}
+
+function ConsumerArchetype({ m }: { m: MemoData }) {
+  const cl = m.customer_language
+  const accent = '#C8A463'
+  const fields = ([
+    ['Core Frustration', cl.frustrations?.[0]],
+    ['What They Want',   cl.desires?.[0]],
+    ['What They Fear',   cl.fears?.[0]],
+    ['Where This Lands', cl.ad_phrases?.[0]?.use_in_copy],
+  ] as [string, string | undefined][]).filter(([, v]) => !!v)
+
+  if (fields.length === 0) return null
+
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.03] to-transparent p-5 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Customer Archetype</p>
+        <ProvenanceBadge p={STATIC_PROVENANCE.customerLanguage} />
+      </div>
+      <div className="flex flex-col sm:flex-row gap-5">
+        <div className="flex justify-center sm:justify-start">
+          <PersonaGlyph accent={accent} />
+        </div>
+        <dl className="flex-1 grid sm:grid-cols-2 gap-x-5 gap-y-3.5 min-w-0">
+          {fields.map(([label, value]) => (
+            <div key={label} className="min-w-0">
+              <dt className="text-[9px] text-zinc-500 uppercase tracking-wider mb-1">{label}</dt>
+              <dd className="text-[13px] text-zinc-200 leading-snug">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+  )
+}
+
 // ── Evidence Board — a literal pinboard instead of stacked text blocks.
 // Each quote/desire/fear/ad-line is a pinned note, color-coded by what
 // kind of evidence it is, so the page reads as a board you scan, not
@@ -961,7 +1176,11 @@ function ConsumerIntelligenceContent({ m }: { m: MemoData }) {
 
   return (
     <div className="space-y-6">
-      <SectionIntro text="An evidence board, not a transcript — every pin is sourced from documented customer language." />
+      <ConsumerArchetype m={m} />
+      <div className="flex items-center justify-between gap-3">
+        <SectionIntro text="A pinboard, not a transcript — but every pin is AI-synthesized customer language, not a real review or survey quote. Useful for ideation and ad-copy testing, not as evidence of documented sentiment." />
+        <ProvenanceBadge p={STATIC_PROVENANCE.customerLanguage} />
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 py-2">
         {cards.map((card, i) => {
           const cfg = KIND_CFG[card.kind]
@@ -1060,13 +1279,305 @@ function MarketSaturationBlock({ m }: { m: MemoData }) {
   )
 }
 
+// ── TikTok Signal Card — virality is the one dimension that's genuinely
+// platform-native rather than a market metric, so it gets pulled out of the
+// ledger into its own short-form-video-flavored card: a phone-frame glyph
+// with the existing pulse-ring animation, instead of another data row.
+// Score and notes are the same scores.virality fields the ledger row used.
+function TikTokSignalCard({
+  score, notes, provenance, virality,
+}: { score: number; notes: string; provenance: Provenance; virality?: ViralitySignal }) {
+  const level = score >= 8 ? 'Strong' as const : score >= 6 ? 'Moderate' as const : 'Weak' as const
+  const color = level === 'Strong' ? '#34d399' : level === 'Moderate' ? '#fbbf24' : '#71717a'
+  const hasRaw = virality?.video_count !== undefined && virality?.view_count !== undefined
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-[#0d0d10] p-4">
+      <div className="flex items-center gap-4">
+        <div className="relative w-10 h-[58px] rounded-[11px] border-2 shrink-0 grid place-items-center" style={{ borderColor: `${color}55` }}>
+          <PulseRings level={level} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="text-xs font-semibold text-zinc-200">TikTok Signal</span>
+            <ProvenanceBadge p={provenance} />
+          </div>
+          <p className="text-xs text-zinc-500 leading-snug line-clamp-2">{notes}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-serif font-medium text-2xl leading-none" style={{ color }}>
+            {score}<span className="text-zinc-600 text-[10px] font-sans">/10</span>
+          </p>
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mt-1">{level}</p>
+        </div>
+      </div>
+      {hasRaw && (
+        <div className="flex divide-x divide-white/[0.06] mt-3 pt-3 border-t border-white/[0.06]">
+          <div className="flex-1 px-2 text-center">
+            <p className="text-[9px] text-zinc-600 uppercase tracking-wider">#{virality!.hashtag}</p>
+            <p className="text-xs text-zinc-500">real hashtag</p>
+          </div>
+          <div className="flex-1 px-2 text-center">
+            <p className="font-mono text-sm font-semibold text-zinc-200">{virality!.video_count!.toLocaleString()}</p>
+            <p className="text-[9px] text-zinc-600 uppercase tracking-wider">videos</p>
+          </div>
+          <div className="flex-1 px-2 text-center">
+            <p className="font-mono text-sm font-semibold text-zinc-200">{virality!.view_count!.toLocaleString()}</p>
+            <p className="text-[9px] text-zinc-600 uppercase tracking-wider">views</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EVIDENCE-FIRST PANELS — Demand / Revenue / Competition. Real metrics
+// rendered first, the AI-facing dimension score last — the literal
+// inverse of the old "score + one line of notes" ledger row. When no
+// real signal data exists for this query, says so plainly rather than
+// silently falling back to a number that looks the same as a real one.
+// ═══════════════════════════════════════════════════════════════
+
+// Every row always renders — label + (real value and its provenance badge)
+// OR the literal string "No data available." Never a guessed number with
+// nothing to back it, and never a row that just silently disappears.
+function EvidenceMetricRow({
+  label, value, provenance,
+}: { label: string; value: string | undefined; provenance: Provenance | null }) {
+  const hasData = !!value && !!provenance
+  return (
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-white/[0.05] last:border-b-0">
+      <span className="text-xs text-zinc-500">{label}</span>
+      <div className="flex items-center gap-2 shrink-0">
+        {hasData ? (
+          <>
+            <span className="text-sm font-mono font-semibold text-zinc-100 text-right">{value}</span>
+            <ProvenanceBadge p={provenance!} />
+          </>
+        ) : (
+          <span className="text-sm font-mono text-zinc-600 italic">No data available</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+interface EvidenceRowSpec { label: string; value: string | undefined; provenance: Provenance | null }
+
+function EvidencePanel({
+  title, metrics, scoreLabel, scoreProvenance, score, scoreLevel,
+}: {
+  title:           string
+  metrics:         EvidenceRowSpec[]
+  scoreLabel:      string
+  scoreProvenance: Provenance | null
+  score:           number | null
+  scoreLevel:      'Strong' | 'Moderate' | 'Weak' | null
+}) {
+  const color = scoreLevel === 'Strong' ? '#34d399' : scoreLevel === 'Moderate' ? '#fbbf24' : '#71717a'
+
+  return (
+    <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+      <p className="text-xs font-semibold text-zinc-200 mb-3">{title}</p>
+
+      <div>
+        {metrics.map(row => <EvidenceMetricRow key={row.label} {...row} />)}
+      </div>
+
+      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-white/[0.06]">
+        <span className="text-[10px] text-zinc-600 uppercase tracking-wider">{scoreLabel}</span>
+        {score !== null && scoreLevel !== null && scoreProvenance ? (
+          <div className="flex items-center gap-2">
+            <ProvenanceBadge p={scoreProvenance} />
+            <SignalBars level={scoreLevel} />
+            <span className="font-serif font-medium text-lg leading-none" style={{ color }}>
+              {score}<span className="text-zinc-600 text-[10px] font-sans">/10</span>
+            </span>
+          </div>
+        ) : (
+          <span className="text-sm font-mono text-zinc-600 italic">No data available</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DemandEvidencePanel({ m }: { m: MemoData }) {
+  const ev        = m.signal_evidence
+  const ki        = m.keyword_intelligence
+  const growthSig = ev?.growth?.value
+  const score     = m.scores.demand?.score ?? 0
+  const level     = score >= 8 ? 'Strong' as const : score >= 6 ? 'Moderate' as const : 'Weak' as const
+
+  // "Monthly Search Volume" real only via DataForSEO's top keyword for this query.
+  const topKeyword = ki?.top_buying?.[0]
+  const searchVolP = searchVolumeProvenance(ki)
+
+  return (
+    <EvidencePanel
+      title="Demand Evidence"
+      metrics={[
+        { label: 'Monthly Search Volume',  value: topKeyword ? `${topKeyword.monthly_searches.toLocaleString()}/mo ("${topKeyword.keyword}")` : undefined, provenance: searchVolP },
+        { label: 'Search Growth %',        value: growthSig?.yoy_change, provenance: searchGrowthProvenance(ev) },
+        { label: 'Search Trend Direction', value: growthSig?.momentum,   provenance: searchGrowthProvenance(ev) },
+      ]}
+      scoreLabel="Demand Score"
+      scoreProvenance={demandProvenance(m.signal_metadata)}
+      score={score}
+      scoreLevel={level}
+    />
+  )
+}
+
+function RevenueEvidencePanel({ m }: { m: MemoData }) {
+  const ev     = m.signal_evidence
+  const rev    = ev?.revenue?.value
+  const revP   = revenueEvidenceProvenance(ev)
+  const unitsP = unitsSoldProvenance(ev)
+  // There is no dimension in m.scores for revenue (unlike demand/virality/etc.) —
+  // so when Keepa has no revenue signal, there is no fallback number at all,
+  // real or synthesized. "No data available" applies to the score too here.
+  const score = rev ? rev.score : null
+  const level = rev ? (rev.score >= 7 ? 'Strong' as const : rev.score >= 4 ? 'Moderate' as const : 'Weak' as const) : null
+
+  return (
+    <EvidencePanel
+      title="Revenue Evidence"
+      metrics={[
+        { label: 'Estimated Monthly Units Sold', value: rev?.est_monthly_units_sold, provenance: unitsP },
+        { label: 'Estimated Monthly Revenue',    value: rev?.est_monthly_revenue,    provenance: revP },
+        { label: 'Top Seller Revenue',           value: rev?.top_seller_revenue,     provenance: revP },
+        { label: 'Average Seller Revenue',       value: rev?.avg_seller_revenue,     provenance: revP },
+      ]}
+      scoreLabel="Revenue Score"
+      scoreProvenance={revP}
+      score={score}
+      scoreLevel={level}
+    />
+  )
+}
+
+function CompetitionEvidencePanel({ m }: { m: MemoData }) {
+  const ev      = m.signal_evidence
+  const rv      = ev?.review_velocity?.value
+  const hasReal = rv?.meaningful_competitor_count !== undefined
+  const compP   = competitionEvidenceProvenance(ev)
+
+  const sat = m.market_saturation
+  const fallbackScore = sat ? (sat.entry_difficulty === 'Low' ? 8 : sat.entry_difficulty === 'Medium' ? 5 : 2) : 5
+  const score = hasReal ? rv!.score : fallbackScore
+  const level = score >= 7 ? 'Strong' as const : score >= 4 ? 'Moderate' as const : 'Weak' as const
+
+  return (
+    <EvidencePanel
+      title="Competition Evidence"
+      metrics={[
+        { label: 'Competitor Count',       value: rv?.meaningful_competitor_count !== undefined ? String(rv.meaningful_competitor_count) : undefined, provenance: compP },
+        { label: 'Average Review Count',   value: rv?.avg_review_count !== undefined ? rv.avg_review_count.toLocaleString() : undefined,               provenance: compP },
+        { label: 'Market Concentration',   value: rv?.review_concentration_ratio !== undefined ? `${Math.round(rv.review_concentration_ratio * 100)}% held by #1 result` : undefined, provenance: compP },
+      ]}
+      scoreLabel="Market Accessibility Score"
+      scoreProvenance={marketAccessibilityProvenance(ev)}
+      score={score}
+      scoreLevel={level}
+    />
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KEYWORD INTELLIGENCE — real per-keyword search data from DataForSEO
+// (m.keyword_intelligence, server-captured, never touched by the model).
+// Four buckets, each a literal Keyword / Monthly Searches / Growth table —
+// the goal is that a user immediately sees what people actually search for,
+// not a paraphrase of it.
+// ═══════════════════════════════════════════════════════════════
+
+const KEYWORD_BUCKETS = [
+  { key: 'top_buying'   as const, label: 'Top Buying' },
+  { key: 'opportunity'  as const, label: 'Opportunity' },
+  { key: 'long_tail'    as const, label: 'Long-Tail' },
+  { key: 'fast_growing' as const, label: 'Fast-Growing' },
+]
+
+function KeywordTable({ keywords }: { keywords: KeywordMetric[] }) {
+  if (keywords.length === 0) {
+    return <p className="text-xs text-zinc-600 italic py-4 text-center">No keywords met this bucket&rsquo;s criteria for this query.</p>
+  }
+  return (
+    <div className="overflow-x-auto rounded-lg border border-white/[0.06]">
+      <table className="w-full text-sm min-w-[420px]">
+        <thead>
+          <tr className="bg-white/[0.04] text-[10px] text-zinc-500 uppercase tracking-wider">
+            <th className="text-left py-2.5 px-3">Keyword</th>
+            <th className="text-right py-2.5 px-3">Monthly Searches</th>
+            <th className="text-right py-2.5 px-3">Growth</th>
+            <th className="text-right py-2.5 px-3 hidden sm:table-cell">Difficulty</th>
+          </tr>
+        </thead>
+        <tbody>
+          {keywords.map((k, i) => (
+            <tr key={i} className="border-t border-white/[0.05] hover:bg-white/[0.02]">
+              <td className="py-2.5 px-3 font-medium text-zinc-200">{k.keyword}</td>
+              <td className="py-2.5 px-3 text-right font-mono text-zinc-300">{k.monthly_searches.toLocaleString()}</td>
+              <td className={`py-2.5 px-3 text-right font-mono ${k.growth_pct === null ? 'text-zinc-600' : k.growth_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {k.growth_pct === null ? '—' : `${k.growth_pct >= 0 ? '+' : ''}${k.growth_pct}%`}
+              </td>
+              <td className="py-2.5 px-3 text-right font-mono text-zinc-500 hidden sm:table-cell">{k.difficulty ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function KeywordIntelligenceSection({ m }: { m: MemoData }) {
+  const ki = m.keyword_intelligence
+  const [active, setActive] = useState<typeof KEYWORD_BUCKETS[number]['key']>('top_buying')
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Keyword Intelligence</p>
+        {keywordIntelligenceProvenance(ki) && <ProvenanceBadge p={keywordIntelligenceProvenance(ki)!} />}
+      </div>
+
+      {!ki ? (
+        <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+            <p className="text-[10px] text-zinc-600">Seed: &ldquo;{ki.seed_keyword}&rdquo;</p>
+            <p className="text-[10px] text-zinc-500">
+              Keyword Source: <span className="font-mono text-zinc-300">{ki.provider === 'dataforseo' ? 'DataForSEO' : ki.provider}</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-1 mb-3 overflow-x-auto no-scrollbar">
+            {KEYWORD_BUCKETS.map(b => (
+              <button
+                key={b.key}
+                onClick={() => setActive(b.key)}
+                className={`text-[12.5px] font-medium px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap ${
+                  active === b.key
+                    ? 'bg-brass/10 border-brass/40 text-brass'
+                    : 'bg-white/[0.04] border-white/[0.08] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.16]'
+                }`}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+          <KeywordTable keywords={ki[active]} />
+        </>
+      )}
+    </div>
+  )
+}
+
 function MarketIntelligenceContent({ m }: { m: MemoData }) {
-  const { demand, virality, subscription } = m.scores
+  const { subscription } = m.scores
   const sig = m.signal_metadata
-  const demandBadge:   EvidenceType = sig?.demand_verified   ? 'multi-source' : 'ai-synthesis'
-  const viralityBadge: EvidenceType = sig?.virality_verified ? 'verified'     : 'ai-synthesis'
-  const demandSource   = sig?.demand_verified   ? 'Amazon (Keepa)' : 'AI Synthesis'
-  const viralitySource = sig?.virality_verified ? 'TikTok API'     : 'AI Synthesis'
+  const viralityP = viralityProvenance(sig)
 
   const displayDims = (Object.entries(m.scores) as [string, { score: number; notes: string }][])
     .filter(([key]) => key !== 'competition')
@@ -1075,40 +1586,64 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
 
   return (
     <div className="space-y-6">
-      {/* Market structure */}
+      {/* Evidence first — real metrics before any AI-judged score. See
+          DemandEvidencePanel/RevenueEvidencePanel/CompetitionEvidencePanel:
+          each pulls straight from m.signal_evidence (server-captured at
+          generation time, never touched by the model) and says plainly
+          when no real data source was available, instead of quietly
+          falling back to a number that looks the same as a real one. */}
       <div>
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Market Structure</p>
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Evidence</p>
+        <div className="grid sm:grid-cols-1 gap-3">
+          <DemandEvidencePanel m={m} />
+          <RevenueEvidencePanel m={m} />
+          <CompetitionEvidencePanel m={m} />
+        </div>
+      </div>
+
+      {/* Market structure — qualitative narrative, distinct from the
+          quantitative Competition evidence panel above */}
+      <div className="pt-5 border-t border-white/[0.06]">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Market Structure (Narrative)</p>
+          <ProvenanceBadge p={m.market_saturation ? marketSaturationProvenance(sig) : legacyCompetitionProvenance()} />
+        </div>
         <MarketSaturationBlock m={m} />
       </div>
 
-      {/* Signal terminal — demand / virality / subscription as data rows */}
-      <div className="pt-5 border-t border-white/[0.06]">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Signal Terminal</p>
+      {/* Subscription — no real data source exists for this dimension;
+          virality gets its own platform-native card with raw evidence
+          (see TikTokSignalCard) */}
+      <div className="pt-5 border-t border-white/[0.06] space-y-3">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Other Signals</p>
         <div className="ledger">
-          {[
-            { label: 'Demand',       dim: demand,       badge: demandBadge,   source: demandSource },
-            { label: 'Virality',     dim: virality,     badge: viralityBadge, source: viralitySource },
-            { label: 'Subscription', dim: subscription, badge: 'ai-synthesis' as EvidenceType, source: 'AI Synthesis' },
-          ].map(row => {
-            const level = row.dim.score >= 8 ? 'Strong' as const : row.dim.score >= 6 ? 'Moderate' as const : 'Weak' as const
+          {(() => {
+            const level = subscription.score >= 8 ? 'Strong' as const : subscription.score >= 6 ? 'Moderate' as const : 'Weak' as const
             return (
-              <div key={row.label} className="ledger-row">
-                <span className="text-xs font-semibold text-zinc-300 w-28 shrink-0">{row.label}</span>
-                <span className="font-serif font-medium text-base text-zinc-100 w-10 shrink-0">{row.dim.score}<span className="text-zinc-600 text-[10px] font-sans">/10</span></span>
-                {row.label === 'Virality' ? <PulseRings level={level} /> : <SignalBars level={level} />}
-                <span className="flex-1 text-xs text-zinc-500 truncate hidden md:inline">{row.dim.notes}</span>
+              <div className="ledger-row">
+                <span className="text-xs font-semibold text-zinc-300 w-28 shrink-0">Subscription</span>
+                <span className="font-serif font-medium text-base text-zinc-100 w-10 shrink-0">{subscription.score}<span className="text-zinc-600 text-[10px] font-sans">/10</span></span>
+                <SignalBars level={level} />
+                <span className="flex-1 text-xs text-zinc-500 truncate hidden md:inline">{subscription.notes}</span>
                 <span className="ml-auto shrink-0 flex items-center gap-2">
-                  <EvidenceBadge type={row.badge} />
+                  <ProvenanceBadge p={subscriptionProvenance()} />
                 </span>
               </div>
             )
-          })}
+          })()}
         </div>
+        <TikTokSignalCard
+          score={m.scores.virality.score}
+          notes={m.scores.virality.notes}
+          provenance={viralityP}
+          virality={m.signal_evidence?.virality?.value}
+        />
       </div>
 
       {/* Dimension radar — the shape of the opportunity at a glance */}
       <div className="pt-5 border-t border-white/[0.06]">
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Dimension Scores</p>
+        <p className="text-[10px] text-zinc-600 mb-3">Mix of provenance per dimension — see Evidence above and Risk Assessment for the same scores with full notes.</p>
         <DimensionRadar
           dims={displayDims.map(([key, { score }]) => [DIM_LABELS[key] ?? key, score] as [string, number])}
           color={radarColor}
@@ -1117,8 +1652,16 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
 
       {/* Market gaps */}
       <div className="pt-5 border-t border-white/[0.06]">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Documented Market Gaps</p>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Market Gaps (AI-Identified)</p>
+          <ProvenanceBadge p={STATIC_PROVENANCE.marketGaps} />
+        </div>
         <NumList items={m.market_gaps} />
+      </div>
+
+      {/* Keyword Intelligence — real per-keyword search data, when available */}
+      <div className="pt-5 border-t border-white/[0.06]">
+        <KeywordIntelligenceSection m={m} />
       </div>
     </div>
   )
@@ -1192,7 +1735,10 @@ function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
 
   return (
     <div className="space-y-6">
-      <SectionIntro text="Lead incumbent and the unclaimed positioning around them." />
+      <div className="flex items-center justify-between gap-3">
+        <SectionIntro text="Lead incumbent and the unclaimed positioning around them — competitor name, revenue, and gap are model recall, not pulled from any company database." />
+        <ProvenanceBadge p={STATIC_PROVENANCE.biggestCompetitor} />
+      </div>
 
       <CompetitivePositionMap m={m} />
 
@@ -1210,7 +1756,10 @@ function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
       )}
 
       <div>
-        <p className="text-xs text-zinc-500 uppercase tracking-widest mb-3">Unclaimed Positioning Angles</p>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <p className="text-xs text-zinc-500 uppercase tracking-widest">Unclaimed Positioning Angles</p>
+          <ProvenanceBadge p={STATIC_PROVENANCE.brandOpportunities} />
+        </div>
         <NumList items={m.brand_opportunities} />
       </div>
     </div>
@@ -1239,7 +1788,10 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
 
   return (
     <div className="rounded-xl border border-white/[0.07] p-5 sm:p-7">
-      <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-7">Revenue Trajectory</p>
+      <div className="flex items-center justify-between gap-3 mb-7">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Revenue Trajectory</p>
+        <ProvenanceBadge p={STATIC_PROVENANCE.financialProjections} />
+      </div>
       <div className="relative flex justify-between items-start">
         <div className="absolute left-[8%] right-[8%] top-[10px] h-[1.5px] bg-gradient-to-r from-zinc-600 via-amber-400/50 to-emerald-400/60" />
         {milestones.map(ms => (
@@ -1249,8 +1801,8 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
               style={{ width: ms.size, height: ms.size, borderColor: ms.color }}
             />
             <span className="mt-3 text-sm font-semibold text-zinc-100 text-center">{ms.label}</span>
-            <span className="text-xs font-mono mt-0.5" style={{ color: ms.value ? ms.color : '#71717a' }}>
-              {ms.value ?? ms.sub}
+            <span className="text-xs font-mono mt-0.5" style={{ color: ms.value ? ms.color : '#71717a' }} title={ms.value ? 'Rounded to a 10-point band — the model\'s exact percentage implies more precision than an ungrounded estimate can support.' : undefined}>
+              {ms.value ? toConfidenceBand(ms.value) : ms.sub}
             </span>
           </div>
         ))}
@@ -1267,7 +1819,10 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
     m.market_size.toLowerCase().includes('vary widely')
   return (
     <div className="space-y-5">
-      <SectionIntro text="Probability estimates based on comparable DTC launches. Not independently verified — treat as directional, not forecasts." />
+      <div className="flex items-center justify-between gap-3">
+        <SectionIntro text="Probability estimates based on comparable DTC launches. Not independently verified — treat as directional, not forecasts." />
+        <ProvenanceBadge p={STATIC_PROVENANCE.financialProjections} />
+      </div>
       {marketSizeIsUnverified && (
         <div className="flex items-start gap-2.5 text-xs text-amber-400/80 bg-amber-400/5 border border-amber-400/15 rounded-lg px-3 py-2.5">
           <IconAlert className="w-3.5 h-3.5 shrink-0 mt-px" />
@@ -1281,7 +1836,7 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
           ['Net at Scale',     fp.net_margin_at_scale],
           ['Subscription LTV', fp.subscription_ltv],
         ] as [string, string][]).map(([l, v]) => (
-          <div key={l} className="flex-1 px-3 py-3.5 text-center">
+          <div key={l} className="flex-1 px-3 py-3.5 text-center" title={STATIC_PROVENANCE.financialProjections.detail}>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">{l}</p>
             <p className="font-serif font-medium text-base">{v ?? '—'}</p>
           </div>
@@ -1295,115 +1850,37 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
 // LAUNCH STRATEGY — product direction + market entry + Higgs placeholders
 // ═══════════════════════════════════════════════════════════════
 
+// 'AI Product Hero Image' and 'Lifestyle Images' shipped as generated
+// concept visuals above (ProductConceptVisual / LifestyleScene) — removed
+// from this list since they're no longer placeholders.
 const MEDIA_PLACEHOLDERS = [
-  'AI Product Hero Image',
   'Packaging Concepts',
-  'Lifestyle Images',
   'Product Shelf Visualization',
   'Brand Moodboard',
   'Launch Creative',
   'Short AI Commercial Preview',
 ]
 
-// ── Product Concept Visual — a generated concept silhouette, not a photo.
-// Honest framing: this renders an abstract package shape inferred from the
-// recommended format, with premium glass/metal shading for depth. It is
-// explicitly labeled as a concept render so it never reads as a real
-// product photo (that still requires a real image-gen pipeline).
-type ProductShape = 'capsule' | 'bottle' | 'jar' | 'pouch' | 'dropper' | 'bar'
-
-function inferProductShape(format: string): ProductShape {
-  const f = format.toLowerCase()
-  if (['capsule', 'softgel', 'tablet', 'pill'].some(t => f.includes(t))) return 'capsule'
-  if (['powder', 'sachet', 'stick pack'].some(t => f.includes(t))) return 'pouch'
-  if (['gummy', 'chewable', 'cream', 'lotion', 'balm', 'mask'].some(t => f.includes(t))) return 'jar'
-  if (['liquid', 'tincture', 'serum', 'oil', 'drop'].some(t => f.includes(t))) return 'dropper'
-  if (['bar', 'gel', 'ready-to-drink', 'rtd', 'protein'].some(t => f.includes(t))) return 'bar'
-  return 'bottle'
-}
-
+// ── Product Concept Visual — a generated concept render, not a photo.
+// Honest framing: studio-lit package shape inferred from the recommended
+// format (cylindrical light wrap, specular hotspot, rim light, blurred
+// contact shadow). It is explicitly labeled as a concept render so it
+// never reads as a real product photo (that still requires a real
+// image-gen pipeline). Shape inference + SVG rendering live in ProductGlyph.tsx.
 function ProductConceptVisual({ format, categoryName }: { format: string; categoryName: string }) {
   const shape = inferProductShape(format)
-  const accent = '#C8A463'
 
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.03] to-transparent p-6 sm:p-8">
-      <div className="flex items-center justify-between mb-1">
+    <div className="relative rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.03] to-transparent p-6 sm:p-8 overflow-hidden">
+      <div className="flex items-center justify-between mb-1 relative z-10">
         <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Product Concept</p>
         <p className="text-[10px] text-zinc-600 italic">Generated concept render — not a product photo</p>
       </div>
-      <div className="flex items-center justify-center py-4">
-        <svg viewBox="0 0 200 240" className="w-36 sm:w-44 h-auto" style={{ animation: 'productFloat 5s ease-in-out infinite' }}>
-          <defs>
-            <linearGradient id="pcvBody" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#3f3f46" />
-              <stop offset="48%" stopColor="#1c1c20" />
-              <stop offset="100%" stopColor="#0a0a0c" />
-            </linearGradient>
-            <radialGradient id="pcvSheen" cx="32%" cy="22%" r="55%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.16" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-
-          <ellipse cx="100" cy="222" rx="48" ry="9" fill="#000000" opacity="0.45" />
-
-          {shape === 'capsule' && (
-            <g>
-              <defs><clipPath id="pcvCapClip"><rect x="68" y="38" width="64" height="164" rx="32" /></clipPath></defs>
-              <rect x="68" y="38" width="64" height="164" rx="32" fill="url(#pcvBody)" />
-              <rect x="68" y="120" width="64" height="82" fill={accent} clipPath="url(#pcvCapClip)" opacity="0.85" />
-              <rect x="68" y="38" width="64" height="164" rx="32" fill="url(#pcvSheen)" />
-            </g>
-          )}
-
-          {shape === 'bottle' && (
-            <g>
-              <rect x="56" y="88" width="88" height="116" rx="14" fill="url(#pcvBody)" />
-              <rect x="86" y="58" width="28" height="36" fill="url(#pcvBody)" />
-              <rect x="78" y="38" width="44" height="24" rx="5" fill={accent} />
-              <rect x="56" y="136" width="88" height="34" fill="#000000" opacity="0.22" />
-              <rect x="56" y="88" width="88" height="116" rx="14" fill="url(#pcvSheen)" />
-            </g>
-          )}
-
-          {shape === 'jar' && (
-            <g>
-              <rect x="50" y="82" width="100" height="118" rx="16" fill="url(#pcvBody)" />
-              <rect x="44" y="60" width="112" height="28" rx="10" fill={accent} />
-              <rect x="50" y="82" width="100" height="118" rx="16" fill="url(#pcvSheen)" />
-            </g>
-          )}
-
-          {shape === 'pouch' && (
-            <g>
-              <path d="M60,200 L60,112 Q60,92 80,86 L120,86 Q140,92 140,112 L140,200 Z" fill="url(#pcvBody)" />
-              <path d="M70,86 L75,58 L125,58 L130,86 Z" fill={accent} opacity="0.9" />
-              <rect x="60" y="130" width="80" height="30" fill="#000000" opacity="0.2" />
-              <path d="M60,200 L60,112 Q60,92 80,86 L120,86 Q140,92 140,112 L140,200 Z" fill="url(#pcvSheen)" />
-            </g>
-          )}
-
-          {shape === 'dropper' && (
-            <g>
-              <rect x="62" y="118" width="76" height="92" rx="14" fill="url(#pcvBody)" />
-              <rect x="90" y="46" width="20" height="74" fill={accent} />
-              <ellipse cx="100" cy="44" rx="15" ry="11" fill={accent} />
-              <rect x="62" y="118" width="76" height="92" rx="14" fill="url(#pcvSheen)" />
-            </g>
-          )}
-
-          {shape === 'bar' && (
-            <g>
-              <rect x="36" y="92" width="128" height="64" rx="10" fill="url(#pcvBody)" />
-              <line x1="36" y1="124" x2="164" y2="124" stroke="#000000" strokeOpacity="0.25" strokeWidth="2" />
-              <rect x="36" y="92" width="128" height="64" rx="10" fill="url(#pcvSheen)" />
-            </g>
-          )}
-        </svg>
+      <div className="flex items-center justify-center py-4 relative z-10" style={{ animation: 'heroRenderIn .8s var(--ease-premium, ease) both' }}>
+        <ProductRenderHero shape={shape} />
       </div>
-      <p className="text-center text-sm font-medium text-zinc-300">{categoryName}</p>
-      <p className="text-center text-xs text-zinc-600 mt-0.5">{format}</p>
+      <p className="text-center text-sm font-medium text-zinc-300 relative z-10">{categoryName}</p>
+      <p className="text-center text-xs text-zinc-600 mt-0.5 relative z-10">{format}</p>
     </div>
   )
 }
@@ -1441,9 +1918,13 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
   const fp  = m.financial_projections
   return (
     <div className="space-y-6">
-      <SectionIntro text="Recommended product configuration and entry sequence based on gap analysis, manufacturing constraints, and margin targets." />
+      <div className="flex items-center justify-between gap-3">
+        <SectionIntro text="Recommended product configuration and entry sequence based on gap analysis, manufacturing constraints, and margin targets." />
+        <ProvenanceBadge p={STATIC_PROVENANCE.productEconomics} />
+      </div>
 
       <ProductConceptVisual format={rec.format} categoryName={m.category_name} />
+      <LifestyleScene format={rec.format} dosing={rec.dosing} />
 
       <div className="flex flex-wrap sm:flex-nowrap divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
         {([
@@ -1452,7 +1933,7 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
           ['COGS',   rec.cogs_estimate],
           ['Retail', rec.retail_price],
         ] as [string, string][]).map(([l, v]) => (
-          <div key={l} className="flex-1 min-w-[100px] px-3 py-3">
+          <div key={l} className="flex-1 min-w-[100px] px-3 py-3" title={(l === 'COGS' || l === 'Retail') ? STATIC_PROVENANCE.productEconomics.detail : undefined}>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{l}</p>
             <p className="text-xs text-zinc-300 leading-snug font-mono">{v ?? '—'}</p>
           </div>
@@ -1460,7 +1941,10 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
       </div>
 
       <div>
-        <p className="text-xs text-zinc-500 uppercase tracking-widest mb-3">Key Ingredients / Components</p>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <p className="text-xs text-zinc-500 uppercase tracking-widest">Key Ingredients / Components</p>
+          <ProvenanceBadge p={STATIC_PROVENANCE.productFormula} />
+        </div>
         <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
           <table className="w-full text-sm min-w-[480px]">
             <thead>
@@ -1516,6 +2000,21 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
 // RISK ASSESSMENT — severity-sorted register
 // ═══════════════════════════════════════════════════════════════
 
+// Each scored dimension has a different provenance function (demand/virality
+// vary by signal_metadata, the rest are always model judgment) — this maps
+// dimension key to the right one so Risk Assessment can badge each row
+// accurately instead of guessing at a single blanket label for the tab.
+function dimensionProvenance(key: string, sig?: SignalMetadata): Provenance {
+  switch (key) {
+    case 'demand':        return demandProvenance(sig)
+    case 'virality':       return viralityProvenance(sig)
+    case 'subscription':  return subscriptionProvenance()
+    case 'manufacturing': return manufacturingScoreProvenance()
+    case 'defensibility': return defensibilityProvenance()
+    default:               return legacyCompetitionProvenance()
+  }
+}
+
 function RiskAssessmentContent({ m }: { m: MemoData }) {
   const dims = (Object.entries(m.scores) as [string, { score: number; notes: string }][])
     .filter(([key]) => key !== 'competition')
@@ -1532,10 +2031,13 @@ function RiskAssessmentContent({ m }: { m: MemoData }) {
         {weak.map(([key, { score, notes }]) => (
           <div key={key} className={`flex gap-3 px-4 py-3.5 ${score <= 3 ? 'bg-red-400/[0.04]' : 'bg-amber-400/[0.03]'}`}>
             <span className={`font-serif font-medium text-base shrink-0 w-10 ${score <= 3 ? 'text-red-400' : 'text-amber-400'}`}>{score}/10</span>
-            <div className="min-w-0">
-              <p className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${score <= 3 ? 'text-red-400' : 'text-amber-400'}`}>
-                {DIM_LABELS[key] ?? key}
-              </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className={`text-[10px] font-semibold uppercase tracking-wider ${score <= 3 ? 'text-red-400' : 'text-amber-400'}`}>
+                  {DIM_LABELS[key] ?? key}
+                </p>
+                <ProvenanceBadge p={dimensionProvenance(key, m.signal_metadata)} />
+              </div>
               <p className="text-sm text-zinc-300 leading-relaxed">{notes}</p>
             </div>
           </div>
@@ -1586,7 +2088,7 @@ function MfgConfidencePill({ label }: { label: 'High' | 'Medium' | 'Low' }) {
 function ManufacturingDisplay({ est, mfgScore }: { est: MfgEstimate; mfgScore: number }) {
   const formatCurrency = (n: number) => n < 1 ? `$${n.toFixed(2)}` : `$${n % 1 === 0 ? n : n.toFixed(1)}`
   const isVerified   = est.data_source !== 'ai_synthesis'
-  const sourceBadge: EvidenceType = isVerified ? 'verified' : 'ai-synthesis'
+  const sourceProvenance = manufacturingTabProvenance(est.data_source)
 
   const unitCostLow  = formatCurrency(est.unit_cost.low)
   const unitCostHigh = formatCurrency(est.unit_cost.high)
@@ -1636,7 +2138,7 @@ function ManufacturingDisplay({ est, mfgScore }: { est: MfgEstimate; mfgScore: n
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/[0.06]">
         <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
-          <span>Source:</span><EvidenceBadge type={sourceBadge} />
+          <span>Source:</span><ProvenanceBadge p={sourceProvenance} />
         </div>
       </div>
 
@@ -1681,13 +2183,11 @@ function ManufacturingIntelligenceContent({ m, isActive }: { m: MemoData; isActi
     if (isActive && status === 'idle') load()
   }, [isActive, status, load])
 
-  const evidence: EvidenceType = estimate?.data_source && estimate.data_source !== 'ai_synthesis' ? 'verified' : 'ai-synthesis'
-
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-white/[0.07]">
         <h2 className="font-serif text-xl font-medium">Manufacturing Intelligence</h2>
-        {status === 'done' && <EvidenceBadge type={evidence} />}
+        {status === 'done' && <ProvenanceBadge p={manufacturingTabProvenance(estimate?.data_source)} />}
       </div>
       {status === 'loading' && (
         <div className="flex items-center gap-2.5 text-sm text-zinc-500 py-6 justify-center">
@@ -1742,14 +2242,17 @@ function FinalRecommendation({ m, decision }: { m: MemoData; decision: BuildDeci
 // ROOT — full report assembly
 // ═══════════════════════════════════════════════════════════════
 
+// No single blanket evidence badge here — each tab mixes verified/estimated/
+// synthesized fields, so a tab-level badge would necessarily oversimplify.
+// Provenance is shown per-field/per-section throughout each tab's content
+// instead (see the granular badges below each header).
 function DeepDiveSection({
-  title, evidence, children,
-}: { title: string; evidence?: EvidenceType; children: React.ReactNode }) {
+  title, children,
+}: { title: string; children: React.ReactNode }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-white/[0.07]">
         <h2 className="font-serif text-xl font-medium">{title}</h2>
-        {evidence && <EvidenceBadge type={evidence} />}
       </div>
       {children}
     </div>
@@ -1790,13 +2293,13 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
         {/* ── Deep-dive sections — true tabs: one pane visible at a time ── */}
         <div ref={tabPanelRef} className="card-premium p-6 sm:p-8 min-h-[420px] scroll-mt-6">
           <div className={activeTab === 'market-intelligence' ? '' : 'hidden'}>
-            <DeepDiveSection title="Market Intelligence" evidence="multi-source">
+            <DeepDiveSection title="Market Intelligence">
               <MarketIntelligenceContent m={m} />
             </DeepDiveSection>
           </div>
 
           <div className={activeTab === 'consumer-intelligence' ? '' : 'hidden'}>
-            <DeepDiveSection title="Consumer Intelligence" evidence="ai-synthesis">
+            <DeepDiveSection title="Consumer Intelligence">
               <ConsumerIntelligenceContent m={m} />
             </DeepDiveSection>
           </div>
@@ -1806,25 +2309,25 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
           </div>
 
           <div className={activeTab === 'competitive-landscape' ? '' : 'hidden'}>
-            <DeepDiveSection title="Competitive Landscape" evidence="ai-synthesis">
+            <DeepDiveSection title="Competitive Landscape">
               <CompetitiveLandscapeContent m={m} />
             </DeepDiveSection>
           </div>
 
           <div className={activeTab === 'financial-outlook' ? '' : 'hidden'}>
-            <DeepDiveSection title="Financial Outlook" evidence="estimated">
+            <DeepDiveSection title="Financial Outlook">
               <FinancialOutlookContent m={m} />
             </DeepDiveSection>
           </div>
 
           <div className={activeTab === 'launch-strategy' ? '' : 'hidden'}>
-            <DeepDiveSection title="Launch Strategy" evidence="ai-synthesis">
+            <DeepDiveSection title="Launch Strategy">
               <LaunchStrategyContent m={m} />
             </DeepDiveSection>
           </div>
 
           <div className={activeTab === 'risk-assessment' ? '' : 'hidden'}>
-            <DeepDiveSection title="Risk Assessment" evidence="ai-synthesis">
+            <DeepDiveSection title="Risk Assessment">
               <RiskAssessmentContent m={m} />
             </DeepDiveSection>
           </div>

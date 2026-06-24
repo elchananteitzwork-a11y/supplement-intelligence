@@ -5,6 +5,7 @@ import { TikTokProvider }       from './providers/tiktok'
 import { RedditProvider }       from './providers/reddit'
 import { AmazonAdsProvider }    from './providers/amazon-ads'
 import { MetaAdsProvider }      from './providers/meta-ads'
+import { ReviewSignalProvider } from './providers/reviews'
 
 // To add a new provider:
 //   1. Implement SignalProvider in providers/<name>.ts
@@ -19,6 +20,7 @@ const providers = [
   new RedditProvider(),
   new AmazonAdsProvider(),
   new MetaAdsProvider(),
+  new ReviewSignalProvider(),
 ]
 
 // Singleton engine used by all API routes.

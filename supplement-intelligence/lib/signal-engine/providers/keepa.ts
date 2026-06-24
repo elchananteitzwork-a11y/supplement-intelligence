@@ -5,6 +5,7 @@ import type {
   CompetitionSignal,
   GrowthSignal,
   PricingSignal,
+  RevenueSignal,
 } from '../types'
 
 // ── Keepa API constants ───────────────────────────────────────────
@@ -128,15 +129,6 @@ function bsrDeltaYoY(avg90: number | null, avg365: number | null): string | null
   return pct > 0 ? `+${Math.round(pct)}% YoY` : `${Math.round(pct)}% YoY`
 }
 
-function bsrToVolumeProxy(avgBsr: number): string {
-  if (avgBsr <= 500)    return '>10k units/mo'
-  if (avgBsr <= 1_000)  return '5k–10k units/mo'
-  if (avgBsr <= 3_000)  return '2k–5k units/mo'
-  if (avgBsr <= 8_000)  return '800–2k units/mo'
-  if (avgBsr <= 20_000) return '300–800 units/mo'
-  if (avgBsr <= 50_000) return '80–300 units/mo'
-  return '<80 units/mo'
-}
 
 // ── Core provider class ───────────────────────────────────────────
 
@@ -227,6 +219,10 @@ export class KeepaProvider implements SignalProvider {
     const offers:       number[] = []
     const prices:       number[] = []
     const monthlySolds: number[] = []
+    // Per-product revenue (price × monthlySold for the SAME product, not
+    // avg-price × avg-units across different products) — needed to give an
+    // honest top-seller-vs-average split instead of one blended number.
+    const productRevenues: number[] = []
 
     // NOTE: review count (CSV[16]) and rating (CSV[17]) are not populated by Keepa
     // for supplements via the product/stats endpoint. Confirmed via live API calls:
@@ -253,6 +249,10 @@ export class KeepaProvider implements SignalProvider {
       // monthlySold is a top-level field (not in stats array).
       // Confirmed: 70k–100k for top-10 Vitamins & Supplements products.
       if (p.monthlySold && p.monthlySold > 0) monthlySolds.push(p.monthlySold)
+
+      if (price !== null && price > 0 && p.monthlySold && p.monthlySold > 0) {
+        productRevenues.push(price * p.monthlySold)
+      }
     }
 
     const avg = (arr: number[]): number | null =>
@@ -265,20 +265,21 @@ export class KeepaProvider implements SignalProvider {
     const avgMonthlySold = avg(monthlySolds)
 
     // ── Demand signal ──
-    // Primary: monthlySold (Keepa estimate, confirmed accurate for top products).
-    // Fallback: BSR proxy when monthlySold is unavailable.
+    // Score is derived from real BSR (a legitimate Amazon sales-velocity
+    // proxy). search_volume is deliberately NOT set here: Keepa measures
+    // Amazon purchase activity, not search queries, and conflating the two
+    // was exactly the kind of guess-dressed-as-data this provider should
+    // not produce. The real units-sold figure (Keepa's own monthlySold
+    // field) lives on the `revenue` signal below instead, labeled for what
+    // it actually is.
     let demand: DemandSignal | undefined
     if (avgBsr90 !== null) {
       const sc = bsrToDemandScore(avgBsr90)
-      const volumeStr = avgMonthlySold !== null
-        ? `${Math.round(avgMonthlySold / 1000)}k units/mo (top products)`
-        : bsrToVolumeProxy(avgBsr90)
       demand = {
         score:         avgMonthlySold !== null && avgMonthlySold > 50_000 ? 9
                      : avgMonthlySold !== null && avgMonthlySold > 10_000 ? 7
                      : sc,
         confidence:    bsrs90.length >= 5 ? 0.82 : 0.65,
-        search_volume: volumeStr,
         trend:         bsrDeltaYoY(avgBsr90, avgBsr365) ?? 'Stable',
         signal:        sc >= 7 ? 'Strong' : sc >= 5 ? 'Moderate' : 'Weak',
       }
@@ -338,8 +339,28 @@ export class KeepaProvider implements SignalProvider {
       }
     }
 
+    // ── Revenue signal (price × monthlySold, per product — not avg×avg) ──
+    // Top seller = the single highest-revenue product among the sample.
+    // Average seller = mean revenue across the sample. Both are real Keepa
+    // fields multiplied together; monthlySold is itself Keepa's own estimate,
+    // not a measured fact, so this is Estimated, not Verified — see provenance.
+    let revenue: RevenueSignal | undefined
+    if (productRevenues.length > 0) {
+      const topRevenue = Math.max(...productRevenues)
+      const avgRevenue = avg(productRevenues)!
+      const fmt = (n: number) => n >= 1000 ? `$${Math.round(n / 1000)}k/mo` : `$${Math.round(n)}/mo`
+      revenue = {
+        score:                  avgRevenue > 50_000 ? 8 : avgRevenue > 15_000 ? 6 : avgRevenue > 5_000 ? 4 : 2,
+        confidence:             productRevenues.length >= 5 ? 0.7 : 0.5,
+        est_monthly_revenue:    fmt(avgRevenue),
+        top_seller_revenue:     fmt(topRevenue),
+        avg_seller_revenue:     fmt(avgRevenue),
+        est_monthly_units_sold: avgMonthlySold !== null ? `${Math.round(avgMonthlySold).toLocaleString()} units/mo` : undefined,
+      }
+    }
+
     // ── Overall provider confidence ──
-    const dims = [demand, competition, growth, pricing].filter(Boolean)
+    const dims = [demand, competition, growth, pricing, revenue].filter(Boolean)
     const overallConf = dims.length
       ? dims.reduce((s, d) => s + d!.confidence, 0) / dims.length
       : 0.3
@@ -352,6 +373,7 @@ export class KeepaProvider implements SignalProvider {
       avgMonthlySold:  avgMonthlySold !== null ? Math.round(avgMonthlySold) : null,
       avgOffers:       avgOffers !== null ? Math.round(avgOffers * 10) / 10 : null,
       avgPrice:        avgPrice  !== null ? `$${Math.round(avgPrice)}` : null,
+      topRevenue:      productRevenues.length ? Math.round(Math.max(...productRevenues)) : null,
       confidence:      Math.round(overallConf * 100) + '%',
     })
 
@@ -360,6 +382,7 @@ export class KeepaProvider implements SignalProvider {
       competition,
       growth,
       pricing,
+      revenue,
       provider:   'keepa',
       fetched_at: new Date().toISOString(),
       confidence: overallConf,

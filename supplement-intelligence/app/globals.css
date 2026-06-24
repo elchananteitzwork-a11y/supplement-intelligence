@@ -45,6 +45,21 @@
       0 24px 56px -20px rgba(0,0,0,.75);
   }
 
+  /* opportunity tile — a slight perspective tilt instead of a flat lift,
+     so the card grid reads as a field of physical objects, not flat
+     rectangles. Used instead of .card-premium-hover (transforms don't
+     compose across two :hover rules on the same element). */
+  .opportunity-tile {
+    transform-style: preserve-3d;
+  }
+  .opportunity-tile:hover {
+    @apply border-brass/30;
+    transform: perspective(900px) rotateX(1.4deg) translateY(-3px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.06),
+      0 28px 60px -22px rgba(0,0,0,.8);
+  }
+
   /* dense tabular data — hairline-divided rows instead of nested boxes */
   .ledger { @apply rounded-xl border border-white/[0.07] overflow-hidden divide-y divide-white/[0.06]; }
   .ledger-row { @apply flex items-center gap-3 px-4 py-3.5; }
@@ -123,6 +138,16 @@
   50%      { transform: translateY(-6px); }
 }
 
+@keyframes heroRenderIn {
+  from { opacity: 0; transform: scale(.9) translateY(6px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0);  }
+}
+
+@keyframes sparklineDraw {
+  from { stroke-dashoffset: 130; }
+  to   { stroke-dashoffset: 0;   }
+}
+
 @keyframes radarDrawIn {
   from { transform: scale(0); opacity: 0; }
   to   { transform: scale(1); opacity: 1; }
@@ -141,5 +166,6 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-in, .animate-fade-in, .animate-slide-up { animation: none !important; transition: none !important; }
   [style*="productFloat"], [style*="radarDrawIn"], [style*="graphNodeIn"],
-  [style*="tiktokPulse"], [style*="riseIn"] { animation: none !important; opacity: 1 !important; }
+  [style*="tiktokPulse"], [style*="riseIn"], [style*="heroRenderIn"],
+  [style*="sparklineDraw"] { animation: none !important; opacity: 1 !important; }
 }

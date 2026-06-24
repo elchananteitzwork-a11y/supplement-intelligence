@@ -17,9 +17,10 @@ function aggregateDimension<T extends SignalScore>(
 ): AggregatedDimension<T> {
   if (contributions.length === 1) {
     return {
-      value:      contributions[0].value,
-      sources:    [contributions[0].source],
-      confidence: contributions[0].value.confidence,
+      value:         contributions[0].value,
+      sources:       [contributions[0].source],
+      primarySource: contributions[0].source,
+      confidence:    contributions[0].value.confidence,
     }
   }
 
@@ -31,15 +32,20 @@ function aggregateDimension<T extends SignalScore>(
   ) / totalWeight
   const avgConf = totalWeight / contributions.length
 
-  // Non-numeric fields: use values from the provider with highest confidence
+  // Non-numeric fields: use values from the provider with highest confidence.
+  // Only `score`/`confidence` are actually blended across providers — every
+  // string field in `value` came from this one provider, so callers citing
+  // a specific number (e.g. "search_volume") must cite primarySource, not
+  // the full `sources` list, or they'd imply more corroboration than exists.
   const primary = [...contributions].sort(
     (a, b) => b.value.confidence - a.value.confidence,
   )[0]
 
   return {
-    value:      { ...primary.value, score: Math.round(weightedScore * 10) / 10, confidence: avgConf },
-    sources:    contributions.map(c => c.source),
-    confidence: avgConf,
+    value:         { ...primary.value, score: Math.round(weightedScore * 10) / 10, confidence: avgConf },
+    sources:       contributions.map(c => c.source),
+    primarySource: primary.source,
+    confidence:    avgConf,
   }
 }
 
@@ -94,7 +100,7 @@ export class SignalEngine {
 
     const dims: DimKey[] = [
       'demand', 'competition', 'growth', 'seasonality',
-      'pricing', 'virality', 'review_velocity',
+      'pricing', 'virality', 'review_velocity', 'revenue',
     ]
 
     const result: Record<string, AggregatedDimension<SignalScore>> = {}

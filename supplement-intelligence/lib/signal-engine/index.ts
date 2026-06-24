@@ -7,6 +7,7 @@ export type {
   PricingSignal,
   ViralitySignal,
   ReviewVelocitySignal,
+  RevenueSignal,
   ProviderSignals,
   AggregatedDimension,
   AggregatedSignals,

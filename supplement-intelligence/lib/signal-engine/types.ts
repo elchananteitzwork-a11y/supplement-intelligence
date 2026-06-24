@@ -10,15 +10,27 @@ export interface SignalScore {
 // ── Dimension types ───────────────────────────────────────────────
 
 export interface DemandSignal extends SignalScore {
-  search_volume?: string                    // e.g. "82k/month"
-  trend?:         string                    // e.g. "+21% YoY" | "Stable"
+  // Deliberately NOT populated by any current provider (Keepa measures Amazon
+  // purchase activity, Google Trends gives a relative 0–100 index — neither is
+  // an absolute search-volume count). Real "Monthly Search Volume" comes only
+  // from m.keyword_intelligence (DataForSEO). Kept here for a future provider
+  // that can actually measure it; do not backfill with a bucketed guess.
+  search_volume?: string
+  trend?:         string                    // e.g. "+21% YoY" | "Stable" — real period-over-period computation, not a guess
   signal?:        'Strong' | 'Moderate' | 'Weak'
 }
 
 export interface CompetitionSignal extends SignalScore {
-  competing_brands?: string                 // e.g. "35–60"
+  competing_brands?: string                 // e.g. "35–60" — Keepa: sellers-per-listing on the category's top bestsellers
   saturation?:       'Low' | 'Medium' | 'Medium-High' | 'High'
   barrier?:          'Low' | 'Medium' | 'High'
+}
+
+export interface RevenueSignal extends SignalScore {
+  est_monthly_revenue?:     string   // avg price × avg monthly units sold, across top sellers
+  top_seller_revenue?:      string   // single highest-performing product: its own price × its own units sold
+  avg_seller_revenue?:      string   // same basis as est_monthly_revenue — explicit alias for the top-seller/average split shown in the UI
+  est_monthly_units_sold?:  string   // Keepa's own monthlySold field, averaged across top sellers — real units-sold data, distinct from (and never substituted for) search volume
 }
 
 export interface GrowthSignal extends SignalScore {
@@ -42,12 +54,28 @@ export interface ViralitySignal extends SignalScore {
   tiktok?:           'High' | 'Medium' | 'Low'
   content_potential?: 'High' | 'Medium' | 'Low'
   ugc?:              'High' | 'Medium' | 'Low'
+  // Raw numbers behind the labels above — real statsV2 values from TikTok's
+  // public hashtag endpoint (see providers/tiktok.ts). Previously computed
+  // and logged, then discarded; now kept so the UI can show the actual
+  // evidence instead of only the derived High/Medium/Low bucket.
+  video_count?:      number
+  view_count?:       number
+  hashtag?:          string   // e.g. "guthealth" — which hashtag this came from
 }
 
 export interface ReviewVelocitySignal extends SignalScore {
   monthly_reviews?: string                  // e.g. "180/product/month"
   sentiment?:       'Positive' | 'Mixed' | 'Negative'
   avg_rating?:      string                  // e.g. "4.3"
+  // Real review-based market-accessibility signal (lib/signal-engine/providers/reviews.ts,
+  // Rainforest organic search results for this exact query — not a category-wide average).
+  // Lives here rather than on CompetitionSignal: when two providers both populate the same
+  // dimension, the engine keeps only the higher-confidence provider's non-numeric fields
+  // (see engine.ts aggregateDimension), and Keepa already owns `competition`. This dimension
+  // is currently uncontested, so nothing here gets silently dropped on merge.
+  meaningful_competitor_count?: number   // distinct brands among top organic results with a non-trivial review count
+  avg_review_count?:           number    // average ratings_total across those top results
+  review_concentration_ratio?: number    // 0–1 — share of all reviews held by the #1 result; higher = more entrenched incumbent, harder to break in
 }
 
 // ── Provider output ───────────────────────────────────────────────
@@ -62,6 +90,7 @@ export interface ProviderSignals {
   pricing?:         PricingSignal
   virality?:        ViralitySignal
   review_velocity?: ReviewVelocitySignal
+  revenue?:         RevenueSignal
 
   provider:   string   // provider name, e.g. "keepa"
   fetched_at: string   // ISO timestamp
@@ -72,9 +101,10 @@ export interface ProviderSignals {
 // Engine output after merging all provider signals.
 
 export interface AggregatedDimension<T extends SignalScore> {
-  value:      T
-  sources:    string[]   // which providers contributed data
-  confidence: number     // weighted-average confidence
+  value:         T
+  sources:       string[]   // every provider that contributed to the blended score
+  primarySource: string     // which single provider's non-numeric fields (strings) ended up in `value` — only `score`/`confidence` are ever blended across providers, so a citation naming all of `sources` for a specific string field would overstate how many providers actually back it
+  confidence:    number      // weighted-average confidence
 }
 
 export interface AggregatedSignals {
@@ -85,6 +115,7 @@ export interface AggregatedSignals {
   pricing?:         AggregatedDimension<PricingSignal>
   virality?:        AggregatedDimension<ViralitySignal>
   review_velocity?: AggregatedDimension<ReviewVelocitySignal>
+  revenue?:         AggregatedDimension<RevenueSignal>
 
   providers_used:     string[]
   overall_confidence: number   // avg across all populated dimensions

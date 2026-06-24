@@ -365,6 +365,9 @@ function OpportunityDetail({
             <span className={`font-serif font-medium text-2xl ${scoreColor(opp.score)}`}>{opp.score}</span>
           </div>
           <p className="text-sm text-zinc-400 mt-1.5">{opp.rationale}</p>
+          <p className="text-[10px] text-zinc-600 italic mt-2">
+            AI-estimated, not independently verified — search volume, trend, and dimension scores are model output, sometimes informed by real signal data but not guaranteed to match it. Open the full report for per-field source detail.
+          </p>
           <MetaRow opp={opp} />
           <EvidenceGrid scores={opp.scores} />
           <button onClick={onOpen} className="btn-white w-full mt-4 py-2.5 text-sm">

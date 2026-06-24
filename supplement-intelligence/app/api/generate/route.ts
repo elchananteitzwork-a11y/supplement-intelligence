@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import Anthropic           from '@anthropic-ai/sdk'
 import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }    from '@/lib/signal-engine'
+import { keywordEngine }   from '@/lib/keyword-engine'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
 export const maxDuration = 60
@@ -256,9 +257,10 @@ export async function POST(req: Request) {
     )
   }
 
-  // ── Start signal fetch immediately (overlaps with DB round-trips below) ──
-  // Firing this before the cache/profile checks hides most of its 8s latency.
-  const signalPromise = signalEngine.fetch(input.trim(), 8_000).catch(() => null)
+  // ── Start signal + keyword fetch immediately (overlaps with DB round-trips below) ──
+  // Firing this before the cache/profile checks hides most of its latency.
+  const signalPromise  = signalEngine.fetch(input.trim(), 8_000).catch(() => null)
+  const keywordPromise = keywordEngine.fetch(input.trim(), 8_000).catch(() => null)
 
   // ── Full-report cache ─────────────────────────────────────────
   const { data: cachedReport } = await sb
@@ -304,8 +306,9 @@ export async function POST(req: Request) {
   if (context?.trim())        lines.push(`Additional context: ${context.trim()}`)
   const userMessage = lines.join('\n')
 
-  // ── Await signal engine results (most of 8s elapsed during DB checks above) ─
+  // ── Await signal/keyword engine results (most of the latency elapsed during DB checks above) ─
   const signals = await signalPromise
+  const keywordIntelligence = await keywordPromise
   const systemPrompt = signals
     ? module.buildSignalAugmentedPrompt(module.analysisSystemPrompt, input.trim(), signals)
     : module.analysisSystemPrompt
@@ -317,6 +320,7 @@ export async function POST(req: Request) {
     virality_verified:  !!signals.virality,
     pricing_verified:   !!signals.pricing,
     growth_verified:    !!signals.growth,
+    market_verified:    !!signals.competition,
   } : undefined
 
   if (signals) {
@@ -428,6 +432,15 @@ export async function POST(req: Request) {
   // Attach signal source metadata for Phase 3 UI attribution
   if (!skipReason && signalMeta) {
     memo.signal_metadata = signalMeta
+  }
+  // Evidence-first layer: persist the real signal/keyword data the prompt was
+  // built from, instead of discarding it once the LLM call returns. The UI
+  // renders this directly — it is never rewritten by the model.
+  if (!skipReason && signals) {
+    memo.signal_evidence = signals
+  }
+  if (!skipReason && keywordIntelligence) {
+    memo.keyword_intelligence = keywordIntelligence
   }
 
   console.log('Analysis decision', {

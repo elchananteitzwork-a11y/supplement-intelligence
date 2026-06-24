@@ -1,3 +1,6 @@
+import type { AggregatedSignals } from '@/lib/signal-engine/types'
+import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
+
 export type BuildDecision = 'BUILD_NOW' | 'VALIDATE_FURTHER' | 'SKIP'
 
 // Server-computed; never produced by the AI. Optional for backward compat.
@@ -84,6 +87,7 @@ export interface SignalMetadata {
   virality_verified:  boolean   // TikTok returned virality data
   pricing_verified:   boolean   // Keepa returned pricing data
   growth_verified:    boolean   // Keepa returned growth data
+  market_verified?:   boolean   // Amazon seller-data competition signal was available (market_saturation grounding)
 }
 
 export interface Ingredient {
@@ -160,6 +164,13 @@ export interface MemoData {
     subscription_ltv:     string
     path_to_10m:          string
   }
+
+  // ── Evidence-first layer (added v3) — server-computed, captured at
+  // generation time, NEVER produced or rewritten by the AI. This is the raw
+  // data the UI shows before any AI interpretation. Optional for backward
+  // compat with memos generated before this existed.
+  signal_evidence?:      AggregatedSignals     // real demand/growth/revenue/review/virality signals — same object already used to ground the prompt, now persisted instead of discarded after generation
+  keyword_intelligence?: KeywordIntelligence    // real per-keyword search volume/growth from DataForSEO
 }
 
 export interface Analysis {

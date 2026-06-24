@@ -65,11 +65,25 @@ export function buildSignalContext(
 
   if (signals.review_velocity) {
     const r = signals.review_velocity.value
-    lines.push('REVIEW VELOCITY (verified):')
+    lines.push('REVIEW VELOCITY / MARKET ACCESSIBILITY (verified):')
     if (r.monthly_reviews) lines.push(`  - Monthly new reviews: ${r.monthly_reviews}`)
     if (r.avg_rating)      lines.push(`  - Average customer rating: ${r.avg_rating}★`)
     if (r.sentiment)       lines.push(`  - Overall sentiment: ${r.sentiment}`)
+    if (r.meaningful_competitor_count !== undefined) lines.push(`  - Meaningful competitors (real Amazon search results, established brands only): ${r.meaningful_competitor_count}`)
+    if (r.avg_review_count !== undefined)            lines.push(`  - Average review count across top results: ${r.avg_review_count}`)
+    if (r.review_concentration_ratio !== undefined)  lines.push(`  - Review concentration in #1 result: ${Math.round(r.review_concentration_ratio * 100)}%`)
     lines.push(`  - Confidence: ${Math.round(signals.review_velocity.confidence * 100)}%`)
+    lines.push('')
+  }
+
+  if (signals.revenue) {
+    const rv = signals.revenue.value
+    lines.push('REVENUE (verified, derived from real Keepa price × units-sold data):')
+    if (rv.est_monthly_revenue)    lines.push(`  - Estimated monthly revenue (category average): ${rv.est_monthly_revenue}`)
+    if (rv.top_seller_revenue)     lines.push(`  - Top seller monthly revenue: ${rv.top_seller_revenue}`)
+    if (rv.avg_seller_revenue)     lines.push(`  - Average seller monthly revenue: ${rv.avg_seller_revenue}`)
+    if (rv.est_monthly_units_sold) lines.push(`  - Estimated monthly units sold (category average): ${rv.est_monthly_units_sold}`)
+    lines.push(`  - Confidence: ${Math.round(signals.revenue.confidence * 100)}%`)
     lines.push('')
   }
 

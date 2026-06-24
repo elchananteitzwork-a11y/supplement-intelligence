@@ -4,22 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Analysis, Profile } from '@/types/index'
 import { IconTarget } from '@/components/icons'
 import AppSidebar     from '@/components/AppSidebar'
-
-function DecisionDot({ d }: { d: string }) {
-  const c = d === 'BUILD_NOW' ? 'bg-emerald-400' : d === 'VALIDATE_FURTHER' ? 'bg-amber-400' : 'bg-red-400'
-  return <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c}`} />
-}
-
-function DecisionLabel({ d }: { d: string }) {
-  if (d === 'BUILD_NOW')        return <span className="text-emerald-400">Build Now</span>
-  if (d === 'VALIDATE_FURTHER') return <span className="text-amber-400">Validate</span>
-  return                               <span className="text-red-400">Skip</span>
-}
-
-function ScoreColor({ s }: { s: number }) {
-  const c = s >= 65 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400'
-  return <span className={`font-serif font-medium text-xl ${c}`}>{Math.round(s)}</span>
-}
+import OpportunityCard from '@/components/OpportunityCard'
 
 function timeAgo(d: string) {
   const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
@@ -127,7 +112,7 @@ export default async function Dashboard() {
             </div>
           )}
 
-          {/* ── blotter ── */}
+          {/* ── opportunity grid — visual tiles, not a blotter row you read column by column ── */}
           {list.length === 0 ? (
             <div className="card-premium p-20 text-center">
               <IconTarget className="w-8 h-8 text-brass/70 mx-auto mb-5" />
@@ -138,48 +123,24 @@ export default async function Dashboard() {
               {canAnalyze && <Link href="/analyze" className="btn-white">Start analyzing →</Link>}
             </div>
           ) : (
-            <>
-              {/* desktop blotter table */}
-              <div className="hidden sm:block">
-                <div className="grid grid-cols-[2rem_1fr_4.5rem_7rem_9rem_5rem] gap-3 px-3 py-2 text-[10px] text-zinc-600 uppercase tracking-wider border-b border-white/[0.08] font-mono">
-                  <span>#</span><span>Category</span><span className="text-right">Score</span><span>Decision</span><span>Competitor</span><span className="text-right">Run</span>
-                </div>
-                <div className="divide-y divide-white/[0.06]">
-                  {list.map((a, i) => (
-                    <Link
-                      key={a.id} href={`/memo/${a.id}`}
-                      className="grid grid-cols-[2rem_1fr_4.5rem_7rem_9rem_5rem] gap-3 px-3 py-3.5 items-center hover:bg-white/[0.025] transition-colors group"
-                    >
-                      <span className="text-xs text-zinc-600 font-mono">{String(i + 1).padStart(2, '0')}</span>
-                      <span className="text-sm text-zinc-200 group-hover:text-white truncate">{a.category_name}</span>
-                      <span className="text-right"><ScoreColor s={a.opportunity_score} /></span>
-                      <span className="flex items-center gap-1.5 text-xs font-medium">
-                        <DecisionDot d={a.build_decision} /><DecisionLabel d={a.build_decision} />
-                      </span>
-                      <span className="text-xs text-zinc-500 truncate">{a.biggest_competitor ? `vs ${a.biggest_competitor}` : '—'}</span>
-                      <span className="text-xs text-zinc-600 text-right font-mono">{timeAgo(a.created_at)}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
-              {/* mobile list */}
-              <div className="sm:hidden ledger">
-                {list.map((a, i) => (
-                  <Link key={a.id} href={`/memo/${a.id}`} className="ledger-row justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-zinc-600 font-mono text-xs w-4 text-right shrink-0">{i + 1}</span>
-                      <DecisionDot d={a.build_decision} />
-                      <span className="text-sm font-medium truncate">{a.category_name}</span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs text-zinc-600">{timeAgo(a.created_at)}</span>
-                      <ScoreColor s={a.opportunity_score} />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {list.map((a, i) => (
+                <OpportunityCard
+                  key={a.id}
+                  href={`/memo/${a.id}`}
+                  rank={i + 1}
+                  gridIndex={i}
+                  categoryName={a.category_name}
+                  score={a.opportunity_score}
+                  decision={a.build_decision}
+                  format={a.memo_data?.product_recommendation?.format}
+                  competitor={a.biggest_competitor}
+                  marketSize={a.market_size}
+                  ltv={a.sub_ltv}
+                  timeLabel={timeAgo(a.created_at)}
+                />
+              ))}
+            </div>
           )}
         </div>
       </main>

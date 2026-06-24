@@ -360,11 +360,15 @@ export class RedditProvider implements SignalProvider {
 
     return {
       demand: {
-        score:         demandScore,
+        score:      demandScore,
+        // search_volume deliberately NOT set: postsPerMonth is real Reddit
+        // discussion volume, not search query volume — same conflation class
+        // as Keepa/Google Trends, fixed for the same reason (see
+        // DemandSignal.search_volume comment in ../types.ts). Real "Monthly
+        // Search Volume" only comes from DataForSEO.
         confidence,
-        search_volume: `~${postsPerMonth} posts/month in supplement communities`,
-        trend:         trendStr,
-        signal:        demandSignal(demandScore),
+        trend:      trendStr,
+        signal:     demandSignal(demandScore),
       },
       growth: {
         score:      growthScore,
