@@ -78,18 +78,18 @@ export default function LoginPage() {
       <div className="min-h-screen flex flex-col items-center justify-center px-4">
         <div className="w-full max-w-sm space-y-6">
           <div className="text-center">
-            <Link href="/" className="font-semibold text-lg">
-              Supplement<span className="text-emerald-400">Intelligence</span>
+            <Link href="/" className="font-serif text-lg">
+              Supplement <span className="italic text-brass">Intelligence</span>
             </Link>
           </div>
           <div className="card p-8 text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-400/10 border border-emerald-400/20 grid place-items-center mx-auto">
-              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 rounded-full bg-brass/10 border border-brass/20 grid place-items-center mx-auto">
+              <svg className="w-5 h-5 text-brass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-lg">Check your email</p>
+              <p className="font-serif text-lg">Check your email</p>
               <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
                 Password reset link sent to <span className="text-white">{email}</span>.
                 <br />Click it to choose a new password.
@@ -115,18 +115,18 @@ export default function LoginPage() {
       <div className="min-h-screen flex flex-col items-center justify-center px-4">
         <div className="w-full max-w-sm space-y-6">
           <div className="text-center">
-            <Link href="/" className="font-semibold text-lg">
-              Supplement<span className="text-emerald-400">Intelligence</span>
+            <Link href="/" className="font-serif text-lg">
+              Supplement <span className="italic text-brass">Intelligence</span>
             </Link>
           </div>
           <div className="card p-8 text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-400/10 border border-emerald-400/20 grid place-items-center mx-auto">
-              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 rounded-full bg-brass/10 border border-brass/20 grid place-items-center mx-auto">
+              <svg className="w-5 h-5 text-brass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-lg">Confirm your email</p>
+              <p className="font-serif text-lg">Confirm your email</p>
               <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
                 We sent a confirmation link to <span className="text-white">{email}</span>.
                 <br />Click it to activate your account.
@@ -152,15 +152,15 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-6">
 
         <div className="text-center">
-          <Link href="/" className="font-semibold text-lg">
-            Supplement<span className="text-emerald-400">Intelligence</span>
+          <Link href="/" className="font-serif text-lg">
+            Supplement <span className="italic text-brass">Intelligence</span>
           </Link>
         </div>
 
         <div className="card p-8">
           <form onSubmit={submit} className="space-y-5">
             <div>
-              <p className="text-lg font-semibold mb-1">
+              <p className="font-serif text-lg font-medium mb-1">
                 {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Reset password'}
               </p>
               <p className="text-sm text-zinc-400">

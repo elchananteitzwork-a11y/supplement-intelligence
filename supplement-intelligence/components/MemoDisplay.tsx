@@ -2,6 +2,9 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { MemoData, BuildDecision } from '@/types/index'
+import {
+  IconTrendUp, IconTrendDown, IconBeaker, IconArrowRight, IconCheck, IconX, IconAlert,
+} from '@/components/icons'
 
 // ── Manufacturing Intelligence local types (mirrors /api/manufacturing response) ──
 interface MfgEstimate {
@@ -109,7 +112,7 @@ type EvidenceType = 'verified' | 'ai-synthesis' | 'estimated' | 'multi-source'
 
 const EVIDENCE_CFG: Record<EvidenceType, { label: string; cls: string }> = {
   'verified':     { label: 'Verified Signal',    cls: 'text-emerald-400 bg-emerald-400/8 border-emerald-400/20' },
-  'ai-synthesis': { label: 'AI Synthesis',       cls: 'text-zinc-400    bg-zinc-800      border-zinc-700'       },
+  'ai-synthesis': { label: 'AI Synthesis',       cls: 'text-zinc-400    bg-white/[0.06]      border-white/[0.1]'       },
   'estimated':    { label: 'Quantitative Model', cls: 'text-amber-400   bg-amber-400/8   border-amber-400/20'   },
   'multi-source': { label: 'Multi-Source',       cls: 'text-blue-400    bg-blue-400/8    border-blue-400/20'    },
 }
@@ -146,23 +149,41 @@ function useCountUp(target: number, durationMs = 900) {
   return val
 }
 
-function ScoreRing({ s, decision, size = 96 }: { s: number; decision: BuildDecision; size?: number }) {
+// instrument-dial score gauge — semi-circular arc with tick marks, in the
+// register of a precision meter rather than a generic donut/progress ring.
+function ScoreRing({ s, decision, size = 156 }: { s: number; decision: BuildDecision; size?: number }) {
   const animated = useCountUp(s)
-  const r    = (size / 104) * 44
-  const circ = 2 * Math.PI * r
-  const c    = decision === 'BUILD_NOW' ? '#34d399' : decision === 'VALIDATE_FURTHER' ? '#fbbf24' : '#f87171'
+  const w  = size
+  const h  = Math.round(size / 2) + 16
+  const m  = 16
+  const cx = w / 2
+  const cy = h - m
+  const r  = w / 2 - m
+  const c  = decision === 'BUILD_NOW' ? '#34d399' : decision === 'VALIDATE_FURTHER' ? '#fbbf24' : '#f87171'
+  const pathLen = Math.PI * r
+  const arcPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`
+  const ticks = [0, 20, 40, 60, 80, 100]
+
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg className="-rotate-90" width={size} height={size} viewBox="0 0 104 104">
-        <circle cx="52" cy="52" r={r} fill="none" stroke="#27272a" strokeWidth="7"/>
-        <circle cx="52" cy="52" r={r} fill="none" stroke={c} strokeWidth="7"
-          strokeLinecap="round" strokeDasharray={circ}
-          strokeDashoffset={circ - (circ * s) / 100}
-          style={{ transition: 'stroke-dashoffset 1s ease' }}/>
+    <div className="relative shrink-0" style={{ width: w, height: h }}>
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+        {ticks.map(t => {
+          const theta = ((180 - (t / 100) * 180) * Math.PI) / 180
+          const x1 = cx + (r + 4) * Math.cos(theta)
+          const y1 = cy - (r + 4) * Math.sin(theta)
+          const x2 = cx + (r + 9) * Math.cos(theta)
+          const y2 = cy - (r + 9) * Math.sin(theta)
+          return <line key={t} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#3f3f46" strokeWidth={1.5} strokeLinecap="round" />
+        })}
+        <path d={arcPath} fill="none" stroke="#27272a" strokeWidth={6} strokeLinecap="round" />
+        <path d={arcPath} fill="none" stroke={c} strokeWidth={6} strokeLinecap="round"
+          strokeDasharray={pathLen}
+          strokeDashoffset={pathLen - (pathLen * s) / 100}
+          style={{ transition: 'stroke-dashoffset 1.1s var(--ease-premium, ease)' }} />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-mono font-bold text-2xl leading-none" style={{ color: c }}>{animated}</span>
-        <span className="text-zinc-600 text-[10px] mt-0.5">/ 100</span>
+      <div className="absolute inset-x-0 flex flex-col items-center" style={{ top: cy - r * 0.62 }}>
+        <span className="font-serif font-medium leading-none" style={{ color: c, fontSize: w * 0.23 }}>{animated}</span>
+        <span className="text-zinc-600 text-[10px] mt-1 tracking-wide">/ 100</span>
       </div>
     </div>
   )
@@ -170,12 +191,13 @@ function ScoreRing({ s, decision, size = 96 }: { s: number; decision: BuildDecis
 
 function VerdictBadge({ d }: { d: BuildDecision }) {
   const cfg = {
-    BUILD_NOW:        { label: 'Build Now',       cls: 'bg-emerald-400 text-zinc-950' },
-    VALIDATE_FURTHER: { label: 'Validate First',  cls: 'bg-amber-400  text-zinc-950'  },
-    SKIP:             { label: 'Pass',             cls: 'bg-red-400    text-zinc-950'  },
+    BUILD_NOW:        { label: 'Build Now',      cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/25', dot: 'bg-emerald-400' },
+    VALIDATE_FURTHER: { label: 'Validate First', cls: 'text-amber-400  bg-amber-400/10  border-amber-400/25',   dot: 'bg-amber-400'  },
+    SKIP:             { label: 'Pass',           cls: 'text-red-400    bg-red-400/10    border-red-400/25',     dot: 'bg-red-400'    },
   }[d]
   return (
-    <span className={`inline-flex items-center font-bold text-xs tracking-widest px-3 py-1 rounded-full uppercase ${cfg.cls}`}>
+    <span className={`inline-flex items-center gap-2 font-semibold text-[11px] tracking-[0.16em] px-3 py-1.5 rounded-full border uppercase ${cfg.cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
       {cfg.label}
     </span>
   )
@@ -186,42 +208,13 @@ function ConfidencePill({ level, note }: { level: 'High' | 'Medium' | 'Low'; not
     ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5'
     : level === 'Medium'
       ? 'text-amber-400 border-amber-400/20 bg-amber-400/5'
-      : 'text-zinc-500 border-zinc-700 bg-zinc-800/40'
+      : 'text-zinc-500 border-white/[0.1] bg-white/[0.04]'
   const dot = level === 'High' ? 'bg-emerald-400' : level === 'Medium' ? 'bg-amber-400' : 'bg-zinc-500'
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs border rounded-full px-2.5 py-1 ${cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`}/>
       {level} confidence · {note}
     </span>
-  )
-}
-
-function DimBar({ label, score, notes, compact }: {
-  label: string; score: number; notes?: string; compact?: boolean
-}) {
-  const [clr, bar] = score >= 8 ? ['text-emerald-400','bg-emerald-400']
-                   : score >= 6 ? ['text-amber-400',   'bg-amber-400'  ]
-                   :              ['text-red-400',      'bg-red-400'    ]
-  return (
-    <div className={compact ? 'bg-zinc-800/40 rounded-lg p-3' : `rounded-xl p-4 ${
-      score >= 8 ? 'bg-emerald-400/5 border border-emerald-400/15'
-    : score >= 6 ? 'bg-amber-400/5  border border-amber-400/15'
-    :              'bg-red-400/5    border border-red-400/15'
-    }`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">{label}</span>
-        <span className={`font-mono font-bold text-sm ${clr}`}>
-          {score}<span className="text-zinc-600 text-[10px] font-normal">/10</span>
-        </span>
-      </div>
-      <div className="h-1 bg-zinc-700/50 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${bar}`}
-          style={{ width: `${(score / 10) * 100}%`, transition: 'width .7s ease' }}/>
-      </div>
-      {notes && !compact && (
-        <p className="text-xs text-zinc-500 mt-2.5 leading-relaxed">{notes}</p>
-      )}
-    </div>
   )
 }
 
@@ -233,7 +226,7 @@ function SignalBars({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
     <div className="flex items-end gap-0.5 h-3.5 shrink-0">
       {[0,1,2].map(i => (
         <span key={i}
-          className={`w-1 rounded-sm ${i < filled ? color : 'bg-zinc-700'}`}
+          className={`w-1 rounded-sm ${i < filled ? color : 'bg-white/[0.12]'}`}
           style={{ height: `${40 + i * 30}%` }}
         />
       ))}
@@ -263,11 +256,11 @@ function ProbBar({ label, value }: { label: string; value: string }) {
         <span className="text-zinc-400">{label}</span>
         <span className="font-mono font-semibold">{value}</span>
       </div>
-      <div className="relative h-2 bg-zinc-800 rounded-full overflow-hidden">
+      <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden">
         {/* faint gridlines — chart-panel feel */}
         <div className="absolute inset-0 flex justify-between px-[24.5%]">
-          <span className="w-px h-full bg-zinc-700/40" />
-          <span className="w-px h-full bg-zinc-700/40" />
+          <span className="w-px h-full bg-white/[0.08]" />
+          <span className="w-px h-full bg-white/[0.08]" />
         </div>
         <div className={`relative h-full rounded-full ${c}`} style={{ width: `${pct}%`, transition: 'width .7s ease' }}/>
       </div>
@@ -314,7 +307,7 @@ function Collapsible({
         className="w-full flex items-center justify-between gap-4 px-5 sm:px-6 py-4.5 text-left hover:bg-white/[0.02] transition-colors"
       >
         <div className="flex items-start gap-3 min-w-0">
-          <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${open ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
+          <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${open ? 'bg-brass' : 'bg-white/[0.15]'}`} />
           <div className="min-w-0">
             <span className="font-semibold text-sm text-zinc-100">{title}</span>
             {!open && synopsis && (
@@ -360,7 +353,7 @@ const NAV_SECTIONS = [
   { id: 'risk-assessment',           label: 'Risk' },
 ]
 
-function SectionNav() {
+function useActiveSection(): string | null {
   const [active, setActive] = useState<string | null>(null)
 
   useEffect(() => {
@@ -383,17 +376,23 @@ function SectionNav() {
     return () => observer.disconnect()
   }, [])
 
-  function jump(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
+  return active
+}
 
+function jumpTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// mobile/tablet — horizontal sticky pill nav under the masthead
+function SectionNav() {
+  const active = useActiveSection()
   return (
-    <div className="section-nav -mt-px">
+    <div className="section-nav -mt-px lg:hidden">
       <div className="flex items-center gap-1 overflow-x-auto py-2.5 no-scrollbar">
         {NAV_SECTIONS.map(s => (
           <button
             key={s.id}
-            onClick={() => jump(s.id)}
+            onClick={() => jumpTo(s.id)}
             className={`nav-pill ${active === s.id ? 'nav-pill-active' : ''}`}
           >
             {s.label}
@@ -401,6 +400,30 @@ function SectionNav() {
         ))}
       </div>
     </div>
+  )
+}
+
+// desktop — vertical rail nav, persistent alongside the document (PitchBook/Palantir
+// register: an always-visible outline, not a chip bar that scrolls out of view)
+function RailNav() {
+  const active = useActiveSection()
+  return (
+    <nav className="space-y-0.5">
+      <p className="label mb-2.5">On this page</p>
+      {NAV_SECTIONS.map(s => (
+        <button
+          key={s.id}
+          onClick={() => jumpTo(s.id)}
+          className={`w-full text-left text-[13px] py-1.5 pl-3 border-l-2 transition-colors ${
+            active === s.id
+              ? 'border-brass text-zinc-50 font-medium'
+              : 'border-white/[0.08] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.2]'
+          }`}
+        >
+          {s.label}
+        </button>
+      ))}
+    </nav>
   )
 }
 
@@ -424,31 +447,72 @@ function Masthead({
     : null
 
   return (
-    <div className={`card-premium p-6 sm:p-8 ${glow}`}>
-      <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/[0.05]">
-        <span className="text-[10px] font-bold tracking-[0.18em] text-zinc-500 uppercase">Investment Dossier</span>
-        <span className="text-[10px] font-medium text-zinc-600 font-mono">
+    <div className={`card-premium p-6 sm:p-9 ${glow}`}>
+      <div className="flex items-center justify-between mb-6 pb-5 border-b border-white/[0.06]">
+        <span className="eyebrow text-[13px]">Investment Dossier</span>
+        <span className="text-[10px] font-medium text-zinc-600 font-mono uppercase tracking-wider">
           {dateLabel ? `Prepared ${dateLabel}` : 'Confidential'}
         </span>
       </div>
 
-      <div className="flex items-start gap-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-7">
         <ScoreRing s={score} decision={decision} />
         <div className="flex-1 min-w-0">
           <VerdictBadge d={decision} />
-          <h1 className="text-xl sm:text-2xl font-bold mt-3 mb-1 leading-snug tracking-tight">{m.category_name}</h1>
+          <h1 className="font-serif text-2xl sm:text-[1.9rem] font-medium mt-4 mb-1.5 leading-[1.15] tracking-tight">{m.category_name}</h1>
           <p className="text-xs text-zinc-500 uppercase tracking-wider">Opportunity Rating</p>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-4 border-t border-white/[0.05]">
+      <div className="flex flex-wrap items-center justify-between gap-4 mt-7 pt-5 border-t border-white/[0.06] lg:hidden">
         <ConfidencePill level={confidence.level} note={confidence.note} />
-        <div className="flex gap-5">
+        <div className="flex gap-6">
           {([['Market', m.market_size], ['LTV', m.sub_ltv], ['Margin', m.gross_margin]] as [string, string][])
             .filter(([, v]) => v && v !== 'N/A')
             .map(([l, v]) => <MetaChip key={l} label={l} value={v} />)}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AT-A-GLANCE RAIL — desktop-only persistent inspector panel. Keeps the
+// verdict, score, and key facts in view while scrolling through the deep
+// dive sections below — the thing a centered single column can't do.
+// ═══════════════════════════════════════════════════════════════
+
+function AtAGlanceRail({
+  m, score, decision, confidence,
+}: {
+  m: MemoData; score: number; decision: BuildDecision
+  confidence: { level: 'High' | 'Medium' | 'Low'; note: string }
+}) {
+  const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : 'text-red-400'
+  const facts = ([['Market', m.market_size], ['LTV', m.sub_ltv], ['Margin', m.gross_margin]] as [string, string][])
+    .filter(([, v]) => v && v !== 'N/A')
+
+  return (
+    <div className="card-premium p-5">
+      <p className="label mb-4">At a Glance</p>
+      <div className="flex items-baseline gap-2.5 mb-1">
+        <span className={`font-serif font-medium text-3xl ${c}`}>{score}</span>
+        <span className="text-zinc-600 text-xs">/ 100</span>
+      </div>
+      <VerdictBadge d={decision} />
+      <div className="mt-4 pt-4 border-t border-white/[0.06]">
+        <ConfidencePill level={confidence.level} note={confidence.note} />
+      </div>
+      {facts.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-white/[0.06] space-y-2.5">
+          {facts.map(([l, v]) => (
+            <div key={l} className="flex items-center justify-between gap-3">
+              <span className="text-[10px] text-zinc-600 uppercase tracking-wider shrink-0">{l}</span>
+              <span className="text-xs font-semibold text-zinc-300 font-mono text-right">{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -470,14 +534,14 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
         <EvidenceBadge type="ai-synthesis" />
       </div>
 
-      <blockquote className="border-l-2 border-emerald-400/40 pl-4 sm:pl-5">
-        <p className="text-lg sm:text-xl text-zinc-50 leading-snug font-medium tracking-tight">
+      <blockquote className="border-l-2 border-brass/40 pl-4 sm:pl-5">
+        <p className="font-serif italic text-xl sm:text-[1.5rem] text-zinc-50 leading-snug tracking-tight">
           {thesis}
         </p>
       </blockquote>
 
       {whyNow && (
-        <div className="mt-6 pt-5 border-t border-white/[0.05]">
+        <div className="mt-6 pt-5 border-t border-white/[0.06]">
           <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-2">Why Now</p>
           <p className="text-sm text-zinc-400 leading-relaxed">{whyNow}</p>
         </div>
@@ -669,7 +733,7 @@ function deriveKillCriteria(m: MemoData): string[] {
 const SEVERITY_CFG: Record<string, { cls: string; dot: string }> = {
   High:   { cls: 'text-red-400/90   bg-red-400/5    border-red-400/20',   dot: 'bg-red-400'    },
   Medium: { cls: 'text-amber-400/90 bg-amber-400/5  border-amber-400/20', dot: 'bg-amber-400'  },
-  Low:    { cls: 'text-zinc-400     bg-zinc-800/60   border-zinc-700',     dot: 'bg-zinc-500'   },
+  Low:    { cls: 'text-zinc-400     bg-white/[0.05]   border-white/[0.1]',     dot: 'bg-zinc-500'   },
 }
 
 const TAG_LABEL: Record<string, string> = {
@@ -678,10 +742,10 @@ const TAG_LABEL: Record<string, string> = {
 }
 
 const BLOCK_CFG = [
-  { key: 'win'      as const, icon: '▲', title: 'Why this could win',      cls: 'border-emerald-400/20 bg-emerald-400/5', head: 'text-emerald-400' },
-  { key: 'fail'     as const, icon: '▼', title: 'Why this could fail',     cls: 'border-red-400/20    bg-red-400/5',     head: 'text-red-400'     },
-  { key: 'validate' as const, icon: '◈', title: 'Validate first',          cls: 'border-amber-400/20  bg-amber-400/5',   head: 'text-amber-400'   },
-  { key: 'angle'    as const, icon: '→', title: 'Recommended entry angle', cls: 'border-zinc-700      bg-zinc-800/60',   head: 'text-zinc-300'    },
+  { key: 'win'      as const, Icon: IconTrendUp,    title: 'Why this could win',      cls: 'border-emerald-400/20 bg-emerald-400/5', head: 'text-emerald-400' },
+  { key: 'fail'     as const, Icon: IconTrendDown,  title: 'Why this could fail',     cls: 'border-red-400/20    bg-red-400/5',     head: 'text-red-400'     },
+  { key: 'validate' as const, Icon: IconBeaker,     title: 'Validate first',          cls: 'border-amber-400/20  bg-amber-400/5',   head: 'text-amber-400'   },
+  { key: 'angle'    as const, Icon: IconArrowRight, title: 'Recommended entry angle', cls: 'border-brass/20      bg-brass/[0.05]',   head: 'text-brass'    },
 ]
 
 function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionBlocksData }) {
@@ -705,7 +769,7 @@ function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionB
           {BLOCK_CFG.map(b => (
             <div key={b.key} className={`rounded-xl border p-4 ${b.cls}`}>
               <div className={`flex items-center gap-1.5 mb-2 ${b.head}`}>
-                <span className="text-xs font-bold">{b.icon}</span>
+                <b.Icon className="w-3.5 h-3.5" />
                 <span className="text-[10px] font-bold uppercase tracking-widest">{b.title}</span>
               </div>
               <p className="text-xs text-zinc-300 leading-relaxed">{blocks[b.key]}</p>
@@ -751,7 +815,7 @@ function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionB
         </div>
 
         {/* Validation plan */}
-        <div className="bg-zinc-800/30 rounded-xl p-4">
+        <div className="bg-white/[0.03] rounded-xl p-4">
           <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2.5">First Validation Plan (30–60 days)</p>
           <ol className="space-y-1.5">
             {steps.map((s, i) => (
@@ -764,27 +828,27 @@ function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionB
 
         {/* Budget | Metrics | Kill */}
         <div className="grid sm:grid-cols-3 gap-3">
-          <div className="bg-zinc-800/50 rounded-xl p-4">
+          <div className="bg-white/[0.04] rounded-xl p-4">
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Estimated Validation Budget</p>
             <p className="font-mono font-bold text-lg text-zinc-100 mb-1">{budget.range}</p>
             <p className="text-[11px] text-zinc-500 leading-snug">{budget.breakdown}</p>
           </div>
-          <div className="bg-zinc-800/50 rounded-xl p-4">
+          <div className="bg-white/[0.04] rounded-xl p-4">
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Success Metrics</p>
             <ul className="space-y-1.5">
               {metrics.map((mt, i) => (
                 <li key={i} className="flex gap-2 text-xs text-zinc-300 leading-snug">
-                  <span className="text-emerald-400 shrink-0 mt-0.5">→</span>{mt}
+                  <IconArrowRight className="w-3.5 h-3.5 text-brass shrink-0 mt-0.5" />{mt}
                 </li>
               ))}
             </ul>
           </div>
-          <div className="bg-zinc-800/50 rounded-xl p-4">
+          <div className="bg-white/[0.04] rounded-xl p-4">
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Kill Criteria</p>
             <ul className="space-y-1.5">
               {kill.map((k, i) => (
                 <li key={i} className="flex gap-2 text-xs text-zinc-300 leading-snug">
-                  <span className="text-red-400/70 shrink-0 mt-0.5">✕</span>{k}
+                  <IconX className="w-3 h-3 text-red-400/70 shrink-0 mt-1" />{k}
                 </li>
               ))}
             </ul>
@@ -805,37 +869,31 @@ function ConsumerIntelligenceContent({ m }: { m: MemoData }) {
     <div className="space-y-6">
       <SectionIntro text="Synthesized from customer language patterns — the phrases and emotional drivers that should shape copy and positioning." />
 
-      {/* Frustrations as incoming "messages" */}
+      {/* Frustrations as documented quotes */}
       <div>
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">What buyers are saying</p>
-        <div className="space-y-3">
+        <div className="space-y-4">
           {cl.frustrations.map((q, i) => (
-            <div key={i} className="flex">
-              <div className="bubble-them">
-                <p className="text-sm text-zinc-200 leading-relaxed">{q}</p>
-              </div>
-            </div>
+            <blockquote key={i} className="border-l-2 border-white/[0.1] pl-4">
+              <p className="font-serif italic text-[15px] text-zinc-300 leading-relaxed">&ldquo;{q}&rdquo;</p>
+            </blockquote>
           ))}
         </div>
       </div>
 
-      {/* They say → use in copy, as a two-step conversation */}
+      {/* They say → use in copy, as a side-by-side ledger comparison */}
       <div>
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Ad-Ready Language</p>
-        <div className="space-y-3">
+        <div className="ledger">
           {cl.ad_phrases.map((ap, i) => (
-            <div key={i} className="space-y-1.5">
-              <div className="flex">
-                <div className="bubble-them">
-                  <span className="text-zinc-500 text-[10px] block mb-1">They say</span>
-                  <span className="text-sm text-zinc-300">&ldquo;{ap.they_say}&rdquo;</span>
-                </div>
+            <div key={i} className="ledger-row grid sm:grid-cols-2 gap-4 items-start">
+              <div>
+                <span className="text-[10px] text-zinc-600 uppercase tracking-wider block mb-1.5">They say</span>
+                <p className="text-sm text-zinc-400 italic leading-relaxed">&ldquo;{ap.they_say}&rdquo;</p>
               </div>
-              <div className="flex justify-end">
-                <div className="bubble-us">
-                  <span className="text-emerald-500 text-[10px] block mb-1">Use in copy</span>
-                  <span className="text-sm text-zinc-200">{ap.use_in_copy}</span>
-                </div>
+              <div>
+                <span className="text-[10px] text-brass/80 uppercase tracking-wider block mb-1.5">Use in copy</span>
+                <p className="text-sm text-zinc-100 leading-relaxed">{ap.use_in_copy}</p>
               </div>
             </div>
           ))}
@@ -843,13 +901,13 @@ function ConsumerIntelligenceContent({ m }: { m: MemoData }) {
       </div>
 
       {/* Desires + fears */}
-      <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t border-white/[0.05]">
+      <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t border-white/[0.06]">
         <div>
           <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-2">Desires</p>
           <ul className="space-y-1.5">
             {cl.desires.map((d, i) => (
               <li key={i} className="flex gap-2 text-xs text-zinc-300">
-                <span className="text-emerald-400 shrink-0 mt-0.5">→</span>{d}
+                <IconCheck className="w-3.5 h-3.5 text-brass shrink-0 mt-0.5" />{d}
               </li>
             ))}
           </ul>
@@ -859,7 +917,7 @@ function ConsumerIntelligenceContent({ m }: { m: MemoData }) {
           <ul className="space-y-1.5">
             {cl.fears.map((f, i) => (
               <li key={i} className="flex gap-2 text-xs text-zinc-300">
-                <span className="text-red-400/70 shrink-0 mt-0.5">✕</span>{f}
+                <IconX className="w-3 h-3 text-red-400/70 shrink-0 mt-1" />{f}
               </li>
             ))}
           </ul>
@@ -906,16 +964,16 @@ function MarketSaturationBlock({ m }: { m: MemoData }) {
       <div>
         <div className="flex items-center gap-2.5 mb-3">
           <span className={`font-mono font-bold text-xl ${colorText}`}>{score}<span className="text-zinc-600 text-xs font-normal">/10</span></span>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colorText} bg-zinc-800`}>{label}</span>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colorText} bg-white/[0.06]`}>{label}</span>
         </div>
-        <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-4">
+        <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden mb-4">
           <div className={`h-full rounded-full ${colorBg}`} style={{ width: `${(score / 10) * 100}%`, transition: 'width .7s ease' }}/>
         </div>
-        <div className="grid sm:grid-cols-2 gap-3 mb-4">
+        <div className="ledger mb-4">
           {([['Seller Density', access.density],['Entry Barriers', access.barriers],['Revenue Concentration', access.revenue],['Whitespace', access.whitespace]] as [string,string][]).map(([l,v]) => (
-            <div key={l} className="bg-zinc-800/40 rounded-lg p-3">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{l}</p>
-              <p className="text-xs text-zinc-300 leading-snug">{v}</p>
+            <div key={l} className="ledger-row justify-between gap-4">
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wider shrink-0">{l}</p>
+              <p className="text-xs text-zinc-300 leading-snug text-right">{v}</p>
             </div>
           ))}
         </div>
@@ -930,7 +988,7 @@ function MarketSaturationBlock({ m }: { m: MemoData }) {
   return (
     <div>
       <div className="flex flex-wrap gap-2 mb-4">
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">{sat.maturity ?? '—'}</span>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/[0.06] text-zinc-300 border border-white/[0.1]">{sat.maturity ?? '—'}</span>
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border border-transparent ${concCfg.cls}`}>{concCfg.label}</span>
         <span className={`text-xs font-semibold ${diffCfg.cls}`}>Entry: {sat.entry_difficulty}</span>
       </div>
@@ -961,19 +1019,19 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
       </div>
 
       {/* Signal terminal — demand / virality / subscription as data rows */}
-      <div className="pt-5 border-t border-white/[0.05]">
+      <div className="pt-5 border-t border-white/[0.06]">
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Signal Terminal</p>
-        <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+        <div className="ledger">
           {[
             { label: 'Demand',       dim: demand,       badge: demandBadge,   source: demandSource },
             { label: 'Virality',     dim: virality,     badge: viralityBadge, source: viralitySource },
             { label: 'Subscription', dim: subscription, badge: 'ai-synthesis' as EvidenceType, source: 'AI Synthesis' },
-          ].map((row, i) => {
+          ].map(row => {
             const level = row.dim.score >= 8 ? 'Strong' as const : row.dim.score >= 6 ? 'Moderate' as const : 'Weak' as const
             return (
-              <div key={row.label} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? 'border-t border-white/[0.05]' : ''} bg-zinc-800/20`}>
+              <div key={row.label} className="ledger-row">
                 <span className="text-xs font-semibold text-zinc-300 w-28 shrink-0">{row.label}</span>
-                <span className="font-mono font-bold text-sm text-zinc-100 w-10 shrink-0">{row.dim.score}<span className="text-zinc-600 text-[10px]">/10</span></span>
+                <span className="font-serif font-medium text-base text-zinc-100 w-10 shrink-0">{row.dim.score}<span className="text-zinc-600 text-[10px] font-sans">/10</span></span>
                 <SignalBars level={level} />
                 <span className="flex-1 text-xs text-zinc-500 truncate hidden md:inline">{row.dim.notes}</span>
                 <span className="ml-auto shrink-0 flex items-center gap-2">
@@ -985,16 +1043,16 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
         </div>
       </div>
 
-      {/* Dimension strip — compact, all 5 */}
-      <div className="pt-5 border-t border-white/[0.05]">
+      {/* Dimension strip — compact, all 5, single hairline-divided row */}
+      <div className="pt-5 border-t border-white/[0.06]">
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Dimension Scores</p>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
           {displayDims.map(([key, { score }]) => {
             const [clr] = score >= 8 ? ['text-emerald-400'] : score >= 6 ? ['text-amber-400'] : ['text-red-400']
             return (
-              <div key={key} className="bg-zinc-800/40 rounded-lg p-2.5 text-center">
-                <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-1 truncate">{DIM_LABELS[key] ?? key}</p>
-                <p className={`font-mono font-bold text-sm ${clr}`}>{score}</p>
+              <div key={key} className="flex-1 min-w-[88px] px-2 py-3 text-center">
+                <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-1.5 truncate">{DIM_LABELS[key] ?? key}</p>
+                <p className={`font-serif font-medium text-lg ${clr}`}>{score}</p>
               </div>
             )
           })}
@@ -1002,7 +1060,7 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
       </div>
 
       {/* Market gaps */}
-      <div className="pt-5 border-t border-white/[0.05]">
+      <div className="pt-5 border-t border-white/[0.06]">
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Documented Market Gaps</p>
         <NumList items={m.market_gaps} />
       </div>
@@ -1024,7 +1082,7 @@ function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
 
       {hasComp && (
         <div className="rounded-xl border border-white/[0.06] overflow-hidden">
-          <div className="grid grid-cols-3 bg-zinc-800/40 px-4 py-2.5 text-[10px] text-zinc-500 uppercase tracking-wider">
+          <div className="grid grid-cols-3 bg-white/[0.04] px-4 py-2.5 text-[10px] text-zinc-500 uppercase tracking-wider">
             <span>Brand</span><span>Est. Revenue</span><span>Their Gap</span>
           </div>
           <div className="grid grid-cols-3 px-4 py-3.5 text-sm">
@@ -1057,8 +1115,8 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
     <div className="space-y-5">
       <SectionIntro text="Probability estimates based on comparable DTC launches. Not independently verified — treat as directional, not forecasts." />
       {marketSizeIsUnverified && (
-        <div className="flex items-start gap-2 text-xs text-amber-400/80 bg-amber-400/5 border border-amber-400/15 rounded-lg px-3 py-2.5">
-          <span className="shrink-0 mt-px">⚠</span>
+        <div className="flex items-start gap-2.5 text-xs text-amber-400/80 bg-amber-400/5 border border-amber-400/15 rounded-lg px-3 py-2.5">
+          <IconAlert className="w-3.5 h-3.5 shrink-0 mt-px" />
           <span>Market size not independently verified. Figures shown are AI estimates — consult industry reports before citing.</span>
         </div>
       )}
@@ -1067,15 +1125,15 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
         <ProbBar label="Probability: reach $100k / month" value={fp.hundred_k_probability} />
         <ProbBar label="Probability: reach $1M / month"   value={fp.one_m_probability} />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
         {([
           ['Gross Margin',     fp.gross_margin],
           ['Net at Scale',     fp.net_margin_at_scale],
           ['Subscription LTV', fp.subscription_ltv],
         ] as [string, string][]).map(([l, v]) => (
-          <div key={l} className="bg-zinc-800/50 rounded-lg p-3 text-center">
-            <p className="text-xs text-zinc-500 mb-1">{l}</p>
-            <p className="font-mono font-semibold text-sm">{v ?? '—'}</p>
+          <div key={l} className="flex-1 px-3 py-3.5 text-center">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">{l}</p>
+            <p className="font-serif font-medium text-base">{v ?? '—'}</p>
           </div>
         ))}
       </div>
@@ -1132,15 +1190,15 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
     <div className="space-y-6">
       <SectionIntro text="Recommended product configuration and entry sequence based on gap analysis, manufacturing constraints, and margin targets." />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="flex flex-wrap sm:flex-nowrap divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
         {([
           ['Format', rec.format],
           ['Usage',  rec.dosing],
           ['COGS',   rec.cogs_estimate],
           ['Retail', rec.retail_price],
         ] as [string, string][]).map(([l, v]) => (
-          <div key={l} className="bg-zinc-800/50 rounded-lg p-3">
-            <p className="text-xs text-zinc-500 mb-1">{l}</p>
+          <div key={l} className="flex-1 min-w-[100px] px-3 py-3">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{l}</p>
             <p className="text-xs text-zinc-300 leading-snug font-mono">{v ?? '—'}</p>
           </div>
         ))}
@@ -1151,7 +1209,7 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
         <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
           <table className="w-full text-sm min-w-[480px]">
             <thead>
-              <tr className="bg-zinc-800/40 text-[10px] text-zinc-500 uppercase tracking-wider">
+              <tr className="bg-white/[0.04] text-[10px] text-zinc-500 uppercase tracking-wider">
                 <th className="text-left py-2.5 px-3 w-[30%]">Ingredient</th>
                 <th className="text-left py-2.5 px-3 w-[14%]">Dose</th>
                 <th className="text-left py-2.5 px-3">Role</th>
@@ -1162,7 +1220,7 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
               {rec.formula.map((row, i) => (
                 <tr key={i} className="border-t border-white/[0.05] hover:bg-white/[0.02]">
                   <td className="py-3 px-3 font-medium text-sm">{row.ingredient}</td>
-                  <td className="py-3 px-3 font-mono text-emerald-400 text-xs">{row.dose}</td>
+                  <td className="py-3 px-3 font-mono text-brass text-xs">{row.dose}</td>
                   <td className="py-3 px-3 text-zinc-400 text-xs leading-relaxed">{row.role}</td>
                   <td className="py-3 px-3 text-center text-sm">{row.evidence}</td>
                 </tr>
@@ -1178,7 +1236,7 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
           <ul className="space-y-1.5">
             {rec.avoid.map((a, i) => (
               <li key={i} className="flex gap-2 text-sm text-zinc-300">
-                <span className="text-red-400/70 shrink-0 mt-0.5">✕</span>{a}
+                <IconX className="w-3 h-3 text-red-400/70 shrink-0 mt-1" />{a}
               </li>
             ))}
           </ul>
@@ -1186,7 +1244,7 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
       )}
 
       {fp.path_to_10m && (
-        <div className="bg-zinc-800/50 rounded-lg p-4">
+        <div className="bg-white/[0.04] rounded-lg p-4">
           <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Path to $10M ARR</p>
           <p className="text-sm text-zinc-300 leading-relaxed">{fp.path_to_10m}</p>
         </div>
@@ -1215,10 +1273,10 @@ function RiskAssessmentContent({ m }: { m: MemoData }) {
   return (
     <div className="space-y-3">
       <SectionIntro text="Dimensions where market structure works against you — each is a thesis-breaking risk if not addressed at launch." />
-      <div className="rounded-xl border border-white/[0.06] overflow-hidden">
-        {weak.map(([key, { score, notes }], i) => (
-          <div key={key} className={`flex gap-3 px-4 py-3.5 ${i > 0 ? 'border-t border-white/[0.05]' : ''} ${score <= 3 ? 'bg-red-400/[0.04]' : 'bg-amber-400/[0.03]'}`}>
-            <span className={`font-mono font-bold text-sm shrink-0 w-9 ${score <= 3 ? 'text-red-400' : 'text-amber-400'}`}>{score}/10</span>
+      <div className="rounded-xl border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
+        {weak.map(([key, { score, notes }]) => (
+          <div key={key} className={`flex gap-3 px-4 py-3.5 ${score <= 3 ? 'bg-red-400/[0.04]' : 'bg-amber-400/[0.03]'}`}>
+            <span className={`font-serif font-medium text-base shrink-0 w-10 ${score <= 3 ? 'text-red-400' : 'text-amber-400'}`}>{score}/10</span>
             <div className="min-w-0">
               <p className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${score <= 3 ? 'text-red-400' : 'text-amber-400'}`}>
                 {DIM_LABELS[key] ?? key}
@@ -1247,9 +1305,9 @@ function inferManufacturingCategory(format: string): string {
   return 'consumer goods'
 }
 
-function PipelineStage({ label, value, sub, active = true }: { label: string; value: string; sub?: string; active?: boolean }) {
+function PipelineStage({ label, value, sub }: { label: string; value: string; sub?: string; active?: boolean }) {
   return (
-    <div className={`flex-1 min-w-[110px] rounded-lg p-3 ${active ? 'bg-zinc-800/50' : 'bg-zinc-800/20'}`}>
+    <div className="flex-1 min-w-[110px] px-3 py-3">
       <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-1.5">{label}</p>
       <p className="text-sm font-semibold text-zinc-200 font-mono leading-snug">{value}</p>
       {sub && <p className="text-[10px] text-zinc-500 mt-0.5">{sub}</p>}
@@ -1261,7 +1319,7 @@ function MfgConfidencePill({ label }: { label: 'High' | 'Medium' | 'Low' }) {
   const cfg = {
     High:   { cls: 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5', dot: 'bg-emerald-400' },
     Medium: { cls: 'text-amber-400   border-amber-400/20   bg-amber-400/5',   dot: 'bg-amber-400'   },
-    Low:    { cls: 'text-zinc-500    border-zinc-700        bg-zinc-800/40',   dot: 'bg-zinc-500'    },
+    Low:    { cls: 'text-zinc-500    border-white/[0.1]        bg-white/[0.04]',   dot: 'bg-zinc-500'    },
   }[label]
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs border rounded-full px-2.5 py-1 ${cfg.cls}`}>
@@ -1298,30 +1356,30 @@ function ManufacturingDisplay({ est, mfgScore }: { est: MfgEstimate; mfgScore: n
 
       {/* Headline number */}
       <div className="flex items-end gap-2">
-        <span className="font-mono font-bold text-3xl text-zinc-50 tracking-tight">{unitCostLow}–{unitCostHigh}</span>
+        <span className="font-serif font-medium text-3xl text-zinc-50 tracking-tight">{unitCostLow}–{unitCostHigh}</span>
         <span className="text-xs text-zinc-500 mb-1">per unit, landed</span>
       </div>
 
       {/* Pipeline strip — Sourcing → Production → QA → Shipping */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-x-auto">
         <PipelineStage label="Sourcing"   value={suppliers}        sub={`${est.supplier_count.confidence} confidence`} />
         <PipelineStage label="Production" value={moq}              sub="MOQ" />
         <PipelineStage label="QA"         value={rating}           sub="avg. supplier rating" />
         <PipelineStage label="Shipping"   value={leadTime}         sub="lead time" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-zinc-800/50 rounded-lg p-3">
+      <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
+        <div className="flex-1 px-3 py-3">
           <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Manufacturing Difficulty</p>
           <p className={`text-sm font-semibold leading-snug ${complexityColor}`}>{est.complexity}</p>
           {mfgScore > 0 && <p className="text-[11px] text-zinc-500 mt-0.5">Score: {mfgScore}/10</p>}
         </div>
-        <div className="bg-zinc-800/50 rounded-lg p-3 flex items-center justify-between">
+        <div className="flex-1 px-3 py-3 flex items-center justify-between">
           <MfgConfidencePill label={est.confidence_label} />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/[0.05]">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/[0.06]">
         <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
           <span>Source:</span><EvidenceBadge type={sourceBadge} />
         </div>
@@ -1388,7 +1446,7 @@ function ManufacturingIntelligence({ m }: { m: MemoData }) {
       )}
       {status === 'error' && (
         <div className="flex items-start gap-2 text-xs text-red-400/80 bg-red-400/5 border border-red-400/15 rounded-lg px-3 py-2.5">
-          <span className="shrink-0">✕</span>
+          <IconX className="w-3.5 h-3.5 shrink-0 mt-px" />
           Manufacturing estimate unavailable — please try again later.
         </div>
       )}
@@ -1414,14 +1472,14 @@ function FinalRecommendation({ m, decision }: { m: MemoData; decision: BuildDeci
   }[decision]
 
   return (
-    <div className={`card-premium p-6 sm:p-8 border ${cfg.bg}`}>
-      <p className="label mb-4">Final Recommendation</p>
+    <div className={`card-premium p-6 sm:p-9 border ${cfg.bg}`}>
+      <p className="label mb-5">Final Recommendation</p>
       <div className="flex items-baseline gap-3 mb-4">
-        <span className={`text-2xl font-bold tracking-tight ${cfg.cls}`}>{cfg.label}</span>
+        <span className={`font-serif text-3xl font-medium tracking-tight ${cfg.cls}`}>{cfg.label}</span>
         <span className="text-sm text-zinc-500">at {budget.range} initial validation spend</span>
       </div>
-      <p className="text-sm text-zinc-300 leading-relaxed mb-5">{m.build_explanation}</p>
-      <div className="pt-4 border-t border-white/[0.05]">
+      <p className="text-sm text-zinc-300 leading-relaxed mb-6">{m.build_explanation}</p>
+      <div className="pt-5 border-t border-white/[0.06]">
         <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Watch for</p>
         <p className="text-xs text-zinc-400 leading-relaxed">{kill[0]}</p>
       </div>
@@ -1440,20 +1498,23 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
   const containerRef        = useRef<HTMLDivElement>(null)
 
   return (
-    <div ref={containerRef} className="space-y-5">
+    <div ref={containerRef} className="lg:grid lg:grid-cols-[1fr_272px] lg:gap-10 lg:items-start">
 
-      {/* ── Always visible: masthead, executive summary, thesis ───── */}
-      <div className="space-y-5 animate-in">
-        <Masthead m={m} score={score} decision={decision} confidence={confidence} generatedAt={generatedAt} />
-        <ExecutiveSummary m={m} />
-        <InvestmentThesisSection m={m} blocks={blocks} />
-      </div>
+      {/* ── Main document column ────────────────────────────────────── */}
+      <div className="space-y-5 min-w-0">
 
-      {/* ── Sticky nav for the deep-dive sections below ───────────── */}
-      <SectionNav />
+        {/* ── Always visible: masthead, executive summary, thesis ───── */}
+        <div className="space-y-5 animate-in">
+          <Masthead m={m} score={score} decision={decision} confidence={confidence} generatedAt={generatedAt} />
+          <ExecutiveSummary m={m} />
+          <InvestmentThesisSection m={m} blocks={blocks} />
+        </div>
 
-      {/* ── Deep-dive sections — collapsed by default, rich preview ── */}
-      <div className="space-y-3 pt-1">
+        {/* ── Sticky horizontal nav (mobile/tablet only) ─────────────── */}
+        <SectionNav />
+
+        {/* ── Deep-dive sections — collapsed by default, rich preview ── */}
+        <div className="space-y-3 pt-1">
         <Collapsible
           id="market-intelligence"
           title="Market Intelligence"
@@ -1513,10 +1574,19 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
         >
           <RiskAssessmentContent m={m} />
         </Collapsible>
+        </div>
+
+        {/* ── Closing moment ───────────────────────────────────────── */}
+        <FinalRecommendation m={m} decision={decision} />
       </div>
 
-      {/* ── Closing moment ─────────────────────────────────────────── */}
-      <FinalRecommendation m={m} decision={decision} />
+      {/* ── Persistent inspector rail (desktop only) ────────────────── */}
+      <aside className="hidden lg:block lg:sticky lg:top-6 space-y-4">
+        <AtAGlanceRail m={m} score={score} decision={decision} confidence={confidence} />
+        <div className="card-premium p-5">
+          <RailNav />
+        </div>
+      </aside>
     </div>
   )
 }

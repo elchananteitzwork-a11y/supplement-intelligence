@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { IconCheck } from '@/components/icons'
 
 const CATEGORIES = [
   { value: 'accuracy', label: 'Accuracy' },
@@ -44,7 +45,7 @@ export default function FeedbackWidget({
   if (done) {
     return (
       <div className="card p-6 text-center animate-fade-in">
-        <div className="text-2xl mb-2">✓</div>
+        <IconCheck className="w-5 h-5 text-brass mx-auto mb-2" />
         <p className="text-sm text-zinc-300 font-medium">Thank you for the feedback.</p>
         <p className="text-xs text-zinc-500 mt-1">It directly shapes the next version.</p>
       </div>
@@ -70,7 +71,7 @@ export default function FeedbackWidget({
               className={
                 s <= (hover || rating)
                   ? 'text-amber-400'
-                  : 'text-zinc-700'
+                  : 'text-white/[0.15]'
               }
             >
               ★
@@ -93,7 +94,7 @@ export default function FeedbackWidget({
                   className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                     category === c.value
                       ? 'bg-white/10 border-white/30 text-white'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'
+                      : 'bg-white/[0.06] border-white/[0.1] text-zinc-400 hover:text-white'
                   }`}
                 >
                   {c.label}

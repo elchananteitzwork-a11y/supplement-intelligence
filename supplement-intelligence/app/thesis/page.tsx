@@ -5,6 +5,7 @@ import { useRouter }            from 'next/navigation'
 import Link                     from 'next/link'
 import { useThesis }            from '@/hooks/useThesis'
 import type { ThesisDepth, MarketThesis } from '@/lib/thesis-engine'
+import { IconCheck }            from '@/components/icons'
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -44,9 +45,9 @@ const TIMING_VERDICT_COLOR: Record<string, string> = {
 
 function ProgressBar({ pct }: { pct: number }) {
   return (
-    <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+    <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
       <div
-        className="h-full bg-emerald-400 rounded-full transition-all duration-700 ease-out"
+        className="h-full bg-brass rounded-full transition-all duration-700 ease-out"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -60,16 +61,16 @@ function ProviderPill({
   state: 'active' | 'done' | 'failed' | 'pending'
 }) {
   const styles = {
-    active:  'bg-zinc-800 border-emerald-500/50 text-emerald-300',
-    done:    'bg-zinc-800 border-emerald-800   text-zinc-400',
-    failed:  'bg-zinc-800 border-red-900       text-zinc-600',
-    pending: 'bg-zinc-900 border-zinc-800      text-zinc-700',
+    active:  'bg-white/[0.06] border-brass/50      text-brass',
+    done:    'bg-white/[0.06] border-white/[0.12]  text-zinc-400',
+    failed:  'bg-white/[0.06] border-red-900       text-zinc-600',
+    pending: 'bg-white/[0.03] border-white/[0.07]  text-zinc-700',
   }
   const icons = {
-    active:  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>,
-    done:    <span className="text-emerald-600 leading-none">✓</span>,
+    active:  <span className="inline-block w-1.5 h-1.5 rounded-full bg-brass animate-pulse"/>,
+    done:    <IconCheck className="w-2.5 h-2.5 text-zinc-500" />,
     failed:  <span className="text-zinc-700 leading-none">—</span>,
-    pending: <span className="inline-block w-1.5 h-1.5 rounded-full bg-zinc-700"/>,
+    pending: <span className="inline-block w-1.5 h-1.5 rounded-full bg-white/[0.15]"/>,
   }
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${styles[state]}`}>
@@ -82,7 +83,7 @@ function ProviderPill({
 function SectionPip({ label, ready }: { label: string; ready: boolean }) {
   return (
     <div className={`flex items-center gap-1.5 text-xs ${ready ? 'text-zinc-400' : 'text-zinc-700'}`}>
-      <div className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-emerald-400' : 'bg-zinc-800'}`}/>
+      <div className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-brass' : 'bg-white/[0.1]'}`}/>
       {label}
     </div>
   )
@@ -110,10 +111,10 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
         <div className="flex items-start justify-between gap-4 mb-3">
           <div>
             <p className="label mb-1">Verdict</p>
-            <h2 className="text-lg font-semibold leading-snug">{verdict.headline}</h2>
+            <h2 className="font-serif text-lg font-medium leading-snug">{verdict.headline}</h2>
           </div>
           <div className="shrink-0 text-right">
-            <p className="font-mono font-bold text-3xl text-emerald-400">
+            <p className="font-serif font-medium text-3xl text-brass">
               {verdict.opportunity_score}
             </p>
             <p className="text-xs text-zinc-500 mt-0.5">/ 100</p>
@@ -123,8 +124,8 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
           {verdict.signal_strength}
         </p>
         <p className="text-sm text-zinc-300 leading-relaxed mb-3">{verdict.summary}</p>
-        <blockquote className="border-l-2 border-emerald-500 pl-3 italic text-sm text-zinc-400">
-          {verdict.one_liner}
+        <blockquote className="border-l-2 border-brass/40 pl-3">
+          <p className="font-serif italic text-sm text-zinc-300">{verdict.one_liner}</p>
         </blockquote>
         <div className="mt-3">
           <ConfidenceBadge label={verdict.confidence.label} value={verdict.confidence.value}/>
@@ -149,7 +150,7 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
         {timing.trend_signals.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {timing.trend_signals.map((ts, i) => (
-              <span key={i} className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400">
+              <span key={i} className="text-xs px-2 py-1 rounded bg-white/[0.06] text-zinc-400">
                 {ts.label}: <span className="font-mono">{ts.metric}</span>
               </span>
             ))}
@@ -163,7 +164,7 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
         <p className="text-sm text-zinc-400 mb-4">{market_failures.headline}</p>
         <div className="space-y-3">
           {market_failures.failures.map(f => (
-            <div key={f.id} className="border border-zinc-800 rounded-lg p-3">
+            <div key={f.id} className="border border-white/[0.07] rounded-lg p-3">
               <div className="flex items-start justify-between gap-2 mb-1">
                 <h4 className="text-sm font-semibold">{f.title}</h4>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -177,7 +178,7 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
                 </div>
               </div>
               <p className="text-xs text-zinc-400 mb-2">{f.description}</p>
-              <p className="text-xs text-emerald-600">{f.opportunity}</p>
+              <p className="text-xs text-brass/90">{f.opportunity}</p>
             </div>
           ))}
         </div>
@@ -194,7 +195,7 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
         <p className="text-xs text-zinc-500 mb-3">Primary challenge: {difficulty.primary_challenge}</p>
         <div className="grid grid-cols-2 gap-2">
           {difficulty.dimensions.map(dim => (
-            <div key={dim.name} className="bg-zinc-800/60 rounded-lg p-2.5">
+            <div key={dim.name} className="bg-white/[0.04] rounded-lg p-2.5">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] text-zinc-500 uppercase tracking-wide">{dim.name}</span>
                 <span className={`font-mono text-xs font-bold ${
@@ -214,11 +215,11 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
         <p className="label mb-2">Product Thesis</p>
         <p className="text-sm font-semibold mb-1">{product_thesis.headline}</p>
         <p className="text-sm text-zinc-400 mb-3">{product_thesis.summary}</p>
-        <div className="bg-zinc-800/60 rounded-lg p-3 mb-3">
+        <div className="bg-white/[0.04] rounded-lg p-3 mb-3">
           <p className="text-xs text-zinc-500 mb-1">Positioning angle</p>
           <p className="text-sm italic text-zinc-300">"{product_thesis.positioning_angle}"</p>
         </div>
-        <div className="bg-zinc-800/60 rounded-lg p-3 mb-3">
+        <div className="bg-white/[0.04] rounded-lg p-3 mb-3">
           <p className="text-xs text-zinc-500 mb-1">Differentiation: {product_thesis.differentiation.vector}</p>
           <p className="text-xs text-zinc-400">{product_thesis.differentiation.description}</p>
           <p className="text-xs text-zinc-600 mt-1">Moat: {product_thesis.differentiation.moat}</p>
@@ -235,7 +236,7 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
                 <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full mr-1.5 mb-0.5 ${
                   step.priority === 'immediate'   ? 'bg-emerald-400/10 text-emerald-400' :
                   step.priority === 'short_term'  ? 'bg-amber-400/10  text-amber-400'   :
-                                                    'bg-zinc-800      text-zinc-500'
+                                                    'bg-white/[0.06]      text-zinc-500'
                 }`}>
                   {step.priority.replace('_', ' ')}
                 </span>
@@ -366,7 +367,7 @@ export default function ThesisPage() {
 
           {/* section pips */}
           {synthesizing && (
-            <div className="border-t border-zinc-800 pt-4 mt-2">
+            <div className="border-t border-white/[0.07] pt-4 mt-2">
               <p className="text-xs text-zinc-600 mb-2">Sections</p>
               <div className="grid grid-cols-2 gap-y-1.5 gap-x-3">
                 {SECTIONS.map(s => (
@@ -430,7 +431,7 @@ export default function ThesisPage() {
           ← Dashboard
         </Link>
 
-        <h1 className="text-2xl font-bold mb-1">Market Thesis</h1>
+        <h1 className="font-serif text-2xl font-medium mb-1">Market Thesis</h1>
         <p className="text-sm text-zinc-400 mb-8">
           Enter a supplement idea or category to get a structured market intelligence report.
         </p>
@@ -466,8 +467,8 @@ export default function ThesisPage() {
                   onClick={() => setDepth(d.value)}
                   className={`text-left p-3 rounded-lg border text-sm transition-colors ${
                     depth === d.value
-                      ? 'border-emerald-500/50 bg-emerald-500/5 text-white'
-                      : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700'
+                      ? 'border-brass/50 bg-brass/5 text-white'
+                      : 'border-white/[0.07] bg-white/[0.03] text-zinc-400 hover:border-white/[0.1]'
                   }`}
                 >
                   <span className="block font-medium mb-0.5">{d.label}</span>

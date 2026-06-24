@@ -21,10 +21,10 @@ export default async function MemoPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen py-10 px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-6xl mx-auto">
 
         {/* nav */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 lg:max-w-[840px]">
           <Link href="/dashboard" className="btn-ghost text-xs -ml-2">← Analyses</Link>
           <div className="flex items-center gap-2">
             <CopyLinkButton />
@@ -36,13 +36,13 @@ export default async function MemoPage({ params }: { params: { id: string } }) {
         <MemoDisplay memo={a.memo_data} generatedAt={a.created_at} />
 
         {/* feedback */}
-        <div className="mt-8">
+        <div className="mt-8 lg:max-w-[840px]">
           <p className="label mb-3">Feedback</p>
           <FeedbackWidget analysisId={a.id} />
         </div>
 
         {/* bottom nav */}
-        <div className="mt-8 pt-6 border-t border-zinc-900 flex justify-between">
+        <div className="mt-8 pt-6 border-t border-white/[0.06] flex justify-between lg:max-w-[840px]">
           <Link href="/dashboard"   className="btn-ghost text-sm">← Dashboard</Link>
           <Link href="/leaderboard" className="btn-ghost text-sm">Leaderboard →</Link>
         </div>

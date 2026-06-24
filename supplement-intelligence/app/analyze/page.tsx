@@ -10,6 +10,7 @@ import {
   type CategoryClientConfig,
 } from '@/lib/categories/client-config'
 import type { OpportunityCard } from '@/types/index'
+import { IconSpark, IconTarget, IconBeaker } from '@/components/icons'
 
 // ── constants ─────────────────────────────────────────────────
 
@@ -72,16 +73,16 @@ function DifficultyBadge({ d }: { d: OpportunityCard['difficulty'] }) {
 
 function MetaRow({ opp }: { opp: OpportunityCard }) {
   return (
-    <div className="grid grid-cols-3 gap-2 mt-3">
-      <div className="bg-zinc-800/60 rounded-lg p-2.5 text-center">
+    <div className="flex divide-x divide-white/[0.06] rounded-lg border border-white/[0.06] mt-3 overflow-hidden">
+      <div className="flex-1 px-2.5 py-2.5 text-center">
         <p className="text-[10px] text-zinc-500 mb-1">Startup Cost</p>
         <p className="text-xs font-semibold text-white">{opp.startup_cost}</p>
       </div>
-      <div className="bg-zinc-800/60 rounded-lg p-2.5 text-center">
+      <div className="flex-1 px-2.5 py-2.5 text-center">
         <p className="text-[10px] text-zinc-500 mb-1">Difficulty</p>
         <DifficultyBadge d={opp.difficulty} />
       </div>
-      <div className="bg-zinc-800/60 rounded-lg p-2.5 text-center">
+      <div className="flex-1 px-2.5 py-2.5 text-center">
         <p className="text-[10px] text-zinc-500 mb-1">Launch Time</p>
         <p className="text-xs font-semibold text-white">{opp.launch_time}</p>
       </div>
@@ -131,7 +132,7 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
   return (
     <div className="grid grid-cols-2 gap-2 mt-3">
       {dims.map(({ label, score, facts }) => (
-        <div key={label} className="bg-zinc-800/40 border border-white/[0.04] rounded-xl p-3">
+        <div key={label} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">{label}</span>
             {score >= 0
@@ -156,14 +157,14 @@ function StepList({ steps, stepIdx }: { steps: string[]; stepIdx: number }) {
       {steps.map((s, i) => (
         <div key={s} className="flex items-center gap-3 text-sm">
           {i < stepIdx
-            ? <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            ? <svg className="w-4 h-4 text-brass shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>
               </svg>
             : i === stepIdx
               ? <div className="w-4 h-4 shrink-0 grid place-items-center">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/>
+                  <div className="w-2 h-2 rounded-full bg-brass animate-pulse"/>
                 </div>
-              : <div className="w-4 h-4 shrink-0 rounded-full border border-zinc-700"/>
+              : <div className="w-4 h-4 shrink-0 rounded-full border border-white/[0.1]"/>
           }
           <span className={
             i < stepIdx   ? 'text-zinc-600 line-through' :
@@ -184,14 +185,14 @@ function ProgressRing({ stepIdx, total }: { stepIdx: number; total: number }) {
     <div className="relative w-24 h-24 mx-auto mb-8">
       <svg className="w-24 h-24 -rotate-90" viewBox="0 0 96 96">
         <circle cx="48" cy="48" r={r} fill="none" stroke="#27272a" strokeWidth="6"/>
-        <circle cx="48" cy="48" r={r} fill="none" stroke="#34d399" strokeWidth="6"
+        <circle cx="48" cy="48" r={r} fill="none" stroke="#C8A463" strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={circ - (circ * pct) / 100}
-          style={{ transition: 'stroke-dashoffset 1s ease' }}
+          style={{ transition: 'stroke-dashoffset 1s var(--ease-premium, ease)' }}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-mono text-sm font-semibold text-emerald-400">
+      <span className="absolute inset-0 flex items-center justify-center font-serif font-medium text-base text-brass">
         {pct}%
       </span>
     </div>
@@ -220,8 +221,8 @@ function CategorySelector({
         onClick={() => onSelect(autoConfig.id)}
         className={`w-full mb-3 px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors text-left flex items-center gap-2 ${
           selected === autoConfig.id
-            ? 'bg-emerald-400/10 border-emerald-400/40 text-emerald-400'
-            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600'
+            ? 'bg-brass/10 border-brass/40 text-brass'
+            : 'bg-white/[0.06] border-white/[0.1] text-zinc-400 hover:text-white hover:border-white/[0.2]'
         }`}
       >
         <span className="text-base">{autoConfig.icon}</span>
@@ -241,8 +242,8 @@ function CategorySelector({
             onClick={() => onSelect(cat.id)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               selected === cat.id
-                ? 'bg-emerald-400/10 border-emerald-400/40 text-emerald-400'
-                : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600'
+                ? 'bg-brass/10 border-brass/40 text-brass'
+                : 'bg-white/[0.06] border-white/[0.1] text-zinc-400 hover:text-white hover:border-white/[0.2]'
             }`}
           >
             <span className="mr-1">{cat.icon}</span>{cat.name}
@@ -257,7 +258,7 @@ function CategorySelector({
 
 function DetectedCategoryBadge({ config }: { config: CategoryClientConfig }) {
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full">
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-brass bg-brass/10 border border-brass/20 px-2 py-0.5 rounded-full">
       <span>{config.icon}</span> {config.name}
     </span>
   )
@@ -438,8 +439,8 @@ export default function AnalyzePage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md card p-10 text-center animate-in">
-          <div className="w-10 h-10 rounded-full bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center mx-auto mb-8 text-xl">
-            ⚡
+          <div className="w-10 h-10 rounded-full bg-brass/10 border border-brass/30 flex items-center justify-center mx-auto mb-8">
+            <IconSpark className="w-4 h-4 text-brass" />
           </div>
           <p className="text-base font-semibold mb-1 truncate px-4">&ldquo;{input}&rdquo;</p>
           <p className="text-sm text-zinc-400 mb-8 h-5">{CLASSIFYING_STEPS[stepIdx]}</p>
@@ -486,26 +487,16 @@ export default function AnalyzePage() {
 
     return (
       <div className="min-h-screen py-14 px-4">
-        <div className="max-w-2xl mx-auto animate-in">
+        <div className="max-w-6xl mx-auto animate-in lg:grid lg:grid-cols-[1fr_272px] lg:gap-10 lg:items-start">
+        <div className="min-w-0">
 
-          <button onClick={() => setMode('form')} className="btn-ghost text-xs -ml-2 mb-6">
+          <button onClick={() => setMode('form')} className="btn-ghost text-xs -ml-2 mb-6 lg:hidden">
             ← New Search
           </button>
 
-          <div className="flex items-center flex-wrap gap-2 mb-1">
-            <p className="label">{opportunities.length} opportunities found</p>
-            {isAutoMode && detectedConfig && (
-              <DetectedCategoryBadge config={detectedConfig} />
-            )}
-            {cached && cacheWeek && (
-              <span className="text-[10px] font-medium text-zinc-500 bg-zinc-800/80 border border-zinc-700 px-2 py-0.5 rounded-full">
-                {cacheStatus === 'updated' ? 'Updated this week' : 'Cached this week'} · {cacheWeek}
-              </span>
-            )}
-          </div>
-          <h1 className="text-2xl font-bold mb-2">
+          <h1 className="font-serif text-2xl font-medium mb-2">
             Top Opportunities in{' '}
-            <span className="text-emerald-400">{input}</span>
+            <span className="italic text-brass">{input}</span>
           </h1>
           {resultCategoryName && resultCategoryName !== 'Supplements' && (
             <p className="text-xs text-zinc-600 mb-1">
@@ -528,7 +519,7 @@ export default function AnalyzePage() {
             {top3.map((opp, i) => (
               <div key={opp.name}
                 className="card-premium p-5 sm:p-6"
-                style={{ borderColor: 'rgba(52,211,153,.16)' }}
+                style={{ borderColor: 'rgba(200,164,99,.22)' }}
               >
                 <div className="flex items-start gap-4">
                   <span className="font-mono font-bold text-xl text-zinc-600 shrink-0 pt-0.5 w-5 text-right">
@@ -538,7 +529,7 @@ export default function AnalyzePage() {
                     <div className="flex items-start justify-between gap-3">
                       <h3 className="font-semibold text-base leading-snug">{opp.name}</h3>
                       <div className="flex flex-col items-end shrink-0">
-                        <span className={`font-mono font-bold text-2xl ${scoreColor(opp.score)}`}>
+                        <span className={`font-serif font-medium text-2xl ${scoreColor(opp.score)}`}>
                           {opp.score}
                         </span>
                         {showMeta && opp._meta && opp._meta.score_delta !== 0 && (
@@ -551,7 +542,7 @@ export default function AnalyzePage() {
                     {showMeta && (opp._meta?.is_new || opp._meta?.trending) && (
                       <div className="flex items-center gap-1.5 mt-1.5">
                         {opp._meta!.is_new && (
-                          <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[10px] font-semibold text-brass bg-brass/10 border border-brass/20 px-1.5 py-0.5 rounded-full">
                             New this week
                           </span>
                         )}
@@ -595,7 +586,7 @@ export default function AnalyzePage() {
                       <div className="flex items-center gap-1.5">
                         <p className="font-medium text-sm group-hover:text-white truncate">{opp.name}</p>
                         {showMeta && opp._meta?.is_new && (
-                          <span className="text-[10px] font-semibold text-emerald-400 shrink-0">New</span>
+                          <span className="text-[10px] font-semibold text-brass shrink-0">New</span>
                         )}
                         {showMeta && opp._meta?.trending && (
                           <span className="text-[10px] text-amber-400 shrink-0">↑</span>
@@ -608,7 +599,7 @@ export default function AnalyzePage() {
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <DifficultyBadge d={opp.difficulty} />
-                      <span className={`font-mono font-bold text-lg ${scoreColor(opp.score)}`}>
+                      <span className={`font-serif font-medium text-lg ${scoreColor(opp.score)}`}>
                         {opp.score}
                       </span>
                       <svg className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors"
@@ -622,6 +613,41 @@ export default function AnalyzePage() {
             </>
           )}
         </div>
+
+        {/* ── Persistent search-summary rail (desktop only) ─────────── */}
+        <aside className="hidden lg:block lg:sticky lg:top-10 space-y-4">
+          <div className="card-premium p-5">
+            <p className="label mb-4">Search Summary</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-1">Query</p>
+                <p className="text-sm font-serif italic text-brass truncate">&ldquo;{input}&rdquo;</p>
+              </div>
+              <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Found</p>
+                <p className="text-sm font-semibold text-zinc-200">{opportunities.length} opportunities</p>
+              </div>
+              {isAutoMode && detectedConfig && (
+                <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Category</p>
+                  <DetectedCategoryBadge config={detectedConfig} />
+                </div>
+              )}
+              {cached && cacheWeek && (
+                <div className="pt-3 border-t border-white/[0.06]">
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-1">Data freshness</p>
+                  <p className="text-xs text-zinc-400">
+                    {cacheStatus === 'updated' ? 'Updated this week' : 'Cached this week'} · {cacheWeek}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          <button onClick={() => setMode('form')} className="btn-dark w-full text-sm py-2.5">
+            ← New Search
+          </button>
+        </aside>
+        </div>
       </div>
     )
   }
@@ -629,13 +655,14 @@ export default function AnalyzePage() {
   // ── FORM ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen py-16 px-4">
-      <div className="max-w-xl mx-auto animate-in">
+      <div className="max-w-5xl mx-auto animate-in lg:grid lg:grid-cols-[1fr_272px] lg:gap-10 lg:items-start">
+      <div className="min-w-0">
 
         <Link href="/dashboard" className="btn-ghost text-xs mb-6 -ml-2 inline-flex">
           ← Analyses
         </Link>
 
-        <h1 className="text-2xl font-bold mb-1">Discover Opportunities</h1>
+        <h1 className="font-serif text-2xl font-medium mb-1">Discover Opportunities</h1>
         <p className="text-sm text-zinc-400 mb-8">
           {isAutoMode
             ? 'Type any product idea — Open Discovery routes to the right category automatically.'
@@ -665,13 +692,13 @@ export default function AnalyzePage() {
             />
             <div className="flex items-center justify-between">
               {input.trim() && !isAutoMode ? (
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-500 flex items-center gap-1.5">
                   {broad
-                    ? '◎  Broad category — will discover 20 ranked opportunities'
-                    : '◈  Specific idea — will generate full investment memo'}
+                    ? <><IconTarget className="w-3 h-3 text-brass shrink-0" /> Broad category — will discover 20 ranked opportunities</>
+                    : <><IconBeaker className="w-3 h-3 text-brass shrink-0" /> Specific idea — will generate full investment memo</>}
                 </p>
               ) : input.trim() && isAutoMode ? (
-                <p className="text-xs text-zinc-500">⚡ Open Discovery — category detected automatically</p>
+                <p className="text-xs text-zinc-500 flex items-center gap-1.5"><IconSpark className="w-3 h-3 text-brass shrink-0" /> Open Discovery — category detected automatically</p>
               ) : (
                 <p className="text-xs text-zinc-600">Costs 1 slot per full report</p>
               )}
@@ -741,7 +768,7 @@ export default function AnalyzePage() {
                 <div className="flex flex-wrap gap-2">
                   {category.examples.broad.map(ex => (
                     <button key={ex} type="button" onClick={() => setInput(ex)}
-                      className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
+                      className="text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.1] text-zinc-400 hover:text-white hover:border-white/[0.2] transition-colors">
                       {ex}
                     </button>
                   ))}
@@ -755,7 +782,7 @@ export default function AnalyzePage() {
                     <div className="flex flex-wrap gap-2">
                       {category.examples.broad.map(ex => (
                         <button key={ex} type="button" onClick={() => setInput(ex)}
-                          className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
+                          className="text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.1] text-zinc-400 hover:text-white hover:border-white/[0.2] transition-colors">
                           {ex}
                         </button>
                       ))}
@@ -768,7 +795,7 @@ export default function AnalyzePage() {
                     <div className="flex flex-wrap gap-2">
                       {category.examples.specific.map(ex => (
                         <button key={ex} type="button" onClick={() => setInput(ex)}
-                          className="text-xs px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors">
+                          className="text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.1] text-zinc-400 hover:text-white hover:border-white/[0.2] transition-colors">
                           {ex}
                         </button>
                       ))}
@@ -780,6 +807,33 @@ export default function AnalyzePage() {
           </div>
 
         </form>
+      </div>
+
+      {/* ── Process rail (desktop only) ──────────────────────────── */}
+      <aside className="hidden lg:block lg:sticky lg:top-10 space-y-4">
+        <div className="card-premium p-5">
+          <p className="label mb-4">How it works</p>
+          <div className="space-y-4">
+            {[
+              { n: '01', t: 'Type your idea', b: 'Broad category or specific concept.' },
+              { n: '02', t: 'Wait ~60 seconds', b: 'Demand, virality, manufacturing, and defensibility get scored.' },
+              { n: '03', t: 'Get your answer', b: 'Market gaps, formula, financials, and a BUILD / SKIP verdict.' },
+            ].map(s => (
+              <div key={s.n} className="flex gap-3">
+                <span className="font-serif italic text-lg text-brass/70 shrink-0">{s.n}</span>
+                <div>
+                  <p className="text-sm font-medium leading-snug">{s.t}</p>
+                  <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{s.b}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="card-premium p-5">
+          <p className="label mb-2">Beta</p>
+          <p className="text-xs text-zinc-500 leading-relaxed">3 free analyses · 28 categories pre-loaded on the leaderboard · your analyses are added automatically.</p>
+        </div>
+      </aside>
       </div>
     </div>
   )
