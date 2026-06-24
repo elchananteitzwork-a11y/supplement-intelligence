@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { MemoData, BuildDecision } from '@/types/index'
 import {
-  IconTrendUp, IconTrendDown, IconBeaker, IconArrowRight, IconCheck, IconX, IconAlert,
+  IconTrendUp, IconTrendDown, IconBeaker, IconArrowRight, IconX, IconAlert,
 } from '@/components/icons'
 
 // ── Manufacturing Intelligence local types (mirrors /api/manufacturing response) ──
@@ -231,6 +231,46 @@ function SignalBars({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
         />
       ))}
     </div>
+  )
+}
+
+// ── Dimension Radar — the shape of an opportunity, not five separate
+// numbers you have to compare by hand.
+function DimensionRadar({ dims, color }: { dims: [string, number][]; color: string }) {
+  const cx = 150, cy = 150, maxR = 100
+  const n = dims.length
+  const angle = (i: number) => -Math.PI / 2 + i * ((2 * Math.PI) / n)
+  const pointAt = (i: number, frac: number): [number, number] => {
+    const a = angle(i)
+    return [cx + maxR * frac * Math.cos(a), cy + maxR * frac * Math.sin(a)]
+  }
+  const rings = [0.25, 0.5, 0.75, 1]
+  const dataPoints = dims.map(([, score], i) => pointAt(i, score / 10))
+
+  return (
+    <svg viewBox="0 0 300 300" className="w-full max-w-[300px] mx-auto">
+      {rings.map(f => (
+        <polygon key={f} points={dims.map((_, i) => pointAt(i, f).join(',')).join(' ')}
+          fill="none" stroke="#ffffff" strokeOpacity={0.07} />
+      ))}
+      {dims.map((_, i) => {
+        const [x, y] = pointAt(i, 1)
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#ffffff" strokeOpacity={0.09} />
+      })}
+      <polygon points={dataPoints.map(p => p.join(',')).join(' ')}
+        fill={color} fillOpacity={0.16} stroke={color} strokeWidth={2} />
+      {dataPoints.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={3.5} fill={color} />)}
+      {dims.map(([label, score], i) => {
+        const [rawX, ly] = pointAt(i, 1.22)
+        const lx = Math.min(250, Math.max(50, rawX)) // clamp so centered labels never clip the viewBox edge
+        return (
+          <g key={label}>
+            <text x={lx} y={ly - 4} textAnchor="middle" style={{ fill: '#d4d4d8', fontSize: 11, fontWeight: 600 }}>{label}</text>
+            <text x={lx} y={ly + 11} textAnchor="middle" style={{ fill: '#71717a', fontSize: 10, fontFamily: 'var(--font-jbmono)' }}>{score}/10</text>
+          </g>
+        )
+      })}
+    </svg>
   )
 }
 
@@ -486,6 +526,75 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
           <p className="text-sm text-zinc-400 leading-relaxed">{whyNow}</p>
         </div>
       )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INTELLIGENCE GRAPH — the opportunity and the signals that explain it,
+// as a node-link map instead of a paragraph. Five seconds of looking at
+// this should convey what several paragraphs of prose currently require.
+// Click a node to jump straight to the section it's drawn from.
+// ═══════════════════════════════════════════════════════════════
+
+function truncateLabel(s: string, n: number) {
+  return s.length > n ? s.slice(0, n - 1) + '…' : s
+}
+
+function IntelligenceGraph({
+  m, score, decision, onJump,
+}: {
+  m: MemoData; score: number; decision: BuildDecision; onJump: (tabId: string) => void
+}) {
+  const c = decision === 'BUILD_NOW' ? '#34d399' : decision === 'VALIDATE_FURTHER' ? '#fbbf24' : '#f87171'
+  const hasCompetitor = !!(m.biggest_competitor?.name && m.biggest_competitor.name !== 'N/A')
+
+  type GNode = { id: string; label: string; sub: string; strength: number; tab: string }
+  const nodes: GNode[] = [
+    { id: 'demand',   label: 'Demand',   sub: `${m.scores.demand?.score ?? '—'}/10 signal`,      strength: (m.scores.demand?.score ?? 5) / 10,      tab: 'market-intelligence' },
+    { id: 'virality', label: 'Virality', sub: `${m.scores.virality?.score ?? '—'}/10 signal`,    strength: (m.scores.virality?.score ?? 5) / 10,    tab: 'market-intelligence' },
+    { id: 'sub',      label: 'Subscription', sub: `${m.scores.subscription?.score ?? '—'}/10 signal`, strength: (m.scores.subscription?.score ?? 5) / 10, tab: 'market-intelligence' },
+    { id: 'defense',  label: 'Defensibility', sub: `${m.scores.defensibility?.score ?? '—'}/10 signal`, strength: (m.scores.defensibility?.score ?? 5) / 10, tab: 'risk-assessment' },
+    ...(hasCompetitor ? [{ id: 'competitor', label: truncateLabel(m.biggest_competitor.name, 18), sub: 'Lead competitor', strength: 0.55, tab: 'competitive-landscape' }] : []),
+    { id: 'gap', label: 'Top Market Gap', sub: truncateLabel(m.market_gaps?.[0] ?? 'Documented gap', 26), strength: 0.65, tab: 'market-intelligence' },
+  ]
+
+  const cx = 300, cy = 218, r = 162
+  const angleStep = (2 * Math.PI) / nodes.length
+  const pos = nodes.map((n, i) => {
+    const angle = -Math.PI / 2 + i * angleStep
+    return { ...n, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) }
+  })
+
+  return (
+    <div className="card-premium p-5 sm:p-7">
+      <div className="flex items-center justify-between mb-1">
+        <p className="label">Intelligence Graph</p>
+        <p className="text-[10px] text-zinc-600 uppercase tracking-wider hidden sm:inline">Signal relationships · click a node</p>
+      </div>
+      <svg viewBox="0 0 600 436" className="w-full h-auto mt-2">
+        {pos.map(n => (
+          <line key={`e-${n.id}`} x1={cx} y1={cy} x2={n.x} y2={n.y}
+            stroke={c} strokeOpacity={0.12 + n.strength * 0.38} strokeWidth={1 + n.strength * 2.2} />
+        ))}
+
+        <circle cx={cx} cy={cy} r={42} fill="#0d0d10" stroke={c} strokeWidth={2} />
+        <text x={cx} y={cy - 2} textAnchor="middle" style={{ fill: c, fontSize: 26, fontFamily: 'var(--font-fraunces)', fontWeight: 500 }}>{score}</text>
+        <text x={cx} y={cy + 18} textAnchor="middle" style={{ fill: '#71717a', fontSize: 9, letterSpacing: 1.5 }}>SCORE</text>
+
+        {pos.map(n => {
+          const dir = n.y > cy ? 1 : n.y < cy ? -1 : (n.x > cx ? 1 : -1)
+          const nodeR = 9 + n.strength * 7
+          return (
+            <g key={n.id} onClick={() => onJump(n.tab)} className="cursor-pointer">
+              <circle cx={n.x} cy={n.y} r={nodeR} fill="#0a0a0c" stroke={c} strokeOpacity={0.55 + n.strength * 0.45} strokeWidth={1.5} />
+              <circle cx={n.x} cy={n.y} r={2.5} fill={c} />
+              <text x={n.x} y={n.y + dir * (nodeR + 16)} textAnchor="middle" style={{ fill: '#e4e4e7', fontSize: 12, fontWeight: 600 }}>{n.label}</text>
+              <text x={n.x} y={n.y + dir * (nodeR + 30)} textAnchor="middle" style={{ fill: '#71717a', fontSize: 9.5 }}>{n.sub}</text>
+            </g>
+          )
+        })}
+      </svg>
     </div>
   )
 }
@@ -803,65 +912,73 @@ function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionB
 // CONSUMER INTELLIGENCE — customer voice as real conversation threads
 // ═══════════════════════════════════════════════════════════════
 
+// ── Evidence Board — a literal pinboard instead of stacked text blocks.
+// Each quote/desire/fear/ad-line is a pinned note, color-coded by what
+// kind of evidence it is, so the page reads as a board you scan, not
+// a transcript you read start to finish.
+const EVIDENCE_NOTE_ROTATIONS = [-2.2, 1.6, -1.1, 2.4, -1.8, 1.2, -2.6, 1.9, -1.4, 2.1, -1.7, 1.3]
+
 function ConsumerIntelligenceContent({ m }: { m: MemoData }) {
   const cl = m.customer_language
+
+  type Kind = 'voice' | 'desire' | 'fear' | 'ad'
+  const KIND_CFG: Record<Kind, { label: string; color: string }> = {
+    voice:  { label: 'Voice of Customer', color: '#9aa0a6' },
+    desire: { label: 'Desire',            color: '#C8A463' },
+    fear:   { label: 'Fear / Risk',       color: '#f87171' },
+    ad:     { label: 'Ad-Ready',          color: '#34d399' },
+  }
+
+  const cards: { id: string; kind: Kind; node: React.ReactNode }[] = [
+    ...cl.frustrations.map((q, i) => ({
+      id: `fr-${i}`, kind: 'voice' as const,
+      node: <p className="font-serif italic text-[13px] text-zinc-300 leading-relaxed">&ldquo;{q}&rdquo;</p>,
+    })),
+    ...cl.ad_phrases.map((ap, i) => ({
+      id: `ad-${i}`, kind: 'ad' as const,
+      node: (
+        <div className="space-y-2">
+          <p className="text-[11px] text-zinc-500 italic leading-relaxed">&ldquo;{ap.they_say}&rdquo;</p>
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider" style={{ color: '#34d399' }}>
+            <IconArrowRight className="w-3 h-3" />Use in copy
+          </div>
+          <p className="text-[13px] text-zinc-100 font-medium leading-relaxed">{ap.use_in_copy}</p>
+        </div>
+      ),
+    })),
+    ...cl.desires.map((d, i) => ({
+      id: `de-${i}`, kind: 'desire' as const,
+      node: <p className="text-[13px] text-zinc-200 leading-relaxed">{d}</p>,
+    })),
+    ...cl.fears.map((f, i) => ({
+      id: `fe-${i}`, kind: 'fear' as const,
+      node: <p className="text-[13px] text-zinc-200 leading-relaxed">{f}</p>,
+    })),
+  ]
+
   return (
     <div className="space-y-6">
-      <SectionIntro text="Synthesized from customer language patterns — the phrases and emotional drivers that should shape copy and positioning." />
-
-      {/* Frustrations as documented quotes */}
-      <div>
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">What buyers are saying</p>
-        <div className="space-y-4">
-          {cl.frustrations.map((q, i) => (
-            <blockquote key={i} className="border-l-2 border-white/[0.1] pl-4">
-              <p className="font-serif italic text-[15px] text-zinc-300 leading-relaxed">&ldquo;{q}&rdquo;</p>
-            </blockquote>
-          ))}
-        </div>
-      </div>
-
-      {/* They say → use in copy, as a side-by-side ledger comparison */}
-      <div>
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Ad-Ready Language</p>
-        <div className="ledger">
-          {cl.ad_phrases.map((ap, i) => (
-            <div key={i} className="ledger-row grid sm:grid-cols-2 gap-4 items-start">
-              <div>
-                <span className="text-[10px] text-zinc-600 uppercase tracking-wider block mb-1.5">They say</span>
-                <p className="text-sm text-zinc-400 italic leading-relaxed">&ldquo;{ap.they_say}&rdquo;</p>
-              </div>
-              <div>
-                <span className="text-[10px] text-brass/80 uppercase tracking-wider block mb-1.5">Use in copy</span>
-                <p className="text-sm text-zinc-100 leading-relaxed">{ap.use_in_copy}</p>
-              </div>
+      <SectionIntro text="An evidence board, not a transcript — every pin is sourced from documented customer language." />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 py-2">
+        {cards.map((card, i) => {
+          const cfg = KIND_CFG[card.kind]
+          return (
+            <div
+              key={card.id}
+              className="rounded-sm p-4 bg-[#15151a]"
+              style={{
+                borderTop: `3px solid ${cfg.color}`,
+                transform: `rotate(${EVIDENCE_NOTE_ROTATIONS[i % EVIDENCE_NOTE_ROTATIONS.length]}deg)`,
+                boxShadow: '0 14px 28px -14px rgba(0,0,0,.7)',
+              }}
+            >
+              <span className="text-[9px] font-semibold uppercase tracking-wider block mb-2" style={{ color: cfg.color }}>
+                {cfg.label}
+              </span>
+              {card.node}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Desires + fears */}
-      <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t border-white/[0.06]">
-        <div>
-          <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-2">Desires</p>
-          <ul className="space-y-1.5">
-            {cl.desires.map((d, i) => (
-              <li key={i} className="flex gap-2 text-xs text-zinc-300">
-                <IconCheck className="w-3.5 h-3.5 text-brass shrink-0 mt-0.5" />{d}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-2">Fears</p>
-          <ul className="space-y-1.5">
-            {cl.fears.map((f, i) => (
-              <li key={i} className="flex gap-2 text-xs text-zinc-300">
-                <IconX className="w-3 h-3 text-red-400/70 shrink-0 mt-1" />{f}
-              </li>
-            ))}
-          </ul>
-        </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -949,6 +1066,8 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
 
   const displayDims = (Object.entries(m.scores) as [string, { score: number; notes: string }][])
     .filter(([key]) => key !== 'competition')
+  const { decision } = computeScore(m)
+  const radarColor = decision === 'BUILD_NOW' ? '#34d399' : decision === 'VALIDATE_FURTHER' ? '#fbbf24' : '#f87171'
 
   return (
     <div className="space-y-6">
@@ -983,20 +1102,13 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
         </div>
       </div>
 
-      {/* Dimension strip — compact, all 5, single hairline-divided row */}
+      {/* Dimension radar — the shape of the opportunity at a glance */}
       <div className="pt-5 border-t border-white/[0.06]">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Dimension Scores</p>
-        <div className="flex flex-wrap sm:flex-nowrap divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
-          {displayDims.map(([key, { score }]) => {
-            const [clr] = score >= 8 ? ['text-emerald-400'] : score >= 6 ? ['text-amber-400'] : ['text-red-400']
-            return (
-              <div key={key} className="flex-1 min-w-[88px] px-2 py-3 text-center">
-                <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-1.5 truncate">{DIM_LABELS[key] ?? key}</p>
-                <p className={`font-serif font-medium text-lg ${clr}`}>{score}</p>
-              </div>
-            )
-          })}
-        </div>
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Dimension Scores</p>
+        <DimensionRadar
+          dims={displayDims.map(([key, { score }]) => [DIM_LABELS[key] ?? key, score] as [string, number])}
+          color={radarColor}
+        />
       </div>
 
       {/* Market gaps */}
@@ -1446,7 +1558,13 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
   const confidence          = computeConfidence(m)
   const blocks              = deriveDecisionBlocks(m)
   const containerRef        = useRef<HTMLDivElement>(null)
+  const tabPanelRef         = useRef<HTMLDivElement>(null)
   const [activeTab, setActiveTab] = useState(NAV_SECTIONS[0].id)
+
+  function jumpToTab(id: string) {
+    setActiveTab(id)
+    tabPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <div ref={containerRef} className="lg:grid lg:grid-cols-[1fr_272px] lg:gap-10 lg:items-start">
@@ -1454,19 +1572,20 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
       {/* ── Main document column ────────────────────────────────────── */}
       <div className="space-y-5 min-w-0">
 
-        {/* ── Always visible: ticker, masthead, executive summary, thesis ── */}
+        {/* ── Always visible: ticker, masthead, executive summary, graph, thesis ── */}
         <div className="space-y-5 animate-in">
           <TickerStrip score={score} decision={decision} confidence={confidence} m={m} />
           <Masthead m={m} score={score} decision={decision} confidence={confidence} generatedAt={generatedAt} />
           <ExecutiveSummary m={m} />
+          <IntelligenceGraph m={m} score={score} decision={decision} onJump={jumpToTab} />
           <InvestmentThesisSection m={m} blocks={blocks} />
         </div>
 
         {/* ── Sticky horizontal tab strip (mobile/tablet only) ───────── */}
-        <SectionNav active={activeTab} onSelect={setActiveTab} />
+        <SectionNav active={activeTab} onSelect={jumpToTab} />
 
         {/* ── Deep-dive sections — true tabs: one pane visible at a time ── */}
-        <div className="card-premium p-6 sm:p-8 min-h-[420px]">
+        <div ref={tabPanelRef} className="card-premium p-6 sm:p-8 min-h-[420px] scroll-mt-6">
           <div className={activeTab === 'market-intelligence' ? '' : 'hidden'}>
             <DeepDiveSection title="Market Intelligence" evidence="multi-source">
               <MarketIntelligenceContent m={m} />
@@ -1516,7 +1635,7 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
       <aside className="hidden lg:block lg:sticky lg:top-6 space-y-4">
         <AtAGlanceRail m={m} score={score} decision={decision} confidence={confidence} />
         <div className="card-premium p-5">
-          <RailNav active={activeTab} onSelect={setActiveTab} />
+          <RailNav active={activeTab} onSelect={jumpToTab} />
         </div>
       </aside>
     </div>
