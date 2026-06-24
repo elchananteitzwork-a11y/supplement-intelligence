@@ -14,7 +14,7 @@ import {
   manufacturingScoreProvenance, defensibilityProvenance, marketSaturationProvenance,
   manufacturingTabProvenance, legacyCompetitionProvenance, toConfidenceBand,
   searchVolumeProvenance, searchGrowthProvenance, unitsSoldProvenance,
-  revenueEvidenceProvenance, competitionEvidenceProvenance,
+  revenueEvidenceProvenance, competitionEvidenceProvenance, categoryReviewDataProvenance,
   marketAccessibilityProvenance, keywordIntelligenceProvenance,
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
@@ -1434,6 +1434,7 @@ function RevenueEvidencePanel({ m }: { m: MemoData }) {
   const rev    = ev?.revenue?.value
   const revP   = revenueEvidenceProvenance(ev)
   const unitsP = unitsSoldProvenance(ev)
+  const reviewP = categoryReviewDataProvenance(ev)
   // There is no dimension in m.scores for revenue (unlike demand/virality/etc.) —
   // so when Keepa has no revenue signal, there is no fallback number at all,
   // real or synthesized. "No data available" applies to the score too here.
@@ -1448,6 +1449,8 @@ function RevenueEvidencePanel({ m }: { m: MemoData }) {
         { label: 'Estimated Monthly Revenue',    value: rev?.est_monthly_revenue,    provenance: revP },
         { label: 'Top Seller Revenue',           value: rev?.top_seller_revenue,     provenance: revP },
         { label: 'Average Seller Revenue',       value: rev?.avg_seller_revenue,     provenance: revP },
+        { label: 'Category Avg Rating',          value: rev?.avg_rating ? `${rev.avg_rating}/5` : undefined, provenance: reviewP },
+        { label: 'Category Avg Review Count',    value: rev?.avg_review_count !== undefined ? rev.avg_review_count.toLocaleString() : undefined, provenance: reviewP },
       ]}
       scoreLabel="Revenue Score"
       scoreProvenance={revP}

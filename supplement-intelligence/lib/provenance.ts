@@ -219,6 +219,20 @@ export function revenueEvidenceProvenance(signals?: AggregatedSignals | null): P
   )
 }
 
+// "Category Avg Rating" / "Category Avg Review Count" — unlike est_monthly_units_sold
+// and revenue above (Keepa's own modeled estimates), rating and review count are
+// directly observed Amazon facts that Keepa mirrors via &rating=1, not something
+// Keepa models — Verified, not Estimated. Same category-bestseller scope caveat
+// as the rest of this signal, called out explicitly in the detail text.
+export function categoryReviewDataProvenance(signals?: AggregatedSignals | null): Provenance | null {
+  const rev = signals?.revenue?.value
+  if (rev?.avg_rating === undefined && rev?.avg_review_count === undefined) return null
+  return verified(
+    'Keepa',
+    "Real rating and review-count data, directly mirrored from Amazon (not modeled by Keepa), averaged across the category's top bestsellers — not specific to your exact product idea. Same category-wide scope as the revenue figures above."
+  )
+}
+
 // "Competitor Count" / "Average Review Count" / "Market Concentration" — real
 // only via Rainforest's live organic search results for this exact query.
 // No fallback to market_saturation or any model-judgment substitute: a count

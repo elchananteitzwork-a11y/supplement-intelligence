@@ -31,6 +31,12 @@ export interface RevenueSignal extends SignalScore {
   top_seller_revenue?:      string   // single highest-performing product: its own price × its own units sold
   avg_seller_revenue?:      string   // same basis as est_monthly_revenue — explicit alias for the top-seller/average split shown in the UI
   est_monthly_units_sold?:  string   // Keepa's own monthlySold field, averaged across top sellers — real units-sold data, distinct from (and never substituted for) search volume
+  // Real rating/review-count, averaged across the same category bestsellers
+  // as the fields above — directly observed Amazon facts Keepa mirrors
+  // (CSV RATING/COUNT_REVIEWS, requires &rating=1 on the request), not a
+  // Keepa-side estimate the way monthlySold/revenue above are.
+  avg_rating?:              string   // e.g. "4.6" (out of 5)
+  avg_review_count?:        number
 }
 
 export interface GrowthSignal extends SignalScore {

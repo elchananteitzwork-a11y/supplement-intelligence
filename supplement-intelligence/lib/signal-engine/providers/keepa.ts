@@ -13,20 +13,38 @@ import type {
 
 const KEEPA_API = 'https://api.keepa.com'
 
-// Supplement category node IDs (Amazon US, confirmed via live Keepa API calls).
-// Node 23675621011 = "Vitamins, Minerals & Supplements" under Health & Household.
-// Confirmed working: returns 10,000 ASINs from the bestsellers endpoint.
+// Category node IDs (Amazon US, domain=1), one per supported category module.
+// Each found and verified live via Keepa's /search?type=category endpoint and
+// confirmed against /bestsellers before being trusted (2026-06-24) — not
+// guessed. Supplements predates this file's other four; same verification
+// standard applies to all five now.
 //
-// How we found this: category tree walk from 3760901 (Health & Household root) →
-// children → "Products" (3760931) → children → 23675621011.
-// Previous assumption (6973753011) returned 0 ASINs — that node has no live data.
+//   supplements → 23675621011 "Vitamins, Minerals & Supplements"
+//     (sub-node under Health & Household; tree walk 3760901 → 3760931 → here)
+//   beauty      → 3760911     "Beauty & Personal Care"      (top-level, parent=0)
+//   pets        → 2619533011  "Pet Supplies"                (top-level, parent=0)
+//   fitness     → 3375251     "Sports & Outdoors"           (top-level, parent=0)
+//   home        → 1055398     "Home & Kitchen"               (top-level, parent=0)
 //
-// This node provides category-level signals: BSR velocity, pricing range,
-// seller density, and monthly unit sales for the top supplement brands.
-// Claude uses these as calibration baselines when generating the 20 opportunities.
-const SUPPLEMENT_NODES = {
-  default: 23675621011,  // Vitamins, Minerals & Supplements — confirmed, 10k ASINs
-} as const
+// Each confirmed via /bestsellers to return a populated ASIN list before
+// being wired in (supplements: 10k ASINs; the other four: capped at the
+// API's 500k-ASIN ceiling — all four are large, real, live top-level nodes,
+// not promotional collections, which is a real distinct category of search
+// result Keepa's category search also returns and which must be excluded —
+// confirmed by checking productCount/sellerCount, not by name match alone).
+//
+// NOTE: the /bestsellers call costs ~50 tokens for these four top-level
+// nodes (vs. a few tokens for the narrower supplements sub-node) — Keepa
+// prices by response size, and a top-level node returns far more ASINs.
+// Still comfortably inside the account's continuous refill budget at this
+// product's volume.
+const CATEGORY_NODES: Record<string, number> = {
+  supplements: 23675621011,
+  beauty:      3760911,
+  pets:        2619533011,
+  fitness:     3375251,
+  home:        1055398,
+}
 
 // Keepa CSV array indices in raw stats arrays (stats.current[], stats.avg90[], etc.).
 // Source: Keepa API docs + confirmed via keepa/normalizer.py cross-reference.
@@ -35,8 +53,11 @@ const CSV = {
   BSR:           3,   // Best Sellers Rank in root category
   NEW_OFFER_CNT: 11,  // number of competing new sellers
   BUYBOX_PRICE:  18,
-  // NOTE: REVIEW_CNT(16) and REVIEW_RATING(17) are confirmed empty in Keepa's
-  // stats arrays for supplement products. Do not read these indices — they return -1.
+  RATING:        16,  // CONFIRMED VIA LIVE CALL 2026-06-24: real data, e.g. 47 = 4.7★.
+  COUNT_REVIEWS: 17,  // Previously documented as "confirmed empty" — that was true only
+                       // because the request never sent &rating=1, which Keepa requires
+                       // to include this history at all. Indices were also mislabeled
+                       // (this file previously had them swapped). Fixed on both counts.
 } as const
 
 // Keepa sentinel: -1 means "not available" for that data point
@@ -140,28 +161,22 @@ export class KeepaProvider implements SignalProvider {
   async fetch(ctx: SignalContext): Promise<ProviderSignals | null> {
     if (!this.enabled) return null
 
-    // CONFIRMED BUG, FIXED 2026-06-24: this provider only ever queries the
-    // hardcoded Vitamins/Minerals/Supplements node (see SUPPLEMENT_NODES
-    // above) — there is no per-category node mapping for beauty/pets/
-    // fitness/home. It used to run for every category regardless, silently
-    // returning real supplement-category bestseller data mislabeled as
-    // relevant evidence for whatever was actually being analyzed. Gating to
-    // 'supplements' only, rather than guessing a node id for the other four
-    // categories — an invented node id would just be a different flavor of
-    // fabrication.
-    if (ctx.categoryId !== 'supplements') {
-      console.log('Keepa: skipped — only the supplements category has a real node mapping', { categoryId: ctx.categoryId })
+    // Originally hardcoded to the supplements node only — silently returned
+    // real-but-irrelevant supplement bestseller data for every other
+    // category. Now looks up a real, individually-verified node per
+    // category (see CATEGORY_NODES above) instead of guessing one. If a
+    // category has no verified mapping, decline rather than invent a node id.
+    const nodeId = CATEGORY_NODES[ctx.categoryId ?? '']
+    if (!nodeId) {
+      console.log('Keepa: skipped — no verified category node mapping', { categoryId: ctx.categoryId })
       return null
     }
 
     const category = ctx.query
-    const key    = process.env.KEEPA_API_KEY!
-    const nodeId = SUPPLEMENT_NODES.default
+    const key = process.env.KEEPA_API_KEY!
 
     try {
-      // 1. Fetch top ASINs from the Vitamins & Supplements bestsellers list.
-      //    This endpoint is confirmed working for supplement discovery
-      //    (Python system validated: gut_health, protein, supplements → node 6973753011).
+      // 1. Fetch top ASINs from this category's bestsellers list.
       const asins = await this.fetchBestsellers(key, nodeId)
       if (asins.length < 5) {
         console.log('Keepa: too few bestseller ASINs', { category, nodeId, count: asins.length })
@@ -210,13 +225,17 @@ export class KeepaProvider implements SignalProvider {
   private async fetchProducts(key: string, asins: string[]): Promise<KeepaProduct[]> {
     // Product endpoint: returns raw Keepa product data with stats arrays.
     // stats=365 enables avg365 (needed for YoY trend comparison).
+    // rating=1 includes RATING/COUNT_REVIEWS history (CSV[16]/[17]) — without
+    // it Keepa omits both entirely, which is why they previously looked
+    // "empty." Confirmed live (2026-06-24): adds ~2 tokens/product.
     // Token cost: ~5 tokens/product × 10 products = ~50 tokens.
     const url =
       `${KEEPA_API}/product` +
       `?key=${encodeURIComponent(key)}` +
       `&domain=1` +
       `&asin=${asins.join(',')}` +
-      `&stats=365`
+      `&stats=365` +
+      `&rating=1`
 
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
     if (!res.ok) {
@@ -239,11 +258,13 @@ export class KeepaProvider implements SignalProvider {
     // avg-price × avg-units across different products) — needed to give an
     // honest top-seller-vs-average split instead of one blended number.
     const productRevenues: number[] = []
-
-    // NOTE: review count (CSV[16]) and rating (CSV[17]) are not populated by Keepa
-    // for supplements via the product/stats endpoint. Confirmed via live API calls:
-    // csv[16] and csv[17] are empty arrays for all top supplement ASINs.
-    // review_velocity signal is omitted rather than estimated from missing data.
+    // Real rating/review-count per product — directly observed Amazon facts
+    // (Keepa mirrors them, doesn't model them), unlike monthlySold/revenue
+    // above which are Keepa's own estimates. Requires &rating=1 on the
+    // request (see fetchProducts) — see CSV.RATING/COUNT_REVIEWS comment
+    // for why this was previously missed.
+    const ratings:      number[] = []
+    const reviewCounts: number[] = []
 
     for (const p of products) {
       const s = p.stats
@@ -269,6 +290,12 @@ export class KeepaProvider implements SignalProvider {
       if (price !== null && price > 0 && p.monthlySold && p.monthlySold > 0) {
         productRevenues.push(price * p.monthlySold)
       }
+
+      // Keepa encodes rating ×10 (47 = 4.7★); -1/missing means no data, not zero.
+      const rating      = statVal(s, 'current', CSV.RATING)
+      const reviewCount = statVal(s, 'current', CSV.COUNT_REVIEWS)
+      if (rating !== null && rating > 0) ratings.push(rating / 10)
+      if (reviewCount !== null && reviewCount > 0) reviewCounts.push(reviewCount)
     }
 
     const avg = (arr: number[]): number | null =>
@@ -360,18 +387,28 @@ export class KeepaProvider implements SignalProvider {
     // Average seller = mean revenue across the sample. Both are real Keepa
     // fields multiplied together; monthlySold is itself Keepa's own estimate,
     // not a measured fact, so this is Estimated, not Verified — see provenance.
+    // avgRating/avgReviewCount are computed independently of productRevenues:
+    // rating/review-count only require the product to have stats at all,
+    // while revenue additionally requires monthlySold on the SAME product —
+    // a stricter condition that shouldn't silently drop real review data
+    // just because the revenue figure couldn't be computed.
+    const avgRating      = avg(ratings)
+    const avgReviewCount = avg(reviewCounts)
+
     let revenue: RevenueSignal | undefined
-    if (productRevenues.length > 0) {
-      const topRevenue = Math.max(...productRevenues)
-      const avgRevenue = avg(productRevenues)!
+    if (productRevenues.length > 0 || avgRating !== null || avgReviewCount !== null) {
+      const topRevenue = productRevenues.length ? Math.max(...productRevenues) : null
+      const avgRevenue = avg(productRevenues)
       const fmt = (n: number) => n >= 1000 ? `$${Math.round(n / 1000)}k/mo` : `$${Math.round(n)}/mo`
       revenue = {
-        score:                  avgRevenue > 50_000 ? 8 : avgRevenue > 15_000 ? 6 : avgRevenue > 5_000 ? 4 : 2,
+        score:                  avgRevenue !== null ? (avgRevenue > 50_000 ? 8 : avgRevenue > 15_000 ? 6 : avgRevenue > 5_000 ? 4 : 2) : 0,
         confidence:             productRevenues.length >= 5 ? 0.7 : 0.5,
-        est_monthly_revenue:    fmt(avgRevenue),
-        top_seller_revenue:     fmt(topRevenue),
-        avg_seller_revenue:     fmt(avgRevenue),
+        est_monthly_revenue:    avgRevenue !== null ? fmt(avgRevenue) : undefined,
+        top_seller_revenue:     topRevenue !== null ? fmt(topRevenue) : undefined,
+        avg_seller_revenue:     avgRevenue !== null ? fmt(avgRevenue) : undefined,
         est_monthly_units_sold: avgMonthlySold !== null ? `${Math.round(avgMonthlySold).toLocaleString()} units/mo` : undefined,
+        avg_rating:             avgRating !== null ? avgRating.toFixed(1) : undefined,
+        avg_review_count:       avgReviewCount !== null ? Math.round(avgReviewCount) : undefined,
       }
     }
 
@@ -390,6 +427,8 @@ export class KeepaProvider implements SignalProvider {
       avgOffers:       avgOffers !== null ? Math.round(avgOffers * 10) / 10 : null,
       avgPrice:        avgPrice  !== null ? `$${Math.round(avgPrice)}` : null,
       topRevenue:      productRevenues.length ? Math.round(Math.max(...productRevenues)) : null,
+      avgRating:       avgRating !== null ? avgRating.toFixed(1) : null,
+      avgReviewCount:  avgReviewCount !== null ? Math.round(avgReviewCount) : null,
       confidence:      Math.round(overallConf * 100) + '%',
     })
 
