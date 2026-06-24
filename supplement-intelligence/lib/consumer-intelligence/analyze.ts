@@ -23,6 +23,28 @@ import type {
 const TOTAL_REVIEW_BUDGET = 100
 const MAX_SOURCE_ASINS    = 2   // 50 reviews each ≈ 100 total at the same per-review cost as 1 call
 
+// ROOT CAUSE (found 2026-06-24, "Load failed" search-stability bug):
+// ReviewCollector's DEFAULT_CONFIG.timeout_ms is 15_000 — sized for the raw
+// HTML scraper and Rainforest's fast per-page API calls, both sub-second to
+// a few seconds normally. The Apify review-scraping actor used here is a
+// run-sync call that, like the Apify search actor used by Competition
+// Intelligence, genuinely needs up to ~70s (confirmed live this session for
+// the closely related search actor: 30-73s real range). At the 15s default,
+// every real run was being aborted and RETRIED (max_retries: 3) — wasting
+// up to ~48s per ASIN on retries that were never going to finish in time,
+// before giving up. Sequential across 2 ASINs, that's up to ~96s of pure
+// waste stacked on top of signal-engine + Claude generation time, which is
+// what was pushing total request time past the platform's connection
+// tolerance and surfacing as a dropped connection ("Load failed") on the
+// client even though the server (and Apify, which bills regardless) kept
+// working — explaining why results sometimes appeared later via cache.
+const COLLECTOR_TIMEOUT_MS = 70_000
+const COLLECTOR_MAX_RETRIES = 1   // a slow-but-working call should NOT be retried — retrying just repeats the same wait for the same likely outcome
+// Hard ceiling on the whole multi-ASIN fetch (run in parallel below, not
+// sequentially) so Consumer Intelligence as a stage can never blow past its
+// allotted slice of the overall request budget — see app/api/generate/route.ts.
+const TOTAL_TIMEOUT_MS = 85_000
+
 const PROBLEM_CUES  = /\b(but|however|unfortunately|issue|problem|too (?:big|small|large|strong|expensive|hard|tiny|bitter)|disappoint|doesn'?t|did ?n'?t|don'?t|hard to|difficult to|hate|complain|wish it|stopped working|broke|defective|smell|taste(?:s)? bad)\b/i
 const REQUEST_CUES  = /\b(wish|want(?:ed)?|would be nice|should (?:have|add|include|make)|need(?:s)? to|hope they|please add|if only|i'?d love|would love)\b/i
 
@@ -48,22 +70,42 @@ export async function analyzeConsumerIntelligence(
   const provider = new ApifyReviewProvider(reviewsPerAsin)
   if (!provider.enabled) return null
 
+  // Parallel, not sequential — two independent Apify runs don't need to wait
+  // on each other, and running them concurrently halves this stage's
+  // worst-case wall-clock contribution to the overall request.
+  const fetchOne = async (target: { asin: string; brand: string }) => {
+    try {
+      const collector = new ReviewCollector([provider], {
+        max_reviews:  reviewsPerAsin,
+        timeout_ms:   COLLECTOR_TIMEOUT_MS,
+        max_retries:  COLLECTOR_MAX_RETRIES,
+      })
+      const result = await collector.collect(target.asin)
+      return { target, reviews: result.reviews }
+    } catch (e: unknown) {
+      console.error('[ConsumerIntelligence] collection failed', { asin: target.asin, error: e instanceof Error ? e.message : e })
+      return { target, reviews: [] as CollectedReview[] }
+    }
+  }
+
+  const withTimeout = <T,>(p: Promise<T>, ms: number, fallback: T): Promise<T> =>
+    Promise.race([p, new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms))])
+
+  const settled = await withTimeout(
+    Promise.all(targets.map(fetchOne)),
+    TOTAL_TIMEOUT_MS,
+    targets.map(target => ({ target, reviews: [] as CollectedReview[] })),
+  )
+
   const asinsAnalyzed: SourceAsin[] = []
   const seen: Set<string> = new Set()
   const allReviews: CollectedReview[] = []
 
-  for (const target of targets) {
-    try {
-      const collector = new ReviewCollector([provider], { max_reviews: reviewsPerAsin })
-      const result = await collector.collect(target.asin)
-      const fresh = result.reviews.filter(r => !seen.has(r.id))
-      fresh.forEach(r => seen.add(r.id))
-      allReviews.push(...fresh)
-      asinsAnalyzed.push({ asin: target.asin, brand: target.brand, reviewsCollected: fresh.length })
-    } catch (e: unknown) {
-      console.error('[ConsumerIntelligence] collection failed', { asin: target.asin, error: e instanceof Error ? e.message : e })
-      asinsAnalyzed.push({ asin: target.asin, brand: target.brand, reviewsCollected: 0 })
-    }
+  for (const { target, reviews } of settled) {
+    const fresh = reviews.filter(r => !seen.has(r.id))
+    fresh.forEach(r => seen.add(r.id))
+    allReviews.push(...fresh)
+    asinsAnalyzed.push({ asin: target.asin, brand: target.brand, reviewsCollected: fresh.length })
   }
 
   if (allReviews.length < 5) {

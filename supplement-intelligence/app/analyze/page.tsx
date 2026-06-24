@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link          from 'next/link'
 import {
@@ -29,13 +29,30 @@ const DISCOVERY_STEPS = [
   'Ranking by opportunity score...',
 ]
 
+// Reordered/expanded 2026-06-24 to match what actually happens server-side
+// and to slow down how quickly this list exhausts — real provider calls
+// (Keepa, Apify competitor search, Apify review collection) routinely take
+// 1-3 minutes combined, and the old 6-step/8s-per-step list froze on
+// "Writing investment memo..." for most of that wait, which read as stuck
+// even when the backend was still working normally.
 const ANALYSIS_STEPS = [
   'Mapping market conditions...',
   'Scoring demand and competition...',
+  'Searching Amazon for real competitor products...',
+  'Collecting real customer reviews...',
   'Analyzing virality potential...',
   'Building product recommendation...',
   'Calculating financial projections...',
   'Writing investment memo...',
+]
+
+// Shown once the fixed step list above is exhausted but the request hasn't
+// returned yet — real provider data can take longer than the list assumes,
+// so this keeps the screen visibly updating instead of looking frozen.
+const STILL_WORKING_MESSAGES = [
+  'Still collecting real data — this can take a few minutes for some categories...',
+  'Real provider data (Amazon, Keepa) takes longer than the AI writing itself...',
+  'Almost there — finishing up real-data collection...',
 ]
 
 const PRICES = [
@@ -158,11 +175,41 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
 // progress bar on a webpage.
 // ─────────────────────────────────────────────────────────────────
 
+// Once the fixed step list is exhausted but the request hasn't returned,
+// shows a rotating reassurance message + elapsed time instead of freezing
+// silently on the last step — real provider calls can run well past the
+// fixed list's assumed duration (see ANALYSIS_STEPS / STILL_WORKING_MESSAGES
+// comment above), and a frozen-looking screen was part of why this read as
+// "failed" even when the backend was still working normally.
+function StillWorking() {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const t0 = Date.now()
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const msg = STILL_WORKING_MESSAGES[Math.min(
+    Math.floor(elapsed / 20),
+    STILL_WORKING_MESSAGES.length - 1,
+  )]
+  return (
+    <div className="flex gap-2.5 mb-2">
+      <span className="text-zinc-600 shrink-0 select-none">[··]</span>
+      <span className="text-zinc-400 italic">
+        {msg}
+        <span className="text-zinc-600 ml-2 font-mono not-italic">{elapsed}s</span>
+        <span className="inline-block w-[7px] h-[13px] bg-brass ml-1.5 align-middle animate-pulse" />
+      </span>
+    </div>
+  )
+}
+
 function InvestigationConsole({
   query, steps, stepIdx, sources,
 }: {
   query: string; steps: string[]; stepIdx: number; sources?: string[]
 }) {
+  const exhausted = stepIdx === steps.length - 1
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-lg animate-in">
@@ -180,18 +227,22 @@ function InvestigationConsole({
 
           {/* log body */}
           <div className="p-5 font-mono text-[13px] leading-relaxed min-h-[260px]">
-            {steps.slice(0, stepIdx + 1).map((s, i) => (
-              <div key={i} className="flex gap-2.5 mb-2">
-                <span className="text-zinc-600 shrink-0 select-none">[{String(i + 1).padStart(2, '0')}]</span>
-                <span className={i < stepIdx ? 'text-zinc-500' : 'text-zinc-100'}>
-                  {s}
-                  {i < stepIdx
-                    ? <span className="text-brass/80 ml-2">✓</span>
-                    : <span className="inline-block w-[7px] h-[13px] bg-brass ml-1.5 align-middle animate-pulse" />}
-                </span>
-              </div>
-            ))}
-            {sources && stepIdx === steps.length - 1 && (
+            {steps.slice(0, stepIdx + 1).map((s, i) => {
+              const isLastAndExhausted = i === stepIdx && exhausted
+              return (
+                <div key={i} className="flex gap-2.5 mb-2">
+                  <span className="text-zinc-600 shrink-0 select-none">[{String(i + 1).padStart(2, '0')}]</span>
+                  <span className={i < stepIdx ? 'text-zinc-500' : 'text-zinc-100'}>
+                    {s}
+                    {i < stepIdx || isLastAndExhausted
+                      ? <span className="text-brass/80 ml-2">✓</span>
+                      : <span className="inline-block w-[7px] h-[13px] bg-brass ml-1.5 align-middle animate-pulse" />}
+                  </span>
+                </div>
+              )
+            })}
+            {exhausted && <StillWorking />}
+            {sources && exhausted && (
               <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-white/[0.06]">
                 {sources.map(src => (
                   <span key={src} className="text-[10px] text-zinc-600 border border-white/[0.08] rounded px-1.5 py-0.5">{src}</span>
@@ -201,6 +252,23 @@ function InvestigationConsole({
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Shared error display — adds a "Check Dashboard" link when the failure
+// was a dropped connection rather than a clean server rejection, since the
+// analysis may have completed and saved successfully despite the client
+// never seeing the response.
+function ErrorBanner({ message, networkFailure }: { message: string; networkFailure: boolean }) {
+  return (
+    <div className="bg-red-400/10 border border-red-400/20 rounded-lg p-4 text-sm text-red-400">
+      <p>{message}</p>
+      {networkFailure && (
+        <p className="mt-2 text-red-400/80">
+          <Link href="/dashboard" className="underline hover:text-red-300">Check your dashboard</Link> before re-running this — if it finished, you&rsquo;ll find it there without using another analysis slot.
+        </p>
+      )}
     </div>
   )
 }
@@ -431,6 +499,13 @@ export default function AnalyzePage() {
   const [mode,               setMode]               = useState<PageMode>('form')
   const [stepIdx,            setStepIdx]            = useState(0)
   const [error,              setError]              = useState('')
+  // True specifically when fetch() itself rejected (a dropped connection,
+  // e.g. Safari's "Load failed"/Chrome's "Failed to fetch") rather than the
+  // server cleanly returning an error response. In that case the backend
+  // may well have kept working and saved the analysis — telling the user
+  // to just "try again" would mean paying for and re-running the same
+  // expensive real-data collection for no reason if it actually succeeded.
+  const [networkFailure,     setNetworkFailure]     = useState(false)
   const [opportunities,      setOpportunities]      = useState<OpportunityCard[]>([])
   const [analyzingName,      setAnalyzingName]      = useState('')
   const [prevMode,           setPrevMode]           = useState<'form' | 'results'>('form')
@@ -541,6 +616,7 @@ export default function AnalyzePage() {
     setAnalyzingName(idea)
     setMode('analyzing')
     setError('')
+    setNetworkFailure(false)
     setStepIdx(0)
     const timer = setInterval(
       () => setStepIdx(i => Math.min(i + 1, ANALYSIS_STEPS.length - 1)),
@@ -585,7 +661,17 @@ export default function AnalyzePage() {
       router.push(`/memo/${analysisId}`)
     } catch (err: unknown) {
       clearInterval(timer)
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      // fetch() itself rejects with a TypeError on a dropped connection
+      // (Safari: "Load failed", Chrome: "Failed to fetch") — distinct from
+      // the explicit `throw new Error(...)` above for a clean non-OK
+      // response. Only the former means the backend might have kept
+      // working and saved the result anyway.
+      if (err instanceof TypeError) {
+        setNetworkFailure(true)
+        setError('Lost connection while waiting for results. This can happen on long-running analyses — the backend may have finished anyway.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      }
       setMode(from)
     }
   }
@@ -648,11 +734,7 @@ export default function AnalyzePage() {
             Explore the map or scan the list, then open a full investment memo · costs 1 analysis slot
           </p>
 
-          {error && (
-            <div className="bg-red-400/10 border border-red-400/20 rounded-lg p-4 text-sm text-red-400 mb-6">
-              {error}
-            </div>
-          )}
+          {error && <div className="mb-6"><ErrorBanner message={error} networkFailure={networkFailure} /></div>}
 
           {/* ── view toggle ── */}
           <div className="flex items-center gap-1 mb-5 border-b border-white/[0.07]">
@@ -828,11 +910,7 @@ export default function AnalyzePage() {
             </div>
           )}
 
-          {error && (
-            <div className="bg-red-400/10 border border-red-400/20 rounded-lg p-4 text-sm text-red-400">
-              {error}
-            </div>
-          )}
+          {error && <ErrorBanner message={error} networkFailure={networkFailure} />}
 
           <button type="submit" disabled={!input.trim()} className="btn-white w-full py-3 text-base">
             {isAutoMode

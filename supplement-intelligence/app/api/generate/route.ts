@@ -29,7 +29,17 @@ import type { MemoData, SignalMetadata } from '@/types/index'
 // account's plan (Hobby, with fluid compute) allows up to 300s, so 250s
 // leaves real margin: worst case is ~75s signals + ~100s generation +
 // overhead, with slack left under both this ceiling and the platform's.
-export const maxDuration = 250
+//
+// Raised again 2026-06-24 (250 → 285) — "Load failed" search-stability bug.
+// Consumer Intelligence (added after the 250s figure above was set) added
+// its own sequential, effectively-unbounded latency stage on top of this
+// budget (root cause: a 15s default HTTP timeout on a ~70s-real-latency
+// Apify call, causing wasted retries — fixed in
+// lib/consumer-intelligence/analyze.ts). That stage is now parallelized and
+// hard-capped at 85s. New worst case: ~75s signals + ~85s consumer
+// intelligence + ~100s generation + overhead ≈ 270s, so 285s keeps real
+// margin under both this ceiling and the platform's 300s.
+export const maxDuration = 285
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -361,6 +371,7 @@ export async function POST(req: Request) {
     pricing_verified:   !!signals.pricing,
     growth_verified:    !!signals.growth,
     market_verified:    !!signals.competition,
+    consumer_intelligence_attempted: !!topCompetitors?.length,
   } : undefined
 
   if (signals) {

@@ -536,6 +536,8 @@ function Masthead({
     ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
 
+  const consumerIntelTimedOut = !m.consumer_intelligence && !!m.signal_metadata?.consumer_intelligence_attempted
+
   return (
     <div className={`card-premium p-6 sm:p-9 ${glow}`}>
       <div className="flex items-center justify-between mb-6 pb-5 border-b border-white/[0.06]">
@@ -544,6 +546,13 @@ function Masthead({
           {dateLabel ? `Prepared ${dateLabel}` : 'Confidential'}
         </span>
       </div>
+
+      {consumerIntelTimedOut && (
+        <div className="mb-6 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2.5">
+          <p className="text-xs font-semibold text-amber-400 mb-0.5">Partial results available</p>
+          <p className="text-[11px] text-zinc-500">Most real-data providers responded normally. The Consumer Intelligence review-data provider timed out for this run — see the Consumer tab for details. Everything else below reflects the providers that did respond.</p>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-7">
         <ScoreRing s={score} decision={decision} />
@@ -1741,6 +1750,10 @@ function SentimentBars({ m }: { m: MemoData }) {
 function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
   const ci = m.consumer_intelligence
   const provenance = consumerIntelligenceProvenance(ci)
+  // Distinguishes "never attempted" (no real competitor ASINs were found —
+  // expected, honest) from "attempted but the Apify call timed out or
+  // failed" (a real provider outage worth flagging, not silent).
+  const attemptedButFailed = !ci && !!m.signal_metadata?.consumer_intelligence_attempted
 
   return (
     <div>
@@ -1750,7 +1763,14 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
       </div>
 
       {!ci ? (
-        <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+        attemptedButFailed ? (
+          <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2.5">
+            <p className="text-xs font-semibold text-amber-400 mb-1">Some providers timed out</p>
+            <p className="text-[11px] text-zinc-500">Real competitor products were found, but the review-data provider didn&rsquo;t return in time. This section is empty rather than estimated — re-running the analysis may succeed if the provider was just slow this once.</p>
+          </div>
+        ) : (
+          <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+        )
       ) : (
         <div className="space-y-5 mt-3">
           <p className="text-[11px] text-zinc-600">

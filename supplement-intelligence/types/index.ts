@@ -89,6 +89,11 @@ export interface SignalMetadata {
   pricing_verified:   boolean   // Keepa returned pricing data
   growth_verified:    boolean   // Keepa returned growth data
   market_verified?:   boolean   // Amazon seller-data competition signal was available (market_saturation grounding)
+  // True when real competitor ASINs were found and Consumer Intelligence was
+  // attempted — combined with MemoData.consumer_intelligence being absent,
+  // this distinguishes "attempted but timed out/failed" from "never
+  // attempted" (no competitors found), for the UI's partial-results notice.
+  consumer_intelligence_attempted?: boolean
 }
 
 export interface Ingredient {
