@@ -1,5 +1,6 @@
 import type {
   SignalProvider,
+  SignalContext,
   ProviderSignals,
   ViralitySignal,
 } from '../types'
@@ -166,7 +167,8 @@ export class TikTokProvider implements SignalProvider {
   // Set TIKTOK_DISABLED=true as escape hatch if endpoint breaks.
   readonly enabled = process.env.TIKTOK_DISABLED !== 'true'
 
-  async fetch(category: string): Promise<ProviderSignals | null> {
+  async fetch(ctx: SignalContext): Promise<ProviderSignals | null> {
+    const category = ctx.query
     const candidates = toHashtagCandidates(category)
     if (!candidates.length) return null
 

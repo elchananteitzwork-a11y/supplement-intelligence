@@ -12,6 +12,7 @@ export type {
   AggregatedDimension,
   AggregatedSignals,
   SignalProvider,
+  SignalContext,
 } from './types'
 
 export { SignalEngine }  from './engine'

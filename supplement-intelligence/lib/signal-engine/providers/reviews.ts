@@ -1,4 +1,4 @@
-import type { SignalProvider, ProviderSignals, ReviewVelocitySignal } from '../types'
+import type { SignalProvider, SignalContext, ProviderSignals, ReviewVelocitySignal } from '../types'
 
 // ── Rainforest Amazon Search provider — real review count / rating / brand
 // concentration for the user's EXACT query, not a category-wide average. ──
@@ -59,8 +59,9 @@ export class ReviewSignalProvider implements SignalProvider {
   readonly name    = 'rainforest-search'
   readonly enabled = !!process.env.RAINFOREST_API_KEY
 
-  async fetch(category: string): Promise<ProviderSignals | null> {
+  async fetch(ctx: SignalContext): Promise<ProviderSignals | null> {
     if (!this.enabled) return null
+    const category = ctx.query
 
     try {
       const params = new URLSearchParams({

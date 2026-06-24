@@ -257,7 +257,7 @@ export async function POST(req: Request) {
     : module.discoverySystemPrompt
 
   // ── Signal Engine ──────────────────────────────────────────────
-  const signals = await signalEngine.fetch(input.trim(), 12_000)
+  const signals = await signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 12_000)
 
   if (signals) {
     console.log('Signal Engine result', {

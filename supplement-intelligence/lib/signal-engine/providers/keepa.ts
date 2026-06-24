@@ -1,5 +1,6 @@
 import type {
   SignalProvider,
+  SignalContext,
   ProviderSignals,
   DemandSignal,
   CompetitionSignal,
@@ -136,9 +137,24 @@ export class KeepaProvider implements SignalProvider {
   readonly name    = 'keepa'
   readonly enabled = !!process.env.KEEPA_API_KEY
 
-  async fetch(category: string): Promise<ProviderSignals | null> {
+  async fetch(ctx: SignalContext): Promise<ProviderSignals | null> {
     if (!this.enabled) return null
 
+    // CONFIRMED BUG, FIXED 2026-06-24: this provider only ever queries the
+    // hardcoded Vitamins/Minerals/Supplements node (see SUPPLEMENT_NODES
+    // above) — there is no per-category node mapping for beauty/pets/
+    // fitness/home. It used to run for every category regardless, silently
+    // returning real supplement-category bestseller data mislabeled as
+    // relevant evidence for whatever was actually being analyzed. Gating to
+    // 'supplements' only, rather than guessing a node id for the other four
+    // categories — an invented node id would just be a different flavor of
+    // fabrication.
+    if (ctx.categoryId !== 'supplements') {
+      console.log('Keepa: skipped — only the supplements category has a real node mapping', { categoryId: ctx.categoryId })
+      return null
+    }
+
+    const category = ctx.query
     const key    = process.env.KEEPA_API_KEY!
     const nodeId = SUPPLEMENT_NODES.default
 

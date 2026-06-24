@@ -1,5 +1,6 @@
 import type {
   SignalProvider,
+  SignalContext,
   ProviderSignals,
   DemandSignal,
   GrowthSignal,
@@ -139,7 +140,8 @@ export class GoogleTrendsProvider implements SignalProvider {
   // Disabled when GOOGLE_TRENDS_DISABLED=true (escape hatch if rate-limited).
   readonly enabled = process.env.GOOGLE_TRENDS_DISABLED !== 'true'
 
-  async fetch(category: string): Promise<ProviderSignals | null> {
+  async fetch(ctx: SignalContext): Promise<ProviderSignals | null> {
+    const category = ctx.query
     const keyword = toSearchKeyword(category)
     if (!keyword) return null
 

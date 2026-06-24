@@ -1,4 +1,4 @@
-import type { SignalProvider, ProviderSignals } from '../types'
+import type { SignalProvider, SignalContext, ProviderSignals } from '../types'
 
 // Meta Ads provider stub.
 // When implemented, this provider will:
@@ -21,7 +21,7 @@ export class MetaAdsProvider implements SignalProvider {
   readonly enabled = false   // flip to !!(process.env.META_ADS_ACCESS_TOKEN) when implemented
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async fetch(_category: string): Promise<ProviderSignals | null> {
+  async fetch(_ctx: SignalContext): Promise<ProviderSignals | null> {
     return null
   }
 }

@@ -1,4 +1,4 @@
-import type { SignalProvider, ProviderSignals } from '../types'
+import type { SignalProvider, SignalContext, ProviderSignals } from '../types'
 
 // Amazon Ads provider stub.
 // When implemented, this provider will:
@@ -20,7 +20,7 @@ export class AmazonAdsProvider implements SignalProvider {
   readonly enabled = false   // flip to !!(process.env.AMAZON_ADS_CLIENT_ID) when implemented
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async fetch(_category: string): Promise<ProviderSignals | null> {
+  async fetch(_ctx: SignalContext): Promise<ProviderSignals | null> {
     return null
   }
 }

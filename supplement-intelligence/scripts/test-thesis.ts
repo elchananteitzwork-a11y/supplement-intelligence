@@ -183,7 +183,7 @@ async function main() {
   console.log(`\n  Fetching signals for "${QUERY}" (timeout 20s)...`)
 
   const t0  = Date.now()
-  const agg = await signalEngine.fetch(QUERY, 20_000)
+  const agg = await signalEngine.fetch({ query: QUERY }, 20_000)
   const ms1 = Date.now() - t0
 
   if (!agg) {

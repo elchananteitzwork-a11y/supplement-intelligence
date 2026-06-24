@@ -259,7 +259,7 @@ export async function POST(req: Request) {
 
   // ── Start signal + keyword fetch immediately (overlaps with DB round-trips below) ──
   // Firing this before the cache/profile checks hides most of its latency.
-  const signalPromise  = signalEngine.fetch(input.trim(), 8_000).catch(() => null)
+  const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 8_000).catch(() => null)
   const keywordPromise = keywordEngine.fetch(input.trim(), 8_000).catch(() => null)
 
   // ── Full-report cache ─────────────────────────────────────────

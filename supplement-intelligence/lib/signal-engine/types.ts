@@ -126,8 +126,22 @@ export interface AggregatedSignals {
 // fetch() returns null when: no API key, category not found,
 // network error, or data too thin to trust.
 
+// CONFIRMED BUG (2026-06-24): providers used to receive a single bare
+// `category: string` that was actually the user's free-text query, not a
+// category id. Keepa and Reddit both hardcode a category-specific Amazon
+// node / subreddit list and never checked which category was actually being
+// analyzed, so a beauty/pet/fitness/home query would silently get real
+// supplement-category bestseller data back, indistinguishable from genuine
+// evidence for that query. `categoryId` lets a provider that only makes
+// sense for one category refuse to answer for any other, rather than
+// guessing or substituting the wrong category's real data.
+export interface SignalContext {
+  query:       string    // free-text idea/category-name text — what most providers actually search for
+  categoryId?: string    // resolved category module id (e.g. 'supplements') — undefined if not resolved yet
+}
+
 export interface SignalProvider {
   readonly name:    string
   readonly enabled: boolean
-  fetch(category: string): Promise<ProviderSignals | null>
+  fetch(ctx: SignalContext): Promise<ProviderSignals | null>
 }

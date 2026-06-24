@@ -4,6 +4,7 @@ import type {
   AggregatedSignals,
   AggregatedDimension,
   SignalScore,
+  SignalContext,
 } from './types'
 
 // ── Aggregation helpers ───────────────────────────────────────────
@@ -63,14 +64,14 @@ export class SignalEngine {
   // the engine returns whatever set of signals did come back.
   // If NO providers return data, returns null so the caller can fall back to
   // pure-AI discovery unchanged.
-  async fetch(category: string, timeoutMs = 12_000): Promise<AggregatedSignals | null> {
+  async fetch(ctx: SignalContext, timeoutMs = 12_000): Promise<AggregatedSignals | null> {
     const enabled = this.providers.filter(p => p.enabled)
     if (!enabled.length) return null
 
     const results = await Promise.allSettled(
       enabled.map(p =>
         Promise.race([
-          p.fetch(category),
+          p.fetch(ctx),
           new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs)),
         ]),
       ),

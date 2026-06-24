@@ -619,7 +619,10 @@ export async function synthesize(
 
   emit?.({ event: 'source:started', provider: 'keepa' })
   try {
-    agg = await signalEngine.fetch(query, 15_000)
+    // No resolved category module in this engine — categoryId intentionally
+    // omitted so Keepa/Reddit's category-specific gates safely decline
+    // rather than guessing which category this query belongs to.
+    agg = await signalEngine.fetch({ query }, 15_000)
     if (agg) {
       for (const p of agg.providers_used) {
         const canonicalId = SIGNAL_ENGINE_ID_MAP[p] ?? p as ProviderId

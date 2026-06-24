@@ -1,5 +1,6 @@
 import type {
   SignalProvider,
+  SignalContext,
   ProviderSignals,
   DemandSignal,
   GrowthSignal,
@@ -177,8 +178,17 @@ export class RedditProvider implements SignalProvider {
   // Cached token (per cold-start invocation)
   private _token: { value: string; expires: number } | null = null
 
-  async fetch(category: string): Promise<ProviderSignals | null> {
+  async fetch(ctx: SignalContext): Promise<ProviderSignals | null> {
     if (!this.enabled) return null
+
+    // Same category-mismatch class as Keepa (see keepa.ts comment): the
+    // subreddit list above is supplement-specific. Gate the same way rather
+    // than returning real-but-irrelevant Reddit data for other categories.
+    if (ctx.categoryId !== 'supplements') {
+      console.log('Reddit: skipped — subreddit list is supplements-specific', { categoryId: ctx.categoryId })
+      return null
+    }
+    const category = ctx.query
 
     try {
       const token = await this.getToken()
