@@ -6,6 +6,8 @@ import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }    from '@/lib/signal-engine'
 import { keywordEngine }   from '@/lib/keyword-engine'
 import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
+import { computeGroundedScore } from '@/lib/scoring'
+import { checkConsistency } from '@/lib/consistency'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
 // CONFIRMED VIA LOAD TEST (2026-06-24, 17 real generations): single-attempt
@@ -452,28 +454,15 @@ export async function POST(req: Request) {
     break
   }
 
-  // ── Server-side score recalculation ───────────────────────────
-  // Phase 2: 5-dimension formula (competition replaced by qualitative market_saturation).
-  // Formula: round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
-  // Only applied to valid memos. signal_metadata is attached regardless.
-  if (!skipReason && memo.scores) {
-    const dimSum =
-      (memo.scores.demand?.score        ?? 0) +
-      (memo.scores.virality?.score      ?? 0) +
-      (memo.scores.subscription?.score  ?? 0) +
-      (memo.scores.manufacturing?.score ?? 0) +
-      (memo.scores.defensibility?.score ?? 0)
-    const computed = Math.round((dimSum / 50) * 100)
-    memo.opportunity_score = computed
-    memo.build_decision = computed >= 65 ? 'BUILD_NOW' : computed >= 50 ? 'VALIDATE_FURTHER' : 'SKIP'
-  }
   // Attach signal source metadata for Phase 3 UI attribution
   if (!skipReason && signalMeta) {
     memo.signal_metadata = signalMeta
   }
   // Evidence-first layer: persist the real signal/keyword data the prompt was
   // built from, instead of discarding it once the LLM call returns. The UI
-  // renders this directly — it is never rewritten by the model.
+  // renders this directly — it is never rewritten by the model. Must happen
+  // BEFORE the score recalculation below, which reads memo.signal_evidence
+  // and memo.consumer_intelligence to ground the score in real data.
   if (!skipReason && signals) {
     memo.signal_evidence = signals
   }
@@ -482,6 +471,31 @@ export async function POST(req: Request) {
   }
   if (!skipReason && consumerIntelligence) {
     memo.consumer_intelligence = consumerIntelligence
+  }
+
+  // ── Server-side score recalculation ───────────────────────────
+  // Audit finding (2026-06-24): the old 5-dimension formula was 100%
+  // LLM-self-assigned numbers, with the real Keepa/Apify/DataForSEO evidence
+  // sitting unused in signal_evidence. lib/scoring.ts replaces each
+  // dimension's number with the real provider score wherever one exists
+  // (revenue, market accessibility, consumer pain are NEW — previously not
+  // scored at all) and only falls back to the model's own number when no
+  // real signal exists, clearly marked as such in the UI breakdown.
+  if (!skipReason && memo.scores) {
+    const grounded = computeGroundedScore(memo)
+    memo.opportunity_score = grounded.score
+    memo.build_decision    = grounded.decision
+
+    // Server-side consistency check (lib/consistency.ts) — logged for
+    // visibility now; the same check re-runs in the UI (ConsistencyFlagsPanel)
+    // since it's a pure function of the same persisted memo fields.
+    const flags = checkConsistency(memo)
+    if (flags.length > 0) {
+      console.warn('Consistency check flagged claims', {
+        category: input.trim(),
+        flags:    flags.map(f => ({ field: f.field, claim: f.claim })),
+      })
+    }
   }
 
   console.log('Analysis decision', {

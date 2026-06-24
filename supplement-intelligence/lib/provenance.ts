@@ -23,8 +23,13 @@ import type { MemoData, SignalMetadata } from '@/types/index'
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
 import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
+import type { ScoreDimension } from '@/lib/scoring'
+import type { ConsistencyFlag } from '@/lib/consistency'
 
-export type ProvenanceLevel = 'verified' | 'estimated' | 'synthesized' | 'unknown'
+// 'unsupported' is distinct from legacy 'unknown' — it means a specific,
+// checkable claim was compared against real evidence (lib/consistency.ts)
+// and contradicted or had no supporting data, not just "provenance unclear."
+export type ProvenanceLevel = 'verified' | 'estimated' | 'synthesized' | 'unknown' | 'unsupported'
 
 export interface Provenance {
   level:  ProvenanceLevel
@@ -35,6 +40,7 @@ export interface Provenance {
 const verified    = (source: string, detail: string): Provenance => ({ level: 'verified', source, detail })
 const estimated    = (source: string, detail: string): Provenance => ({ level: 'estimated', source, detail })
 const synthesized = (detail: string): Provenance => ({ level: 'synthesized', source: 'Claude (AI synthesis)', detail })
+const unsupported = (detail: string): Provenance => ({ level: 'unsupported', source: 'Consistency check', detail })
 const unknown      = (detail: string): Provenance => ({ level: 'unknown', source: 'Unclassified', detail })
 
 // ── Fields whose provenance is fixed regardless of which memo you're
@@ -275,6 +281,30 @@ export function consumerIntelligenceProvenance(ci?: ConsumerIntelligenceReport |
     'Apify (Amazon reviews)',
     `Every theme is a real, literal phrase pulled from ${ci.totalReviewsCollected} real customer reviews on ${ci.asinsAnalyzed.length} top competitor product(s) — no LLM summarization. Themes are found by deterministic phrase clustering (frequency + stemming, not free-form interpretation) and each one shows exactly how many of the analyzed reviews mentioned it. The review count next to every theme is the actual count, not an estimate.`
   )
+}
+
+// Per-dimension provenance for the Opportunity Score breakdown
+// (lib/scoring.ts computeGroundedScore) — one badge per dimension, distinct
+// from the single overall opportunityScoreProvenance below.
+export function scoreDimensionProvenance(d: ScoreDimension): Provenance {
+  return d.source === 'verified'
+    ? verified(d.sourceLabel, `This dimension's score (${d.rawScore}/10) is read directly from real provider data, not written by the model.`)
+    : estimated(d.sourceLabel, `This dimension's score (${d.rawScore}/10) is the model's own judgment — ${d.sourceLabel.toLowerCase()}.`)
+}
+
+// Overall score provenance — names what fraction of the score's weight is
+// actually grounded, since the score itself is now a blend.
+export function opportunityScoreProvenance(groundedPct: number): Provenance {
+  if (groundedPct >= 50) {
+    return estimated('Blended score', `${groundedPct}% of this score's weight comes from real provider data (Keepa/Apify/DataForSEO/TikTok); the rest is AI judgment, clearly marked below.`)
+  }
+  return synthesized(`Only ${groundedPct}% of this score's weight comes from real data — most of this number is AI judgment. Treat the BUILD_NOW/SKIP call with caution until more real signals are available.`)
+}
+
+// Consistency-check flags (lib/consistency.ts) — a claim that was checked
+// against real evidence and contradicted it, or had none to point to.
+export function consistencyFlagProvenance(flag: ConsistencyFlag): Provenance {
+  return unsupported(`${flag.claim}. ${flag.evidence}`)
 }
 
 export function memoProvenanceSummary(m: MemoData): { verifiedCount: number; estimatedCount: number; synthesizedCount: number } {

@@ -5,6 +5,8 @@ import type { MemoData, BuildDecision, SignalMetadata } from '@/types/index'
 import type { ViralitySignal } from '@/lib/signal-engine/types'
 import type { KeywordMetric } from '@/lib/keyword-engine/types'
 import type { ThemeInsight } from '@/lib/consumer-intelligence'
+import { computeGroundedScore } from '@/lib/scoring'
+import { checkConsistency } from '@/lib/consistency'
 import {
   IconTrendUp, IconTrendDown, IconBeaker, IconArrowRight, IconX, IconAlert,
 } from '@/components/icons'
@@ -17,6 +19,7 @@ import {
   searchVolumeProvenance, searchGrowthProvenance, unitsSoldProvenance,
   revenueEvidenceProvenance, competitionEvidenceProvenance, categoryReviewDataProvenance,
   marketAccessibilityProvenance, keywordIntelligenceProvenance, consumerIntelligenceProvenance,
+  scoreDimensionProvenance, opportunityScoreProvenance, consistencyFlagProvenance,
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
 
@@ -37,26 +40,18 @@ interface MfgEstimate {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SCORE — always recomputed from dimensions (corrects LLM math)
-// Phase 2: 5-dimension formula (demand + virality + subscription +
-// manufacturing + defensibility) / 50. Old analyses that still carry
-// a competition score use the legacy 6-dim / 60 formula automatically.
-// UNCHANGED from prior implementation — presentation-only redesign.
+// SCORE — always recomputed from dimensions (corrects LLM math), same as
+// before. As of 2026-06-24, the formula itself moved to lib/scoring.ts:
+// real provider scores (Keepa/Apify/DataForSEO/TikTok) replace the model's
+// own self-assessment wherever a real signal exists; only dimensions with
+// no real data source stay model-estimated, and are marked as such in the
+// UI breakdown rather than blended in invisibly. See lib/scoring.ts for the
+// full rationale — this wrapper exists only so existing call sites below
+// don't need to change.
 // ═══════════════════════════════════════════════════════════════
 
 function computeScore(m: MemoData): { score: number; decision: BuildDecision } {
-  const hasLegacyCompetition = typeof m.scores.competition?.score === 'number'
-  const dimSum =
-    (m.scores.demand?.score        ?? 0) +
-    (m.scores.virality?.score      ?? 0) +
-    (m.scores.subscription?.score  ?? 0) +
-    (m.scores.manufacturing?.score ?? 0) +
-    (m.scores.defensibility?.score ?? 0) +
-    (hasLegacyCompetition ? (m.scores.competition!.score) : 0)
-  const maxDim = hasLegacyCompetition ? 60 : 50
-  const score    = Math.round((dimSum / maxDim) * 100)
-  const decision: BuildDecision =
-    score >= 65 ? 'BUILD_NOW' : score >= 50 ? 'VALIDATE_FURTHER' : 'SKIP'
+  const { score, decision } = computeGroundedScore(m)
   return { score, decision }
 }
 
@@ -133,11 +128,17 @@ function mapAccessibility(score: number) {
 
 type EvidenceType = ProvenanceLevel
 
+// Three user-facing tiers, not four — 'estimated' and 'synthesized' are kept
+// as distinct internal ProvenanceLevel values (for nuance in code/tooltips)
+// but read identically to a user: both are the model's own judgment, not a
+// real external source. 'unknown' and 'unsupported' both surface as the
+// same alarming "needs verification" treatment.
 const EVIDENCE_CFG: Record<EvidenceType, { label: string; cls: string }> = {
-  verified:    { label: 'Verified',    cls: 'text-emerald-400 bg-emerald-400/8 border-emerald-400/20' },
-  estimated:   { label: 'Estimated',   cls: 'text-amber-400   bg-amber-400/8   border-amber-400/20'   },
-  synthesized: { label: 'Synthesized', cls: 'text-zinc-400    bg-white/[0.06]  border-white/[0.1]'    },
-  unknown:     { label: 'Unknown',     cls: 'text-blue-400    bg-blue-400/8    border-blue-400/20'    },
+  verified:    { label: 'Verified Data',                    cls: 'text-emerald-400 bg-emerald-400/8 border-emerald-400/20' },
+  estimated:   { label: 'AI Interpretation',                cls: 'text-amber-400   bg-amber-400/8   border-amber-400/20'   },
+  synthesized: { label: 'AI Interpretation',                cls: 'text-amber-400   bg-amber-400/8   border-amber-400/20'   },
+  unknown:     { label: 'Unsupported / Needs Verification', cls: 'text-red-400     bg-red-400/8     border-red-400/25'     },
+  unsupported: { label: 'Unsupported / Needs Verification', cls: 'text-red-400     bg-red-400/8     border-red-400/25'     },
 }
 
 function EvidenceBadge({ type, detail, source }: { type: EvidenceType; detail?: string; source?: string }) {
@@ -151,6 +152,20 @@ function EvidenceBadge({ type, detail, source }: { type: EvidenceType; detail?: 
       <span className="w-1 h-1 rounded-full bg-current opacity-70 shrink-0"/>
       {label}
     </span>
+  )
+}
+
+// Same badge, but the detail renders as visible text underneath instead of
+// a hover-only title — for first-read content (market thesis, score
+// breakdown, consistency flags) where "hover to find out if this is real"
+// is exactly the failure mode being fixed.
+function ProvenanceCaption({ p }: { p: Provenance }) {
+  const { label, cls } = EVIDENCE_CFG[p.level]
+  return (
+    <div className={`flex items-start gap-2 text-[11px] rounded-lg border px-2.5 py-2 ${cls}`}>
+      <span className="font-semibold shrink-0 whitespace-nowrap">{label}:</span>
+      <span className="opacity-90">{p.detail}</span>
+    </div>
   )
 }
 
@@ -454,6 +469,58 @@ function TickerStrip({
 // MASTHEAD — document header. Establishes "dossier", not "AI output".
 // ═══════════════════════════════════════════════════════════════
 
+// Score Breakdown — every dimension behind the headline number, each
+// labeled Verified Data or AI Interpretation, visible by default (not a
+// hover tooltip). This is the direct fix for "the score is mostly
+// ungrounded but reads as confident" — the grounded % and the per-
+// dimension source are now impossible to miss on first read.
+function ScoreBreakdownPanel({ m }: { m: MemoData }) {
+  const { dimensions, groundedPct } = computeGroundedScore(m)
+  return (
+    <div className="mt-7 pt-5 border-t border-white/[0.06]">
+      <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">
+        Score Breakdown — {groundedPct}% grounded in real data
+      </p>
+      <ProvenanceCaption p={opportunityScoreProvenance(groundedPct)} />
+      <div className="mt-3 space-y-2.5">
+        {dimensions.map(d => (
+          <div key={d.key} className="flex items-center gap-3">
+            <span className="text-xs text-zinc-300 w-40 shrink-0 truncate">{d.label}</span>
+            <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+              <div
+                className={`h-full ${d.source === 'verified' ? 'bg-emerald-400/60' : 'bg-amber-400/60'}`}
+                style={{ width: `${d.rawScore * 10}%` }}
+              />
+            </div>
+            <span className="text-xs font-mono text-zinc-400 w-10 text-right shrink-0">{d.rawScore}/10</span>
+            <EvidenceBadge type={d.source} source={d.sourceLabel} detail={`Weighted ${Math.round(d.weight * 100)}% of the final score.`} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Consistency Flags — claims that were checked against real evidence
+// (lib/consistency.ts) and contradicted it, or had none to point to.
+// Rendered visibly, not suppressed — finding zero flags is reported too,
+// so absence of warnings isn't ambiguous with "wasn't checked."
+function ConsistencyFlagsPanel({ m }: { m: MemoData }) {
+  const flags = checkConsistency(m)
+  return (
+    <div className="mt-6 pt-5 border-t border-white/[0.06]">
+      <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">Consistency Check</p>
+      {flags.length === 0 ? (
+        <ProvenanceCaption p={{ level: 'verified', source: 'Consistency check', detail: 'No contradictions found between this memo’s claims and the real evidence collected for it.' }} />
+      ) : (
+        <div className="space-y-2">
+          {flags.map((f, i) => <ProvenanceCaption key={i} p={consistencyFlagProvenance(f)} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Masthead({
   m, score, decision, confidence, generatedAt,
 }: {
@@ -495,6 +562,9 @@ function Masthead({
             .map(([l, v]) => <MetaChip key={l} label={l} value={v} />)}
         </div>
       </div>
+
+      <ScoreBreakdownPanel m={m} />
+      <ConsistencyFlagsPanel m={m} />
     </div>
   )
 }
@@ -616,7 +686,6 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
     <div className="card-premium p-6 sm:p-8">
       <div className="flex items-center justify-between gap-3 mb-5">
         <p className="label">Executive Summary</p>
-        <ProvenanceBadge p={STATIC_PROVENANCE.marketThesis} />
       </div>
 
       <blockquote className="border-l-2 border-brass/40 pl-4 sm:pl-5">
@@ -624,15 +693,18 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
           {thesis}
         </p>
       </blockquote>
+      <div className="mt-3">
+        <ProvenanceCaption p={STATIC_PROVENANCE.marketThesis} />
+      </div>
 
       {whyNow && (
         <div className="mt-6 pt-5 border-t border-white/[0.06] flex items-start justify-between gap-5">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Why Now</p>
-              <ProvenanceBadge p={STATIC_PROVENANCE.whyNow} />
-            </div>
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-2">Why Now</p>
             <p className="text-sm text-zinc-400 leading-relaxed">{whyNow}</p>
+            <div className="mt-3">
+              <ProvenanceCaption p={STATIC_PROVENANCE.whyNow} />
+            </div>
           </div>
           <MomentumBadge whyNow={whyNow} demandNotes={m.scores.demand?.notes} demandScore={m.scores.demand?.score} />
         </div>
@@ -840,7 +912,10 @@ function deriveTop3Risks(m: MemoData): DerivedRisk[] {
 function deriveValidationSteps(m: MemoData): string[] {
   const d    = m.build_decision
   const gap  = m.market_gaps?.[0]?.replace(/\.$/, '') ?? 'the primary market gap'
-  const pain = m.customer_language?.frustrations?.[0]
+  // Prefer the real, review-text-derived pain point over the AI-invented
+  // one when available — same fix as the Consumer Intelligence tab: real
+  // data is the primary source, not a fallback.
+  const pain = m.consumer_intelligence?.negativeThemes?.[0]?.label ?? m.customer_language?.frustrations?.[0]
   const fmt  = m.product_recommendation?.format ?? 'product'
   const copy = m.customer_language?.ad_phrases?.[0]?.use_in_copy
 
@@ -1816,11 +1891,11 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
       <div className="pt-5 border-t border-white/[0.06]">
         <KeywordIntelligenceSection m={m} />
       </div>
-
-      {/* Consumer Intelligence — real review-text themes, when available */}
-      <div className="pt-5 border-t border-white/[0.06]">
-        <ConsumerIntelligenceSection m={m} />
-      </div>
+      {/* Real review-text themes now live in the Consumer Intelligence tab
+          itself (see DeepDiveSection "Consumer Intelligence" below) — moved
+          there 2026-06-24 so it's the PRIMARY content of that tab instead of
+          being buried in Market while the fabricated customer_language
+          pinboard occupied the Consumer tab alone. */}
     </div>
   )
 }
@@ -2458,7 +2533,23 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
 
           <div className={activeTab === 'consumer-intelligence' ? '' : 'hidden'}>
             <DeepDiveSection title="Consumer Intelligence">
-              <ConsumerIntelligenceContent m={m} />
+              <div className="space-y-8">
+                {/* Real review-text data is the PRIMARY content of this tab —
+                    moved here 2026-06-24 from the Market tab, where it was
+                    easy to miss while this tab showed only AI-invented
+                    personas with no real source. */}
+                <ConsumerIntelligenceSection m={m} />
+
+                <div className="pt-6 border-t border-white/[0.06]">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest">AI-Generated Customer Personas</p>
+                  </div>
+                  <ProvenanceCaption p={{ level: 'synthesized', source: 'Claude (AI synthesis)', detail: 'Everything below is invented by the model to read like real customer quotes. It is not pulled from the real reviews shown above — treat it as a creative starting point for messaging, not as research.' }} />
+                  <div className="mt-4">
+                    <ConsumerIntelligenceContent m={m} />
+                  </div>
+                </div>
+              </div>
             </DeepDiveSection>
           </div>
 
