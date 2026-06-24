@@ -7,7 +7,14 @@ import { signalEngine }    from '@/lib/signal-engine'
 import { keywordEngine }   from '@/lib/keyword-engine'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
-export const maxDuration = 60
+// CONFIRMED VIA LOAD TEST (2026-06-24, 17 real generations): single-attempt
+// Anthropic generation latency for this prompt size routinely runs 48-68s on
+// its own, which was landing right on top of the previous 60s ceiling — 7/17
+// real attempts came back as an unparseable Vercel platform timeout page
+// instead of JSON. Raising the ceiling here; the abort timer below is kept
+// safely under it so a genuinely stuck request fails as a clean JSON error
+// instead of a hard platform kill either way.
+export const maxDuration = 120
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -344,7 +351,7 @@ export async function POST(req: Request) {
   for (let attempt = 1; attempt <= MAX_GENERATE_ATTEMPTS; attempt++) {
     const t0         = Date.now()
     const controller = new AbortController()
-    const abortTimer = setTimeout(() => controller.abort(), 55_000)
+    const abortTimer = setTimeout(() => controller.abort(), 100_000)
     let rawText = ''
 
     try {
