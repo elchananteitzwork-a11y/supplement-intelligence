@@ -234,9 +234,10 @@ export function categoryReviewDataProvenance(signals?: AggregatedSignals | null)
 }
 
 // "Competitor Count" / "Average Review Count" / "Market Concentration" — real
-// only via Rainforest's live organic search results for this exact query.
-// No fallback to market_saturation or any model-judgment substitute: a count
-// either comes from counting real things, or it doesn't exist yet.
+// only via a live Amazon search for this exact query (Apify's junglee/amazon-crawler
+// actor — see providers/competition.ts). No fallback to market_saturation or any
+// model-judgment substitute: a count either comes from counting real things,
+// or it doesn't exist yet.
 export function competitionEvidenceProvenance(signals?: AggregatedSignals | null): Provenance | null {
   const hasRealCompetitorData = signals?.review_velocity?.value.meaningful_competitor_count !== undefined
   if (!hasRealCompetitorData) return null

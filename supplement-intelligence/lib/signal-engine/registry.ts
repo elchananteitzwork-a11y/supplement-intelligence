@@ -1,11 +1,11 @@
-import { SignalEngine }         from './engine'
-import { KeepaProvider }        from './providers/keepa'
-import { GoogleTrendsProvider } from './providers/google-trends'
-import { TikTokProvider }       from './providers/tiktok'
-import { RedditProvider }       from './providers/reddit'
-import { AmazonAdsProvider }    from './providers/amazon-ads'
-import { MetaAdsProvider }      from './providers/meta-ads'
-import { ReviewSignalProvider } from './providers/reviews'
+import { SignalEngine }              from './engine'
+import { KeepaProvider }             from './providers/keepa'
+import { GoogleTrendsProvider }      from './providers/google-trends'
+import { TikTokProvider }            from './providers/tiktok'
+import { RedditProvider }            from './providers/reddit'
+import { AmazonAdsProvider }         from './providers/amazon-ads'
+import { MetaAdsProvider }           from './providers/meta-ads'
+import { CompetitionSignalProvider } from './providers/competition'
 
 // To add a new provider:
 //   1. Implement SignalProvider in providers/<name>.ts
@@ -20,7 +20,7 @@ const providers = [
   new RedditProvider(),
   new AmazonAdsProvider(),
   new MetaAdsProvider(),
-  new ReviewSignalProvider(),
+  new CompetitionSignalProvider(),
 ]
 
 // Singleton engine used by all API routes.

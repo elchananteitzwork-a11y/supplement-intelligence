@@ -73,15 +73,19 @@ export interface ReviewVelocitySignal extends SignalScore {
   monthly_reviews?: string                  // e.g. "180/product/month"
   sentiment?:       'Positive' | 'Mixed' | 'Negative'
   avg_rating?:      string                  // e.g. "4.3"
-  // Real review-based market-accessibility signal (lib/signal-engine/providers/reviews.ts,
-  // Rainforest organic search results for this exact query — not a category-wide average).
+  // Real review-based market-accessibility signal (lib/signal-engine/providers/competition.ts,
+  // Apify Amazon search results for this exact query — not a category-wide average).
   // Lives here rather than on CompetitionSignal: when two providers both populate the same
   // dimension, the engine keeps only the higher-confidence provider's non-numeric fields
   // (see engine.ts aggregateDimension), and Keepa already owns `competition`. This dimension
   // is currently uncontested, so nothing here gets silently dropped on merge.
   meaningful_competitor_count?: number   // distinct brands among top organic results with a non-trivial review count
-  avg_review_count?:           number    // average ratings_total across those top results
-  review_concentration_ratio?: number    // 0–1 — share of all reviews held by the #1 result; higher = more entrenched incumbent, harder to break in
+  avg_review_count?:           number    // average review count across those top results
+  review_concentration_ratio?: number    // 0–1 — share of total reviews held by the top 3 results combined; higher = more entrenched incumbents, harder to break in
+  // Real per-listing detail behind the aggregates above — same source data,
+  // kept itemized so "Meaningful Competitors" can show the actual list
+  // (brand/reviews/rating/price), not just a count.
+  top_competitors?: { brand: string; reviewCount: number; rating: number; price: number }[]
 }
 
 // ── Provider output ───────────────────────────────────────────────

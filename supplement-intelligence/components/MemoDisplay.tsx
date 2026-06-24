@@ -1460,6 +1460,41 @@ function RevenueEvidencePanel({ m }: { m: MemoData }) {
   )
 }
 
+// Compact list of the real top competitors behind the aggregate metrics
+// above — same source data (Apify junglee/amazon-crawler), itemized rather
+// than just counted. No sponsored-ad flag exists on this actor's output
+// (confirmed live, documented in providers/competition.ts) — these are the
+// top real results by review count, not filtered for ad placement.
+function MeaningfulCompetitorsList({ competitors }: { competitors: { brand: string; reviewCount: number; rating: number; price: number }[] }) {
+  return (
+    <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+      <p className="text-xs font-semibold text-zinc-200 mb-3">Meaningful Competitors</p>
+      <div className="overflow-x-auto rounded-lg border border-white/[0.06]">
+        <table className="w-full text-sm min-w-[360px]">
+          <thead>
+            <tr className="bg-white/[0.04] text-[10px] text-zinc-500 uppercase tracking-wider">
+              <th className="text-left py-2 px-3">Brand</th>
+              <th className="text-right py-2 px-3">Reviews</th>
+              <th className="text-right py-2 px-3">Rating</th>
+              <th className="text-right py-2 px-3">Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            {competitors.map((c, i) => (
+              <tr key={i} className="border-t border-white/[0.05]">
+                <td className="py-2 px-3 font-medium text-zinc-200">{c.brand}</td>
+                <td className="py-2 px-3 text-right font-mono text-zinc-300">{c.reviewCount.toLocaleString()}</td>
+                <td className="py-2 px-3 text-right font-mono text-zinc-300">{c.rating.toFixed(1)}</td>
+                <td className="py-2 px-3 text-right font-mono text-zinc-300">${c.price.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 function CompetitionEvidencePanel({ m }: { m: MemoData }) {
   const ev      = m.signal_evidence
   const rv      = ev?.review_velocity?.value
@@ -1472,18 +1507,23 @@ function CompetitionEvidencePanel({ m }: { m: MemoData }) {
   const level = score >= 7 ? 'Strong' as const : score >= 4 ? 'Moderate' as const : 'Weak' as const
 
   return (
-    <EvidencePanel
-      title="Competition Evidence"
-      metrics={[
-        { label: 'Competitor Count',       value: rv?.meaningful_competitor_count !== undefined ? String(rv.meaningful_competitor_count) : undefined, provenance: compP },
-        { label: 'Average Review Count',   value: rv?.avg_review_count !== undefined ? rv.avg_review_count.toLocaleString() : undefined,               provenance: compP },
-        { label: 'Market Concentration',   value: rv?.review_concentration_ratio !== undefined ? `${Math.round(rv.review_concentration_ratio * 100)}% held by #1 result` : undefined, provenance: compP },
-      ]}
-      scoreLabel="Market Accessibility Score"
-      scoreProvenance={marketAccessibilityProvenance(ev)}
-      score={score}
-      scoreLevel={level}
-    />
+    <div className="space-y-3">
+      <EvidencePanel
+        title="Competition Evidence"
+        metrics={[
+          { label: 'Competitor Count',       value: rv?.meaningful_competitor_count !== undefined ? String(rv.meaningful_competitor_count) : undefined, provenance: compP },
+          { label: 'Average Review Count',   value: rv?.avg_review_count !== undefined ? rv.avg_review_count.toLocaleString() : undefined,               provenance: compP },
+          { label: 'Market Concentration',   value: rv?.review_concentration_ratio !== undefined ? `${Math.round(rv.review_concentration_ratio * 100)}% held by top 3 sellers` : undefined, provenance: compP },
+        ]}
+        scoreLabel="Market Accessibility Score"
+        scoreProvenance={marketAccessibilityProvenance(ev)}
+        score={score}
+        scoreLevel={level}
+      />
+      {rv?.top_competitors && rv.top_competitors.length > 0 && (
+        <MeaningfulCompetitorsList competitors={rv.top_competitors} />
+      )}
+    </div>
   )
 }
 

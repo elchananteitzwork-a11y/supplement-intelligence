@@ -14,7 +14,14 @@ import type { MemoData, SignalMetadata } from '@/types/index'
 // instead of JSON. Raising the ceiling here; the abort timer below is kept
 // safely under it so a genuinely stuck request fails as a clean JSON error
 // instead of a hard platform kill either way.
-export const maxDuration = 120
+//
+// Raised again 2026-06-24 (120 → 200) to make room for the Apify
+// competition-intelligence call (providers/competition.ts), which measured
+// 30-48s real synchronous latency across 3 live runs — well past the old
+// 8s signal-engine timeout. Confirmed this account's plan (Hobby, with
+// fluid compute) allows up to 300s, so 200s leaves real margin: worst case
+// is ~55s signals + ~100s generation + DB overhead, not close to the ceiling.
+export const maxDuration = 200
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -266,7 +273,11 @@ export async function POST(req: Request) {
 
   // ── Start signal + keyword fetch immediately (overlaps with DB round-trips below) ──
   // Firing this before the cache/profile checks hides most of its latency.
-  const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 8_000).catch(() => null)
+  // 55_000 (not the old 8_000): the Apify competition provider's real
+  // synchronous latency runs 30-48s — anything shorter than that silently
+  // dropped its result even though the call had already succeeded and been
+  // billed. Matches that provider's own internal AbortSignal.timeout(55_000).
+  const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 55_000).catch(() => null)
   const keywordPromise = keywordEngine.fetch(input.trim(), 8_000).catch(() => null)
 
   // ── Full-report cache ─────────────────────────────────────────
