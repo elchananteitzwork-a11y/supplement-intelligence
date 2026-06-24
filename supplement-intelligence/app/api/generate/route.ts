@@ -15,13 +15,18 @@ import type { MemoData, SignalMetadata } from '@/types/index'
 // safely under it so a genuinely stuck request fails as a clean JSON error
 // instead of a hard platform kill either way.
 //
-// Raised again 2026-06-24 (120 → 200) to make room for the Apify
-// competition-intelligence call (providers/competition.ts), which measured
-// 30-48s real synchronous latency across 3 live runs — well past the old
-// 8s signal-engine timeout. Confirmed this account's plan (Hobby, with
-// fluid compute) allows up to 300s, so 200s leaves real margin: worst case
-// is ~55s signals + ~100s generation + DB overhead, not close to the ceiling.
-export const maxDuration = 200
+// Raised again 2026-06-24 (120 → 250) to make room for the Apify
+// competition-intelligence call (providers/competition.ts). Its real
+// synchronous latency across 7 live runs measured 30-73s — high variance,
+// no clean fast path (Amazon search scraping is page-load/anti-bot-bound,
+// not item-count-bound). A too-short client-side timeout doesn't save
+// money either: Apify still runs and bills the actor to completion
+// regardless of whether this request is still listening for the result —
+// it just means we paid for data we then threw away. Confirmed this
+// account's plan (Hobby, with fluid compute) allows up to 300s, so 250s
+// leaves real margin: worst case is ~75s signals + ~100s generation +
+// overhead, with slack left under both this ceiling and the platform's.
+export const maxDuration = 250
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -273,11 +278,11 @@ export async function POST(req: Request) {
 
   // ── Start signal + keyword fetch immediately (overlaps with DB round-trips below) ──
   // Firing this before the cache/profile checks hides most of its latency.
-  // 55_000 (not the old 8_000): the Apify competition provider's real
-  // synchronous latency runs 30-48s — anything shorter than that silently
-  // dropped its result even though the call had already succeeded and been
-  // billed. Matches that provider's own internal AbortSignal.timeout(55_000).
-  const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 55_000).catch(() => null)
+  // 75_000 (not the old 8_000): the Apify competition provider's real
+  // synchronous latency measured 30-73s across 7 live runs — anything
+  // shorter silently dropped a result that had already succeeded and been
+  // billed. Matches that provider's own internal AbortSignal.timeout(80_000).
+  const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 75_000).catch(() => null)
   const keywordPromise = keywordEngine.fetch(input.trim(), 8_000).catch(() => null)
 
   // ── Full-report cache ─────────────────────────────────────────

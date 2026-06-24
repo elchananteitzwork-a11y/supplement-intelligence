@@ -73,10 +73,14 @@ export class CompetitionSignalProvider implements SignalProvider {
     if (!category.trim()) return null
 
     try {
-      const url = `${ACTOR_ENDPOINT}?token=${process.env.APIFY_API_TOKEN}&timeout=60`
+      // timeout=90 is the actor's OWN max runtime on Apify's side; the
+      // AbortSignal below is our client-side ceiling, kept just above the
+      // signal engine's 75_000ms shared race timeout (app/api/generate/route.ts)
+      // so that shared race — not this abort — is what actually governs.
+      const url = `${ACTOR_ENDPOINT}?token=${process.env.APIFY_API_TOKEN}&timeout=90`
       const res = await fetch(url, {
         method:  'POST',
-        signal:  AbortSignal.timeout(55_000),
+        signal:  AbortSignal.timeout(80_000),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           categoryOrProductUrls: [{ url: `https://www.amazon.com/s?k=${encodeURIComponent(category)}` }],
