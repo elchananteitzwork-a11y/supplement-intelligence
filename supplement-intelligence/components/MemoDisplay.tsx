@@ -234,6 +234,26 @@ function SignalBars({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
   )
 }
 
+// ── Pulse Rings — a TikTok-flavored "engagement ping" in place of generic
+// bars, reserved for the virality row specifically (it's the one signal
+// that's genuinely social/platform-native rather than a market metric).
+function PulseRings({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
+  const color = level === 'Strong' ? '#34d399' : level === 'Moderate' ? '#fbbf24' : '#71717a'
+  const rings = level === 'Strong' ? 3 : level === 'Moderate' ? 2 : 1
+  return (
+    <div className="relative w-4 h-4 shrink-0 grid place-items-center">
+      {Array.from({ length: rings }).map((_, i) => (
+        <span key={i} className="absolute rounded-full border"
+          style={{
+            borderColor: color, width: '60%', height: '60%',
+            animation: 'tiktokPulse 2.2s ease-out infinite', animationDelay: `${i * 0.45}s`,
+          }} />
+      ))}
+      <span className="relative w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+    </div>
+  )
+}
+
 // ── Dimension Radar — the shape of an opportunity, not five separate
 // numbers you have to compare by hand.
 function DimensionRadar({ dims, color }: { dims: [string, number][]; color: string }) {
@@ -258,7 +278,8 @@ function DimensionRadar({ dims, color }: { dims: [string, number][]; color: stri
         return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#ffffff" strokeOpacity={0.09} />
       })}
       <polygon points={dataPoints.map(p => p.join(',')).join(' ')}
-        fill={color} fillOpacity={0.16} stroke={color} strokeWidth={2} />
+        fill={color} fillOpacity={0.16} stroke={color} strokeWidth={2}
+        style={{ transformOrigin: `${cx}px ${cy}px`, animation: 'radarDrawIn .7s var(--ease-premium, ease) both' }} />
       {dataPoints.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={3.5} fill={color} />)}
       {dims.map(([label, score], i) => {
         const [rawX, ly] = pointAt(i, 1.22)
@@ -287,26 +308,6 @@ function NumList({ items }: { items: string[] }) {
   )
 }
 
-function ProbBar({ label, value }: { label: string; value: string }) {
-  const pct = parseInt(value, 10) || 0
-  const c   = pct >= 60 ? 'bg-emerald-400' : pct >= 30 ? 'bg-amber-400' : 'bg-zinc-600'
-  return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-sm">
-        <span className="text-zinc-400">{label}</span>
-        <span className="font-mono font-semibold">{value}</span>
-      </div>
-      <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden">
-        {/* faint gridlines — chart-panel feel */}
-        <div className="absolute inset-0 flex justify-between px-[24.5%]">
-          <span className="w-px h-full bg-white/[0.08]" />
-          <span className="w-px h-full bg-white/[0.08]" />
-        </div>
-        <div className={`relative h-full rounded-full ${c}`} style={{ width: `${pct}%`, transition: 'width .7s ease' }}/>
-      </div>
-    </div>
-  )
-}
 
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
@@ -573,20 +574,22 @@ function IntelligenceGraph({
         <p className="text-[10px] text-zinc-600 uppercase tracking-wider hidden sm:inline">Signal relationships · click a node</p>
       </div>
       <svg viewBox="0 0 600 436" className="w-full h-auto mt-2">
-        {pos.map(n => (
+        {pos.map((n, i) => (
           <line key={`e-${n.id}`} x1={cx} y1={cy} x2={n.x} y2={n.y}
-            stroke={c} strokeOpacity={0.12 + n.strength * 0.38} strokeWidth={1 + n.strength * 2.2} />
+            stroke={c} strokeOpacity={0.12 + n.strength * 0.38} strokeWidth={1 + n.strength * 2.2}
+            style={{ opacity: 0, animation: 'riseIn .5s ease both', animationDelay: `${i * 0.06}s` }} />
         ))}
 
         <circle cx={cx} cy={cy} r={42} fill="#0d0d10" stroke={c} strokeWidth={2} />
         <text x={cx} y={cy - 2} textAnchor="middle" style={{ fill: c, fontSize: 26, fontFamily: 'var(--font-fraunces)', fontWeight: 500 }}>{score}</text>
         <text x={cx} y={cy + 18} textAnchor="middle" style={{ fill: '#71717a', fontSize: 9, letterSpacing: 1.5 }}>SCORE</text>
 
-        {pos.map(n => {
+        {pos.map((n, i) => {
           const dir = n.y > cy ? 1 : n.y < cy ? -1 : (n.x > cx ? 1 : -1)
           const nodeR = 9 + n.strength * 7
           return (
-            <g key={n.id} onClick={() => onJump(n.tab)} className="cursor-pointer">
+            <g key={n.id} onClick={() => onJump(n.tab)} className="cursor-pointer"
+              style={{ transformOrigin: `${n.x}px ${n.y}px`, animation: `graphNodeIn .5s var(--ease-premium, ease) both`, animationDelay: `${0.25 + i * 0.08}s` }}>
               <circle cx={n.x} cy={n.y} r={nodeR} fill="#0a0a0c" stroke={c} strokeOpacity={0.55 + n.strength * 0.45} strokeWidth={1.5} />
               <circle cx={n.x} cy={n.y} r={2.5} fill={c} />
               <text x={n.x} y={n.y + dir * (nodeR + 16)} textAnchor="middle" style={{ fill: '#e4e4e7', fontSize: 12, fontWeight: 600 }}>{n.label}</text>
@@ -963,8 +966,8 @@ function ConsumerIntelligenceContent({ m }: { m: MemoData }) {
         {cards.map((card, i) => {
           const cfg = KIND_CFG[card.kind]
           return (
+            <div key={card.id} className="transition-transform duration-300 hover:-translate-y-1.5">
             <div
-              key={card.id}
               className="rounded-sm p-4 bg-[#15151a]"
               style={{
                 borderTop: `3px solid ${cfg.color}`,
@@ -976,6 +979,7 @@ function ConsumerIntelligenceContent({ m }: { m: MemoData }) {
                 {cfg.label}
               </span>
               {card.node}
+            </div>
             </div>
           )
         })}
@@ -1091,7 +1095,7 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
               <div key={row.label} className="ledger-row">
                 <span className="text-xs font-semibold text-zinc-300 w-28 shrink-0">{row.label}</span>
                 <span className="font-serif font-medium text-base text-zinc-100 w-10 shrink-0">{row.dim.score}<span className="text-zinc-600 text-[10px] font-sans">/10</span></span>
-                <SignalBars level={level} />
+                {row.label === 'Virality' ? <PulseRings level={level} /> : <SignalBars level={level} />}
                 <span className="flex-1 text-xs text-zinc-500 truncate hidden md:inline">{row.dim.notes}</span>
                 <span className="ml-auto shrink-0 flex items-center gap-2">
                   <EvidenceBadge type={row.badge} />
@@ -1124,6 +1128,64 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
 // COMPETITIVE LANDSCAPE — comp-table treatment
 // ═══════════════════════════════════════════════════════════════
 
+// ── Competitive Position Map — where the incumbent sits vs. the specific
+// gap you'd enter through, instead of a brand/revenue/gap table. Axes are
+// derived from the same market_saturation fields the text version used —
+// nothing fabricated, just plotted instead of described.
+const CONCENTRATION_X: Record<string, number> = { Low: 22, Moderate: 48, High: 72, 'Very High': 90 }
+const DIFFICULTY_WHITESPACE: Record<string, number> = { Low: 84, Medium: 62, High: 22 }
+
+function CompetitivePositionMap({ m }: { m: MemoData }) {
+  const sat = m.market_saturation
+  const comp = m.biggest_competitor
+  const hasComp = !!(comp?.name && comp.name !== 'N/A')
+
+  const x = CONCENTRATION_X[sat?.concentration ?? 'Moderate'] ?? 50
+  const usY = DIFFICULTY_WHITESPACE[sat?.entry_difficulty ?? 'Medium'] ?? 50
+  const incumbentY = 16
+
+  const cx = 150, cy = 150, w = 300, h = 300
+  const toPx = (px: number, py: number) => [24 + (px / 100) * (w - 48), 24 + (1 - py / 100) * (h - 48)]
+  const [usX, usPy]   = toPx(Math.min(94, x + 6), usY)
+  const [incX, incPy] = toPx(Math.max(6, x - 6), incumbentY)
+
+  return (
+    <div className="rounded-xl border border-white/[0.07] p-5 sm:p-7">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Competitive Position Map</p>
+        <p className="text-[10px] text-zinc-600 uppercase tracking-wider hidden sm:inline">Concentration vs. whitespace</p>
+      </div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-[360px] mx-auto mt-3">
+        <line x1={cx} y1="24" x2={cx} y2={h - 24} stroke="#ffffff" strokeOpacity="0.08" />
+        <line x1="24" y1={cy} x2={w - 24} y2={cy} stroke="#ffffff" strokeOpacity="0.08" />
+        {/* quadrant labels live at the true corners, well clear of any plotted point */}
+        <text x={w - 28} y="40" textAnchor="end" style={{ fill: '#34d399', fontSize: 9, letterSpacing: 1 }}>HIDDEN GAP</text>
+        <text x="28" y="40" style={{ fill: '#71717a', fontSize: 9, letterSpacing: 1 }}>WIDE OPEN</text>
+        <text x="28" y={h - 22} style={{ fill: '#71717a', fontSize: 9, letterSpacing: 1 }}>LOW PRIORITY</text>
+        <text x={w - 28} y={h - 22} textAnchor="end" style={{ fill: '#f87171', fontSize: 9, letterSpacing: 1 }}>SATURATED</text>
+
+        {hasComp && (
+          <>
+            <circle cx={incX} cy={incPy} r="9" fill="#0a0a0c" stroke="#f87171" strokeOpacity="0.7" strokeWidth="1.5" />
+            <circle cx={incX} cy={incPy} r="2.5" fill="#f87171" />
+            <text x={incX} y={incPy + 22} textAnchor="middle" style={{ fill: '#e4e4e7', fontSize: 11, fontWeight: 600 }}>{truncateLabel(comp.name, 16)}</text>
+            <text x={incX} y={incPy + 35} textAnchor="middle" style={{ fill: '#71717a', fontSize: 9.5 }}>Incumbent</text>
+          </>
+        )}
+
+        <circle cx={usX} cy={usPy} r="11" fill="#0a0a0c" stroke="#34d399" strokeWidth="2" />
+        <circle cx={usX} cy={usPy} r="3" fill="#34d399" />
+        <text x={usX} y={usPy - 18} textAnchor="middle" style={{ fill: '#e4e4e7', fontSize: 11, fontWeight: 600 }}>Your Entry Point</text>
+        <text x={usX} y={usPy - 5} textAnchor="middle" style={{ fill: '#71717a', fontSize: 9.5 }}>{truncateLabel(m.brand_opportunities?.[0] ?? 'Documented gap', 30)}</text>
+      </svg>
+      <div className="flex justify-between mt-1 text-[10px] text-zinc-600 uppercase tracking-wider">
+        <span>← Less concentrated</span>
+        <span>More concentrated →</span>
+      </div>
+    </div>
+  )
+}
+
 function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
   const comp = m.biggest_competitor
   const hasComp = comp?.name && comp.name !== 'N/A'
@@ -1131,6 +1193,8 @@ function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
   return (
     <div className="space-y-6">
       <SectionIntro text="Lead incumbent and the unclaimed positioning around them." />
+
+      <CompetitivePositionMap m={m} />
 
       {hasComp && (
         <div className="rounded-xl border border-white/[0.06] overflow-hidden">
@@ -1157,6 +1221,44 @@ function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
 // FINANCIAL OUTLOOK
 // ═══════════════════════════════════════════════════════════════
 
+// ── Trajectory Timeline — the three probability bars as a milestone path
+// instead of three stacked progress bars. Node size/color tracks probability,
+// so the funnel reads as a trajectory you're walking, not a checklist.
+function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
+  const pct = (v?: string) => (v ? parseInt(v, 10) || 0 : 0)
+  const colorFor = (p: number) => (p >= 60 ? '#34d399' : p >= 30 ? '#fbbf24' : '#71717a')
+
+  const milestones = [
+    { label: 'Validate',  sub: '30–60 days', value: undefined as string | undefined, color: '#9aa0a6', size: 11 },
+    { label: '$10k / mo',  sub: undefined, value: fp.ten_k_probability },
+    { label: '$100k / mo', sub: undefined, value: fp.hundred_k_probability },
+    { label: '$1M / mo',   sub: undefined, value: fp.one_m_probability },
+  ].map(ms => ms.value !== undefined
+    ? { ...ms, color: colorFor(pct(ms.value)), size: 7 + (pct(ms.value) / 100) * 9 }
+    : ms)
+
+  return (
+    <div className="rounded-xl border border-white/[0.07] p-5 sm:p-7">
+      <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-7">Revenue Trajectory</p>
+      <div className="relative flex justify-between items-start">
+        <div className="absolute left-[8%] right-[8%] top-[10px] h-[1.5px] bg-gradient-to-r from-zinc-600 via-amber-400/50 to-emerald-400/60" />
+        {milestones.map(ms => (
+          <div key={ms.label} className="relative flex flex-col items-center flex-1">
+            <span
+              className="rounded-full border-2 bg-[#0a0a0c] relative z-10"
+              style={{ width: ms.size, height: ms.size, borderColor: ms.color }}
+            />
+            <span className="mt-3 text-sm font-semibold text-zinc-100 text-center">{ms.label}</span>
+            <span className="text-xs font-mono mt-0.5" style={{ color: ms.value ? ms.color : '#71717a' }}>
+              {ms.value ?? ms.sub}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function FinancialOutlookContent({ m }: { m: MemoData }) {
   const fp = m.financial_projections
   const marketSizeIsUnverified = !m.market_size ||
@@ -1172,11 +1274,7 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
           <span>Market size not independently verified. Figures shown are AI estimates — consult industry reports before citing.</span>
         </div>
       )}
-      <div className="space-y-3.5">
-        <ProbBar label="Probability: reach $10k / month"  value={fp.ten_k_probability} />
-        <ProbBar label="Probability: reach $100k / month" value={fp.hundred_k_probability} />
-        <ProbBar label="Probability: reach $1M / month"   value={fp.one_m_probability} />
-      </div>
+      <TrajectoryTimeline fp={fp} />
       <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
         {([
           ['Gross Margin',     fp.gross_margin],
@@ -1206,6 +1304,109 @@ const MEDIA_PLACEHOLDERS = [
   'Launch Creative',
   'Short AI Commercial Preview',
 ]
+
+// ── Product Concept Visual — a generated concept silhouette, not a photo.
+// Honest framing: this renders an abstract package shape inferred from the
+// recommended format, with premium glass/metal shading for depth. It is
+// explicitly labeled as a concept render so it never reads as a real
+// product photo (that still requires a real image-gen pipeline).
+type ProductShape = 'capsule' | 'bottle' | 'jar' | 'pouch' | 'dropper' | 'bar'
+
+function inferProductShape(format: string): ProductShape {
+  const f = format.toLowerCase()
+  if (['capsule', 'softgel', 'tablet', 'pill'].some(t => f.includes(t))) return 'capsule'
+  if (['powder', 'sachet', 'stick pack'].some(t => f.includes(t))) return 'pouch'
+  if (['gummy', 'chewable', 'cream', 'lotion', 'balm', 'mask'].some(t => f.includes(t))) return 'jar'
+  if (['liquid', 'tincture', 'serum', 'oil', 'drop'].some(t => f.includes(t))) return 'dropper'
+  if (['bar', 'gel', 'ready-to-drink', 'rtd', 'protein'].some(t => f.includes(t))) return 'bar'
+  return 'bottle'
+}
+
+function ProductConceptVisual({ format, categoryName }: { format: string; categoryName: string }) {
+  const shape = inferProductShape(format)
+  const accent = '#C8A463'
+
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.03] to-transparent p-6 sm:p-8">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Product Concept</p>
+        <p className="text-[10px] text-zinc-600 italic">Generated concept render — not a product photo</p>
+      </div>
+      <div className="flex items-center justify-center py-4">
+        <svg viewBox="0 0 200 240" className="w-36 sm:w-44 h-auto" style={{ animation: 'productFloat 5s ease-in-out infinite' }}>
+          <defs>
+            <linearGradient id="pcvBody" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#3f3f46" />
+              <stop offset="48%" stopColor="#1c1c20" />
+              <stop offset="100%" stopColor="#0a0a0c" />
+            </linearGradient>
+            <radialGradient id="pcvSheen" cx="32%" cy="22%" r="55%">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.16" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+
+          <ellipse cx="100" cy="222" rx="48" ry="9" fill="#000000" opacity="0.45" />
+
+          {shape === 'capsule' && (
+            <g>
+              <defs><clipPath id="pcvCapClip"><rect x="68" y="38" width="64" height="164" rx="32" /></clipPath></defs>
+              <rect x="68" y="38" width="64" height="164" rx="32" fill="url(#pcvBody)" />
+              <rect x="68" y="120" width="64" height="82" fill={accent} clipPath="url(#pcvCapClip)" opacity="0.85" />
+              <rect x="68" y="38" width="64" height="164" rx="32" fill="url(#pcvSheen)" />
+            </g>
+          )}
+
+          {shape === 'bottle' && (
+            <g>
+              <rect x="56" y="88" width="88" height="116" rx="14" fill="url(#pcvBody)" />
+              <rect x="86" y="58" width="28" height="36" fill="url(#pcvBody)" />
+              <rect x="78" y="38" width="44" height="24" rx="5" fill={accent} />
+              <rect x="56" y="136" width="88" height="34" fill="#000000" opacity="0.22" />
+              <rect x="56" y="88" width="88" height="116" rx="14" fill="url(#pcvSheen)" />
+            </g>
+          )}
+
+          {shape === 'jar' && (
+            <g>
+              <rect x="50" y="82" width="100" height="118" rx="16" fill="url(#pcvBody)" />
+              <rect x="44" y="60" width="112" height="28" rx="10" fill={accent} />
+              <rect x="50" y="82" width="100" height="118" rx="16" fill="url(#pcvSheen)" />
+            </g>
+          )}
+
+          {shape === 'pouch' && (
+            <g>
+              <path d="M60,200 L60,112 Q60,92 80,86 L120,86 Q140,92 140,112 L140,200 Z" fill="url(#pcvBody)" />
+              <path d="M70,86 L75,58 L125,58 L130,86 Z" fill={accent} opacity="0.9" />
+              <rect x="60" y="130" width="80" height="30" fill="#000000" opacity="0.2" />
+              <path d="M60,200 L60,112 Q60,92 80,86 L120,86 Q140,92 140,112 L140,200 Z" fill="url(#pcvSheen)" />
+            </g>
+          )}
+
+          {shape === 'dropper' && (
+            <g>
+              <rect x="62" y="118" width="76" height="92" rx="14" fill="url(#pcvBody)" />
+              <rect x="90" y="46" width="20" height="74" fill={accent} />
+              <ellipse cx="100" cy="44" rx="15" ry="11" fill={accent} />
+              <rect x="62" y="118" width="76" height="92" rx="14" fill="url(#pcvSheen)" />
+            </g>
+          )}
+
+          {shape === 'bar' && (
+            <g>
+              <rect x="36" y="92" width="128" height="64" rx="10" fill="url(#pcvBody)" />
+              <line x1="36" y1="124" x2="164" y2="124" stroke="#000000" strokeOpacity="0.25" strokeWidth="2" />
+              <rect x="36" y="92" width="128" height="64" rx="10" fill="url(#pcvSheen)" />
+            </g>
+          )}
+        </svg>
+      </div>
+      <p className="text-center text-sm font-medium text-zinc-300">{categoryName}</p>
+      <p className="text-center text-xs text-zinc-600 mt-0.5">{format}</p>
+    </div>
+  )
+}
 
 function MediaIcon() {
   return (
@@ -1241,6 +1442,8 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
   return (
     <div className="space-y-6">
       <SectionIntro text="Recommended product configuration and entry sequence based on gap analysis, manufacturing constraints, and margin targets." />
+
+      <ProductConceptVisual format={rec.format} categoryName={m.category_name} />
 
       <div className="flex flex-wrap sm:flex-nowrap divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
         {([
