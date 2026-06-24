@@ -151,50 +151,56 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
   )
 }
 
-function StepList({ steps, stepIdx }: { steps: string[]; stepIdx: number }) {
-  return (
-    <div className="space-y-2.5 text-left">
-      {steps.map((s, i) => (
-        <div key={s} className="flex items-center gap-3 text-sm">
-          {i < stepIdx
-            ? <svg className="w-4 h-4 text-brass shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>
-              </svg>
-            : i === stepIdx
-              ? <div className="w-4 h-4 shrink-0 grid place-items-center">
-                  <div className="w-2 h-2 rounded-full bg-brass animate-pulse"/>
-                </div>
-              : <div className="w-4 h-4 shrink-0 rounded-full border border-white/[0.1]"/>
-          }
-          <span className={
-            i < stepIdx   ? 'text-zinc-600 line-through' :
-            i === stepIdx ? 'text-white' :
-                            'text-zinc-600'
-          }>{s}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
 
-function ProgressRing({ stepIdx, total }: { stepIdx: number; total: number }) {
-  const pct  = Math.round(((stepIdx + 1) / total) * 100)
-  const r    = 40
-  const circ = 2 * Math.PI * r
+// ── Investigation Console — a live terminal log instead of a spinner.
+// Frames the wait as watching a query execute against real data sources,
+// the way an analyst watches a Bloomberg/Palantir job run, not a
+// progress bar on a webpage.
+// ─────────────────────────────────────────────────────────────────
+
+function InvestigationConsole({
+  query, steps, stepIdx, sources,
+}: {
+  query: string; steps: string[]; stepIdx: number; sources?: string[]
+}) {
   return (
-    <div className="relative w-24 h-24 mx-auto mb-8">
-      <svg className="w-24 h-24 -rotate-90" viewBox="0 0 96 96">
-        <circle cx="48" cy="48" r={r} fill="none" stroke="#27272a" strokeWidth="6"/>
-        <circle cx="48" cy="48" r={r} fill="none" stroke="#C8A463" strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={circ}
-          strokeDashoffset={circ - (circ * pct) / 100}
-          style={{ transition: 'stroke-dashoffset 1s var(--ease-premium, ease)' }}
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-serif font-medium text-base text-brass">
-        {pct}%
-      </span>
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-lg animate-in">
+        <div className="rounded-lg border border-white/[0.1] bg-[#0a0a0c] overflow-hidden shadow-[0_30px_80px_-30px_rgba(0,0,0,.8)]">
+          {/* terminal title bar */}
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.03]">
+            <span className="w-2 h-2 rounded-full bg-red-400/50" />
+            <span className="w-2 h-2 rounded-full bg-amber-400/50" />
+            <span className="w-2 h-2 rounded-full bg-emerald-400/50" />
+            <span className="ml-2 text-[11px] text-zinc-500 font-mono truncate flex-1">
+              investigation · &ldquo;{query}&rdquo;
+            </span>
+            <span className="text-[11px] text-zinc-600 font-mono shrink-0">{stepIdx + 1}/{steps.length}</span>
+          </div>
+
+          {/* log body */}
+          <div className="p-5 font-mono text-[13px] leading-relaxed min-h-[260px]">
+            {steps.slice(0, stepIdx + 1).map((s, i) => (
+              <div key={i} className="flex gap-2.5 mb-2">
+                <span className="text-zinc-600 shrink-0 select-none">[{String(i + 1).padStart(2, '0')}]</span>
+                <span className={i < stepIdx ? 'text-zinc-500' : 'text-zinc-100'}>
+                  {s}
+                  {i < stepIdx
+                    ? <span className="text-brass/80 ml-2">✓</span>
+                    : <span className="inline-block w-[7px] h-[13px] bg-brass ml-1.5 align-middle animate-pulse" />}
+                </span>
+              </div>
+            ))}
+            {sources && stepIdx === steps.length - 1 && (
+              <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-white/[0.06]">
+                {sources.map(src => (
+                  <span key={src} className="text-[10px] text-zinc-600 border border-white/[0.08] rounded px-1.5 py-0.5">{src}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -264,6 +270,149 @@ function DetectedCategoryBadge({ config }: { config: CategoryClientConfig }) {
   )
 }
 
+// ── Opportunity Map — a 2x2 score-vs-ease scatter, the primary hunting
+// surface for discovery. Replaces a scrolling list with a visual field
+// you scan and click into, the way an analyst scans a screener chart.
+// ─────────────────────────────────────────────────────────────────
+
+function easeOf(d: OpportunityCard['difficulty']) {
+  return d === 'Easy' ? 84 : d === 'Medium' ? 50 : 17
+}
+
+function hashJitter(seed: string, range: number) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 2147483647
+  return ((h % 1000) / 1000 - 0.5) * range
+}
+
+function OpportunityMap({
+  opportunities, selectedName, onSelect,
+}: {
+  opportunities: OpportunityCard[]
+  selectedName: string | null
+  onSelect: (name: string) => void
+}) {
+  return (
+    <div className="card-premium p-5 sm:p-7">
+      <div className="flex items-center justify-between mb-1">
+        <p className="label">Opportunity Map</p>
+        <p className="text-[10px] text-zinc-600 uppercase tracking-wider hidden sm:inline">Score vs. ease of execution</p>
+      </div>
+      <div className="relative mt-7 h-[300px] sm:h-[400px] ml-8 border-l border-b border-white/[0.14]">
+        {/* quadrant dividers */}
+        <div className="absolute left-0 right-0 border-t border-dashed border-white/[0.08] pointer-events-none" style={{ top: '35%' }} />
+        <div className="absolute top-0 bottom-0 border-l border-dashed border-white/[0.08] pointer-events-none" style={{ left: '50%' }} />
+
+        {/* quadrant labels */}
+        <span className="absolute top-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-emerald-400/70 font-medium">Best bets</span>
+        <span className="absolute top-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-zinc-600">High reward, hard</span>
+        <span className="absolute bottom-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-zinc-600">Quick wins</span>
+        <span className="absolute bottom-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-zinc-700">Low priority</span>
+
+        {/* y-axis labels */}
+        {[100, 50, 0].map(v => (
+          <span key={v} className="absolute -left-7 -translate-y-1/2 text-[9px] text-zinc-600 font-mono" style={{ top: `${100 - v}%` }}>{v}</span>
+        ))}
+
+        {/* points */}
+        {opportunities.map((opp, i) => {
+          const x = Math.min(97, Math.max(2, easeOf(opp.difficulty) + hashJitter(opp.name, 14)))
+          const y = Math.min(96, Math.max(3, 100 - opp.score + hashJitter(opp.name + 'y', 5)))
+          const isTop    = i < 3
+          const isSel    = selectedName === opp.name
+          const c        = opp.score >= 75 ? '#34d399' : opp.score >= 60 ? '#fbbf24' : '#f87171'
+          const size     = isSel ? 15 : isTop ? 11 : 7
+          return (
+            <button
+              key={opp.name}
+              onClick={() => onSelect(opp.name)}
+              className="absolute -translate-x-1/2 -translate-y-1/2 z-10 hover:z-20 group"
+              style={{ left: `${x}%`, top: `${y}%` }}
+              aria-label={opp.name}
+            >
+              <span
+                className="block rounded-full transition-all duration-200 group-hover:scale-125"
+                style={{
+                  width: size, height: size, background: c,
+                  boxShadow: isSel ? `0 0 0 5px ${c}2A` : isTop ? '0 0 0 2px rgba(200,164,99,.55)' : 'none',
+                }}
+              />
+              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2 py-1 rounded-md bg-[#15151a] border border-white/[0.1] text-[10px] text-zinc-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                {opp.name} · {opp.score}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <div className="flex justify-between mt-2.5 ml-8 text-[10px] text-zinc-600 uppercase tracking-wider">
+        <span>← Harder to build</span>
+        <span>Easier to build →</span>
+      </div>
+    </div>
+  )
+}
+
+function OpportunityDetail({
+  opp, rank, onOpen,
+}: { opp: OpportunityCard; rank: number; onOpen: () => void }) {
+  return (
+    <div className="card-premium p-5 sm:p-6 animate-in">
+      <div className="flex items-start gap-4">
+        <span className="font-mono font-bold text-xl text-zinc-600 shrink-0 pt-0.5 w-5 text-right">{rank}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="font-semibold text-base leading-snug">{opp.name}</h3>
+            <span className={`font-serif font-medium text-2xl ${scoreColor(opp.score)}`}>{opp.score}</span>
+          </div>
+          <p className="text-sm text-zinc-400 mt-1.5">{opp.rationale}</p>
+          <MetaRow opp={opp} />
+          <EvidenceGrid scores={opp.scores} />
+          <button onClick={onOpen} className="btn-white w-full mt-4 py-2.5 text-sm">
+            Open Full Report →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Terminal list — dense scannable rows for analysts who'd rather read
+// a table than hunt a chart. Real columns, monospace figures, no cards.
+function OpportunityTable({
+  opportunities, onOpen, showMeta,
+}: {
+  opportunities: OpportunityCard[]
+  onOpen: (name: string) => void
+  showMeta: boolean
+}) {
+  return (
+    <div className="rounded-lg border border-white/[0.08] overflow-hidden">
+      <div className="grid grid-cols-[2rem_1fr_5.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_4.5rem] gap-3 px-4 py-2 text-[10px] text-zinc-600 uppercase tracking-wider border-b border-white/[0.08] bg-white/[0.02] font-mono">
+        <span>#</span><span>Opportunity</span><span className="text-right">Difficulty</span>
+        <span className="text-right hidden sm:inline">Signal</span><span className="text-right">Score</span>
+      </div>
+      <div className="divide-y divide-white/[0.05]">
+        {opportunities.map((opp, i) => (
+          <button
+            key={opp.name}
+            onClick={() => onOpen(opp.name)}
+            className="w-full grid grid-cols-[2rem_1fr_5.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_4.5rem] gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors items-center group"
+          >
+            <span className="text-xs text-zinc-600 font-mono">{String(i + 1).padStart(2, '0')}</span>
+            <span className="min-w-0 flex items-center gap-1.5">
+              <span className="text-sm text-zinc-200 group-hover:text-white truncate">{opp.name}</span>
+              {showMeta && opp._meta?.is_new && <span className="w-1 h-1 rounded-full bg-brass shrink-0" />}
+            </span>
+            <span className="text-xs text-right text-zinc-400">{opp.difficulty}</span>
+            <span className="text-xs text-right text-zinc-500 hidden sm:inline">{opp.scores.demand.signal}</span>
+            <span className={`text-sm text-right font-mono font-semibold ${scoreColor(opp.score)}`}>{opp.score}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── page ───────────────────────────────────────────────────────
 
 export default function AnalyzePage() {
@@ -286,6 +435,8 @@ export default function AnalyzePage() {
   const [cacheWeek,          setCacheWeek]          = useState('')
   const [cacheStatus,        setCacheStatus]        = useState('')
   const [resultCategoryName, setResultCategoryName] = useState('')
+  const [resultsView,        setResultsView]        = useState<'map' | 'list'>('map')
+  const [selectedOpp,        setSelectedOpp]        = useState<string | null>(null)
 
   const category        = getCategoryClientConfig(categoryId)
   const resolvedConfig  = resolvedCategoryId ? getCategoryClientConfig(resolvedCategoryId) : null
@@ -366,6 +517,8 @@ export default function AnalyzePage() {
       } = await res.json()
 
       setOpportunities(opps)
+      setSelectedOpp(null)
+      setResultsView('map')
       setCached(isCached ?? false)
       setCacheWeek(week ?? '')
       setCacheStatus(status ?? '')
@@ -436,54 +589,39 @@ export default function AnalyzePage() {
 
   // ── CLASSIFYING screen ─────────────────────────────────────────
   if (mode === 'classifying') {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-md card p-10 text-center animate-in">
-          <div className="w-10 h-10 rounded-full bg-brass/10 border border-brass/30 flex items-center justify-center mx-auto mb-8">
-            <IconSpark className="w-4 h-4 text-brass" />
-          </div>
-          <p className="text-base font-semibold mb-1 truncate px-4">&ldquo;{input}&rdquo;</p>
-          <p className="text-sm text-zinc-400 mb-8 h-5">{CLASSIFYING_STEPS[stepIdx]}</p>
-          <StepList steps={CLASSIFYING_STEPS} stepIdx={stepIdx} />
-        </div>
-      </div>
-    )
+    return <InvestigationConsole query={input} steps={CLASSIFYING_STEPS} stepIdx={stepIdx} />
   }
 
   // ── DISCOVERING screen ─────────────────────────────────────────
   if (mode === 'discovering') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-md card p-10 text-center animate-in">
-          <ProgressRing stepIdx={stepIdx} total={DISCOVERY_STEPS.length} />
-          <p className="text-base font-semibold mb-1 truncate px-4">&ldquo;{input}&rdquo;</p>
-          <p className="text-sm text-zinc-400 mb-8 h-5">{DISCOVERY_STEPS[stepIdx]}</p>
-          <StepList steps={DISCOVERY_STEPS} stepIdx={stepIdx} />
-        </div>
-      </div>
+      <InvestigationConsole
+        query={input}
+        steps={DISCOVERY_STEPS}
+        stepIdx={stepIdx}
+        sources={['Keepa', 'Google Trends', 'TikTok', 'Amazon Reviews']}
+      />
     )
   }
 
   // ── ANALYZING screen ───────────────────────────────────────────
   if (mode === 'analyzing') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-md card p-10 text-center animate-in">
-          <ProgressRing stepIdx={stepIdx} total={ANALYSIS_STEPS.length} />
-          <p className="text-base font-semibold mb-1 truncate px-4">&ldquo;{analyzingName}&rdquo;</p>
-          <p className="text-sm text-zinc-400 mb-8 h-5">{ANALYSIS_STEPS[stepIdx]}</p>
-          <StepList steps={ANALYSIS_STEPS} stepIdx={stepIdx} />
-        </div>
-      </div>
+      <InvestigationConsole
+        query={analyzingName}
+        steps={ANALYSIS_STEPS}
+        stepIdx={stepIdx}
+        sources={['Keepa', 'Google Trends', 'TikTok', 'Amazon Reviews', 'Meta Ads']}
+      />
     )
   }
 
   // ── RESULTS screen ─────────────────────────────────────────────
   if (mode === 'results') {
-    const top3     = opportunities.slice(0, 3)
-    const rest     = opportunities.slice(3)
     const showMeta = cacheStatus !== '' && cacheStatus !== 'generated'
     const detectedConfig = resolvedCategoryId ? getCategoryClientConfig(resolvedCategoryId) : null
+    const selected = opportunities.find(o => o.name === selectedOpp) ?? opportunities[0]
+    const selectedRank = selected ? opportunities.findIndex(o => o.name === selected.name) + 1 : 0
 
     return (
       <div className="min-h-screen py-14 px-4">
@@ -504,7 +642,7 @@ export default function AnalyzePage() {
             </p>
           )}
           <p className="text-sm text-zinc-500 mb-8">
-            Click any opportunity to generate a full investment memo · costs 1 analysis slot
+            Explore the map or scan the list, then open a full investment memo · costs 1 analysis slot
           </p>
 
           {error && (
@@ -513,104 +651,43 @@ export default function AnalyzePage() {
             </div>
           )}
 
-          {/* ── top 3 ── */}
-          <p className="label mb-3">Top Opportunities</p>
-          <div className="space-y-3 mb-10">
-            {top3.map((opp, i) => (
-              <div key={opp.name}
-                className="card-premium p-5 sm:p-6"
-                style={{ borderColor: 'rgba(200,164,99,.22)' }}
+          {/* ── view toggle ── */}
+          <div className="flex items-center gap-1 mb-5 border-b border-white/[0.07]">
+            {(['map', 'list'] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setResultsView(v)}
+                className={`relative text-xs font-medium uppercase tracking-wider px-4 py-2.5 transition-colors ${
+                  resultsView === v ? 'text-zinc-50' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
               >
-                <div className="flex items-start gap-4">
-                  <span className="font-mono font-bold text-xl text-zinc-600 shrink-0 pt-0.5 w-5 text-right">
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="font-semibold text-base leading-snug">{opp.name}</h3>
-                      <div className="flex flex-col items-end shrink-0">
-                        <span className={`font-serif font-medium text-2xl ${scoreColor(opp.score)}`}>
-                          {opp.score}
-                        </span>
-                        {showMeta && opp._meta && opp._meta.score_delta !== 0 && (
-                          <span className={`text-xs font-mono leading-none mt-0.5 ${opp._meta.score_delta > 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>
-                            {opp._meta.score_delta > 0 ? `+${opp._meta.score_delta}` : opp._meta.score_delta}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {showMeta && (opp._meta?.is_new || opp._meta?.trending) && (
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        {opp._meta!.is_new && (
-                          <span className="text-[10px] font-semibold text-brass bg-brass/10 border border-brass/20 px-1.5 py-0.5 rounded-full">
-                            New this week
-                          </span>
-                        )}
-                        {opp._meta!.trending && (
-                          <span className="text-[10px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded-full">
-                            Trending ↑
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <p className="text-sm text-zinc-400 mt-1.5">{opp.rationale}</p>
-                    <MetaRow opp={opp} />
-                    <EvidenceGrid scores={opp.scores} />
-                    <button
-                      onClick={() => handleAnalyze(opp.name, 'results')}
-                      className="btn-white w-full mt-4 py-2.5 text-sm"
-                    >
-                      Open Full Report →
-                    </button>
-                  </div>
-                </div>
-              </div>
+                {v === 'map' ? 'Map' : 'List'}
+                {resultsView === v && <span className="absolute left-3 right-3 -bottom-px h-[1.5px] bg-brass rounded-full" />}
+              </button>
             ))}
           </div>
 
-          {/* ── ranked list ── */}
-          {rest.length > 0 && (
-            <>
-              <p className="label mb-3">All Opportunities</p>
-              <div className="space-y-2">
-                {rest.map((opp, i) => (
-                  <button
-                    key={opp.name}
-                    onClick={() => handleAnalyze(opp.name, 'results')}
-                    className="card-premium card-premium-hover w-full p-4 text-left flex items-center gap-4 group"
-                  >
-                    <span className="font-mono text-xs text-zinc-600 w-5 text-right shrink-0">
-                      {i + 4}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-medium text-sm group-hover:text-white truncate">{opp.name}</p>
-                        {showMeta && opp._meta?.is_new && (
-                          <span className="text-[10px] font-semibold text-brass shrink-0">New</span>
-                        )}
-                        {showMeta && opp._meta?.trending && (
-                          <span className="text-[10px] text-amber-400 shrink-0">↑</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-zinc-500 mt-0.5 truncate">{opp.rationale}</p>
-                      <p className="text-[10px] text-zinc-600 mt-1 truncate">
-                        {opp.scores.demand.search_volume} · {opp.scores.market_saturation ? `Market: ${opp.scores.market_saturation.level}` : opp.scores.competition?.competing_brands ? `${opp.scores.competition.competing_brands} brands` : ''} · TikTok: {opp.scores.virality.tiktok}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <DifficultyBadge d={opp.difficulty} />
-                      <span className={`font-serif font-medium text-lg ${scoreColor(opp.score)}`}>
-                        {opp.score}
-                      </span>
-                      <svg className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors"
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-                      </svg>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </>
+          {resultsView === 'map' ? (
+            <div className="space-y-4 mb-4">
+              <OpportunityMap
+                opportunities={opportunities}
+                selectedName={selected?.name ?? null}
+                onSelect={setSelectedOpp}
+              />
+              {selected && (
+                <OpportunityDetail
+                  opp={selected}
+                  rank={selectedRank}
+                  onOpen={() => handleAnalyze(selected.name, 'results')}
+                />
+              )}
+            </div>
+          ) : (
+            <OpportunityTable
+              opportunities={opportunities}
+              onOpen={name => handleAnalyze(name, 'results')}
+              showMeta={showMeta}
+            />
           )}
         </div>
 
@@ -674,23 +751,25 @@ export default function AnalyzePage() {
 
         <form onSubmit={handleDiscover} className="space-y-5">
 
-          {/* main input */}
-          <div className="card p-6 space-y-3">
-            <label className="block text-sm font-medium">
+          {/* main input — command-prompt entry, not a boxed form field */}
+          <div className="mb-2">
+            <label className="block text-[11px] uppercase tracking-wider text-zinc-500 mb-3">
               {isAutoMode ? 'Product idea or category' : `${category.name} category or idea`}
-              <span className="text-red-400 ml-1">*</span>
             </label>
-            <textarea
-              value={input} onChange={e => setInput(e.target.value)}
-              placeholder={
-                isAutoMode
-                  ? `e.g. "dog joint supplement", "anti-aging serum", "viral kitchen gadget"…`
-                  : `Broad: "${category.examples.broad[0]}"  →  discovers 20 opportunities\nSpecific: "${category.examples.specific[0] ?? ''}"  →  full memo`
-              }
-              className="field resize-none h-24 text-sm leading-relaxed"
-              maxLength={200} required autoFocus
-            />
-            <div className="flex items-center justify-between">
+            <div className="flex items-start gap-3 border-b-2 border-white/[0.12] focus-within:border-brass pb-3 transition-colors">
+              <span className="font-mono text-xl text-brass shrink-0 select-none leading-[1.7]">&gt;</span>
+              <textarea
+                value={input} onChange={e => setInput(e.target.value)}
+                placeholder={
+                  isAutoMode
+                    ? `e.g. "dog joint supplement", "anti-aging serum", "viral kitchen gadget"…`
+                    : `Broad: "${category.examples.broad[0]}"  →  discovers 20 opportunities\nSpecific: "${category.examples.specific[0] ?? ''}"  →  full memo`
+                }
+                className="flex-1 bg-transparent border-0 outline-none resize-none font-mono text-lg text-zinc-100 placeholder:text-zinc-600 placeholder:text-sm leading-relaxed h-[3.4rem]"
+                maxLength={200} required autoFocus
+              />
+            </div>
+            <div className="flex items-center justify-between mt-3">
               {input.trim() && !isAutoMode ? (
                 <p className="text-xs text-zinc-500 flex items-center gap-1.5">
                   {broad
@@ -702,7 +781,7 @@ export default function AnalyzePage() {
               ) : (
                 <p className="text-xs text-zinc-600">Costs 1 slot per full report</p>
               )}
-              <span className="text-xs text-zinc-600">{input.length}/200</span>
+              <span className="text-xs text-zinc-600 font-mono">{input.length}/200</span>
             </div>
           </div>
 

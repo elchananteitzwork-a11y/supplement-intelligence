@@ -277,64 +277,6 @@ function MetaChip({ label, value }: { label: string; value: string }) {
   )
 }
 
-// ═══════════════════════════════════════════════════════════════
-// COLLAPSIBLE — shared accordion shell with progressive disclosure.
-// Shows a synopsis + key stat when closed so collapsing never hides
-// the headline. Supports controlled open-state for sections (like
-// Manufacturing) that need to trigger a fetch on first expand.
-// ═══════════════════════════════════════════════════════════════
-
-function Collapsible({
-  id, title, synopsis, stat, evidence, defaultOpen = false,
-  open: controlledOpen, onToggle, children,
-}: {
-  id: string; title: string; synopsis?: string; stat?: string; evidence?: EvidenceType;
-  defaultOpen?: boolean; open?: boolean; onToggle?: () => void; children: React.ReactNode
-}) {
-  const [internalOpen, setInternalOpen] = useState(defaultOpen)
-  const isControlled = controlledOpen !== undefined
-  const open = isControlled ? controlledOpen : internalOpen
-
-  function handleClick() {
-    if (onToggle) onToggle()
-    else setInternalOpen(v => !v)
-  }
-
-  return (
-    <div id={id} className="card-premium overflow-hidden scroll-mt-20">
-      <button
-        onClick={handleClick}
-        className="w-full flex items-center justify-between gap-4 px-5 sm:px-6 py-4.5 text-left hover:bg-white/[0.02] transition-colors"
-      >
-        <div className="flex items-start gap-3 min-w-0">
-          <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${open ? 'bg-brass' : 'bg-white/[0.15]'}`} />
-          <div className="min-w-0">
-            <span className="font-semibold text-sm text-zinc-100">{title}</span>
-            {!open && synopsis && (
-              <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed line-clamp-1">{synopsis}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {!open && stat && (
-            <span className="font-mono text-xs font-semibold text-zinc-400 hidden sm:inline">{stat}</span>
-          )}
-          {evidence && <EvidenceBadge type={evidence} />}
-          <svg className={`w-4 h-4 text-zinc-500 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
-          </svg>
-        </div>
-      </button>
-      <div className={`accordion-grid ${open ? 'is-open' : ''}`} aria-hidden={!open}>
-        <div>
-          <div className="px-5 sm:px-6 pb-6 pt-1 border-t border-white/[0.05]">{children}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function SectionIntro({ text }: { text: string }) {
   return <p className="text-xs text-zinc-500 italic mb-4 leading-relaxed">{text}</p>
 }
@@ -353,46 +295,15 @@ const NAV_SECTIONS = [
   { id: 'risk-assessment',           label: 'Risk' },
 ]
 
-function useActiveSection(): string | null {
-  const [active, setActive] = useState<string | null>(null)
-
-  useEffect(() => {
-    const els = NAV_SECTIONS
-      .map(s => document.getElementById(s.id))
-      .filter((el): el is HTMLElement => !!el)
-    if (!els.length) return
-
-    const observer = new IntersectionObserver(
-      entries => {
-        const visible = entries.filter(e => e.isIntersecting)
-        if (visible.length > 0) {
-          const top = visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
-          setActive(top.target.id)
-        }
-      },
-      { rootMargin: '-15% 0px -70% 0px', threshold: 0 },
-    )
-    els.forEach(el => observer.observe(el))
-    return () => observer.disconnect()
-  }, [])
-
-  return active
-}
-
-function jumpTo(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-// mobile/tablet — horizontal sticky pill nav under the masthead
-function SectionNav() {
-  const active = useActiveSection()
+// mobile/tablet — horizontal sticky tab strip under the masthead
+function SectionNav({ active, onSelect }: { active: string; onSelect: (id: string) => void }) {
   return (
     <div className="section-nav -mt-px lg:hidden">
       <div className="flex items-center gap-1 overflow-x-auto py-2.5 no-scrollbar">
         {NAV_SECTIONS.map(s => (
           <button
             key={s.id}
-            onClick={() => jumpTo(s.id)}
+            onClick={() => onSelect(s.id)}
             className={`nav-pill ${active === s.id ? 'nav-pill-active' : ''}`}
           >
             {s.label}
@@ -403,17 +314,16 @@ function SectionNav() {
   )
 }
 
-// desktop — vertical rail nav, persistent alongside the document (PitchBook/Palantir
-// register: an always-visible outline, not a chip bar that scrolls out of view)
-function RailNav() {
-  const active = useActiveSection()
+// desktop — vertical rail tabs, persistent alongside the document (PitchBook/Palantir
+// register: clicking switches the content pane, it does not scroll a long page)
+function RailNav({ active, onSelect }: { active: string; onSelect: (id: string) => void }) {
   return (
     <nav className="space-y-0.5">
-      <p className="label mb-2.5">On this page</p>
+      <p className="label mb-2.5">Sections</p>
       {NAV_SECTIONS.map(s => (
         <button
           key={s.id}
-          onClick={() => jumpTo(s.id)}
+          onClick={() => onSelect(s.id)}
           className={`w-full text-left text-[13px] py-1.5 pl-3 border-l-2 transition-colors ${
             active === s.id
               ? 'border-brass text-zinc-50 font-medium'
@@ -424,6 +334,36 @@ function RailNav() {
         </button>
       ))}
     </nav>
+  )
+}
+
+// ── Ticker strip — dense Bloomberg-register header band. The first thing
+// a viewer sees: financial-terminal digits, not a webpage hero.
+function TickerStrip({
+  score, decision, confidence, m,
+}: {
+  score: number; decision: BuildDecision
+  confidence: { level: 'High' | 'Medium' | 'Low'; note: string }; m: MemoData
+}) {
+  const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : 'text-red-400'
+  const items: [string, string, boolean][] = [
+    ['SCORE', `${score}/100`, true],
+    ['VERDICT', decision.replace(/_/g, ' '), true],
+    ['CONFIDENCE', confidence.level.toUpperCase(), false],
+    ['MARKET', m.market_size, false],
+    ['LTV', m.sub_ltv, false],
+    ['MARGIN', m.gross_margin, false],
+  ].filter(([, v]) => v && v !== 'N/A') as [string, string, boolean][]
+
+  return (
+    <div className="flex items-stretch overflow-x-auto no-scrollbar rounded-md border border-white/[0.08] divide-x divide-white/[0.08] bg-[#0a0a0c] font-mono">
+      {items.map(([l, v, accent]) => (
+        <div key={l} className="flex items-center gap-2 px-4 py-2.5 shrink-0">
+          <span className="text-zinc-600 text-[10px] tracking-wider">{l}</span>
+          <span className={`text-xs font-semibold uppercase ${accent ? c : 'text-zinc-200'}`}>{v}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -1392,8 +1332,7 @@ function ManufacturingDisplay({ est, mfgScore }: { est: MfgEstimate; mfgScore: n
   )
 }
 
-function ManufacturingIntelligence({ m }: { m: MemoData }) {
-  const [open,     setOpen]     = useState(false)
+function ManufacturingIntelligenceContent({ m, isActive }: { m: MemoData; isActive: boolean }) {
   const [status,   setStatus]   = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [estimate, setEstimate] = useState<MfgEstimate | null>(null)
 
@@ -1422,22 +1361,19 @@ function ManufacturingIntelligence({ m }: { m: MemoData }) {
     }
   }, [status, m, complexityHint])
 
-  function toggle() {
-    if (!open && status === 'idle') load()
-    setOpen(v => !v)
-  }
+  // fetch once, the first time this tab is actually viewed — not on page load
+  useEffect(() => {
+    if (isActive && status === 'idle') load()
+  }, [isActive, status, load])
 
   const evidence: EvidenceType = estimate?.data_source && estimate.data_source !== 'ai_synthesis' ? 'verified' : 'ai-synthesis'
 
   return (
-    <Collapsible
-      id="manufacturing-intelligence"
-      title="Manufacturing Intelligence"
-      synopsis="Unit cost, MOQ, lead time, and supplier confidence"
-      evidence={status === 'done' ? evidence : undefined}
-      open={open}
-      onToggle={toggle}
-    >
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-white/[0.07]">
+        <h2 className="font-serif text-xl font-medium">Manufacturing Intelligence</h2>
+        {status === 'done' && <EvidenceBadge type={evidence} />}
+      </div>
       {status === 'loading' && (
         <div className="flex items-center gap-2.5 text-sm text-zinc-500 py-6 justify-center">
           <div className="w-4 h-4 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin shrink-0" />
@@ -1453,7 +1389,7 @@ function ManufacturingIntelligence({ m }: { m: MemoData }) {
       {status === 'done' && estimate && (
         <ManufacturingDisplay est={estimate} mfgScore={mfgScore} />
       )}
-    </Collapsible>
+    </div>
   )
 }
 
@@ -1491,11 +1427,26 @@ function FinalRecommendation({ m, decision }: { m: MemoData; decision: BuildDeci
 // ROOT — full report assembly
 // ═══════════════════════════════════════════════════════════════
 
+function DeepDiveSection({
+  title, evidence, children,
+}: { title: string; evidence?: EvidenceType; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-white/[0.07]">
+        <h2 className="font-serif text-xl font-medium">{title}</h2>
+        {evidence && <EvidenceBadge type={evidence} />}
+      </div>
+      {children}
+    </div>
+  )
+}
+
 export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; generatedAt?: string }) {
   const { score, decision } = computeScore(m)
   const confidence          = computeConfidence(m)
   const blocks              = deriveDecisionBlocks(m)
   const containerRef        = useRef<HTMLDivElement>(null)
+  const [activeTab, setActiveTab] = useState(NAV_SECTIONS[0].id)
 
   return (
     <div ref={containerRef} className="lg:grid lg:grid-cols-[1fr_272px] lg:gap-10 lg:items-start">
@@ -1503,77 +1454,58 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
       {/* ── Main document column ────────────────────────────────────── */}
       <div className="space-y-5 min-w-0">
 
-        {/* ── Always visible: masthead, executive summary, thesis ───── */}
+        {/* ── Always visible: ticker, masthead, executive summary, thesis ── */}
         <div className="space-y-5 animate-in">
+          <TickerStrip score={score} decision={decision} confidence={confidence} m={m} />
           <Masthead m={m} score={score} decision={decision} confidence={confidence} generatedAt={generatedAt} />
           <ExecutiveSummary m={m} />
           <InvestmentThesisSection m={m} blocks={blocks} />
         </div>
 
-        {/* ── Sticky horizontal nav (mobile/tablet only) ─────────────── */}
-        <SectionNav />
+        {/* ── Sticky horizontal tab strip (mobile/tablet only) ───────── */}
+        <SectionNav active={activeTab} onSelect={setActiveTab} />
 
-        {/* ── Deep-dive sections — collapsed by default, rich preview ── */}
-        <div className="space-y-3 pt-1">
-        <Collapsible
-          id="market-intelligence"
-          title="Market Intelligence"
-          synopsis={m.market_saturation?.competitive_intensity ?? 'Market structure, demand signals, and documented gaps'}
-          stat={`${m.scores.demand?.score ?? '—'}/10 demand`}
-          evidence="multi-source"
-          defaultOpen
-        >
-          <MarketIntelligenceContent m={m} />
-        </Collapsible>
+        {/* ── Deep-dive sections — true tabs: one pane visible at a time ── */}
+        <div className="card-premium p-6 sm:p-8 min-h-[420px]">
+          <div className={activeTab === 'market-intelligence' ? '' : 'hidden'}>
+            <DeepDiveSection title="Market Intelligence" evidence="multi-source">
+              <MarketIntelligenceContent m={m} />
+            </DeepDiveSection>
+          </div>
 
-        <Collapsible
-          id="consumer-intelligence"
-          title="Consumer Intelligence"
-          synopsis={m.customer_language?.frustrations?.[0] ?? 'What buyers are saying, in their own words'}
-          evidence="ai-synthesis"
-        >
-          <ConsumerIntelligenceContent m={m} />
-        </Collapsible>
+          <div className={activeTab === 'consumer-intelligence' ? '' : 'hidden'}>
+            <DeepDiveSection title="Consumer Intelligence" evidence="ai-synthesis">
+              <ConsumerIntelligenceContent m={m} />
+            </DeepDiveSection>
+          </div>
 
-        <ManufacturingIntelligence m={m} />
+          <div className={activeTab === 'manufacturing-intelligence' ? '' : 'hidden'}>
+            <ManufacturingIntelligenceContent m={m} isActive={activeTab === 'manufacturing-intelligence'} />
+          </div>
 
-        <Collapsible
-          id="competitive-landscape"
-          title="Competitive Landscape"
-          synopsis={m.biggest_competitor?.gap ?? 'Lead incumbent and unclaimed positioning'}
-          stat={m.biggest_competitor?.name}
-          evidence="ai-synthesis"
-        >
-          <CompetitiveLandscapeContent m={m} />
-        </Collapsible>
+          <div className={activeTab === 'competitive-landscape' ? '' : 'hidden'}>
+            <DeepDiveSection title="Competitive Landscape" evidence="ai-synthesis">
+              <CompetitiveLandscapeContent m={m} />
+            </DeepDiveSection>
+          </div>
 
-        <Collapsible
-          id="financial-outlook"
-          title="Financial Outlook"
-          synopsis="Probability-weighted revenue scenarios and margin structure"
-          stat={m.financial_projections?.gross_margin}
-          evidence="estimated"
-        >
-          <FinancialOutlookContent m={m} />
-        </Collapsible>
+          <div className={activeTab === 'financial-outlook' ? '' : 'hidden'}>
+            <DeepDiveSection title="Financial Outlook" evidence="estimated">
+              <FinancialOutlookContent m={m} />
+            </DeepDiveSection>
+          </div>
 
-        <Collapsible
-          id="launch-strategy"
-          title="Launch Strategy"
-          synopsis={m.product_recommendation?.format ?? 'Product configuration and go-to-market sequence'}
-          evidence="ai-synthesis"
-        >
-          <LaunchStrategyContent m={m} />
-        </Collapsible>
+          <div className={activeTab === 'launch-strategy' ? '' : 'hidden'}>
+            <DeepDiveSection title="Launch Strategy" evidence="ai-synthesis">
+              <LaunchStrategyContent m={m} />
+            </DeepDiveSection>
+          </div>
 
-        <Collapsible
-          id="risk-assessment"
-          title="Risk Assessment"
-          synopsis="Dimensions where market structure works against the thesis"
-          evidence="ai-synthesis"
-        >
-          <RiskAssessmentContent m={m} />
-        </Collapsible>
+          <div className={activeTab === 'risk-assessment' ? '' : 'hidden'}>
+            <DeepDiveSection title="Risk Assessment" evidence="ai-synthesis">
+              <RiskAssessmentContent m={m} />
+            </DeepDiveSection>
+          </div>
         </div>
 
         {/* ── Closing moment ───────────────────────────────────────── */}
@@ -1584,7 +1516,7 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
       <aside className="hidden lg:block lg:sticky lg:top-6 space-y-4">
         <AtAGlanceRail m={m} score={score} decision={decision} confidence={confidence} />
         <div className="card-premium p-5">
-          <RailNav />
+          <RailNav active={activeTab} onSelect={setActiveTab} />
         </div>
       </aside>
     </div>

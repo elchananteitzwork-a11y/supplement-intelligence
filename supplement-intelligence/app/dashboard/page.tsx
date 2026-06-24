@@ -10,6 +10,12 @@ function DecisionDot({ d }: { d: string }) {
   return <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c}`} />
 }
 
+function DecisionLabel({ d }: { d: string }) {
+  if (d === 'BUILD_NOW')        return <span className="text-emerald-400">Build Now</span>
+  if (d === 'VALIDATE_FURTHER') return <span className="text-amber-400">Validate</span>
+  return                               <span className="text-red-400">Skip</span>
+}
+
 function ScoreColor({ s }: { s: number }) {
   const c = s >= 65 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400'
   return <span className={`font-serif font-medium text-xl ${c}`}>{Math.round(s)}</span>
@@ -40,6 +46,11 @@ export default async function Dashboard() {
   const devUnlimited = process.env.DEV_UNLIMITED_ANALYSES === 'true'
   const left  = Math.max(0, limit - used)
   const canAnalyze = devUnlimited || left > 0
+
+  const total     = list.length
+  const buildNow  = list.filter(a => a.build_decision === 'BUILD_NOW').length
+  const buildRate = total ? Math.round((buildNow / total) * 100) : 0
+  const avgScore  = total ? Math.round(list.reduce((s, a) => s + a.opportunity_score, 0) / total) : 0
 
   return (
     <div className="min-h-screen lg:flex">
@@ -95,12 +106,28 @@ export default async function Dashboard() {
           </div>
 
           {/* ── desktop page heading ── */}
-          <div className="hidden lg:flex items-baseline justify-between mb-8">
+          <div className="hidden lg:flex items-baseline justify-between mb-6">
             <h1 className="font-serif text-2xl font-medium">Analyses</h1>
-            <span className="text-xs text-zinc-500">{list.length} total</span>
           </div>
 
-          {/* ── grid ── */}
+          {/* ── instrument readouts — the command-center "vitals," not stat cards ── */}
+          {total > 0 && (
+            <div className="flex flex-wrap divide-x divide-white/[0.08] border-y border-white/[0.08] mb-8 -mx-1">
+              {([
+                ['Total Analyses', String(total), 'text-zinc-100'],
+                ['Build Rate',     `${buildRate}%`, buildRate >= 50 ? 'text-emerald-400' : 'text-zinc-100'],
+                ['Avg Score',      String(avgScore), avgScore >= 65 ? 'text-emerald-400' : avgScore >= 50 ? 'text-amber-400' : 'text-red-400'],
+                ['Last Run',       timeAgo(list[0].created_at), 'text-zinc-100'],
+              ] as [string, string, string][]).map(([l, v, c]) => (
+                <div key={l} className="flex-1 min-w-[130px] py-5 px-4 first:pl-1">
+                  <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">{l}</p>
+                  <p className={`font-serif text-3xl font-medium ${c}`}>{v}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── blotter ── */}
           {list.length === 0 ? (
             <div className="card-premium p-20 text-center">
               <IconTarget className="w-8 h-8 text-brass/70 mx-auto mb-5" />
@@ -111,46 +138,48 @@ export default async function Dashboard() {
               {canAnalyze && <Link href="/analyze" className="btn-white">Start analyzing →</Link>}
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {list.map(a => (
-                <Link key={a.id} href={`/memo/${a.id}`} className="card-premium card-premium-hover p-5 flex flex-col gap-4 group">
-                  {/* header */}
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-medium text-sm leading-snug group-hover:text-white line-clamp-2">
-                      {a.category_name}
-                    </h3>
-                    <div className="flex items-center gap-1.5 shrink-0">
+            <>
+              {/* desktop blotter table */}
+              <div className="hidden sm:block">
+                <div className="grid grid-cols-[2rem_1fr_4.5rem_7rem_9rem_5rem] gap-3 px-3 py-2 text-[10px] text-zinc-600 uppercase tracking-wider border-b border-white/[0.08] font-mono">
+                  <span>#</span><span>Category</span><span className="text-right">Score</span><span>Decision</span><span>Competitor</span><span className="text-right">Run</span>
+                </div>
+                <div className="divide-y divide-white/[0.06]">
+                  {list.map((a, i) => (
+                    <Link
+                      key={a.id} href={`/memo/${a.id}`}
+                      className="grid grid-cols-[2rem_1fr_4.5rem_7rem_9rem_5rem] gap-3 px-3 py-3.5 items-center hover:bg-white/[0.025] transition-colors group"
+                    >
+                      <span className="text-xs text-zinc-600 font-mono">{String(i + 1).padStart(2, '0')}</span>
+                      <span className="text-sm text-zinc-200 group-hover:text-white truncate">{a.category_name}</span>
+                      <span className="text-right"><ScoreColor s={a.opportunity_score} /></span>
+                      <span className="flex items-center gap-1.5 text-xs font-medium">
+                        <DecisionDot d={a.build_decision} /><DecisionLabel d={a.build_decision} />
+                      </span>
+                      <span className="text-xs text-zinc-500 truncate">{a.biggest_competitor ? `vs ${a.biggest_competitor}` : '—'}</span>
+                      <span className="text-xs text-zinc-600 text-right font-mono">{timeAgo(a.created_at)}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* mobile list */}
+              <div className="sm:hidden ledger">
+                {list.map((a, i) => (
+                  <Link key={a.id} href={`/memo/${a.id}`} className="ledger-row justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-zinc-600 font-mono text-xs w-4 text-right shrink-0">{i + 1}</span>
                       <DecisionDot d={a.build_decision} />
+                      <span className="text-sm font-medium truncate">{a.category_name}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-zinc-600">{timeAgo(a.created_at)}</span>
                       <ScoreColor s={a.opportunity_score} />
                     </div>
-                  </div>
-
-                  {/* mini score grid */}
-                  <div className="flex divide-x divide-white/[0.06] rounded-lg border border-white/[0.06] overflow-hidden">
-                    {([
-                      ['Demand',  a.score_demand],
-                      ['Comp.',   a.score_competition],
-                      ['Viral',   a.score_virality],
-                      ['Sub.',    a.score_subscription],
-                      ['Mfg',    a.score_manufacturing],
-                      ['Defense', a.score_defensibility],
-                    ] as [string, number][]).map(([l, s]) => (
-                      <div key={l} className="flex-1 py-1.5 text-center">
-                        <p className="text-[9px] text-zinc-600 mb-0.5">{l}</p>
-                        <span className={`text-xs font-mono font-semibold ${
-                          s >= 8 ? 'text-emerald-400' : s >= 6 ? 'text-amber-400' : 'text-red-400'
-                        }`}>{s}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex justify-between text-xs text-zinc-600">
-                    <span>{a.biggest_competitor ? `vs ${a.biggest_competitor}` : ''}</span>
-                    <span>{timeAgo(a.created_at)}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </main>
