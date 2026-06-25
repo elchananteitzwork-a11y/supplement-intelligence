@@ -16,6 +16,13 @@
 const KEEPA_API = 'https://api.keepa.com'
 const NO_DATA = -1
 
+// CSV[0] = Amazon-direct price, CSV[18] = buy-box price. Same fallback as
+// lib/signal-engine/providers/keepa.ts's main computeSignals(): many
+// products are third-party/FBA-only with no Amazon-direct listing, in
+// which case CSV[0] is legitimately -1 (no data) while CSV[18] has the
+// real price. Found live (2026-06-25): this exact gap caused a real
+// competitor lookup to silently fall back to the model's guess for a
+// product that DOES have real Keepa pricing data, just not at index 0.
 interface KeepaSingleProduct {
   monthlySold?: number
   stats?: { avg90?: number[] }
@@ -54,12 +61,18 @@ export async function fetchRealCompetitorRevenue(
 
     const data: { products?: KeepaSingleProduct[] } = await res.json()
     const product = data.products?.[0]
-    if (!product) return null
+    if (!product) {
+      console.log('Real competitor lookup: no product returned', { asin, brand })
+      return null
+    }
 
-    const price = keepaPrice(product.stats?.avg90?.[0])
+    const price = keepaPrice(product.stats?.avg90?.[0]) ?? keepaPrice(product.stats?.avg90?.[18])
     const monthlySold = product.monthlySold
 
-    if (price === null || !monthlySold || monthlySold <= 0) return null
+    if (price === null || !monthlySold || monthlySold <= 0) {
+      console.log('Real competitor lookup: missing price or monthlySold', { asin, brand, price, monthlySold })
+      return null
+    }
 
     return { asin, brand, price, monthlySold, revenue: Math.round(price * monthlySold) }
   } catch (e: unknown) {

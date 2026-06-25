@@ -502,6 +502,7 @@ export async function POST(req: Request) {
   // (see buildSignalContext in lib/prompts/discovery.ts).
   if (!skipReason && topCompetitors?.length) {
     const top = topCompetitors[0]
+    console.log('Real competitor lookup: attempting', { asin: top.asin, brand: top.brand })
     const real = await fetchRealCompetitorRevenue(top.asin, top.brand).catch((e: unknown) => {
       console.error('Real competitor revenue lookup failed', { error: e instanceof Error ? e.message : e })
       return null
@@ -510,6 +511,9 @@ export async function POST(req: Request) {
       memo.biggest_competitor.name    = real.brand
       memo.biggest_competitor.revenue = formatRealCompetitorRevenue(real)
       if (memo.signal_metadata) memo.signal_metadata.competitor_revenue_verified = true
+      console.log('Real competitor lookup: succeeded', real)
+    } else {
+      console.log('Real competitor lookup: no real data, keeping model-written biggest_competitor', { asin: top.asin, brand: top.brand })
     }
   }
 
