@@ -10,10 +10,20 @@ import type { MemoData, BuildDecision } from '@/types/index'
 // This version: every dimension that has a real, deterministically-computed
 // provider score (Keepa/Apify/DataForSEO/TikTok, all already 0-10 via
 // SignalScore) uses THAT score directly instead of the model's own number.
-// Dimensions with no real provider (subscription, manufacturing,
-// defensibility) stay LLM-estimated — clearly marked as such, not hidden.
-// Revenue and Consumer Pain are NEW dimensions with no LLM equivalent at
-// all — included only when real data exists, never backfilled with a guess.
+// Dimensions with no real provider (subscription, manufacturing) stay
+// LLM-estimated — clearly marked as such, not hidden. Revenue and Consumer
+// Pain are dimensions with no LLM equivalent at all — included only when
+// real data exists, never backfilled with a guess.
+//
+// Defensibility removed 2026-06-25 (along with the LTV display field,
+// platform-wide) — it was always 100% LLM judgment with no real-data path
+// and no real-data path is realistically reachable (no provider measures
+// brand/IP moat for a product that hasn't launched). Its 9-point weight is
+// redistributed below, proportionally, only across the dimensions capable
+// of being real-data-backed (demand, revenue, competition, consumerPain,
+// virality) — not subscription/manufacturing, which are never evidence-
+// backed either way, so giving them more weight wouldn't change what kind
+// of score this is. Subscription/manufacturing weights are unchanged.
 //
 // Weights are a documented, reasoned starting point, NOT empirically
 // calibrated against outcomes (no outcome data exists yet to calibrate
@@ -40,14 +50,13 @@ export interface GroundedScore {
 }
 
 const BASE_WEIGHTS = {
-  demand:        20,
-  revenue:       15,
-  competition:   15,
-  consumerPain:  15,
+  demand:        23,
+  revenue:       17,
+  competition:   17,
+  consumerPain:  17,
   virality:      10,
   subscription:   8,
   manufacturing:  8,
-  defensibility:  9,
 } // sums to 100
 
 function marketSaturationFallbackScore(m: MemoData): number | null {
@@ -112,10 +121,9 @@ export function computeGroundedScore(m: MemoData): GroundedScore {
     candidates.push({ key: 'virality', label: 'Virality', weight: BASE_WEIGHTS.virality, rawScore: m.scores.virality?.score ?? 5, source: 'estimated', sourceLabel: 'AI estimate — no real social signal was available' })
   }
 
-  // No real provider exists for any of these three today — always estimated.
+  // No real provider exists for either of these today — always estimated.
   candidates.push({ key: 'subscription',  label: 'Subscription Fit',  weight: BASE_WEIGHTS.subscription,  rawScore: m.scores.subscription?.score  ?? 5, source: 'estimated', sourceLabel: 'AI estimate — no real subscription-behavior data source exists yet' })
   candidates.push({ key: 'manufacturing', label: 'Manufacturing Ease', weight: BASE_WEIGHTS.manufacturing, rawScore: m.scores.manufacturing?.score ?? 5, source: 'estimated', sourceLabel: 'AI estimate — independent of the separate Manufacturing tab lookup' })
-  candidates.push({ key: 'defensibility', label: 'Defensibility',      weight: BASE_WEIGHTS.defensibility,  rawScore: m.scores.defensibility?.score ?? 5, source: 'estimated', sourceLabel: 'AI estimate — no real brand/IP data source exists yet' })
 
   const totalWeight = candidates.reduce((s, c) => s + c.weight, 0)
   const dimensions  = candidates.map(c => ({ ...c, weight: c.weight / totalWeight }))

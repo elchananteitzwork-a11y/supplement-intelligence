@@ -43,11 +43,7 @@ MANUFACTURING (score + evidence) — 10 = easiest:
 - moq: estimated minimum order quantity
 - score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex or large MOQ
 
-DEFENSIBILITY (score + evidence):
-- rationale: 8–12 words on why the brand story / design / community can or cannot be replicated
-- score 8–10: proprietary design, patent, strong aesthetic brand identity; 5–7: differentiated; 0–4: generic commodity
-
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 
 STARTUP COST — tooling/sourcing + MOQ + packaging + brand + initial marketing:
 - Simple import with no tooling: "$3k–$10k"
@@ -79,11 +75,10 @@ If the idea requires certifications that cannot realistically be obtained at DTC
 SCORING (integers 0–10, be skeptical, never inflate):
 demand        — search volume + YoY growth + consumer interest
 virality      — TikTok #CleanTok #HomeOrg viral potential + aesthetic content + transformation UGC
-subscription  — consumable replenishment rate + replacement cycle + customer LTV mechanics
+subscription  — consumable replenishment rate + replacement cycle + repurchase mechanics
 manufacturing — product complexity + tooling cost + supply chain difficulty (10 = easiest)
-defensibility — how hard the design, brand aesthetic, community, or patent is to replicate
 
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
 
 EVIDENCE TIERS (for product claims and materials):
@@ -106,7 +101,6 @@ OUTPUT RULES:
 - executive_summary: 2 sentences max
 - build_explanation: 2 sentences max
 - path_to_10m: 1 sentence
-- sub_ltv: estimated annual LTV for a repeat/subscription customer (for consumables) or lifetime value (for durables)
 ${SHARED_MEMO_SCHEMA}`
 
 // ── Relevance gate ─────────────────────────────────────────────────────────
@@ -171,7 +165,7 @@ export const homeModule: CategoryModule = {
   name:        'Home & Lifestyle',
   slug:        'home',
   tagline:     'Know if your home product idea is worth building.',
-  description: '6-dimension market analysis for home and lifestyle product opportunities.',
+  description: '5-dimension market analysis for home and lifestyle product opportunities.',
   icon:        '⬟',
 
   discoverySystemPrompt: HOME_DISCOVERY_PROMPT,

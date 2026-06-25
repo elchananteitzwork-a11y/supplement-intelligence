@@ -82,7 +82,7 @@ export const STATIC_PROVENANCE = {
   ),
   opportunityScore: estimated(
     'Server-side formula',
-    'Computed deterministically as (demand + virality + subscription + manufacturing + defensibility) ÷ 50 × 100, recalculated server-side so the model cannot misreport its own math. The formula is exact; every input it operates on is the model\'s own 0–10 judgment call, not independently verified.'
+    'Computed deterministically as a weighted blend of demand, revenue, market accessibility, consumer pain, virality, subscription, and manufacturing, recalculated server-side so the model cannot misreport its own math. The formula is exact; dimensions with a real provider use that real score, the rest are the model\'s own 0–10 judgment call — see the score breakdown for which is which.'
   ),
 } satisfies Record<string, Provenance>
 
@@ -119,10 +119,6 @@ export function manufacturingScoreProvenance(): Provenance {
   return synthesized(
     "Formulation-complexity judgment by the model. For sourced cost/MOQ/supplier figures, see the Manufacturing Intelligence tab below."
   )
-}
-
-export function defensibilityProvenance(): Provenance {
-  return synthesized('A subjective moat assessment — inherently a judgment call, not a verifiable fact.')
 }
 
 export function marketSaturationProvenance(sig?: SignalMetadata): Provenance {
@@ -350,7 +346,6 @@ export function computeEvidenceCoverage(m: MemoData): EvidenceCoverage {
     viralityProvenance(sig),
     subscriptionProvenance(),
     manufacturingScoreProvenance(),
-    defensibilityProvenance(),
     marketSaturationProvenance(sig),
     // Narrative + static fields (everything in STATIC_PROVENANCE except the
     // opportunity score, which has its own real per-dimension breakdown via

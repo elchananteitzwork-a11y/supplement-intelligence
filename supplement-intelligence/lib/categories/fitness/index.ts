@@ -43,11 +43,7 @@ MANUFACTURING (score + evidence) — 10 = easiest:
 - moq: estimated minimum order quantity
 - score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex or large MOQ
 
-DEFENSIBILITY (score + evidence):
-- rationale: 8–12 words on why the brand story can or cannot be replicated
-- score 8–10: endorsed by athletes, proprietary tech, community moat; 5–7: differentiated; 0–4: commodity
-
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 
 STARTUP COST:
 - Commodity sports nutrition or simple accessories: "$5k–$15k"
@@ -79,11 +75,10 @@ If the idea includes banned performance-enhancing substances, prescription drugs
 SCORING (integers 0–10, be skeptical, never inflate):
 demand        — search volume + YoY growth + athlete/consumer awareness
 virality      — TikTok workout transformation + challenge potential + athlete UGC
-subscription  — recurring training usage + monthly replenishment LTV mechanics
+subscription  — recurring training usage + monthly replenishment mechanics
 manufacturing — product/formula simplicity + sports regulatory burden (10 = easiest)
-defensibility — how hard the positioning, athlete relationships, or product is to replicate
 
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
 
 EVIDENCE TIERS (for sports ingredients and claims):
@@ -109,7 +104,6 @@ OUTPUT RULES:
 - executive_summary: 2 sentences max
 - build_explanation: 2 sentences max
 - path_to_10m: 1 sentence
-- sub_ltv: estimated annual LTV for a recurring customer (subscription or repeat purchase)
 ${SHARED_MEMO_SCHEMA}`
 
 // ── Relevance gate ─────────────────────────────────────────────────────────
@@ -185,7 +179,7 @@ export const fitnessModule: CategoryModule = {
   name:        'Fitness & Sports',
   slug:        'fitness',
   tagline:     'Know if your fitness brand idea is worth building.',
-  description: '6-dimension market analysis for fitness and sports brand opportunities.',
+  description: '5-dimension market analysis for fitness and sports brand opportunities.',
   icon:        '⬡',
 
   discoverySystemPrompt: FITNESS_DISCOVERY_PROMPT,

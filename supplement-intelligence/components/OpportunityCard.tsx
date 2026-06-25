@@ -19,7 +19,6 @@ interface OpportunityCardProps {
   format?:      string | null
   competitor?:  string | null
   marketSize?:  string | null
-  ltv?:         string | null
   timeLabel:    string
 }
 
@@ -31,11 +30,11 @@ interface OpportunityCardProps {
 // perspective on hover and stagger in on mount, rather than appearing as a
 // flat, all-at-once table.
 export default function OpportunityCard({
-  href, rank, gridIndex, categoryName, score, decision, format, competitor, marketSize, ltv, timeLabel,
+  href, rank, gridIndex, categoryName, score, decision, format, competitor, marketSize, timeLabel,
 }: OpportunityCardProps) {
   const cfg = DECISION_CFG[decision]
   const facts = ([
-    ['Competitor', competitor], ['Market', marketSize], ['LTV', ltv],
+    ['Competitor', competitor], ['Market', marketSize],
   ] as [string, string | null | undefined][]).filter(([, v]) => v && v !== 'N/A')
 
   const glow = decision === 'BUILD_NOW' && score >= 75 ? 'shadow-[0_0_36px_rgba(52,211,153,.10)]' : ''

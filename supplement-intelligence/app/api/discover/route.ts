@@ -122,28 +122,26 @@ function err(msg: string, status = 400) {
 }
 
 // ── Server-side score recalculation ────────────────────────────
-// Phase 2 unification: discovery now uses the same 5-dimension formula as the
-// memo report. formula: round((demand + virality + subscription + manufacturing
-// + defensibility) / 50 × 100). Legacy cached cards that still carry a
-// competition.score use the old 6-dim/60 formula automatically.
+// formula: round((demand + virality + subscription + manufacturing) / 40 × 100).
+// Defensibility removed 2026-06-25 — it was always 100% LLM judgment with no
+// real-data path (see lib/scoring.ts for the same change on the memo side).
+// Any stray defensibility/competition value left on an older cached card is
+// ignored here: every card is rescored under the current 4-dimension formula
+// on read, so old cache entries self-heal instead of needing a backfill.
 
 const MAX_DISCOVER_ATTEMPTS = 3
 
 function recalculateCardScore(card: OpportunityCard): number {
   const s = card.scores
-  const hasLegacy = typeof s?.competition?.score === 'number'
   const dimSum =
     (s?.demand?.score        ?? 0) +
     (s?.virality?.score      ?? 0) +
     (s?.subscription?.score  ?? 0) +
-    (s?.manufacturing?.score ?? 0) +
-    (s?.defensibility?.score ?? 0) +
-    (hasLegacy ? (s!.competition!.score ?? 0) : 0)
-  const maxDim = hasLegacy ? 60 : 50
-  return Math.round((dimSum / maxDim) * 100)
+    (s?.manufacturing?.score ?? 0)
+  return Math.round((dimSum / 40) * 100)
 }
 
-// Type-guard: 5 required scored dimensions + structural fields.
+// Type-guard: 4 required scored dimensions + structural fields.
 // competition is optional (legacy) — market_saturation replaces it.
 function isValidCard(o: unknown): o is OpportunityCard {
   if (!o || typeof o !== 'object') return false
@@ -158,8 +156,7 @@ function isValidCard(o: unknown): o is OpportunityCard {
     typeof c.scores.demand?.score        === 'number' &&
     typeof c.scores.virality?.score      === 'number' &&
     typeof c.scores.subscription?.score  === 'number' &&
-    typeof c.scores.manufacturing?.score === 'number' &&
-    typeof c.scores.defensibility?.score === 'number'
+    typeof c.scores.manufacturing?.score === 'number'
   )
 }
 

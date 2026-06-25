@@ -85,10 +85,6 @@ Start with [ and end with ].
         "score": 0,
         "complexity": "Low | Medium | High",
         "moq": "N–N units"
-      },
-      "defensibility": {
-        "score": 0,
-        "rationale": "8–12 word reason"
       }
     }
   }
@@ -111,9 +107,8 @@ demand        — search volume + YoY growth + consumer awareness
 virality      — social content potential + UGC + platform creator ecosystem
 subscription  — daily use + runs out within 30 days + benefit reverts on stopping
 manufacturing — formula/product simplicity + regulatory risk + MOQ (10 = easiest)
-defensibility — how hard the brand story/positioning is to replicate
 
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
 
 CALIBRATION RULES — read carefully:
@@ -121,6 +116,7 @@ CALIBRATION RULES — read carefully:
 - subscription: Only score High when the product is physically consumed within 30 days AND the benefit regresses when stopped. Wellness products users might forget to reorder are Medium at best.
 - market_size: Only state a specific figure if you can ground it in a named category (e.g. "US dietary supplement market"). If the exact niche has no credible sizing, write "Not independently verified — market estimates vary widely." Never invent a specific dollar figure.
 - market_gaps / customer_language / biggest_competitor.gap: if a "REAL CUSTOMER FEEDBACK" block appears above with real review-derived themes, you MUST use those real items (lightly rephrased is fine) instead of inventing different ones — cite the real review count when you do. Only invent a gap/quote when there is no real-feedback item that covers it.
+- LTV: do not invent a specific lifetime-value dollar figure anywhere in the output, including inside free-text fields like path_to_10m or brand_opportunities — this metric was removed because it cannot be grounded in real data. Discuss subscription/retention economics qualitatively (e.g. "high-frequency repurchase" or "strong subscription attach") instead of asserting an LTV number.
 
 ADDITIONAL OUTPUT RULES:
 - market_saturation: describe the competitive landscape qualitatively — no score.
@@ -140,8 +136,7 @@ Return a JSON object with exactly these fields:
     "demand":        { "score": 0, "notes": "one sentence with specific evidence" },
     "virality":      { "score": 0, "notes": "cite specific platform or content evidence" },
     "subscription":  { "score": 0, "notes": "one sentence on repurchase mechanics" },
-    "manufacturing": { "score": 0, "notes": "one sentence" },
-    "defensibility": { "score": 0, "notes": "one sentence" }
+    "manufacturing": { "score": 0, "notes": "one sentence" }
   },
 
   "market_saturation": {
@@ -159,7 +154,6 @@ Return a JSON object with exactly these fields:
   },
 
   "market_size":  "$XB (year) or 'Not independently verified — market estimates vary widely'",
-  "sub_ltv":      "$XXX",
   "gross_margin": "XX-XX%",
 
   "market_gaps": ["gap 1","gap 2","gap 3","gap 4","gap 5"],
@@ -194,7 +188,6 @@ Return a JSON object with exactly these fields:
     "one_m_probability":      "XX%",
     "gross_margin":           "XX-XX%",
     "net_margin_at_scale":    "XX-XX%",
-    "subscription_ltv":       "$XXX",
     "path_to_10m":            "one sentence on the execution path"
   },
 

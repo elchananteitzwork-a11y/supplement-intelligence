@@ -84,7 +84,6 @@ export default async function Leaderboard() {
                 decision={r.build_decision}
                 competitor={r.biggest_competitor}
                 marketSize={r.market_size}
-                ltv={r.sub_ltv}
                 timeLabel={timeLabelFor(r)}
               />
             ))}

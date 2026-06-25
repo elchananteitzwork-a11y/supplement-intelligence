@@ -5,10 +5,10 @@ import {
 
 const FEATURES = [
   { Icon: IconTarget,  title: 'Market Gaps',          body: '10 specific gaps competitors are missing in any category — not generic observations.' },
-  { Icon: IconGrid,    title: 'Validated Scoring',    body: '6-dimension framework calibrated against 13 real brands including Nutrafol, Arrae, and Seed.' },
+  { Icon: IconGrid,    title: 'Validated Scoring',    body: '5-dimension framework calibrated against 13 real brands including Nutrafol, Arrae, and Seed.' },
   { Icon: IconBeaker,  title: 'Formula + Dosages',    body: 'Exact ingredients, doses, evidence tiers, COGS estimate, and a list of ingredients to avoid.' },
-  { Icon: IconChart,   title: 'Financial Model',       body: '$10k / $100k / $1M/month probability estimates with LTV, gross margin, and path to $10M.' },
-  { Icon: IconGauge,   title: 'BUILD / SKIP Verdict', body: 'One clear decision backed by six scored dimensions. No ambiguity.' },
+  { Icon: IconChart,   title: 'Financial Model',       body: '$10k / $100k / $1M/month probability estimates with gross margin and path to $10M.' },
+  { Icon: IconGauge,   title: 'BUILD / SKIP Verdict', body: 'One clear decision backed by five scored dimensions. No ambiguity.' },
   { Icon: IconBubbles, title: 'Customer Language',    body: 'Real frustrations, fears, and ad-ready phrases pulled from documented consumer complaints.' },
 ]
 
@@ -178,7 +178,7 @@ export default function Landing() {
         <div className="space-y-px">
           {[
             { n: '01', t: 'Type your idea',     b: "Enter any supplement concept — as broad as 'stress supplement for women' or as specific as 'cortisol support for women 35–50 with hair loss'." },
-            { n: '02', t: 'Wait 60 seconds',    b: 'The engine scores demand, competition, virality, retention, manufacturing, and defensibility — then builds a complete memo.' },
+            { n: '02', t: 'Wait 60 seconds',    b: 'The engine scores demand, competition, virality, retention, and manufacturing — then builds a complete memo.' },
             { n: '03', t: 'Get your answer',    b: 'Market gaps. Formula. Financials. Customer language. BUILD / SKIP. Ready to use in a pitch or product brief.' },
           ].map(s => (
             <div key={s.n} className="flex gap-6 py-6 border-t border-white/[0.06] first:border-t-0">

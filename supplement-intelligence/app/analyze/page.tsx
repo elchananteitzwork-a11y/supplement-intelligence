@@ -139,11 +139,6 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
       score: scores.manufacturing.score,
       facts: [`Complexity: ${scores.manufacturing.complexity}`, `MOQ: ${scores.manufacturing.moq}`],
     },
-    {
-      label: 'Defensibility',
-      score: scores.defensibility.score,
-      facts: [scores.defensibility.rationale],
-    },
   ]
 
   return (
@@ -976,7 +971,7 @@ export default function AnalyzePage() {
           <div className="space-y-4">
             {[
               { n: '01', t: 'Type your idea', b: 'Broad category or specific concept.' },
-              { n: '02', t: 'Wait ~60 seconds', b: 'Demand, virality, manufacturing, and defensibility get scored.' },
+              { n: '02', t: 'Wait ~60 seconds', b: 'Demand, virality, subscription, and manufacturing get scored.' },
               { n: '03', t: 'Get your answer', b: 'Market gaps, formula, financials, and a BUILD / SKIP verdict.' },
             ].map(s => (
               <div key={s.n} className="flex gap-3">

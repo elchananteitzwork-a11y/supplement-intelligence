@@ -102,11 +102,9 @@ function buildSkipMemo(input: string, skipReason: string): MemoData {
       virality:      noScore(parseNote),
       subscription:  noScore(parseNote),
       manufacturing: noScore(parseNote),
-      defensibility: noScore(parseNote),
     },
     biggest_competitor: { name: NA, revenue: NA, gap: NA },
     market_size:  NA,
-    sub_ltv:      NA,
     gross_margin: NA,
     market_gaps:         [NA, NA, NA, NA, NA],
     brand_opportunities: [NA, NA, NA, NA, NA],
@@ -131,7 +129,6 @@ function buildSkipMemo(input: string, skipReason: string): MemoData {
       one_m_probability:     NA,
       gross_margin:          NA,
       net_margin_at_scale:   NA,
-      subscription_ltv:      NA,
       path_to_10m:           NA,
     },
   }
@@ -167,11 +164,11 @@ function validateMemo(memo: MemoData): string[] {
   if (!isNonEmpty(memo.build_explanation)) missing.push('build_explanation')
   if (typeof memo.opportunity_score !== 'number') missing.push('opportunity_score')
   if (!isNonEmpty(memo.market_size))       missing.push('market_size')
-  if (!isNonEmpty(memo.sub_ltv))           missing.push('sub_ltv')
   if (!isNonEmpty(memo.gross_margin))      missing.push('gross_margin')
 
-  // 5 dimension scores (competition removed in Phase 2; competition is optional for old memos)
-  const dims = ['demand','virality','subscription','manufacturing','defensibility'] as const
+  // 4 dimension scores (competition removed in Phase 2, defensibility removed
+  // 2026-06-25; competition is optional for old memos)
+  const dims = ['demand','virality','subscription','manufacturing'] as const
   if (!memo.scores) {
     missing.push('scores')
   } else {
@@ -228,7 +225,7 @@ function validateMemo(memo: MemoData): string[] {
   } else {
     const fpFields = [
       'ten_k_probability','hundred_k_probability','one_m_probability',
-      'gross_margin','net_margin_at_scale','subscription_ltv','path_to_10m',
+      'gross_margin','net_margin_at_scale','path_to_10m',
     ] as const
     for (const f of fpFields) {
       if (!isNonEmpty(fp[f])) missing.push(`financial_projections.${f}`)
@@ -582,14 +579,13 @@ export async function POST(req: Request) {
       score_virality:      memo.scores.virality?.score      ?? null,
       score_subscription:  memo.scores.subscription?.score  ?? null,
       score_manufacturing: memo.scores.manufacturing?.score ?? null,
-      score_defensibility: memo.scores.defensibility?.score ?? null,
+      score_defensibility: null,  // removed 2026-06-25 — column kept for schema compat
       opportunity_score:   memo.opportunity_score,
       build_decision:      memo.build_decision,
       build_verdict:       memo.build_verdict ?? null,
       memo_data:           memo,
       biggest_competitor:  memo.biggest_competitor?.name    ?? null,
       market_size:         memo.market_size                 ?? null,
-      sub_ltv:             memo.sub_ltv                     ?? null,
       gross_margin:        memo.gross_margin                ?? null,
       generation_ms:       generationMs,
     })
@@ -616,7 +612,6 @@ export async function POST(req: Request) {
       build_decision:     memo.build_decision,
       biggest_competitor: memo.biggest_competitor?.name ?? null,
       market_size:        memo.market_size             ?? null,
-      sub_ltv:            memo.sub_ltv                 ?? null,
       best_analysis_id:   analysis.id,
       analysis_count:     1,
     })
@@ -631,7 +626,6 @@ export async function POST(req: Request) {
           build_decision:     memo.build_decision,
           biggest_competitor: memo.biggest_competitor?.name ?? null,
           market_size:        memo.market_size             ?? null,
-          sub_ltv:            memo.sub_ltv                 ?? null,
           best_analysis_id:   analysis.id,
         }),
       })

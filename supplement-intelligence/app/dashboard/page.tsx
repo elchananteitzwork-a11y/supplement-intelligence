@@ -136,7 +136,6 @@ export default async function Dashboard() {
                   format={a.memo_data?.product_recommendation?.format}
                   competitor={a.biggest_competitor}
                   marketSize={a.market_size}
-                  ltv={a.sub_ltv}
                   timeLabel={timeAgo(a.created_at)}
                 />
               ))}

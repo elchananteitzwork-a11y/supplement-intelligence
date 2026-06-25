@@ -192,11 +192,7 @@ MANUFACTURING (score + evidence) — 10 = easiest:
 - moq: estimated minimum order quantity (e.g. "250–500 units", "1,000–2,500 units", "5,000+ units")
 - score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex formula or large MOQ
 
-DEFENSIBILITY (score + evidence):
-- rationale: 8–12 words explaining why the brand story can or cannot be replicated
-- score 8–10: unique mechanism, strong community, or proprietary positioning; 5–7: differentiated but copyable; 0–4: commodity with no moat
-
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 
 STARTUP COST — total capital to first sale (formulation + MOQ + packaging + brand + basic marketing):
 - Commodity formula, low MOQ: "$3k–$8k"
@@ -252,10 +248,6 @@ Start with [ and end with ].
         "score": 0,
         "complexity": "Low | Medium | High",
         "moq": "N–N units"
-      },
-      "defensibility": {
-        "score": 0,
-        "rationale": "8–12 word reason"
       }
     }
   }

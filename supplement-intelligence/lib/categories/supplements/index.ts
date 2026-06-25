@@ -79,7 +79,7 @@ export const supplementsModule: CategoryModule = {
   name:        'Supplements',
   slug:        'supplements',
   tagline:     'Know if your supplement idea is worth building.',
-  description: '6-dimension market analysis for supplement brand opportunities.',
+  description: '5-dimension market analysis for supplement brand opportunities.',
   icon:        '◎',
 
   discoverySystemPrompt: DISCOVERY_PROMPT,

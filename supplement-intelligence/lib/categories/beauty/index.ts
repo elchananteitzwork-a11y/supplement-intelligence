@@ -41,11 +41,7 @@ MANUFACTURING (score + evidence) — 10 = easiest:
 - moq: estimated minimum order quantity (e.g. "500–1,000 units", "1,000–3,000 units")
 - score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex or large MOQ
 
-DEFENSIBILITY (score + evidence):
-- rationale: 8–12 words on why the brand story can or cannot be replicated
-- score 8–10: proprietary blend, clinical proof, strong community; 5–7: differentiated but copyable; 0–4: commodity
-
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 
 STARTUP COST — formulation + MOQ + packaging + brand + initial marketing:
 - Simple emulsion, commodity actives, low MOQ: "$5k–$15k"
@@ -77,11 +73,10 @@ If the idea includes prescription drugs, medical devices requiring FDA 510(k), o
 SCORING (integers 0–10, be skeptical, never inflate):
 demand        — search volume + YoY growth + consumer awareness
 virality      — TikTok/Instagram transformation content + before/after + GRWM potential
-subscription  — daily routine use + skin regression without it + replenishment LTV
+subscription  — daily routine use + skin regression without it + replenishment cadence
 manufacturing — formulation simplicity + stability + cosmetic regulatory burden (10 = easiest)
-defensibility — how hard the brand story / positioning / formulation is to replicate
 
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
 
 EVIDENCE TIERS (for skincare actives):
@@ -103,7 +98,6 @@ OUTPUT RULES:
 - executive_summary: 2 sentences max
 - build_explanation: 2 sentences max
 - path_to_10m: 1 sentence
-- sub_ltv: estimated annual LTV for a subscription customer
 ${SHARED_MEMO_SCHEMA}`
 
 // ── Relevance gate ─────────────────────────────────────────────────────────
@@ -173,7 +167,7 @@ export const beautyModule: CategoryModule = {
   name:        'Beauty & Skincare',
   slug:        'beauty',
   tagline:     'Know if your beauty brand idea is worth building.',
-  description: '6-dimension market analysis for beauty and skincare brand opportunities.',
+  description: '5-dimension market analysis for beauty and skincare brand opportunities.',
   icon:        '✦',
 
   discoverySystemPrompt: BEAUTY_DISCOVERY_PROMPT,

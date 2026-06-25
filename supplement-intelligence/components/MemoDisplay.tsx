@@ -14,7 +14,7 @@ import { inferProductShape, ProductRenderHero } from '@/components/ProductGlyph'
 import { LifestyleScene } from '@/components/LifestyleScene'
 import {
   STATIC_PROVENANCE, demandProvenance, viralityProvenance, subscriptionProvenance,
-  manufacturingScoreProvenance, defensibilityProvenance, marketSaturationProvenance,
+  manufacturingScoreProvenance, marketSaturationProvenance,
   manufacturingTabProvenance, legacyCompetitionProvenance, toConfidenceBand,
   searchVolumeProvenance, searchGrowthProvenance, unitsSoldProvenance,
   revenueEvidenceProvenance, competitionEvidenceProvenance, categoryReviewDataProvenance,
@@ -358,16 +358,15 @@ function NumList({ items }: { items: string[] }) {
 }
 
 
-// Market/LTV/Margin appear in three different always-visible spots (Ticker
+// Market/Margin appear in three different always-visible spots (Ticker
 // Strip, Masthead, At-a-Glance rail) — same provenance caveat applies to all
 // three, so it's centralized here rather than repeated at each call site.
 const FACT_TOOLTIP: Record<string, string> = {
   MARKET: STATIC_PROVENANCE.marketSize.detail,
-  LTV:    STATIC_PROVENANCE.financialProjections.detail,
   MARGIN: STATIC_PROVENANCE.financialProjections.detail,
 }
 
-// These three (Market/LTV/Margin) are always AI Interpretation — no compact
+// These two (Market/Margin) are always AI Interpretation — no compact
 // "at a glance" chip layout can fit a full visible caption, so this adds a
 // consistent color + dot (same visual language as EvidenceBadge) instead of
 // relying on the hover title alone. The same fields get a full visible
@@ -459,7 +458,6 @@ function TickerStrip({
     ['VERDICT', decision.replace(/_/g, ' '), true],
     ['CONFIDENCE', confidence.level.toUpperCase(), false],
     ['MARKET', m.market_size, false],
-    ['LTV', m.sub_ltv, false],
     ['MARGIN', m.gross_margin, false],
   ].filter(([, v]) => v && v !== 'N/A') as [string, string, boolean][]
 
@@ -602,7 +600,7 @@ function Masthead({
       <div className="flex flex-wrap items-center justify-between gap-4 mt-7 pt-5 border-t border-white/[0.06] lg:hidden">
         <ConfidencePill level={confidence.level} note={confidence.note} />
         <div className="flex gap-6">
-          {([['Market', m.market_size], ['LTV', m.sub_ltv], ['Margin', m.gross_margin]] as [string, string][])
+          {([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
             .filter(([, v]) => v && v !== 'N/A')
             .map(([l, v]) => <MetaChip key={l} label={l} value={v} />)}
         </div>
@@ -628,7 +626,7 @@ function AtAGlanceRail({
   confidence: { level: 'High' | 'Medium' | 'Low'; note: string }
 }) {
   const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : 'text-red-400'
-  const facts = ([['Market', m.market_size], ['LTV', m.sub_ltv], ['Margin', m.gross_margin]] as [string, string][])
+  const facts = ([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
     .filter(([, v]) => v && v !== 'N/A')
 
   return (
@@ -783,7 +781,6 @@ function IntelligenceGraph({
     { id: 'demand',   label: 'Demand',   sub: `${m.scores.demand?.score ?? '—'}/10 signal`,      strength: (m.scores.demand?.score ?? 5) / 10,      tab: 'market-intelligence' },
     { id: 'virality', label: 'Virality', sub: `${m.scores.virality?.score ?? '—'}/10 signal`,    strength: (m.scores.virality?.score ?? 5) / 10,    tab: 'market-intelligence' },
     { id: 'sub',      label: 'Subscription', sub: `${m.scores.subscription?.score ?? '—'}/10 signal`, strength: (m.scores.subscription?.score ?? 5) / 10, tab: 'market-intelligence' },
-    { id: 'defense',  label: 'Defensibility', sub: `${m.scores.defensibility?.score ?? '—'}/10 signal`, strength: (m.scores.defensibility?.score ?? 5) / 10, tab: 'risk-assessment' },
     ...(hasCompetitor ? [{ id: 'competitor', label: truncateLabel(m.biggest_competitor.name, 18), sub: 'Lead competitor', strength: 0.55, tab: 'competitive-landscape' }] : []),
     { id: 'gap', label: 'Top Market Gap', sub: truncateLabel(m.market_gaps?.[0] ?? 'Documented gap', 26), strength: 0.65, tab: 'market-intelligence' },
   ]
@@ -883,7 +880,7 @@ function evidenceCitation(tag: string, m: MemoData): string | null {
 function deriveTop3Build(m: MemoData): DerivedPoint[] {
   const points: Omit<DerivedPoint, 'evidence'>[] = []
   const dims = (
-    ['demand','virality','subscription','defensibility'] as const
+    ['demand','virality','subscription'] as const
   ).map(k => ({ k, score: m.scores[k]?.score ?? 0, notes: m.scores[k]?.notes ?? '' }))
     .filter(d => d.score >= 6 && d.notes)
     .sort((a, b) => b.score - a.score)
@@ -916,7 +913,7 @@ function deriveTop3Build(m: MemoData): DerivedPoint[] {
 function deriveTop3Risks(m: MemoData): DerivedRisk[] {
   const risks: Omit<DerivedRisk, 'evidence'>[] = []
   const dimRisks = (
-    ['demand','virality','subscription','manufacturing','defensibility'] as const
+    ['demand','virality','subscription','manufacturing'] as const
   ).map(k => ({ score: m.scores[k]?.score ?? 10, notes: m.scores[k]?.notes ?? '', k }))
     .filter(d => d.score <= 5 && d.notes)
     .sort((a, b) => a.score - b.score)
@@ -971,7 +968,7 @@ function deriveValidationSteps(m: MemoData): string[] {
       `Launch a conversion-optimised landing page targeting: ${gap}.`,
       copy ? `Run a $2k–$3k paid test using proven copy: "${copy}".`
            : `Run a $2k–$3k paid test on the highest-virality platform.`,
-      `Track CAC, subscription conversion rate, and LTV. Evaluate against success metrics at day 30 and day 60.`,
+      `Track CAC and subscription conversion rate. Evaluate against success metrics at day 30 and day 60.`,
     ]
   }
   if (d === 'VALIDATE_FURTHER') {
@@ -1017,9 +1014,6 @@ function deriveSuccessMetrics(m: MemoData): string[] {
   if (fp.ten_k_probability && fp.ten_k_probability !== 'N/A') {
     out.push(`Reach $10k MRR within 90 days (model probability: ${fp.ten_k_probability})`)
   }
-  if (fp.subscription_ltv && fp.subscription_ltv !== 'N/A') {
-    out.push(`Customer LTV of ${fp.subscription_ltv} within 6 months`)
-  }
   if (fp.gross_margin && fp.gross_margin !== 'N/A') {
     out.push(`Gross margin at or above ${fp.gross_margin} by month 3`)
   }
@@ -1031,7 +1025,6 @@ function deriveSuccessMetrics(m: MemoData): string[] {
 }
 
 function deriveKillCriteria(m: MemoData): string[] {
-  const fp  = m.financial_projections
   const sat = m.market_saturation
   const out: string[] = []
 
@@ -1042,17 +1035,13 @@ function deriveKillCriteria(m: MemoData): string[] {
       : 'Fewer than 50 organic units/month after 60-day test → adjust positioning before scaling',
   )
 
-  if (fp.subscription_ltv && fp.subscription_ltv !== 'N/A') {
-    out.push(`CAC persistently exceeds 50% of ${fp.subscription_ltv} LTV → unprofitable acquisition, exit or reposition`)
-  } else {
-    out.push('CAC exceeds $80 with no subscription conversion > 20% → unprofitable unit economics')
-  }
+  out.push('CAC exceeds $80 with no subscription conversion > 20% → unprofitable unit economics')
 
   if (sat?.entry_difficulty === 'High' || sat?.concentration === 'Very High') {
     const comp = m.biggest_competitor?.name ?? 'dominant incumbents'
     out.push(`Unable to achieve measurable differentiation from ${comp} within 3 months → pivot or exit category`)
   } else {
-    out.push('Direct competitor launches identical product at 20%+ lower price before reaching $10k MRR → reassess defensibility')
+    out.push('Direct competitor launches identical product at 20%+ lower price before reaching $10k MRR → reassess positioning')
   }
 
   return out.slice(0, 3)
@@ -1066,7 +1055,7 @@ const SEVERITY_CFG: Record<string, { cls: string; dot: string }> = {
 
 const TAG_LABEL: Record<string, string> = {
   demand: 'Demand', virality: 'Virality', subscription: 'Subscription',
-  defensibility: 'Defensibility', gap: 'Market Gap', market: 'Market', angle: 'Entry Angle',
+  manufacturing: 'Manufacturing', gap: 'Market Gap', market: 'Market', angle: 'Entry Angle',
 }
 
 const BLOCK_CFG = [
@@ -1347,7 +1336,7 @@ const DIFFICULTY_CFG: Record<string, { cls: string }> = {
 }
 const DIM_LABELS: Record<string, string> = {
   demand: 'Demand', virality: 'Virality', subscription: 'Subscription',
-  manufacturing: 'Manufacturing', defensibility: 'Defensibility', competition: 'Market Accessibility',
+  manufacturing: 'Manufacturing', competition: 'Market Accessibility',
 }
 
 function MarketSaturationBlock({ m }: { m: MemoData }) {
@@ -2131,7 +2120,6 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
         {([
           ['Gross Margin',     fp.gross_margin],
           ['Net at Scale',     fp.net_margin_at_scale],
-          ['Subscription LTV', fp.subscription_ltv],
         ] as [string, string][]).map(([l, v]) => (
           <div key={l} className="flex-1 px-3 py-3.5 text-center" title={STATIC_PROVENANCE.financialProjections.detail}>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">{l}</p>
@@ -2307,7 +2295,6 @@ function dimensionProvenance(key: string, sig?: SignalMetadata): Provenance {
     case 'virality':       return viralityProvenance(sig)
     case 'subscription':  return subscriptionProvenance()
     case 'manufacturing': return manufacturingScoreProvenance()
-    case 'defensibility': return defensibilityProvenance()
     default:               return legacyCompetitionProvenance()
   }
 }

@@ -58,10 +58,6 @@ export interface OpportunityCard {
       complexity: 'Low' | 'Medium' | 'High'
       moq: string                        // e.g. "500–1,000 units"
     }
-    defensibility: {
-      score: number
-      rationale: string
-    }
   }
 }
 export type BuildVerdict  = 'YES' | 'MAYBE' | 'NO'
@@ -132,7 +128,6 @@ export interface MemoData {
     virality:      DimScore
     subscription:  DimScore
     manufacturing: DimScore
-    defensibility: DimScore
   }
 
   biggest_competitor: {
@@ -142,7 +137,6 @@ export interface MemoData {
   }
 
   market_size:  string
-  sub_ltv:      string
   gross_margin: string
 
   market_gaps:        string[]   // 10 items
@@ -171,7 +165,6 @@ export interface MemoData {
     one_m_probability:    string
     gross_margin:         string
     net_margin_at_scale:  string
-    subscription_ltv:     string
     path_to_10m:          string
   }
 
@@ -197,13 +190,11 @@ export interface Analysis {
   score_virality:     number
   score_subscription: number
   score_manufacturing: number
-  score_defensibility: number
   opportunity_score:  number
   build_decision:     BuildDecision
   memo_data:          MemoData
   biggest_competitor: string | null
   market_size:        string | null
-  sub_ltv:            string | null
   gross_margin:       string | null
   generation_ms:      number | null
 }
@@ -215,7 +206,6 @@ export interface LeaderboardRow {
   build_decision:    BuildDecision
   biggest_competitor: string | null
   market_size:       string | null
-  sub_ltv:           string | null
   analysis_count:    number
   last_analyzed:     string
 }

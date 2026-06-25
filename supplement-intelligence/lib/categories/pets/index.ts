@@ -41,11 +41,7 @@ MANUFACTURING (score + evidence) — 10 = easiest:
 - moq: estimated minimum order quantity
 - score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex or large MOQ
 
-DEFENSIBILITY (score + evidence):
-- rationale: 8–12 words on why the brand story can or cannot be replicated
-- score 8–10: vet-endorsed, clinical proof, proprietary formula; 5–7: differentiated but copyable; 0–4: commodity
-
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 
 STARTUP COST — formulation/sourcing + MOQ + packaging + brand + initial marketing:
 - Simple treats, chews, or accessories: "$4k–$12k"
@@ -77,11 +73,10 @@ If the idea involves prescription veterinary drugs, controlled substances, or tr
 SCORING (integers 0–10, be skeptical, never inflate):
 demand        — search volume + YoY growth + pet-owner awareness
 virality      — TikTok pet content virality + before/after + cute/transformation potential
-subscription  — recurring monthly orders + pet health dependency + LTV mechanics
+subscription  — recurring monthly orders + pet health dependency + repurchase mechanics
 manufacturing — formulation simplicity + AAFCO/NASC compliance burden + ingredient sourcing (10 = easiest)
-defensibility — how hard the brand story / formulation / vet backing is to replicate
 
-opportunity_score = round((demand + virality + subscription + manufacturing + defensibility) / 50 × 100)
+opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
 build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
 
 EVIDENCE TIERS (for pet ingredients and claims):
@@ -104,7 +99,6 @@ OUTPUT RULES:
 - executive_summary: 2 sentences max
 - build_explanation: 2 sentences max
 - path_to_10m: 1 sentence
-- sub_ltv: estimated annual LTV for a subscription pet-owner
 ${SHARED_MEMO_SCHEMA}`
 
 // ── Relevance gate ─────────────────────────────────────────────────────────
@@ -163,7 +157,7 @@ export const petsModule: CategoryModule = {
   name:        'Pet Products',
   slug:        'pets',
   tagline:     'Know if your pet brand idea is worth building.',
-  description: '6-dimension market analysis for pet product and brand opportunities.',
+  description: '5-dimension market analysis for pet product and brand opportunities.',
   icon:        '◈',
 
   discoverySystemPrompt: PETS_DISCOVERY_PROMPT,
