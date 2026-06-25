@@ -75,5 +75,6 @@ discovery-opportunities.csv
 *.temp
 .cache/
 .env.local
+.playwright-mcp/
 .env.local
 .env.local

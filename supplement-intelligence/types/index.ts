@@ -94,6 +94,10 @@ export interface SignalMetadata {
   // this distinguishes "attempted but timed out/failed" from "never
   // attempted" (no competitors found), for the UI's partial-results notice.
   consumer_intelligence_attempted?: boolean
+  // True when biggest_competitor.name/.revenue were overridden server-side
+  // with real Apify (name) + Keepa (revenue) data instead of the model's
+  // invented guess — see lib/real-competitor.ts.
+  competitor_revenue_verified?: boolean
 }
 
 export interface Ingredient {

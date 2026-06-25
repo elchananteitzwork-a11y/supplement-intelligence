@@ -20,6 +20,7 @@ import {
   revenueEvidenceProvenance, competitionEvidenceProvenance, categoryReviewDataProvenance,
   marketAccessibilityProvenance, keywordIntelligenceProvenance, consumerIntelligenceProvenance,
   scoreDimensionProvenance, opportunityScoreProvenance, consistencyFlagProvenance,
+  biggestCompetitorProvenance, computeEvidenceCoverage,
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
 
@@ -366,11 +367,20 @@ const FACT_TOOLTIP: Record<string, string> = {
   MARGIN: STATIC_PROVENANCE.financialProjections.detail,
 }
 
+// These three (Market/LTV/Margin) are always AI Interpretation — no compact
+// "at a glance" chip layout can fit a full visible caption, so this adds a
+// consistent color + dot (same visual language as EvidenceBadge) instead of
+// relying on the hover title alone. The same fields get a full visible
+// caption in their dedicated tabs (Financial/Competitive) — this is the
+// at-a-glance summary, not the only place they're explained.
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
     <div className="text-center" title={FACT_TOOLTIP[label.toUpperCase()]}>
-      <p className="text-[10px] text-zinc-600 uppercase tracking-wider">{label}</p>
-      <p className="text-xs font-semibold text-zinc-300 mt-0.5 font-mono">{value}</p>
+      <p className="text-[10px] text-zinc-600 uppercase tracking-wider flex items-center justify-center gap-1">
+        <span className="w-1 h-1 rounded-full bg-amber-400/70 shrink-0" />
+        {label}
+      </p>
+      <p className="text-xs font-semibold text-amber-200/90 mt-0.5 font-mono">{value}</p>
     </div>
   )
 }
@@ -474,6 +484,32 @@ function TickerStrip({
 // hover tooltip). This is the direct fix for "the score is mostly
 // ungrounded but reads as confident" — the grounded % and the per-
 // dimension source are now impossible to miss on first read.
+// Evidence Coverage — a whole-report metric, distinct from the Score
+// Breakdown below (which only covers the 8 dimensions feeding the
+// opportunity score). This counts every field a memo can show — narrative,
+// financial, competitive, evidence-layer — and reports what fraction is
+// real data vs AI judgment for THIS specific generation. "No data
+// available" counts as not-grounded here, same as anything AI-only by
+// nature, since both mean less of this report is backed by real evidence.
+function EvidenceCoveragePanel({ m }: { m: MemoData }) {
+  const cov = computeEvidenceCoverage(m)
+  const color = cov.pct >= 50 ? 'text-emerald-400' : cov.pct >= 25 ? 'text-amber-400' : 'text-red-400'
+  return (
+    <div className="mt-7 pt-5 border-t border-white/[0.06]">
+      <div className="flex items-baseline justify-between gap-3 mb-2">
+        <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Evidence Coverage</p>
+        <span className={`text-lg font-serif font-medium ${color}`}>{cov.pct}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden mb-2">
+        <div className={`h-full ${cov.pct >= 50 ? 'bg-emerald-400/60' : cov.pct >= 25 ? 'bg-amber-400/60' : 'bg-red-400/60'}`} style={{ width: `${cov.pct}%` }} />
+      </div>
+      <p className="text-[11px] text-zinc-500">
+        {cov.groundedCount} of {cov.totalCount} report fields are backed by real provider data ({cov.verifiedCount} verified, {cov.estimatedCount} estimated) — the rest ({cov.synthesizedCount + cov.unknownCount}) are AI judgment or unavailable for this query.
+      </p>
+    </div>
+  )
+}
+
 function ScoreBreakdownPanel({ m }: { m: MemoData }) {
   const { dimensions, groundedPct } = computeGroundedScore(m)
   return (
@@ -572,6 +608,7 @@ function Masthead({
         </div>
       </div>
 
+      <EvidenceCoveragePanel m={m} />
       <ScoreBreakdownPanel m={m} />
       <ConsistencyFlagsPanel m={m} />
     </div>
@@ -1985,13 +2022,20 @@ function CompetitivePositionMap({ m }: { m: MemoData }) {
 function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
   const comp = m.biggest_competitor
   const hasComp = comp?.name && comp.name !== 'N/A'
+  const compProvenance = biggestCompetitorProvenance(m.signal_metadata)
+  const compVerified = !!m.signal_metadata?.competitor_revenue_verified
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <SectionIntro text="Lead incumbent and the unclaimed positioning around them — competitor name, revenue, and gap are model recall, not pulled from any company database." />
-        <ProvenanceBadge p={STATIC_PROVENANCE.biggestCompetitor} />
+        <SectionIntro text={compVerified
+          ? "Lead incumbent by real review count — name and revenue are real data, not model recall."
+          : "Lead incumbent and the unclaimed positioning around them — competitor name, revenue, and gap are model recall, not pulled from any company database."} />
+        <ProvenanceBadge p={compProvenance} />
       </div>
+      {compVerified && (
+        <ProvenanceCaption p={compProvenance} />
+      )}
 
       <CompetitivePositionMap m={m} />
 

@@ -1,4 +1,5 @@
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
+import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 
 // ── CategoryModule ─────────────────────────────────────────────────────────
 //
@@ -25,10 +26,14 @@ export interface CategoryModule {
 
   // Optionally injects real-market signal data into any base prompt.
   // Returns the base prompt unchanged when signals are absent or low-confidence.
+  // consumerIntelligence (added 2026-06-25): real review-derived themes, when
+  // available — injected so market_gaps/customer_language/biggest_competitor.gap
+  // can cite real customer feedback instead of inventing it from nothing.
   buildSignalAugmentedPrompt(
-    basePrompt: string,
-    query:      string,
-    signals:    AggregatedSignals | null,
+    basePrompt:          string,
+    query:               string,
+    signals:             AggregatedSignals | null,
+    consumerIntelligence?: ConsumerIntelligenceReport | null,
   ): string
 
   // ── Analysis pipeline ───────────────────────────────────────────────────

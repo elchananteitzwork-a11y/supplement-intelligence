@@ -1,5 +1,6 @@
 import { buildSignalAugmentedSystemPrompt } from '@/lib/prompts/discovery'
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
+import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 
 // ── Shared prompt builders ─────────────────────────────────────────────────
 //
@@ -33,11 +34,12 @@ Refresh rules (apply after all rules above):
 
 // Re-export the signal augmentation utility — identical for all categories.
 export function buildSharedSignalAugmentedPrompt(
-  basePrompt: string,
-  query:      string,
-  signals:    AggregatedSignals | null,
+  basePrompt:           string,
+  query:                string,
+  signals:              AggregatedSignals | null,
+  consumerIntelligence?: ConsumerIntelligenceReport | null,
 ): string {
-  return buildSignalAugmentedSystemPrompt(basePrompt, query, signals)
+  return buildSignalAugmentedSystemPrompt(basePrompt, query, signals, consumerIntelligence)
 }
 
 // ── Shared discovery JSON schema block ────────────────────────────────────
@@ -118,6 +120,7 @@ CALIBRATION RULES — read carefully:
 - virality: Utility, cleaning, functional, or commodity products default to Medium or Low. Only assign High if there is a documented creator ecosystem, transformation content, or established UGC behavior in this exact category. Generic "could go viral" reasoning is not sufficient.
 - subscription: Only score High when the product is physically consumed within 30 days AND the benefit regresses when stopped. Wellness products users might forget to reorder are Medium at best.
 - market_size: Only state a specific figure if you can ground it in a named category (e.g. "US dietary supplement market"). If the exact niche has no credible sizing, write "Not independently verified — market estimates vary widely." Never invent a specific dollar figure.
+- market_gaps / customer_language / biggest_competitor.gap: if a "REAL CUSTOMER FEEDBACK" block appears above with real review-derived themes, you MUST use those real items (lightly rephrased is fine) instead of inventing different ones — cite the real review count when you do. Only invent a gap/quote when there is no real-feedback item that covers it.
 
 ADDITIONAL OUTPUT RULES:
 - market_saturation: describe the competitive landscape qualitatively — no score.

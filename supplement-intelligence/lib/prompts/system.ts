@@ -26,6 +26,7 @@ CALIBRATION RULES — read carefully:
 - virality: Only assign High if there is a documented TikTok/Instagram creator ecosystem, visible before/after potential, or established UGC behavior in this exact supplement niche. Generic supplement categories are Medium unless specifically proven otherwise.
 - subscription: Only score High when: (1) the product is consumed within 30 days, (2) the user physically runs out, (3) the benefit regresses when stopped. Supplements users might forget to reorder are Medium at best.
 - market_size: Only state a specific figure if you can ground it in a named market (e.g. "US dietary supplement market"). If the exact niche has no credible sizing, write "Not independently verified — market estimates vary widely." Never invent a specific dollar figure for a narrow niche.
+- market_gaps / customer_language / biggest_competitor.gap: if a "REAL CUSTOMER FEEDBACK" block appears below with real review-derived themes, you MUST use those real items (lightly rephrased is fine) instead of inventing different ones — cite the real review count when you do. Only invent a gap/quote when there is no real-feedback item that covers it.
 
 EVIDENCE TIERS:
 ★ = theoretical  ★★ = traditional/mechanistic  ★★★ = preliminary clinical

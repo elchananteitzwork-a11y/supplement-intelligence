@@ -8,6 +8,7 @@ import { keywordEngine }   from '@/lib/keyword-engine'
 import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
 import { computeGroundedScore } from '@/lib/scoring'
 import { checkConsistency } from '@/lib/consistency'
+import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
 // CONFIRMED VIA LOAD TEST (2026-06-24, 17 real generations): single-attempt
@@ -342,19 +343,22 @@ export async function POST(req: Request) {
   if (context?.trim())        lines.push(`Additional context: ${context.trim()}`)
   const userMessage = lines.join('\n')
 
-  // ── Await signal/keyword engine results (most of the latency elapsed during DB checks above) ─
+  // ── Await signal engine results (most of the latency elapsed during DB checks above) ─
   const signals = await signalPromise
   const keywordIntelligence = await keywordPromise
-  const systemPrompt = signals
-    ? module.buildSignalAugmentedPrompt(module.analysisSystemPrompt, input.trim(), signals)
-    : module.analysisSystemPrompt
 
   // ── Consumer Intelligence: real review-text themes ──────────────────────
   // Depends on competitor ASINs found by Competition Intelligence above —
   // can't run in parallel with signalPromise, it needs that result first.
-  // Server-computed only, never passed through Claude (same reasoning as
-  // keyword_intelligence: an LLM restating these would reintroduce the
-  // free-form-summarization problem this feature exists to avoid).
+  // Must resolve BEFORE the prompt is built (moved here 2026-06-25 — it
+  // previously ran AFTER systemPrompt was constructed, which meant Claude
+  // never actually saw this real data despite it being computed). The real
+  // themes are now injected as mandatory grounding for market_gaps /
+  // customer_language / biggest_competitor.gap (see buildSignalContext in
+  // lib/prompts/discovery.ts) — Claude is instructed to cite the real item
+  // rather than invent a different one, not to freely restate it as its
+  // own discovery. The underlying counts/quotes the UI shows still come
+  // straight from memo.consumer_intelligence, untouched by the model.
   const topCompetitors = signals?.review_velocity?.value.top_competitors
   const consumerIntelligence = topCompetitors?.length
     ? await analyzeConsumerIntelligence(topCompetitors, input.trim()).catch((e: unknown) => {
@@ -362,6 +366,10 @@ export async function POST(req: Request) {
         return null
       })
     : null
+
+  const systemPrompt = signals
+    ? module.buildSignalAugmentedPrompt(module.analysisSystemPrompt, input.trim(), signals, consumerIntelligence)
+    : module.analysisSystemPrompt
 
   const signalMeta: SignalMetadata | undefined = signals ? {
     providers_used:     signals.providers_used,
@@ -482,6 +490,27 @@ export async function POST(req: Request) {
   }
   if (!skipReason && consumerIntelligence) {
     memo.consumer_intelligence = consumerIntelligence
+  }
+
+  // ── Real biggest-competitor grounding ───────────────────────────
+  // Replaces the model's invented name/revenue with the real #1 competitor
+  // by review count (already found by Competition Intelligence for this
+  // exact query) and a targeted Keepa lookup on that exact ASIN for real
+  // price × real monthlySold — not a category average, not a guess.
+  // .gap stays model-written (a qualitative judgment), but is now also
+  // instructed to cite real Consumer Intelligence themes when available
+  // (see buildSignalContext in lib/prompts/discovery.ts).
+  if (!skipReason && topCompetitors?.length) {
+    const top = topCompetitors[0]
+    const real = await fetchRealCompetitorRevenue(top.asin, top.brand).catch((e: unknown) => {
+      console.error('Real competitor revenue lookup failed', { error: e instanceof Error ? e.message : e })
+      return null
+    })
+    if (real) {
+      memo.biggest_competitor.name    = real.brand
+      memo.biggest_competitor.revenue = formatRealCompetitorRevenue(real)
+      if (memo.signal_metadata) memo.signal_metadata.competitor_revenue_verified = true
+    }
   }
 
   // ── Server-side score recalculation ───────────────────────────

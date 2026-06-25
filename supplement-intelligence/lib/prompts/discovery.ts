@@ -1,4 +1,5 @@
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
+import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 
 // ── Signal context formatter ───────────────────────────────────────
 // Converts AggregatedSignals into a structured text block that is injected
@@ -6,9 +7,52 @@ import type { AggregatedSignals } from '@/lib/signal-engine/types'
 // estimates wherever they apply. Dimensions missing from the signals are
 // omitted from the block so Claude fills them in with its own reasoning.
 
+// Real, review-derived themes (lib/consumer-intelligence) — when available,
+// cited explicitly so market_gaps/customer_language/biggest_competitor.gap
+// can be grounded inferences from real customer feedback instead of
+// invented from training-knowledge pattern completion. Each line includes
+// the real review count behind it so the model can cite it directly.
+function buildConsumerIntelligenceContext(ci: ConsumerIntelligenceReport): string {
+  const lines: string[] = [
+    'REAL CUSTOMER FEEDBACK (verified, from actual Amazon reviews on the top competitor products):',
+    `Source: ${ci.totalReviewsCollected} real reviews across ${ci.asinsAnalyzed.map(a => a.brand).join(', ')}.`,
+    '',
+  ]
+
+  if (ci.negativeThemes.length) {
+    lines.push('Real documented complaints (cite these for market_gaps and biggest_competitor.gap — do not invent a different gap if one of these applies):')
+    for (const t of ci.negativeThemes.slice(0, 8)) {
+      lines.push(`  - "${t.label}" — mentioned by ${t.mentionedBy}/${t.outOf} reviews. Example: "${t.exampleQuote}"`)
+    }
+    lines.push('')
+  }
+
+  if (ci.featureRequests.length) {
+    lines.push('Real feature requests (cite these for market_gaps/brand_opportunities):')
+    for (const t of ci.featureRequests.slice(0, 5)) {
+      lines.push(`  - "${t.label}" — mentioned by ${t.mentionedBy}/${t.outOf} reviews. Example: "${t.exampleQuote}"`)
+    }
+    lines.push('')
+  }
+
+  if (ci.positiveThemes.length) {
+    lines.push('Real positive themes (cite these for customer_language.desires and ad_phrases instead of inventing quotes):')
+    for (const t of ci.positiveThemes.slice(0, 5)) {
+      lines.push(`  - "${t.label}" — mentioned by ${t.mentionedBy}/${t.outOf} reviews. Example: "${t.exampleQuote}"`)
+    }
+    lines.push('')
+  }
+
+  lines.push('Instruction: when a market_gaps item, a customer_language entry, or biggest_competitor.gap is directly supported by one of the real items above, use that real item (you may lightly rephrase, but keep the same substance) rather than inventing a different one. Only fall back to your own reasoning for items with no real coverage above.')
+  lines.push('')
+
+  return lines.join('\n')
+}
+
 export function buildSignalContext(
   category: string,
   signals: AggregatedSignals,
+  consumerIntelligence?: ConsumerIntelligenceReport | null,
 ): string {
   if (signals.overall_confidence < 0.2) return ''
 
@@ -104,6 +148,10 @@ export function buildSignalContext(
     if (s.peak_months?.length) lines.push(`  - Peak months: ${s.peak_months.join(', ')}`)
     lines.push(`  - Confidence: ${Math.round(signals.seasonality.confidence * 100)}%`)
     lines.push('')
+  }
+
+  if (consumerIntelligence) {
+    lines.push(buildConsumerIntelligenceContext(consumerIntelligence))
   }
 
   return lines.join('\n')
@@ -251,13 +299,14 @@ Refresh rules (apply after all rules above):
 // If signals are null or below the minimum confidence threshold the original
 // prompt is returned unchanged — the route behaves exactly as before.
 export function buildSignalAugmentedSystemPrompt(
-  baseSystemPrompt: string,
-  category:         string,
-  signals:          AggregatedSignals | null,
+  baseSystemPrompt:     string,
+  category:             string,
+  signals:              AggregatedSignals | null,
+  consumerIntelligence?: ConsumerIntelligenceReport | null,
 ): string {
   if (!signals || signals.overall_confidence < 0.2) return baseSystemPrompt
 
-  const ctx = buildSignalContext(category, signals)
+  const ctx = buildSignalContext(category, signals, consumerIntelligence)
   if (!ctx) return baseSystemPrompt
 
   return `${baseSystemPrompt}
