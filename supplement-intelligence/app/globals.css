@@ -81,11 +81,6 @@
     border-radius: 1px;
   }
 
-  /* rich-media placeholder tile (Higgs Field — future) */
-  .media-tile {
-    @apply flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.02] py-6 px-3 text-center transition-colors hover:border-brass/30 hover:bg-white/[0.03];
-  }
-
   /* decisions — chip-* (inline usage) and badge-* (component usage). The ONLY
      place red/amber/green appear as filled pills — everywhere else verdict
      color is a small tick, dot, or text color, never a tile background. */

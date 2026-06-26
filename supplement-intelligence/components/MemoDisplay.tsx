@@ -308,15 +308,29 @@ function truncateLabel(s: string, n: number) {
   return s.length > n ? s.slice(0, n - 1) + '…' : s
 }
 
-function NumList({ items }: { items: string[] }) {
+// Collapsed to the top 2 by default — these lists run 5 items deep, and
+// the first 1-2 are almost always the ones that actually inform the
+// decision; the rest are detail for someone already convinced enough to
+// dig further.
+function NumList({ items, collapseAt = 2 }: { items: string[]; collapseAt?: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? items : items.slice(0, collapseAt)
+  const hiddenCount = Math.max(0, items.length - collapseAt)
   return (
     <ol className="space-y-3">
-      {items.map((item, i) => (
+      {shown.map((item, i) => (
         <li key={i} className="flex gap-3 text-sm">
           <span className="font-mono text-zinc-600 shrink-0 w-4 text-right mt-px">{i + 1}</span>
           <span className="text-zinc-300 leading-relaxed">{item}</span>
         </li>
       ))}
+      {hiddenCount > 0 && !expanded && (
+        <li>
+          <button onClick={() => setExpanded(true)} className="text-[11px] text-amber-400/70 hover:text-amber-400 transition-colors ml-7">
+            Show {hiddenCount} more →
+          </button>
+        </li>
+      )}
     </ol>
   )
 }
@@ -533,7 +547,14 @@ function DecisionStrip({
   const { groundedPct } = computeGroundedScore(m)
   const groundedC = groundedPct >= 50 ? 'text-emerald-400' : groundedPct >= 25 ? 'text-amber-400' : 'text-red-400'
   const chips = deriveDecisionChips(m)
-  const synthesis = firstSentence(m.market_thesis ?? m.executive_summary)
+  // VALIDATE_FURTHER's most decision-relevant sentence isn't "why this
+  // might work" (the thesis already says that elsewhere) — it's "what to
+  // do before deciding," which is exactly deriveValidationSteps' first,
+  // most concrete step. BUILD_NOW/SKIP keep the thesis-derived synthesis,
+  // since for those two verdicts the "why" is the more useful one-liner.
+  const synthesis = decision === 'VALIDATE_FURTHER'
+    ? deriveValidationSteps(m)[0] ?? firstSentence(m.market_thesis ?? m.executive_summary)
+    : firstSentence(m.market_thesis ?? m.executive_summary)
   const dateLabel = generatedAt
     ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
@@ -558,7 +579,9 @@ function DecisionStrip({
 
       {synthesis && (
         <div className="mt-5 rounded-lg bg-amber-400/[0.04] border border-amber-400/15 px-3.5 py-3">
-          <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-semibold mb-1.5">Analyst View</p>
+          <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-semibold mb-1.5">
+            {decision === 'VALIDATE_FURTHER' ? 'What To Do First' : 'Analyst View'}
+          </p>
           <p className="text-sm text-zinc-300 leading-relaxed font-serif italic">{synthesis}</p>
         </div>
       )}
@@ -1475,23 +1498,22 @@ function TikTokSignalCard({
 // Every row always renders — label + (real value and its provenance badge)
 // OR the literal string "No data available." Never a guessed number with
 // nothing to back it, and never a row that just silently disappears.
+// No per-row badge — when several rows in the same panel share the
+// identical provenance (e.g. Revenue's three dollar figures are all "Keepa,
+// AI Interpretation"), repeating that badge on every row is badge fatigue,
+// not extra information. EvidencePanel shows each unique provenance once,
+// beneath all the rows it actually applies to.
 function EvidenceMetricRow({
-  label, value, provenance,
+  label, value,
 }: { label: string; value: string | undefined; provenance: Provenance | null }) {
-  const hasData = !!value && !!provenance
   return (
     <div className="flex items-center justify-between gap-3 py-2 border-b border-white/[0.05] last:border-b-0">
       <span className="text-xs text-zinc-500">{label}</span>
-      <div className="flex items-center gap-2 shrink-0">
-        {hasData ? (
-          <>
-            <span className="text-sm font-mono font-semibold text-zinc-100 text-right">{value}</span>
-            <ProvenanceBadge p={provenance!} />
-          </>
-        ) : (
-          <span className="text-sm font-mono text-zinc-600 italic">No data available</span>
-        )}
-      </div>
+      {value ? (
+        <span className="text-sm font-mono font-semibold text-zinc-100 text-right">{value}</span>
+      ) : (
+        <span className="text-sm font-mono text-zinc-600 italic">No data available</span>
+      )}
     </div>
   )
 }
@@ -1510,6 +1532,14 @@ function EvidencePanel({
 }) {
   const color = scoreLevel === 'Strong' ? '#34d399' : scoreLevel === 'Moderate' ? '#fbbf24' : '#71717a'
 
+  const uniqueProvenances = Array.from(
+    new Map(
+      metrics
+        .filter(row => row.value && row.provenance)
+        .map(row => [`${row.provenance!.level}|${row.provenance!.source}|${row.provenance!.detail}`, row.provenance!] as const),
+    ).values(),
+  )
+
   return (
     <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
       <p className="text-xs font-semibold text-zinc-200 mb-3">{title}</p>
@@ -1517,6 +1547,12 @@ function EvidencePanel({
       <div>
         {metrics.map(row => <EvidenceMetricRow key={row.label} {...row} />)}
       </div>
+
+      {uniqueProvenances.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-white/[0.06]">
+          {uniqueProvenances.map((p, i) => <ProvenanceBadge key={i} p={p} />)}
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-white/[0.06]">
         <span className="text-[10px] text-zinc-600 uppercase tracking-wider">{scoreLabel}</span>
@@ -1758,11 +1794,16 @@ function KeywordIntelligenceSection({ m }: { m: MemoData }) {
 // No insight without a review count behind it — that's the whole point.
 // ═══════════════════════════════════════════════════════════════
 
+// Expands in place instead of needing a separate "full list" card elsewhere
+// duplicating the same array unlimited — that duplicate card was deleted
+// 2026-06-26 in favor of this.
 function ThemeList({ themes, limit, emptyLabel }: { themes: ThemeInsight[]; limit?: number; emptyLabel: string }) {
-  const shown = limit ? themes.slice(0, limit) : themes
-  if (!shown.length) {
+  const [expanded, setExpanded] = useState(false)
+  if (!themes.length) {
     return <p className="text-xs text-zinc-600 italic py-2">{emptyLabel}</p>
   }
+  const shown = (!limit || expanded) ? themes : themes.slice(0, limit)
+  const hiddenCount = limit ? Math.max(0, themes.length - limit) : 0
   return (
     <ul className="space-y-2">
       {shown.map((t, i) => (
@@ -1774,6 +1815,13 @@ function ThemeList({ themes, limit, emptyLabel }: { themes: ThemeInsight[]; limi
           <p className="text-[11px] text-zinc-600 italic mt-0.5 truncate">&ldquo;{t.exampleQuote}&rdquo;</p>
         </li>
       ))}
+      {hiddenCount > 0 && (
+        <li>
+          <button onClick={() => setExpanded(true)} className="text-[11px] text-amber-400/70 hover:text-amber-400 transition-colors">
+            Show {hiddenCount} more →
+          </button>
+        </li>
+      )}
     </ul>
   )
 }
@@ -1858,13 +1906,6 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
               <ThemeList themes={ci.featureRequests} limit={5} emptyLabel="No recurring feature requests found in this review sample." />
             </div>
 
-            <div className="rounded-xl border border-white/[0.07] p-4">
-              <p className="text-xs font-semibold text-zinc-200 mb-3">Customer Pain Points & Positive Themes <span className="text-[10px] text-zinc-600 font-normal">(full lists)</span></p>
-              <p className="text-[10px] text-zinc-600 mb-2">Pain Points / Negative Themes — same data as Top Complaints, full ranked list:</p>
-              <ThemeList themes={ci.negativeThemes} emptyLabel="None." />
-              <p className="text-[10px] text-zinc-600 mt-3 mb-2">Positive Themes — same data as What Customers Love, full ranked list:</p>
-              <ThemeList themes={ci.positiveThemes} emptyLabel="None." />
-            </div>
           </div>
         </div>
       )}
@@ -2251,19 +2292,8 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// LAUNCH STRATEGY — product direction + market entry + Higgs placeholders
+// LAUNCH STRATEGY — product direction + market entry
 // ═══════════════════════════════════════════════════════════════
-
-// 'AI Product Hero Image' and 'Lifestyle Images' shipped as generated
-// concept visuals above (ProductConceptVisual / LifestyleScene) — removed
-// from this list since they're no longer placeholders.
-const MEDIA_PLACEHOLDERS = [
-  'Packaging Concepts',
-  'Product Shelf Visualization',
-  'Brand Moodboard',
-  'Launch Creative',
-  'Short AI Commercial Preview',
-]
 
 // ── Product Concept Visual — a generated concept render, not a photo.
 // Honest framing: studio-lit package shape inferred from the recommended
@@ -2285,34 +2315,6 @@ function ProductConceptVisual({ format, categoryName }: { format: string; catego
       </div>
       <p className="text-center text-sm font-medium text-zinc-300 relative z-10">{categoryName}</p>
       <p className="text-center text-xs text-zinc-600 mt-0.5 relative z-10">{format}</p>
-    </div>
-  )
-}
-
-function MediaIcon() {
-  return (
-    <svg className="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  )
-}
-
-function MediaPlaceholders() {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-zinc-500 uppercase tracking-widest">Brand &amp; Creative Assets</p>
-        <span className="text-[10px] text-zinc-600 italic">Higgs Field integration — coming soon</span>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {MEDIA_PLACEHOLDERS.map(label => (
-          <div key={label} className="media-tile">
-            <MediaIcon />
-            <p className="text-[11px] text-zinc-500 leading-tight">{label}</p>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
@@ -2393,9 +2395,6 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
         </div>
       )}
 
-      <div className="pt-5 border-t border-white/[0.05]">
-        <MediaPlaceholders />
-      </div>
     </div>
   )
 }
