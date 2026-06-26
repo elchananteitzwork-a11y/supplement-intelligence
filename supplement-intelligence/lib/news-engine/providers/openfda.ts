@@ -67,6 +67,15 @@ async function fetchEndpoint(
         const date = parseFdaDate(r.report_date)
         if (!date || new Date(date).getTime() < cutoff) return null
         if (!r.recalling_firm || !r.reason_for_recall) return null
+        // openFDA's search tokenizes hyphenated terms (e.g. "pre-workout"
+        // matches on "pre" alone) — confirmed live (2026-06-26): a search
+        // for "pre-workout" returned a salad recall whose description says
+        // "pre-packaged," not "pre-workout." Not a hallucination (the
+        // record is real), but a relevance false-positive worth filtering:
+        // require the literal keyword phrase to actually appear somewhere
+        // in the record before accepting the match.
+        const haystack = `${r.product_description ?? ''} ${r.reason_for_recall} ${r.recalling_firm}`.toLowerCase()
+        if (!haystack.includes(keyword.toLowerCase())) return null
         return {
           id:         `openfda-${endpoint}-${i}`,
           headline:   `FDA Recall: ${r.recalling_firm} — ${r.reason_for_recall}${r.recall_number ? ` (Recall #${r.recall_number})` : ''}`,

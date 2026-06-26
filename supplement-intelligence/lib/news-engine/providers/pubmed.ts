@@ -1,5 +1,5 @@
 import type { NewsProvider, NewsContext, NewsItem } from '../types'
-import { toPrimaryKeyword } from '../keyword'
+import { toPubMedPhrase } from '../keyword'
 import { cacheGet, cacheSet } from '../cache'
 
 // ── PubMed / NCBI E-utilities — recently published scientific studies ───────
@@ -32,15 +32,19 @@ export class PubMedProvider implements NewsProvider {
 
   async fetch(ctx: NewsContext): Promise<NewsItem[]> {
     if (ctx.categoryId && !APPLICABLE_CATEGORIES.has(ctx.categoryId)) return []
-    const keyword = toPrimaryKeyword(ctx.query)
-    if (!keyword) return []
+    const phrase = toPubMedPhrase(ctx.query)
+    if (!phrase) return []
 
-    const cacheKey = `pubmed:${keyword}:${ctx.windowDays}`
+    const cacheKey = `pubmed:${phrase}:${ctx.windowDays}`
     const cached = cacheGet<NewsItem[]>(cacheKey)
     if (cached) return cached
 
     try {
-      const searchUrl = `${EUTILS}/esearch.fcgi?db=pubmed&term=${encodeURIComponent(keyword)}&retmax=5&retmode=json&datetype=pdat&reldate=${ctx.windowDays}&tool=${NCBI_TOOL}`
+      // [tiab] (title/abstract) exact-phrase search — see toPubMedPhrase for
+      // why this beats both a bare word (domain-ambiguous) and a 3+ word
+      // phrase (near-zero results).
+      const term = `"${phrase}"[tiab]`
+      const searchUrl = `${EUTILS}/esearch.fcgi?db=pubmed&term=${encodeURIComponent(term)}&retmax=5&retmode=json&datetype=pdat&reldate=${ctx.windowDays}&tool=${NCBI_TOOL}`
       const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(10_000) })
       if (!searchRes.ok) { cacheSet(cacheKey, [], CACHE_TTL_MS); return [] }
       const searchData: EsearchResponse = await searchRes.json()
@@ -65,7 +69,7 @@ export class PubMedProvider implements NewsProvider {
             source:     entry.source ?? 'PubMed',
             url:        `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
             category:   'Scientific Study',
-            confidence: 0.9,   // PubMed is authoritative + exact keyword match
+            confidence: 0.9,   // PubMed is authoritative + exact title/abstract phrase match
             provider:   'pubmed',
           }
         })
@@ -74,7 +78,7 @@ export class PubMedProvider implements NewsProvider {
       cacheSet(cacheKey, items, CACHE_TTL_MS)
       return items
     } catch (e: unknown) {
-      console.warn('[PubMed] fetch failed', { keyword, error: e instanceof Error ? e.message : e })
+      console.warn('[PubMed] fetch failed', { phrase, error: e instanceof Error ? e.message : e })
       return []
     }
   }
