@@ -1,6 +1,7 @@
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
 import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
+import type { NewsIntelligence } from '@/lib/news-engine/types'
 
 export type BuildDecision = 'BUILD_NOW' | 'VALIDATE_FURTHER' | 'SKIP'
 
@@ -175,6 +176,11 @@ export interface MemoData {
   signal_evidence?:      AggregatedSignals     // real demand/growth/revenue/review/virality signals — same object already used to ground the prompt, now persisted instead of discarded after generation
   keyword_intelligence?: KeywordIntelligence    // real per-keyword search volume/growth from DataForSEO
   consumer_intelligence?: ConsumerIntelligenceReport  // real review-text themes (lib/consumer-intelligence) — computed server-side, never touched by the AI, same pattern as keyword_intelligence
+  // Real-Time News Intelligence (added 2026-06-25) — items come from openFDA/
+  // PubMed/GDELT, never the LLM; only why_it_matters/summary inside this
+  // object are LLM-written, and only as a separate parallel call (see
+  // lib/news-engine/explain.ts) — completely outside the main prompt/schema.
+  news_intelligence?: NewsIntelligence
 }
 
 export interface Analysis {

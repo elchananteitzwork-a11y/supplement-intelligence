@@ -23,6 +23,7 @@ import type { MemoData, SignalMetadata } from '@/types/index'
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
 import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
+import type { NewsIntelligence } from '@/lib/news-engine/types'
 import type { ScoreDimension } from '@/lib/scoring'
 import type { ConsistencyFlag } from '@/lib/consistency'
 
@@ -291,6 +292,26 @@ export function consumerIntelligenceProvenance(ci?: ConsumerIntelligenceReport |
   )
 }
 
+// News items themselves (headline/date/source/url/category) come directly
+// from openFDA/PubMed/GDELT with zero LLM involvement — Verified. The
+// per-item "why it matters" caption and the overall summary ARE LLM-written
+// (a separate Haiku call, lib/news-engine/explain.ts) but strictly grounded
+// in the real items above — that distinction is called out in the detail
+// text rather than hidden, same as biggestCompetitorProvenance's .gap caveat.
+export function newsIntelligenceProvenance(ni?: NewsIntelligence | null): Provenance | null {
+  if (!ni) return null
+  if (!ni.hasRecentNews) {
+    return verified(
+      `${ni.providersUsed.length ? ni.providersUsed.join(', ') : 'openFDA, PubMed, GDELT'}`,
+      'A real-time search across FDA recalls, PubMed, and live news search for this exact query found no items in the lookback window — this is a genuine "nothing found," not a failed search being hidden.'
+    )
+  }
+  return verified(
+    ni.providersUsed.join(', '),
+    `Every headline, date, source, and link is pulled directly from ${ni.providersUsed.join('/')} — no LLM involvement in the items themselves. The "why it matters" caption on each item and the overall summary below are written by a separate, smaller AI pass given only these real items and instructed never to add or alter one — treat those two specifically as AI Interpretation, not verified fact, even though the items they're commenting on are real.`
+  )
+}
+
 // Per-dimension provenance for the Opportunity Score breakdown
 // (lib/scoring.ts computeGroundedScore) — one badge per dimension, distinct
 // from the single overall opportunityScoreProvenance below.
@@ -374,6 +395,7 @@ export function computeEvidenceCoverage(m: MemoData): EvidenceCoverage {
     marketAccessibilityProvenance(se),
     keywordIntelligenceProvenance(m.keyword_intelligence) ?? synthesized('No real keyword data (DataForSEO) was found for this query.'),
     consumerIntelligenceProvenance(m.consumer_intelligence) ?? synthesized('No real consumer review data (Apify) was found for this query.'),
+    newsIntelligenceProvenance(m.news_intelligence) ?? unknown('This memo was generated before Real-Time News Intelligence existed, or the news pipeline did not run.'),
   ]
 
   const verifiedCount    = fields.filter(f => f.level === 'verified').length

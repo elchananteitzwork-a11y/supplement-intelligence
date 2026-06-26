@@ -9,6 +9,7 @@ import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
 import { computeGroundedScore } from '@/lib/scoring'
 import { checkConsistency } from '@/lib/consistency'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
+import { buildNewsIntelligence } from '@/lib/news-engine'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
 // CONFIRMED VIA LOAD TEST (2026-06-24, 17 real generations): single-attempt
@@ -295,6 +296,13 @@ export async function POST(req: Request) {
   // billed. Matches that provider's own internal AbortSignal.timeout(80_000).
   const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 75_000).catch(() => null)
   const keywordPromise = keywordEngine.fetch(input.trim(), 8_000).catch(() => null)
+  // News Intelligence: independent of signals/competitors, so it fires here
+  // rather than waiting on topCompetitors below. Includes its own Haiku
+  // "why it matters" pass internally — never touches the main Sonnet prompt
+  // or schema (see lib/news-engine/build.ts) — so this adds no tokens to the
+  // expensive call and, since Haiku is far faster than the ~48-68s Sonnet
+  // generation it runs alongside, no meaningful latency either.
+  const newsPromise = buildNewsIntelligence(input.trim(), module.id, module.name, 18_000)
 
   // ── Full-report cache ─────────────────────────────────────────
   const { data: cachedReport } = await sb
@@ -487,6 +495,19 @@ export async function POST(req: Request) {
   }
   if (!skipReason && consumerIntelligence) {
     memo.consumer_intelligence = consumerIntelligence
+  }
+  // News Intelligence: started way back alongside signalPromise/keywordPromise,
+  // so by this point (after the ~48-68s main Claude call) it has almost
+  // certainly already resolved — this await is just a formality, not a wait.
+  // Always attached (never conditional on truthiness): buildNewsIntelligence
+  // always returns a complete object, with the literal "No significant
+  // recent developments found." summary already applied when no real items
+  // exist, so there is never a missing/placeholder state to handle here.
+  if (!skipReason) {
+    memo.news_intelligence = await newsPromise.catch((e: unknown) => {
+      console.error('News Intelligence failed', { error: e instanceof Error ? e.message : e })
+      return undefined
+    })
   }
 
   // ── Real biggest-competitor grounding ───────────────────────────

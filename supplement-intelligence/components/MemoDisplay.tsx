@@ -20,9 +20,10 @@ import {
   revenueEvidenceProvenance, competitionEvidenceProvenance, categoryReviewDataProvenance,
   marketAccessibilityProvenance, keywordIntelligenceProvenance, consumerIntelligenceProvenance,
   scoreDimensionProvenance, opportunityScoreProvenance, consistencyFlagProvenance,
-  biggestCompetitorProvenance, computeEvidenceCoverage,
+  biggestCompetitorProvenance, computeEvidenceCoverage, newsIntelligenceProvenance,
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
+import type { NewsItem } from '@/lib/news-engine/types'
 
 // ── Manufacturing Intelligence local types (mirrors /api/manufacturing response) ──
 interface MfgEstimate {
@@ -394,6 +395,7 @@ function SectionIntro({ text }: { text: string }) {
 
 const NAV_SECTIONS = [
   { id: 'market-intelligence',       label: 'Market' },
+  { id: 'news-intelligence',         label: 'News' },
   { id: 'consumer-intelligence',     label: 'Consumer' },
   { id: 'manufacturing-intelligence', label: 'Manufacturing' },
   { id: 'competitive-landscape',     label: 'Competitive' },
@@ -1848,6 +1850,116 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
   )
 }
 
+// ═══════════════════════════════════════════════════════════════
+// RECENT MARKET INTELLIGENCE — real news items (openFDA/PubMed/GDELT),
+// never the LLM. Only the per-item caption and the summary block below are
+// AI-written, and only as an explanation of items already fetched — see
+// lib/news-engine and newsIntelligenceProvenance for the full contract.
+// ═══════════════════════════════════════════════════════════════
+
+const NEWS_CATEGORY_CLS: Record<string, string> = {
+  'FDA Recall':              'text-red-400 bg-red-400/10 border-red-400/20',
+  'Regulatory Change':       'text-amber-400 bg-amber-400/10 border-amber-400/20',
+  'Acquisition':             'text-violet-400 bg-violet-400/10 border-violet-400/20',
+  'Funding Round':           'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+  'Competitor Announcement': 'text-sky-400 bg-sky-400/10 border-sky-400/20',
+  'Product Launch':          'text-sky-400 bg-sky-400/10 border-sky-400/20',
+  'Scientific Study':        'text-zinc-300 bg-white/[0.06] border-white/[0.12]',
+  'Industry News':           'text-zinc-400 bg-white/[0.04] border-white/[0.1]',
+}
+
+const TRAJECTORY_CLS: Record<string, string> = {
+  Accelerating: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+  Stable:       'text-zinc-300 bg-white/[0.06] border-white/[0.12]',
+  Slowing:      'text-amber-400 bg-amber-400/10 border-amber-400/20',
+  Unknown:      'text-zinc-500 bg-white/[0.03] border-white/[0.08]',
+}
+
+function NewsItemCard({ item }: { item: NewsItem }) {
+  const dateStr = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return (
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block rounded-xl border border-white/[0.07] p-4 hover:border-white/[0.16] hover:bg-white/[0.02] transition-colors"
+    >
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${NEWS_CATEGORY_CLS[item.category] ?? NEWS_CATEGORY_CLS['Industry News']}`}>
+          {item.category}
+        </span>
+        <span className="text-[10px] text-zinc-600 font-mono shrink-0">{dateStr}</span>
+      </div>
+      <p className="text-sm text-zinc-200 leading-snug mb-1.5">{item.headline}</p>
+      <p className="text-[11px] text-zinc-600 mb-2">{item.source} · {Math.round(item.confidence * 100)}% relevance match</p>
+      {item.why_it_matters && (
+        <p className="text-[11px] text-zinc-500 leading-relaxed border-t border-white/[0.06] pt-2 mt-2">{item.why_it_matters}</p>
+      )}
+    </a>
+  )
+}
+
+function NewsIntelligenceSection({ m }: { m: MemoData }) {
+  const ni = m.news_intelligence
+  const provenance = newsIntelligenceProvenance(ni)
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Recent Market Intelligence</p>
+        {provenance && <ProvenanceBadge p={provenance} />}
+      </div>
+
+      {!ni ? (
+        <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+      ) : (
+        <div className="space-y-6 mt-3">
+          <p className="text-[11px] text-zinc-600">
+            Window: last {ni.windowDays} days · Sources: {ni.providersUsed.length ? ni.providersUsed.join(', ') : 'none returned results'}
+          </p>
+
+          <div className="rounded-xl border border-white/[0.07] p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-zinc-200">What Changed</p>
+              <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${TRAJECTORY_CLS[ni.summary.trajectory]}`}>
+                {ni.summary.trajectory}
+              </span>
+            </div>
+            <p className="text-[12px] text-zinc-400 leading-relaxed">{ni.summary.what_changed}</p>
+
+            {(ni.summary.new_risks.length > 0 || ni.summary.new_opportunities.length > 0) && (
+              <div className="grid sm:grid-cols-2 gap-4 pt-2">
+                {ni.summary.new_risks.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">New Risks</p>
+                    <ul className="space-y-1">
+                      {ni.summary.new_risks.map((r, i) => <li key={i} className="text-[11px] text-zinc-500">• {r}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {ni.summary.new_opportunities.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">New Opportunities</p>
+                    <ul className="space-y-1">
+                      {ni.summary.new_opportunities.map((o, i) => <li key={i} className="text-[11px] text-zinc-500">• {o}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {ni.items.length > 0 && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {ni.items.map(item => <NewsItemCard key={item.id} item={item} />)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MarketIntelligenceContent({ m }: { m: MemoData }) {
   const { subscription } = m.scores
   const sig = m.signal_metadata
@@ -2579,6 +2691,12 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
           <div className={activeTab === 'market-intelligence' ? '' : 'hidden'}>
             <DeepDiveSection title="Market Intelligence">
               <MarketIntelligenceContent m={m} />
+            </DeepDiveSection>
+          </div>
+
+          <div className={activeTab === 'news-intelligence' ? '' : 'hidden'}>
+            <DeepDiveSection title="Recent Market Intelligence">
+              <NewsIntelligenceSection m={m} />
             </DeepDiveSection>
           </div>
 
