@@ -32,7 +32,11 @@ interface FdaEnforcementResult {
   product_description?:  string
   recall_number?:        string
   report_date?:          string   // YYYYMMDD
+  // CONFIRMED VIA LIVE CALL 2026-06-26 (food/enforcement, 3 real records):
+  // both fields are real and consistently present. classification values
+  // seen live: "Class II", "Not Yet Classified". status seen live: "Ongoing".
   classification?:       string
+  status?:                string
 }
 
 function parseFdaDate(yyyymmdd: string | undefined): string | null {
@@ -85,6 +89,8 @@ async function fetchEndpoint(
           category:   'FDA Recall',
           confidence: 0.95,   // openFDA is authoritative + exact product_description match
           provider:   'openfda',
+          recall_classification: r.classification || undefined,
+          recall_status:         r.status || undefined,
         }
       })
       .filter((x): x is NewsItem => x !== null)

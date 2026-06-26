@@ -30,14 +30,26 @@ import type {
 //     avg_score      — mean upvotes per post (community endorsement)
 //     avg_comments   — mean comments per post (discussion depth / engagement)
 //     upvote_ratio   — mean upvote ratio (sentiment signal; 0.0–1.0)
-//     pain_posts     — % of titles containing problem-language patterns
+//     pain_posts     — % of posts (title OR self-post body text) containing
+//                      problem-language patterns (2026-06-26: was title-only;
+//                      self-post bodies often carry the actual complaint
+//                      while the title is a generic "anyone else dealing
+//                      with this?")
+//     pain_point_examples — real verbatim title/snippet evidence behind the
+//                      percentage above (capped at 5), not just a number
 //     velocity_ratio — recent posts (last 60d) vs earlier posts (days 61–180)
 //     subreddits     — which communities discuss this category
 //
 //   NOT MEASURED (data not in API response):
 //     unique_user_count  — not exposed in search results
-//     comment_text       — would require per-post fetch (too many tokens)
 //     exact_view_count   — Reddit does not expose view counts via API
+//
+//   STATUS (2026-06-26 data-coverage audit): this provider is currently
+//   dormant — no REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET configured locally
+//   or in Vercel production at time of writing. The improvements above are
+//   implemented and type-checked but unverified against a fresh live call
+//   in this environment; see the RedditPost.selftext comment for exactly
+//   what is and isn't independently confirmed.
 //
 // ── Signal mapping ─────────────────────────────────────────────────
 //
@@ -85,6 +97,18 @@ interface RedditPost {
     created_utc:  number
     subreddit:    string
     is_self:      boolean
+    // Real post body text, present when is_self is true (added 2026-06-26
+    // data-coverage audit). Reddit's search `type=link` parameter selects
+    // "submissions" as the result kind (as opposed to type=sr/subreddits or
+    // type=user) — it does not exclude self-posts, which are submissions
+    // too; is_self/selftext were already coming back, just never read.
+    // NOTE: not independently re-verified via a fresh live call in this
+    // environment (no REDDIT_CLIENT_ID/SECRET configured locally or in
+    // Vercel production at time of writing — this provider is currently
+    // fully dormant, same class of finding as the dormant Alibaba/Rainforest
+    // providers). This is documented Reddit API behavior, not a fresh
+    // "CONFIRMED VIA LIVE CALL" — flagged explicitly rather than overclaiming.
+    selftext?:    string
   }
 }
 
@@ -98,12 +122,38 @@ interface RedditSearchResponse {
 
 // ── Helpers ───────────────────────────────────────────────────────
 
+// Checks title AND selftext (when present) — a self-post's pain language
+// often lives in the body, not the title ("Anyone else dealing with this?"
+// titles are common; the actual complaint is in the text below).
+function postMatchesPain(p: RedditPost): boolean {
+  const haystack = `${p.data.title} ${p.data.selftext ?? ''}`
+  return PAIN_PATTERNS.some(rx => rx.test(haystack))
+}
+
 function painFraction(posts: RedditPost[]): number {
   if (!posts.length) return 0
-  const painCount = posts.filter(p =>
-    PAIN_PATTERNS.some(rx => rx.test(p.data.title))
-  ).length
-  return painCount / posts.length
+  return posts.filter(postMatchesPain).length / posts.length
+}
+
+const MAX_PAIN_EXAMPLES = 5
+const SNIPPET_MAX_CHARS = 180
+
+// Real verbatim evidence behind the pain-fraction percentage — title plus a
+// short snippet of selftext when the title alone doesn't carry the pain
+// language (i.e. the match came from the body).
+function painPointExamples(posts: RedditPost[]): string[] {
+  const examples: string[] = []
+  for (const p of posts) {
+    if (examples.length >= MAX_PAIN_EXAMPLES) break
+    const titleMatches = PAIN_PATTERNS.some(rx => rx.test(p.data.title))
+    if (titleMatches) {
+      examples.push(p.data.title.trim())
+    } else if (p.data.selftext && PAIN_PATTERNS.some(rx => rx.test(p.data.selftext!))) {
+      const snippet = p.data.selftext.trim().slice(0, SNIPPET_MAX_CHARS)
+      examples.push(`${p.data.title.trim()} — "${snippet}${p.data.selftext.length > SNIPPET_MAX_CHARS ? '…' : ''}"`)
+    }
+  }
+  return examples
 }
 
 // Map post count to demand score (0–10)
@@ -325,6 +375,7 @@ export class RedditProvider implements SignalProvider {
     const avgComments = posts.reduce((s, p) => s + p.data.num_comments, 0) / totalPosts
     const avgRatio    = posts.reduce((s, p) => s + p.data.upvote_ratio, 0) / totalPosts
     const pain        = painFraction(posts)
+    const painExamples = painPointExamples(posts)
     const subSet: string[] = []
     posts.forEach(p => { const s = `r/${p.data.subreddit}`; if (!subSet.includes(s)) subSet.push(s) })
     const subreddits  = subSet.slice(0, 5)
@@ -361,6 +412,8 @@ export class RedditProvider implements SignalProvider {
       avg_comments:         Math.round(avgComments),
       avg_upvote_ratio:     Math.round(avgRatio * 100) / 100,
       pain_post_fraction:   Math.round(pain * 100) + '%',
+      pain_examples_found:  painExamples.length,
+      self_posts:           posts.filter(p => p.data.is_self).length,
       subreddits_found:     subreddits,
       demand_score:         demandScore,
       growth_score:         growthScore,
@@ -387,11 +440,12 @@ export class RedditProvider implements SignalProvider {
         momentum,
       },
       review_velocity: {
-        score:           rvScore,
+        score:               rvScore,
         confidence,
-        monthly_reviews: `~${postsPerMonth} posts/month`,
+        monthly_reviews:     `~${postsPerMonth} posts/month`,
         sentiment,
-        avg_rating:      `${Math.round(avgRatio * 100)}% upvoted`,
+        avg_rating:          `${Math.round(avgRatio * 100)}% upvoted`,
+        pain_point_examples: painExamples.length ? painExamples : undefined,
       },
       provider:   'reddit',
       fetched_at: new Date().toISOString(),

@@ -37,11 +37,27 @@ export interface RevenueSignal extends SignalScore {
   // Keepa-side estimate the way monthlySold/revenue above are.
   avg_rating?:              string   // e.g. "4.6" (out of 5)
   avg_review_count?:        number
+  // Real Amazon fee-schedule data, mirrored by Keepa per-product (CONFIRMED
+  // VIA LIVE CALL 2026-06-26: top-level `fbaFees.pickAndPackFee` (cents) and
+  // `referralFeePercentage` on the Keepa product response — Amazon's own
+  // published fee schedule for this product's category/size tier, not a
+  // Keepa-side estimate). Added to ground margin figures elsewhere in the
+  // memo (currently AI-guessed) in a real fee number.
+  avg_fba_pick_pack_fee?:   string   // e.g. "$4.35", averaged across top sellers
+  avg_referral_fee_pct?:    number   // e.g. 15, averaged across top sellers
 }
 
 export interface GrowthSignal extends SignalScore {
   yoy_change?: string                       // e.g. "+35%" | "-10%"
   momentum?:   'Accelerating' | 'Stable' | 'Decelerating'
+  // Real 90-day % change in Keepa's own monthlySold estimate (CONFIRMED VIA
+  // LIVE CALL 2026-06-26: `stats.deltaPercent90_monthlySold` on the Keepa
+  // product response — the previously-declared `delta90` field this
+  // codebase had typed does not actually exist in Keepa's real response;
+  // this is the real field). A more direct demand-momentum measurement than
+  // the BSR 90d-vs-365d ratio `momentum` above is derived from — preferred
+  // over it when present (see keepa.ts).
+  momentum_90d_pct?: number | null
 }
 
 export interface SeasonalitySignal extends SignalScore {
@@ -73,6 +89,12 @@ export interface ReviewVelocitySignal extends SignalScore {
   monthly_reviews?: string                  // e.g. "180/product/month"
   sentiment?:       'Positive' | 'Mixed' | 'Negative'
   avg_rating?:      string                  // e.g. "4.3"
+  // Real verbatim Reddit post titles/snippets that matched a pain-language
+  // pattern (Reddit provider only — see providers/reddit.ts) — a percentage
+  // alone ("38% of posts show pain language") tells you THAT pain exists,
+  // not WHAT it actually is; these are the real evidence behind that number,
+  // never AI-paraphrased.
+  pain_point_examples?: string[]
   // Real review-based market-accessibility signal (lib/signal-engine/providers/competition.ts,
   // Apify Amazon search results for this exact query — not a category-wide average).
   // Lives here rather than on CompetitionSignal: when two providers both populate the same
@@ -91,7 +113,18 @@ export interface ReviewVelocitySignal extends SignalScore {
   // Amazon/Keepa-sourced, so productId is always an ASIN today, but nothing
   // above the provider layer should assume that — a future Shopify/Walmart
   // competition provider populates the same field with its own product ID.
-  top_competitors?: { productId: string; brand: string; reviewCount: number; rating: number; price: number }[]
+  top_competitors?: {
+    productId: string; brand: string; reviewCount: number; rating: number; price: number
+    // ── Additive (2026-06-26 data-coverage audit) — CONFIRMED VIA LIVE CALL
+    // against junglee/amazon-crawler: breadCrumbs (a real category-path
+    // string) and features (real bullet-point copy) are both present on
+    // every result; there is no separate position/rank field — the actor
+    // returns results in real Amazon search-result order, so position is
+    // that array index (1-indexed), not invented.
+    position?:   number     // 1-indexed real search-result rank for this exact query
+    breadcrumb?: string     // e.g. "Health & Household > Vitamins, Minerals & Supplements > Minerals > Magnesium"
+    bullets?:    string[]   // real bullet-point copy from the actual listing
+  }[]
 }
 
 // ── Provider output ───────────────────────────────────────────────

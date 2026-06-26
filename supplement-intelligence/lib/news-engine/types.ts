@@ -8,6 +8,8 @@
 // or adds an item. See app/api/generate/route.ts for how this stays off the
 // main memo-generation prompt entirely (a separate, parallel Haiku call).
 
+import type { GdeltSentiment } from './sentiment'
+
 export type NewsCategory =
   | 'Product Launch'
   | 'FDA Recall'
@@ -28,6 +30,18 @@ export interface NewsItem {
   confidence: number          // 0–1 — deterministic RELEVANCE-match confidence (keyword/category overlap), not "is this real" (it always is)
   provider:   string          // 'openfda' | 'pubmed' | 'gdelt'
   why_it_matters?: string     // added by explain.ts — AI Interpretation tier, grounded only in the fields above
+
+  // ── Additive (2026-06-26 data-coverage audit) — provider-specific real
+  // fields, optional since only the originating provider populates them.
+
+  // openFDA only — real FDA-assigned severity tier (CONFIRMED VIA LIVE CALL
+  // 2026-06-26: real values seen include "Class I", "Class II", "Class III",
+  // "Not Yet Classified" — not a fixed enum, openFDA's own field). Class I =
+  // reasonable probability of serious health consequences or death.
+  recall_classification?: string
+  // openFDA only — real recall status (CONFIRMED VIA LIVE CALL 2026-06-26:
+  // "Ongoing" seen live; openFDA also documents "Completed"/"Terminated").
+  recall_status?: string
 }
 
 export interface NewsSummary {
@@ -45,6 +59,12 @@ export interface NewsIntelligence {
   windowDays:    number
   summary:       NewsSummary
   hasRecentNews: boolean
+  // Real GDELT sentiment (mode=tonechart) — a query-level aggregate over
+  // real articles, not a per-item field (GDELT's per-article search response
+  // has no tone field; see lib/news-engine/sentiment.ts). Best-effort: null
+  // when GDELT's rate limit blocks this specific request, same as any other
+  // "No data available" gap in this codebase — never backfilled with a guess.
+  sentiment?: GdeltSentiment | null
 }
 
 export interface NewsContext {

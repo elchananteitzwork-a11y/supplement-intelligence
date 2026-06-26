@@ -40,6 +40,13 @@ interface JungleeResult {
   price?:        { value?: number; currency?: string }
   stars?:        number
   reviewsCount?: number
+  // CONFIRMED VIA LIVE CALL 2026-06-26 (3 real items, "magnesium glycinate"
+  // query): both real and consistently present. breadCrumbs is a single
+  // string path ("Health & Household > ... > Magnesium"), not an array.
+  // No separate position/rank field exists on this actor — real
+  // search-result order is the array index itself (see computeSignals).
+  breadCrumbs?: string
+  features?:    string[]
 }
 
 function avg(arr: number[]): number | null {
@@ -108,8 +115,15 @@ export class CompetitionSignalProvider implements SignalProvider {
   }
 
   private computeSignals(items: JungleeResult[]): ProviderSignals {
-    const withReviews = items.filter(
-      (r): r is JungleeResult & { reviewsCount: number; brand: string } =>
+    // Real search-result rank, captured BEFORE any filtering/re-sorting —
+    // items[] is already in the actor's real Amazon search-result order
+    // (confirmed via live call: no separate position/rank field exists),
+    // so the 1-indexed array position here is the real rank for this exact
+    // query, not invented.
+    const withPosition = items.map((r, i) => ({ ...r, _position: i + 1 }))
+
+    const withReviews = withPosition.filter(
+      (r): r is typeof withPosition[number] & { reviewsCount: number; brand: string } =>
         typeof r.reviewsCount === 'number' && r.reviewsCount > 0 && !!r.brand?.trim(),
     )
 
@@ -138,6 +152,9 @@ export class CompetitionSignalProvider implements SignalProvider {
         reviewCount: r.reviewsCount,
         rating:      r.stars!,
         price:       r.price!.value!,
+        position:    r._position,
+        breadcrumb:  r.breadCrumbs || undefined,
+        bullets:     r.features?.length ? r.features : undefined,
       }))
 
     const score      = accessibilityScore(meaningfulBrands.size, concentration)

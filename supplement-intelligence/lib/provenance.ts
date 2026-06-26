@@ -220,6 +220,27 @@ export function searchGrowthProvenance(signals?: AggregatedSignals | null): Prov
   )
 }
 
+// "90-Day Demand Momentum" — real via Keepa's own deltaPercent90_monthlySold
+// field (CONFIRMED VIA LIVE CALL 2026-06-26). Same Estimated tier as
+// monthlySold itself (unitsSoldProvenance below): a real platform-side
+// estimate's real period-over-period delta, not a guess made up for this
+// product, but not a directly-observed Amazon fact either.
+export function demandMomentum90dProvenance(signals?: AggregatedSignals | null): Provenance | null {
+  if (signals?.growth?.value.momentum_90d_pct == null) return null
+  return estimated('Keepa', "Real 90-day percent change in Keepa's own monthlySold estimate for the category's top bestsellers — a more direct demand-momentum measurement than the BSR-ratio trend above, but still built on Keepa's modeled units-sold figure, not a directly observed fact.")
+}
+
+// "Amazon Referral Fee" / "FBA Pick & Pack Fee" — real Amazon fee-schedule
+// data mirrored by Keepa per-product (CONFIRMED VIA LIVE CALL 2026-06-26:
+// referralFeePercentage / fbaFees.pickAndPackFee on the Keepa product
+// response). Verified, not Estimated: this is Amazon's own published fee
+// schedule for the product's category/size tier, not a Keepa-side model.
+export function realFeeDataProvenance(signals?: AggregatedSignals | null): Provenance | null {
+  const rev = signals?.revenue?.value
+  if (rev?.avg_fba_pick_pack_fee === undefined && rev?.avg_referral_fee_pct === undefined) return null
+  return verified('Keepa', "Amazon's own published referral-fee percentage and FBA pick-and-pack fee for this product's category/size tier, mirrored directly by Keepa — not a Keepa-side model and not the model's own margin guess.")
+}
+
 // "Estimated Monthly Units Sold" — real via Keepa's own monthlySold field.
 export function unitsSoldProvenance(signals?: AggregatedSignals | null): Provenance | null {
   if (!signals?.revenue?.value.est_monthly_units_sold) return null
@@ -371,6 +392,19 @@ export function newsIntelligenceProvenance(ni?: NewsIntelligence | null): Proven
   return verified(
     ni.providersUsed.join(', '),
     `Every headline, date, source, and link is pulled directly from ${ni.providersUsed.join('/')} — no LLM involvement in the items themselves. The "why it matters" caption on each item and the overall summary below are written by a separate, smaller AI pass given only these real items and instructed never to add or alter one — treat those two specifically as AI Interpretation, not verified fact, even though the items they're commenting on are real.`
+  )
+}
+
+// "News Sentiment" — real GDELT mode=tonechart aggregate (CONFIRMED VIA LIVE
+// CALL 2026-06-26). A real weighted average over real per-bin article
+// counts across the whole query, not a per-item field and not AI-touched —
+// best-effort, since GDELT's strict rate limit means this specific request
+// sometimes returns nothing even when the headline items above succeeded.
+export function newsSentimentProvenance(ni?: NewsIntelligence | null): Provenance | null {
+  if (!ni?.sentiment) return null
+  return verified(
+    'GDELT',
+    `Real weighted average over GDELT's tone histogram (${ni.sentiment.sample_size} real articles matching this query in the lookback window) — deterministic arithmetic over real per-bin counts, not a model judgment.`
   )
 }
 

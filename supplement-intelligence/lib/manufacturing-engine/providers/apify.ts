@@ -172,6 +172,47 @@ function topRating(products: ApifyProduct[]): number | null {
   return Math.min(5, Math.round(Math.max(...years) / 4) + 1)
 }
 
+// ── Supplier identity ──────────────────────────────────────────────────────────
+// companyName is a real field on every Apify result (confirmed present in the
+// existing ApifyProduct interface) but was never read — supplier_count gave a
+// number with no names attached, no actual diligence trail. Ranked by the
+// same scoring this provider already trusts for top_supplier_rating: real
+// supplierScore first, gold-supplier years as fallback, matching topRating's
+// own preference order so the "top" suppliers shown are the same ones that
+// drove the rating number above them.
+const MAX_TOP_SUPPLIERS = 5
+
+function topSuppliers(products: ApifyProduct[]): ManufacturingEstimate['top_suppliers'] {
+  const named = products.filter(p => p.companyName?.trim())
+  if (!named.length) return undefined
+
+  const scored = named.map(p => {
+    const numericScore = typeof p.supplierScore === 'number' ? p.supplierScore : parseFloat(p.supplierScore ?? '')
+    const years = parseInt((p.goldSupplierYears ?? '').match(/\d+/)?.[0] ?? '', 10)
+    const rank = !isNaN(numericScore) ? numericScore : !isNaN(years) ? years / 4 : 0
+    return { p, rank }
+  })
+
+  scored.sort((a, b) => b.rank - a.rank)
+
+  const seen = new Set<string>()
+  const result: NonNullable<ManufacturingEstimate['top_suppliers']> = []
+  for (const { p } of scored) {
+    const name = p.companyName!.trim()
+    if (seen.has(name)) continue
+    seen.add(name)
+    const numericScore = typeof p.supplierScore === 'number' ? p.supplierScore : parseFloat(p.supplierScore ?? '')
+    result.push({
+      name,
+      rating:              !isNaN(numericScore) && numericScore >= 1 && numericScore <= 5 ? numericScore : null,
+      trade_assurance:      p.tradeAssurance,
+      gold_supplier_years:  p.goldSupplierYears,
+    })
+    if (result.length >= MAX_TOP_SUPPLIERS) break
+  }
+  return result
+}
+
 // ── Lead time (category fallback — Apify actor doesn't expose this field) ─────
 
 function estimateLeadTime(req: ManufacturingRequest): { low: number; high: number } {
@@ -252,10 +293,11 @@ export class ApifyProvider implements ManufacturingProvider {
       return null
     }
 
-    const priced   = products.filter(p => p.priceFormatted && parsePrice(p.priceFormatted)).length
-    const moq      = parseMOQ(products)
-    const leadTime = estimateLeadTime(req)
-    const rating   = topRating(products)
+    const priced    = products.filter(p => p.priceFormatted && parsePrice(p.priceFormatted)).length
+    const moq       = parseMOQ(products)
+    const leadTime  = estimateLeadTime(req)
+    const rating    = topRating(products)
+    const suppliers = topSuppliers(products)
     const { confidence, confidence_label } = scoreConfidence(priced, products.length, rating !== null)
 
     const complexity: ManufacturingComplexity =
@@ -270,6 +312,7 @@ export class ApifyProvider implements ManufacturingProvider {
       moq:        `${moq.low}–${moq.high} ${moq.unit}`,
       leadTime:   `${leadTime.low}–${leadTime.high} days`,
       confidence: `${Math.round(confidence * 100)}%`,
+      named_suppliers: suppliers?.length ?? 0,
     })
 
     return {
@@ -289,6 +332,7 @@ export class ApifyProvider implements ManufacturingProvider {
       data_source:         'apify',
       notes:               `Based on ${priced} priced Alibaba.com listings via Apify for "${query}" (${products.length} total). Prices converted to approximate USD.`,
       fetched_at:          new Date().toISOString(),
+      top_suppliers:       suppliers,
     }
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, Fragment } from 'react'
 import type { MemoData, BuildDecision, SignalMetadata } from '@/types/index'
 import type { ViralitySignal } from '@/lib/signal-engine/types'
 import type {
@@ -27,6 +27,7 @@ import {
   keywordClusterProvenance, keywordOpportunityScoreProvenance, keywordClickConversionProvenance,
   keywordAmazonPpcProvenance, keywordSearchIntentProvenance, keywordSeasonalityProvenance,
   keywordForecastProvenance, keywordAiInsightsProvenance,
+  demandMomentum90dProvenance, realFeeDataProvenance, newsSentimentProvenance,
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
 import type { NewsItem } from '@/lib/news-engine/types'
@@ -45,6 +46,10 @@ interface MfgEstimate {
   confidence_label:   'High' | 'Medium' | 'Low'
   data_source:        string
   notes:              string
+  // Real named suppliers (2026-06-26 data-coverage audit) — optional since
+  // only the Apify path currently populates this; absent from any AI-
+  // synthesis-sourced estimate.
+  top_suppliers?: { name: string; rating?: number | null; trade_assurance?: boolean; gold_supplier_years?: string }[]
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -506,13 +511,21 @@ function deriveDecisionChips(m: MemoData): DecisionChip[] {
   }
 
   // RISK — real FDA recall check via News Intelligence. Absence of a
-  // recall is itself a checked, real fact, not an omission.
+  // recall is itself a checked, real fact, not an omission. Classification
+  // (Class I/II/III — real, FDA-assigned severity) is far more decision-
+  // relevant than "a recall exists": Class I is a serious-health-risk
+  // recall, Class III is minor/technical — collapsing both into one
+  // generic "Recall found" chip was hiding the single most useful fact
+  // openFDA actually provides.
   const ni = m.news_intelligence
   if (ni?.hasRecentNews) {
     const recall = ni.items.find(it => it.category === 'FDA Recall')
     chips.push({
       label: 'Risk',
-      value: recall ? `Recall, ${daysAgo(recall.date)}d ago` : 'No recalls found',
+      value: recall
+        ? `${recall.recall_classification && recall.recall_classification !== 'Not Yet Classified' ? `${recall.recall_classification} ` : ''}Recall, ${daysAgo(recall.date)}d ago`
+        : 'No recalls found',
+      subValue: recall?.recall_status ? `status: ${recall.recall_status}` : undefined,
       source: recall ? 'openFDA' : ni.providersUsed.join('/'),
     })
   } else if (ni) {
@@ -1597,6 +1610,7 @@ function DemandEvidencePanel({ m }: { m: MemoData }) {
         { label: 'Monthly Search Volume',  value: topKeyword ? `${topKeyword.monthly_searches.toLocaleString()}/mo ("${topKeyword.keyword}")` : undefined, provenance: searchVolP },
         { label: 'Search Growth %',        value: growthSig?.yoy_change, provenance: searchGrowthProvenance(ev) },
         { label: 'Search Trend Direction', value: growthSig?.momentum,   provenance: searchGrowthProvenance(ev) },
+        { label: '90-Day Demand Momentum', value: growthSig?.momentum_90d_pct != null ? `${growthSig.momentum_90d_pct > 0 ? '+' : ''}${growthSig.momentum_90d_pct}%` : undefined, provenance: demandMomentum90dProvenance(ev) },
       ]}
       scoreLabel="Demand Score"
       scoreProvenance={demandProvenance(m.signal_metadata)}
@@ -1628,6 +1642,8 @@ function RevenueEvidencePanel({ m }: { m: MemoData }) {
         { label: 'Average Seller Revenue',       value: rev?.avg_seller_revenue,     provenance: revP },
         { label: 'Category Avg Rating',          value: rev?.avg_rating ? `${rev.avg_rating}/5` : undefined, provenance: reviewP },
         { label: 'Category Avg Review Count',    value: rev?.avg_review_count !== undefined ? rev.avg_review_count.toLocaleString() : undefined, provenance: reviewP },
+        { label: 'Amazon Referral Fee',          value: rev?.avg_referral_fee_pct !== undefined ? `${rev.avg_referral_fee_pct}%` : undefined, provenance: realFeeDataProvenance(ev) },
+        { label: 'FBA Pick & Pack Fee',          value: rev?.avg_fba_pick_pack_fee, provenance: realFeeDataProvenance(ev) },
       ]}
       scoreLabel="Revenue Score"
       scoreProvenance={revP}
@@ -1642,14 +1658,45 @@ function RevenueEvidencePanel({ m }: { m: MemoData }) {
 // than just counted. No sponsored-ad flag exists on this actor's output
 // (confirmed live, documented in providers/competition.ts) — these are the
 // top real results by review count, not filtered for ad placement.
-function MeaningfulCompetitorsList({ competitors }: { competitors: { brand: string; reviewCount: number; rating: number; price: number }[] }) {
+interface MeaningfulCompetitor {
+  brand: string; reviewCount: number; rating: number; price: number
+  position?: number; breadcrumb?: string; bullets?: string[]
+}
+
+function CompetitorBulletsRow({ bullets }: { bullets: string[] }) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <tr className="border-t border-white/[0.05] bg-white/[0.01]">
+      <td colSpan={5} className="py-2 px-3">
+        <button onClick={() => setExpanded(e => !e)} className="text-[10px] text-amber-400/70 hover:text-amber-400 transition-colors">
+          {expanded ? 'Hide' : 'Show'} real listing copy ({bullets.length} bullets) {expanded ? '↑' : '↓'}
+        </button>
+        {expanded && (
+          <ul className="mt-2 space-y-1.5">
+            {bullets.map((b, i) => <li key={i} className="text-[11px] text-zinc-500 leading-relaxed">• {b}</li>)}
+          </ul>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+function MeaningfulCompetitorsList({ competitors }: { competitors: MeaningfulCompetitor[] }) {
+  // Real search-result rank/breadcrumb are per-listing fields, but in
+  // practice every result for one query shares the same category path —
+  // shown once as a caption rather than repeated on every row.
+  const sharedBreadcrumb = competitors.find(c => c.breadcrumb)?.breadcrumb
   return (
     <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
-      <p className="text-xs font-semibold text-zinc-200 mb-3">Meaningful Competitors</p>
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p className="text-xs font-semibold text-zinc-200">Meaningful Competitors</p>
+      </div>
+      {sharedBreadcrumb && <p className="text-[10px] text-zinc-600 mb-3">{sharedBreadcrumb}</p>}
       <div className="overflow-x-auto rounded-lg border border-white/[0.06]">
-        <table className="w-full text-sm min-w-[360px]">
+        <table className="w-full text-sm min-w-[420px]">
           <thead>
             <tr className="bg-white/[0.04] text-[10px] text-zinc-500 uppercase tracking-wider">
+              <th className="text-left py-2 px-3 w-10">Rank</th>
               <th className="text-left py-2 px-3">Brand</th>
               <th className="text-right py-2 px-3">Reviews</th>
               <th className="text-right py-2 px-3">Rating</th>
@@ -1658,12 +1705,16 @@ function MeaningfulCompetitorsList({ competitors }: { competitors: { brand: stri
           </thead>
           <tbody>
             {competitors.map((c, i) => (
-              <tr key={i} className="border-t border-white/[0.05]">
-                <td className="py-2 px-3 font-medium text-zinc-200">{c.brand}</td>
-                <td className="py-2 px-3 text-right font-mono text-zinc-300">{c.reviewCount.toLocaleString()}</td>
-                <td className="py-2 px-3 text-right font-mono text-zinc-300">{c.rating.toFixed(1)}</td>
-                <td className="py-2 px-3 text-right font-mono text-zinc-300">${c.price.toFixed(2)}</td>
-              </tr>
+              <Fragment key={i}>
+                <tr className="border-t border-white/[0.05]">
+                  <td className="py-2 px-3 font-mono text-zinc-500">{c.position ?? '—'}</td>
+                  <td className="py-2 px-3 font-medium text-zinc-200">{c.brand}</td>
+                  <td className="py-2 px-3 text-right font-mono text-zinc-300">{c.reviewCount.toLocaleString()}</td>
+                  <td className="py-2 px-3 text-right font-mono text-zinc-300">{c.rating.toFixed(1)}</td>
+                  <td className="py-2 px-3 text-right font-mono text-zinc-300">${c.price.toFixed(2)}</td>
+                </tr>
+                {c.bullets && c.bullets.length > 0 && <CompetitorBulletsRow bullets={c.bullets} />}
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -2226,12 +2277,34 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
   // failed" (a real provider outage worth flagging, not silent).
   const attemptedButFailed = !ci && !!m.signal_metadata?.consumer_intelligence_attempted
 
+  // Real Reddit discussion evidence — independent of Amazon-review consumer
+  // intelligence above (different real source: what people say in r/Supplements
+  // etc., not what they say in Amazon reviews). Currently dormant in this
+  // deployment (no Reddit API credentials configured) — renders nothing
+  // until that changes, by design, never a placeholder.
+  const rv = m.signal_evidence?.review_velocity?.value
+  const redditPainExamples = rv?.pain_point_examples
+
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-1">
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Consumer Intelligence</p>
         {provenance && <ProvenanceBadge p={provenance} />}
       </div>
+
+      {redditPainExamples && redditPainExamples.length > 0 && (
+        <div className="mt-3 rounded-xl border border-white/[0.07] p-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-xs font-semibold text-zinc-200">Real Reddit Discussion</p>
+            <ProvenanceBadge p={{ level: 'verified', source: 'Reddit', detail: `Real verbatim post titles/snippets from r/Supplements and related subreddits that matched problem-language patterns (title or self-post body text) — ${m.signal_evidence?.review_velocity?.value.monthly_reviews ?? 'unknown volume'}, ${m.signal_evidence?.review_velocity?.value.sentiment ?? 'unscored'} sentiment.` }} />
+          </div>
+          <ul className="space-y-2">
+            {redditPainExamples.map((ex, i) => (
+              <li key={i} className="text-sm text-zinc-300 leading-relaxed">&ldquo;{ex}&rdquo;</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {!ci ? (
         attemptedButFailed ? (
@@ -2328,6 +2401,20 @@ function NewsItemCard({ item }: { item: NewsItem }) {
         <span className="text-[10px] text-zinc-600 font-mono shrink-0">{dateStr}</span>
       </div>
       <p className="text-sm text-zinc-200 leading-snug mb-1.5">{item.headline}</p>
+      {(item.recall_classification || item.recall_status) && (
+        <p className="text-[11px] mb-1.5 flex items-center gap-2 flex-wrap">
+          {item.recall_classification && (
+            <span className={`font-semibold ${
+              item.recall_classification === 'Class I'  ? 'text-red-400' :
+              item.recall_classification === 'Class II' ? 'text-amber-400' :
+              item.recall_classification === 'Class III' ? 'text-zinc-400' : 'text-zinc-500'
+            }`}>
+              {item.recall_classification}
+            </span>
+          )}
+          {item.recall_status && <span className="text-zinc-500">{item.recall_status}</span>}
+        </p>
+      )}
       <p className="text-[11px] text-zinc-600 mb-2">{item.source} · {Math.round(item.confidence * 100)}% relevance match</p>
       {item.why_it_matters && (
         <p className="text-[11px] text-zinc-500 leading-relaxed border-t border-white/[0.06] pt-2 mt-2">{item.why_it_matters}</p>
@@ -2354,6 +2441,21 @@ function NewsIntelligenceSection({ m }: { m: MemoData }) {
           <p className="text-[11px] text-zinc-600">
             Window: last {ni.windowDays} days · Sources: {ni.providersUsed.length ? ni.providersUsed.join(', ') : 'none returned results'}
           </p>
+
+          {ni.sentiment && (
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.02] border border-white/[0.06] px-3.5 py-2.5">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Real News Sentiment</span>
+                <span className={`text-sm font-mono font-semibold ${
+                  ni.sentiment.avg_tone <= -3 ? 'text-red-400' : ni.sentiment.avg_tone >= 1 ? 'text-emerald-400' : 'text-zinc-300'
+                }`}>
+                  {ni.sentiment.avg_tone > 0 ? '+' : ''}{ni.sentiment.avg_tone}
+                </span>
+                <span className="text-[11px] text-zinc-600">across {ni.sentiment.sample_size} real articles</span>
+              </div>
+              <ProvenanceBadge p={newsSentimentProvenance(ni)!} />
+            </div>
+          )}
 
           <div className="rounded-xl border border-white/[0.07] p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -2633,6 +2735,8 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
 
 function FinancialOutlookContent({ m }: { m: MemoData }) {
   const fp = m.financial_projections
+  const rev = m.signal_evidence?.revenue?.value
+  const hasRealFeeData = rev?.avg_referral_fee_pct !== undefined || rev?.avg_fba_pick_pack_fee !== undefined
   const marketSizeIsUnverified = !m.market_size ||
     m.market_size === 'N/A' ||
     m.market_size.toLowerCase().includes('not independently') ||
@@ -2647,6 +2751,21 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
         <div className="flex items-start gap-2.5 text-xs text-amber-400/80 bg-amber-400/5 border border-amber-400/15 rounded-lg px-3 py-2.5">
           <IconAlert className="w-3.5 h-3.5 shrink-0 mt-px" />
           <span>Market size not independently verified. Figures shown are AI estimates — consult industry reports before citing.</span>
+        </div>
+      )}
+      {hasRealFeeData && (
+        <div className="rounded-lg bg-emerald-400/5 border border-emerald-400/15 px-3.5 py-2.5">
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Real Amazon Fee Cross-Check</span>
+            <ProvenanceBadge p={realFeeDataProvenance(m.signal_evidence)!} />
+          </div>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            Gross/net margin above is the model&rsquo;s own guess. Amazon&rsquo;s real published fee schedule for this category:
+            {rev?.avg_referral_fee_pct !== undefined && <> referral fee <span className="text-zinc-200 font-mono">{rev.avg_referral_fee_pct}%</span></>}
+            {rev?.avg_referral_fee_pct !== undefined && rev?.avg_fba_pick_pack_fee !== undefined && ', '}
+            {rev?.avg_fba_pick_pack_fee !== undefined && <>FBA pick &amp; pack <span className="text-zinc-200 font-mono">{rev.avg_fba_pick_pack_fee}</span></>}
+            {' '}— use this to sanity-check the margin estimate, not as the full cost structure.
+          </p>
         </div>
       )}
       <TrajectoryTimeline fp={fp} />
@@ -2796,13 +2915,51 @@ function RiskAssessmentContent({ m }: { m: MemoData }) {
     .filter(([key]) => key !== 'competition')
   const weak = dims.filter(([, v]) => v.score <= 5).sort((a, b) => a[1].score - b[1].score)
 
-  if (weak.length === 0) return (
+  // Real recall risk, from News Intelligence — this tab was previously
+  // 100% AI-judged dimension scores with zero real external-event grounding,
+  // even though a real FDA recall (with a real severity classification) is
+  // exactly the kind of fact a risk assessment should lead with when one exists.
+  const recall = m.news_intelligence?.items.find(it => it.category === 'FDA Recall')
+  // Real, notably negative news sentiment — -3 on GDELT's -10..+10 scale is
+  // a deliberately conservative bar (general news coverage skews negative
+  // by default), so this only fires when real coverage is genuinely sour,
+  // not on ordinary background negativity.
+  const sentiment = m.news_intelligence?.sentiment
+  const sentimentIsNegative = sentiment !== undefined && sentiment !== null && sentiment.avg_tone <= -3
+
+  if (weak.length === 0 && !recall && !sentimentIsNegative) return (
     <p className="text-sm text-zinc-400">No dimension scored below 6. Overall risk profile is moderate — primary risk is execution, not market structure.</p>
   )
 
   return (
     <div className="space-y-3">
       <SectionIntro text="Dimensions where market structure works against you — each is a thesis-breaking risk if not addressed at launch." />
+      {sentimentIsNegative && sentiment && (
+        <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3.5">
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Real Negative News Sentiment</p>
+            <ProvenanceBadge p={newsSentimentProvenance(m.news_intelligence)!} />
+          </div>
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            Real GDELT coverage of this category skews negative (avg tone <span className="font-mono">{sentiment.avg_tone}</span> across {sentiment.sample_size} real articles) — worth reading the actual headlines in the News tab before committing capital.
+          </p>
+        </div>
+      )}
+      {recall && (
+        <div className={`rounded-xl border px-4 py-3.5 ${
+          recall.recall_classification === 'Class I' ? 'bg-red-400/[0.06] border-red-400/25' : 'bg-amber-400/[0.04] border-amber-400/20'
+        }`}>
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+            <p className={`text-[10px] font-semibold uppercase tracking-wider ${recall.recall_classification === 'Class I' ? 'text-red-400' : 'text-amber-400'}`}>
+              Real FDA Recall{recall.recall_classification && recall.recall_classification !== 'Not Yet Classified' ? ` — ${recall.recall_classification}` : ''}
+            </p>
+            <ProvenanceBadge p={newsIntelligenceProvenance(m.news_intelligence)!} />
+          </div>
+          <p className="text-sm text-zinc-300 leading-relaxed">{recall.headline}</p>
+          {recall.recall_status && <p className="text-[11px] text-zinc-500 mt-1">Status: {recall.recall_status}</p>}
+        </div>
+      )}
+      {weak.length > 0 && (
       <div className="rounded-xl border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
         {weak.map(([key, { score, notes }]) => (
           <div key={key} className={`flex gap-3 px-4 py-3.5 ${score <= 3 ? 'bg-red-400/[0.04]' : 'bg-amber-400/[0.03]'}`}>
@@ -2819,6 +2976,7 @@ function RiskAssessmentContent({ m }: { m: MemoData }) {
           </div>
         ))}
       </div>
+      )}
     </div>
   )
 }
@@ -2911,6 +3069,25 @@ function ManufacturingDisplay({ est, mfgScore }: { est: MfgEstimate; mfgScore: n
           <MfgConfidencePill label={est.confidence_label} />
         </div>
       </div>
+
+      {est.top_suppliers && est.top_suppliers.length > 0 && (
+        <div className="rounded-xl border border-white/[0.07] p-4">
+          <p className="text-xs font-semibold text-zinc-200 mb-3">Real Named Suppliers</p>
+          <ul className="space-y-2">
+            {est.top_suppliers.map((s, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-zinc-300 font-medium truncate">{s.name}</span>
+                <span className="flex items-center gap-2 text-[11px] text-zinc-500 shrink-0">
+                  {s.rating != null && <span className="font-mono text-zinc-400">{s.rating.toFixed(1)}/5</span>}
+                  {s.trade_assurance && <span className="text-emerald-400">Trade Assurance</span>}
+                  {s.gold_supplier_years && <span>{s.gold_supplier_years} gold supplier</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[10px] text-zinc-600 mt-3">Real Alibaba.com supplier names for this exact search — verify independently before committing capital; this is not an endorsement.</p>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/[0.06]">
         <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">

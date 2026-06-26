@@ -1,5 +1,6 @@
 import { newsEngine } from './registry'
 import { explainNewsIntelligence, ITEMS_EXIST_NO_SUMMARY } from './explain'
+import { fetchGdeltSentiment } from './sentiment'
 import type { NewsIntelligence, NewsSummary } from './types'
 
 // ── Top-level orchestration ──────────────────────────────────────────────
@@ -25,17 +26,28 @@ export async function buildNewsIntelligence(
   categoryName: string,
   fetchTimeoutMs = 15_000,
 ): Promise<NewsIntelligence> {
-  const { items, providersUsed } = await newsEngine
-    .fetch({ query, categoryId, windowDays: NEWS_WINDOW_DAYS }, fetchTimeoutMs)
-    .catch((e: unknown) => {
-      console.error('[NewsIntelligence] fetch failed', { error: e instanceof Error ? e.message : e })
-      return { items: [], providersUsed: [] }
-    })
+  // Fired alongside the main provider fetch, not after it: an independent
+  // GDELT request (mode=tonechart, see sentiment.ts) that may well collide
+  // with GDELT's own strict rate limit on the artlist request inside
+  // newsEngine.fetch() below. That's an accepted, honest failure mode —
+  // sentiment is best-effort and never blocks headline items.
+  const [{ items, providersUsed }, sentiment] = await Promise.all([
+    newsEngine
+      .fetch({ query, categoryId, windowDays: NEWS_WINDOW_DAYS }, fetchTimeoutMs)
+      .catch((e: unknown) => {
+        console.error('[NewsIntelligence] fetch failed', { error: e instanceof Error ? e.message : e })
+        return { items: [], providersUsed: [] }
+      }),
+    fetchGdeltSentiment(query, NEWS_WINDOW_DAYS).catch((e: unknown) => {
+      console.error('[NewsIntelligence] sentiment fetch failed', { error: e instanceof Error ? e.message : e })
+      return null
+    }),
+  ])
 
   if (!items.length) {
     return {
       items: [], providersUsed, fetchedAt: new Date().toISOString(),
-      windowDays: NEWS_WINDOW_DAYS, summary: NO_NEWS_SUMMARY, hasRecentNews: false,
+      windowDays: NEWS_WINDOW_DAYS, summary: NO_NEWS_SUMMARY, hasRecentNews: false, sentiment,
     }
   }
 
@@ -55,5 +67,6 @@ export async function buildNewsIntelligence(
     windowDays:    NEWS_WINDOW_DAYS,
     summary:       explained?.summary ?? ITEMS_EXIST_NO_SUMMARY,
     hasRecentNews: true,
+    sentiment,
   }
 }

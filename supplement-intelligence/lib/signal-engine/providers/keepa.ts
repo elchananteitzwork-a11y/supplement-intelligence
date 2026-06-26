@@ -71,7 +71,13 @@ interface KeepaStats {
   current?:  number[]   // current value by CSV index
   avg90?:    number[]   // 90-day average by CSV index
   avg365?:   number[]   // 365-day average by CSV index
-  delta90?:  number[]   // delta over last 90 days by CSV index
+  // CONFIRMED VIA LIVE CALL 2026-06-26 (3 real ASINs, supplements category):
+  // there is no general `delta90` array indexed by CSV type — that field,
+  // previously declared here, does not exist in Keepa's real response and
+  // was never actually used anywhere in this file. The real field is this
+  // single number, specific to monthlySold: real 90-day percent change
+  // (e.g. -16, -1), not an array.
+  deltaPercent90_monthlySold?: number
 }
 
 interface KeepaProduct {
@@ -80,6 +86,13 @@ interface KeepaProduct {
   brand?:      string
   stats?:      KeepaStats
   monthlySold?: number  // Keepa's estimated monthly unit sales (top-level field)
+  // CONFIRMED VIA LIVE CALL 2026-06-26: real top-level fields on the Keepa
+  // product response — Amazon's own published fee schedule for this
+  // product's category/size tier, mirrored by Keepa, not a Keepa-side
+  // estimate. fbaFees.pickAndPackFee is in integer cents, same convention
+  // as price fields elsewhere in this file.
+  fbaFees?:               { pickAndPackFee?: number }
+  referralFeePercentage?: number
 }
 
 interface KeepaProductResponse {
@@ -265,6 +278,13 @@ export class KeepaProvider implements SignalProvider {
     // for why this was previously missed.
     const ratings:      number[] = []
     const reviewCounts: number[] = []
+    // Real 90-day % change in Keepa's own monthlySold estimate per product —
+    // see KeepaStats.deltaPercent90_monthlySold comment above.
+    const momentum90dPcts:  number[] = []
+    // Real Amazon fee-schedule data per product — see KeepaProduct.fbaFees/
+    // referralFeePercentage comment above.
+    const fbaPickPackFees:  number[] = []
+    const referralFeePcts:  number[] = []
 
     for (const p of products) {
       const s = p.stats
@@ -273,6 +293,17 @@ export class KeepaProvider implements SignalProvider {
       const bsr365 = statVal(s, 'avg365', CSV.BSR)
       if (bsr90  !== null) bsrs90.push(bsr90)
       if (bsr365 !== null) bsrs365.push(bsr365)
+
+      // Keepa sentinel: a real 0% change is reported as 0, not -1/undefined,
+      // so only filter out actual missing data, not a genuinely flat 0.
+      const momentum90d = s?.deltaPercent90_monthlySold
+      if (typeof momentum90d === 'number' && momentum90d !== NO_DATA) momentum90dPcts.push(momentum90d)
+
+      const fbaFee = keepaPrice(p.fbaFees?.pickAndPackFee)
+      if (fbaFee !== null && fbaFee > 0) fbaPickPackFees.push(fbaFee)
+      if (typeof p.referralFeePercentage === 'number' && p.referralFeePercentage > 0) {
+        referralFeePcts.push(p.referralFeePercentage)
+      }
 
       // stats.current[11] = new offer count. Confirmed matches stats.totalOfferCount.
       const offer = statVal(s, 'current', CSV.NEW_OFFER_CNT)
@@ -306,6 +337,9 @@ export class KeepaProvider implements SignalProvider {
     const avgOffers      = avg(offers)
     const avgPrice       = avg(prices)
     const avgMonthlySold = avg(monthlySolds)
+    const avgMomentum90d = avg(momentum90dPcts)
+    const avgFbaFee      = avg(fbaPickPackFees)
+    const avgReferralFee = avg(referralFeePcts)
 
     // ── Demand signal ──
     // Score is derived from real BSR (a legitimate Amazon sales-velocity
@@ -355,13 +389,22 @@ export class KeepaProvider implements SignalProvider {
         pctChange > 5   ? 7 :
         Math.abs(pctChange) <= 5 ? 6 :
         pctChange < -15 ? 3 : 4
+      // momentum: prefer the real 90-day monthlySold delta (a direct demand
+      // measurement) over the BSR 90d-vs-365d ratio (a proxy) when present —
+      // same "prefer the more direct real measurement" pattern already used
+      // for DataForSEO's own pre-computed trend elsewhere in this codebase.
+      // Falls back to the BSR-derived figure when monthlySold delta isn't
+      // available for enough products.
+      const momentum: GrowthSignal['momentum'] =
+        avgMomentum90d !== null
+          ? (avgMomentum90d > 5 ? 'Accelerating' : avgMomentum90d < -5 ? 'Decelerating' : 'Stable')
+          : (pctChange > 5  ? 'Accelerating' : pctChange < -5 ? 'Decelerating' : 'Stable')
       growth = {
-        score:      sc,
-        confidence: Math.min(bsrs90.length, bsrs365.length) >= 5 ? 0.72 : 0.50,
-        yoy_change: trendStr ?? 'Stable',
-        momentum:
-          pctChange > 5  ? 'Accelerating' :
-          pctChange < -5 ? 'Decelerating' : 'Stable',
+        score:            sc,
+        confidence:       Math.min(bsrs90.length, bsrs365.length) >= 5 ? 0.72 : 0.50,
+        yoy_change:       trendStr ?? 'Stable',
+        momentum,
+        momentum_90d_pct: avgMomentum90d,
       }
     }
 
@@ -409,6 +452,8 @@ export class KeepaProvider implements SignalProvider {
         est_monthly_units_sold: avgMonthlySold !== null ? `${Math.round(avgMonthlySold).toLocaleString()} units/mo` : undefined,
         avg_rating:             avgRating !== null ? avgRating.toFixed(1) : undefined,
         avg_review_count:       avgReviewCount !== null ? Math.round(avgReviewCount) : undefined,
+        avg_fba_pick_pack_fee:  avgFbaFee !== null ? `$${avgFbaFee.toFixed(2)}` : undefined,
+        avg_referral_fee_pct:   avgReferralFee !== null ? Math.round(avgReferralFee * 10) / 10 : undefined,
       }
     }
 
@@ -429,6 +474,9 @@ export class KeepaProvider implements SignalProvider {
       topRevenue:      productRevenues.length ? Math.round(Math.max(...productRevenues)) : null,
       avgRating:       avgRating !== null ? avgRating.toFixed(1) : null,
       avgReviewCount:  avgReviewCount !== null ? Math.round(avgReviewCount) : null,
+      avgMomentum90d:  avgMomentum90d !== null ? `${avgMomentum90d}%` : null,
+      avgFbaFee:       avgFbaFee !== null ? `$${avgFbaFee.toFixed(2)}` : null,
+      avgReferralFee:  avgReferralFee !== null ? `${avgReferralFee}%` : null,
       confidence:      Math.round(overallConf * 100) + '%',
     })
 

@@ -35,6 +35,17 @@ export interface ManufacturingEstimate {
   data_source:        ProviderId
   notes:              string
   fetched_at:         string           // ISO timestamp
+  // Real named suppliers behind the aggregates above (2026-06-26 data-
+  // coverage audit) — companyName was already fetched by the Apify
+  // provider (xtracto/alibaba-search-scraper) but never read; a "Supplier
+  // Count: 14" with no names attached gives no actual diligence trail.
+  // Identity-only — never invented, never AI-paraphrased.
+  top_suppliers?: {
+    name:                 string
+    rating?:               number | null
+    trade_assurance?:      boolean
+    gold_supplier_years?:  string
+  }[]
 }
 
 export interface ManufacturingRequest {
