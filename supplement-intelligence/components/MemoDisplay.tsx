@@ -304,45 +304,8 @@ function PulseRings({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
   )
 }
 
-// ── Dimension Radar — the shape of an opportunity, not five separate
-// numbers you have to compare by hand.
-function DimensionRadar({ dims, color }: { dims: [string, number][]; color: string }) {
-  const cx = 150, cy = 150, maxR = 100
-  const n = dims.length
-  const angle = (i: number) => -Math.PI / 2 + i * ((2 * Math.PI) / n)
-  const pointAt = (i: number, frac: number): [number, number] => {
-    const a = angle(i)
-    return [cx + maxR * frac * Math.cos(a), cy + maxR * frac * Math.sin(a)]
-  }
-  const rings = [0.25, 0.5, 0.75, 1]
-  const dataPoints = dims.map(([, score], i) => pointAt(i, score / 10))
-
-  return (
-    <svg viewBox="0 0 300 300" className="w-full max-w-[300px] mx-auto">
-      {rings.map(f => (
-        <polygon key={f} points={dims.map((_, i) => pointAt(i, f).join(',')).join(' ')}
-          fill="none" stroke="#ffffff" strokeOpacity={0.07} />
-      ))}
-      {dims.map((_, i) => {
-        const [x, y] = pointAt(i, 1)
-        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#ffffff" strokeOpacity={0.09} />
-      })}
-      <polygon points={dataPoints.map(p => p.join(',')).join(' ')}
-        fill={color} fillOpacity={0.16} stroke={color} strokeWidth={2}
-        style={{ transformOrigin: `${cx}px ${cy}px`, animation: 'radarDrawIn .7s var(--ease-premium, ease) both' }} />
-      {dataPoints.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={3.5} fill={color} />)}
-      {dims.map(([label, score], i) => {
-        const [rawX, ly] = pointAt(i, 1.22)
-        const lx = Math.min(250, Math.max(50, rawX)) // clamp so centered labels never clip the viewBox edge
-        return (
-          <g key={label}>
-            <text x={lx} y={ly - 4} textAnchor="middle" style={{ fill: '#d4d4d8', fontSize: 11, fontWeight: 600 }}>{label}</text>
-            <text x={lx} y={ly + 11} textAnchor="middle" style={{ fill: '#71717a', fontSize: 10, fontFamily: 'var(--font-jbmono)' }}>{score}/10</text>
-          </g>
-        )
-      })}
-    </svg>
-  )
+function truncateLabel(s: string, n: number) {
+  return s.length > n ? s.slice(0, n - 1) + '…' : s
 }
 
 function NumList({ items }: { items: string[] }) {
@@ -446,31 +409,159 @@ function RailNav({ active, onSelect }: { active: string; onSelect: (id: string) 
   )
 }
 
-// ── Ticker strip — dense Bloomberg-register header band. The first thing
-// a viewer sees: financial-terminal digits, not a webpage hero.
-function TickerStrip({
-  score, decision, confidence, m,
+// ═══════════════════════════════════════════════════════════════
+// DECISION STRIP — the first 15 seconds, and the only 15 seconds most
+// readers get. Replaces TickerStrip (2026-06-26): same "glance at it from
+// across the room" register, but every value is real evidence with its
+// source named inline, not a duplicate rendering of the score that already
+// appears in the Masthead two inches below. Verdict, score+grounding%
+// (always shown fused — a score with no visible confidence is a number
+// lying by omission), four real-evidence chips in a fixed narrative order
+// (demand → competition → revenue → risk), and exactly one sentence of
+// attributed AI synthesis. Nothing else competes for this screen.
+// ═══════════════════════════════════════════════════════════════
+
+interface DecisionChip { label: string; value: string; subValue?: string; source: string; trend?: 'up' | 'down' }
+
+function parseTrendDirection(text: string | undefined): 'up' | 'down' | undefined {
+  if (!text) return undefined
+  const m = text.match(/([+-])\s*\d/)
+  if (!m) return undefined
+  return m[1] === '-' ? 'down' : 'up'
+}
+
+function daysAgo(iso: string): number {
+  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000))
+}
+
+// Every value here traces to a real provider — no AI-estimated number is
+// ever eligible for this row. A dimension with no real source shows "No
+// real data" rather than falling back to the model's guess, same rule as
+// the rest of this report's evidence layer.
+function deriveDecisionChips(m: MemoData): DecisionChip[] {
+  const se = m.signal_evidence
+  const chips: DecisionChip[] = []
+
+  // DEMAND — prefer DataForSEO's real monthly search count, then a real
+  // demand/growth signal from whichever provider supplied one.
+  const topKw = m.keyword_intelligence?.top_buying?.[0]
+  if (topKw) {
+    chips.push({
+      label: 'Demand', value: `${topKw.monthly_searches.toLocaleString()}/mo`,
+      source: 'DataForSEO', trend: parseTrendDirection(se?.growth?.value.yoy_change ?? se?.demand?.value.trend),
+    })
+  } else if (se?.demand?.value.search_volume) {
+    chips.push({ label: 'Demand', value: se.demand.value.search_volume, source: se.demand.primarySource, trend: parseTrendDirection(se.demand.value.trend) })
+  } else if (se?.growth) {
+    chips.push({ label: 'Demand', value: se.growth.value.yoy_change ?? 'Growth signal', source: se.growth.primarySource, trend: parseTrendDirection(se.growth.value.yoy_change) })
+  } else {
+    chips.push({ label: 'Demand', value: 'No real data', source: '—' })
+  }
+
+  // COMPETITION — real seller count + concentration; folds in the named
+  // biggest competitor only when that name is itself real (Apify+Keepa
+  // verified), never the model's guessed name.
+  const rv = se?.review_velocity?.value
+  if (rv?.meaningful_competitor_count !== undefined) {
+    const verifiedName = m.signal_metadata?.competitor_revenue_verified ? m.biggest_competitor?.name : null
+    chips.push({
+      label: 'Competition',
+      value: `${rv.meaningful_competitor_count} sellers`,
+      subValue: verifiedName ? `top: ${verifiedName}` : undefined,
+      source: se!.review_velocity!.primarySource,
+    })
+  } else {
+    chips.push({ label: 'Competition', value: 'No real data', source: '—' })
+  }
+
+  // REVENUE — real price × real units-sold, never a category guess.
+  const rev = se?.revenue?.value
+  if (rev?.top_seller_revenue) {
+    chips.push({ label: 'Revenue', value: `${rev.top_seller_revenue} top seller`, source: se!.revenue!.primarySource })
+  } else if (rev?.est_monthly_revenue) {
+    chips.push({ label: 'Revenue', value: `${rev.est_monthly_revenue} avg`, source: se!.revenue!.primarySource })
+  } else {
+    chips.push({ label: 'Revenue', value: 'No real data', source: '—' })
+  }
+
+  // RISK — real FDA recall check via News Intelligence. Absence of a
+  // recall is itself a checked, real fact, not an omission.
+  const ni = m.news_intelligence
+  if (ni?.hasRecentNews) {
+    const recall = ni.items.find(it => it.category === 'FDA Recall')
+    chips.push({
+      label: 'Risk',
+      value: recall ? `Recall, ${daysAgo(recall.date)}d ago` : 'No recalls found',
+      source: recall ? 'openFDA' : ni.providersUsed.join('/'),
+    })
+  } else if (ni) {
+    chips.push({ label: 'Risk', value: 'No recent events', source: ni.providersUsed.join('/') || 'openFDA/PubMed/GDELT' })
+  } else {
+    chips.push({ label: 'Risk', value: 'Not checked', source: '—' })
+  }
+
+  return chips
+}
+
+function firstSentence(text: string | null | undefined): string | null {
+  if (!text) return null
+  const match = text.match(/^.+?[.!?](?:\s|$)/)
+  return (match ? match[0] : text).trim()
+}
+
+function DecisionChipRow({ chip }: { chip: DecisionChip }) {
+  return (
+    <div className="flex-1 min-w-[150px] max-w-[220px]">
+      <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">{chip.label}</p>
+      <p className="text-sm font-semibold text-zinc-100 font-mono flex items-center gap-1.5">
+        {chip.trend === 'up' && <IconTrendUp className="w-3 h-3 text-emerald-400 shrink-0" />}
+        {chip.trend === 'down' && <IconTrendDown className="w-3 h-3 text-red-400 shrink-0" />}
+        <span className="truncate">{chip.value}</span>
+      </p>
+      {chip.subValue && <p className="text-xs text-zinc-400 truncate mt-0.5">{chip.subValue}</p>}
+      <p className="text-[10px] text-zinc-600 mt-0.5">{chip.source}</p>
+    </div>
+  )
+}
+
+function DecisionStrip({
+  m, score, decision, generatedAt,
 }: {
-  score: number; decision: BuildDecision
-  confidence: { level: 'High' | 'Medium' | 'Low'; note: string }; m: MemoData
+  m: MemoData; score: number; decision: BuildDecision; generatedAt?: string
 }) {
   const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : 'text-red-400'
-  const items: [string, string, boolean][] = [
-    ['SCORE', `${score}/100`, true],
-    ['VERDICT', decision.replace(/_/g, ' '), true],
-    ['CONFIDENCE', confidence.level.toUpperCase(), false],
-    ['MARKET', m.market_size, false],
-    ['MARGIN', m.gross_margin, false],
-  ].filter(([, v]) => v && v !== 'N/A') as [string, string, boolean][]
+  const { groundedPct } = computeGroundedScore(m)
+  const groundedC = groundedPct >= 50 ? 'text-emerald-400' : groundedPct >= 25 ? 'text-amber-400' : 'text-red-400'
+  const chips = deriveDecisionChips(m)
+  const synthesis = firstSentence(m.market_thesis ?? m.executive_summary)
+  const dateLabel = generatedAt
+    ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null
 
   return (
-    <div className="flex items-stretch overflow-x-auto no-scrollbar rounded-md border border-white/[0.08] divide-x divide-white/[0.08] bg-[#0a0a0c] font-mono">
-      {items.map(([l, v, accent]) => (
-        <div key={l} className="flex items-center gap-2 px-4 py-2.5 shrink-0" title={FACT_TOOLTIP[l]}>
-          <span className="text-zinc-600 text-[10px] tracking-wider">{l}</span>
-          <span className={`text-xs font-semibold uppercase ${accent ? c : 'text-zinc-200'}`}>{v}</span>
+    <div className="card-premium p-6 sm:p-8">
+      <div className="flex items-start justify-between gap-3 mb-5">
+        <div className="min-w-0">
+          <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-1">{m.category_name}</p>
+          <div className="flex items-baseline gap-3">
+            <VerdictBadge d={decision} />
+            <span className={`font-serif font-medium text-2xl ${c}`}>{score}<span className="text-zinc-600 text-sm font-sans"> / 100</span></span>
+            <span className={`text-[11px] font-mono ${groundedC}`}>{groundedPct}% real data</span>
+          </div>
         </div>
-      ))}
+        {dateLabel && <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-wider shrink-0">as of {dateLabel}</span>}
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-4 pt-4 border-t border-white/[0.06]">
+        {chips.map(chip => <DecisionChipRow key={chip.label} chip={chip} />)}
+      </div>
+
+      {synthesis && (
+        <div className="mt-5 rounded-lg bg-amber-400/[0.04] border border-amber-400/15 px-3.5 py-3">
+          <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-semibold mb-1.5">Analyst View</p>
+          <p className="text-sm text-zinc-300 leading-relaxed font-serif italic">{synthesis}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -755,76 +846,6 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
           <MomentumBadge whyNow={whyNow} demandNotes={m.scores.demand?.notes} demandScore={m.scores.demand?.score} />
         </div>
       )}
-    </div>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════
-// INTELLIGENCE GRAPH — the opportunity and the signals that explain it,
-// as a node-link map instead of a paragraph. Five seconds of looking at
-// this should convey what several paragraphs of prose currently require.
-// Click a node to jump straight to the section it's drawn from.
-// ═══════════════════════════════════════════════════════════════
-
-function truncateLabel(s: string, n: number) {
-  return s.length > n ? s.slice(0, n - 1) + '…' : s
-}
-
-function IntelligenceGraph({
-  m, score, decision, onJump,
-}: {
-  m: MemoData; score: number; decision: BuildDecision; onJump: (tabId: string) => void
-}) {
-  const c = decision === 'BUILD_NOW' ? '#34d399' : decision === 'VALIDATE_FURTHER' ? '#fbbf24' : '#f87171'
-  const hasCompetitor = !!(m.biggest_competitor?.name && m.biggest_competitor.name !== 'N/A')
-
-  type GNode = { id: string; label: string; sub: string; strength: number; tab: string }
-  const nodes: GNode[] = [
-    { id: 'demand',   label: 'Demand',   sub: `${m.scores.demand?.score ?? '—'}/10 signal`,      strength: (m.scores.demand?.score ?? 5) / 10,      tab: 'market-intelligence' },
-    { id: 'virality', label: 'Virality', sub: `${m.scores.virality?.score ?? '—'}/10 signal`,    strength: (m.scores.virality?.score ?? 5) / 10,    tab: 'market-intelligence' },
-    { id: 'sub',      label: 'Subscription', sub: `${m.scores.subscription?.score ?? '—'}/10 signal`, strength: (m.scores.subscription?.score ?? 5) / 10, tab: 'market-intelligence' },
-    ...(hasCompetitor ? [{ id: 'competitor', label: truncateLabel(m.biggest_competitor.name, 18), sub: 'Lead competitor', strength: 0.55, tab: 'competitive-landscape' }] : []),
-    { id: 'gap', label: 'Top Market Gap', sub: truncateLabel(m.market_gaps?.[0] ?? 'Documented gap', 26), strength: 0.65, tab: 'market-intelligence' },
-  ]
-
-  const cx = 300, cy = 218, r = 162
-  const angleStep = (2 * Math.PI) / nodes.length
-  const pos = nodes.map((n, i) => {
-    const angle = -Math.PI / 2 + i * angleStep
-    return { ...n, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) }
-  })
-
-  return (
-    <div className="card-premium p-5 sm:p-7">
-      <div className="flex items-center justify-between mb-1">
-        <p className="label">Intelligence Graph</p>
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wider hidden sm:inline">Signal relationships · click a node</p>
-      </div>
-      <svg viewBox="0 0 600 436" className="w-full h-auto mt-2">
-        {pos.map((n, i) => (
-          <line key={`e-${n.id}`} x1={cx} y1={cy} x2={n.x} y2={n.y}
-            stroke={c} strokeOpacity={0.12 + n.strength * 0.38} strokeWidth={1 + n.strength * 2.2}
-            style={{ opacity: 0, animation: 'riseIn .5s ease both', animationDelay: `${i * 0.06}s` }} />
-        ))}
-
-        <circle cx={cx} cy={cy} r={42} fill="#0d0d10" stroke={c} strokeWidth={2} />
-        <text x={cx} y={cy - 2} textAnchor="middle" style={{ fill: c, fontSize: 26, fontFamily: 'var(--font-fraunces)', fontWeight: 500 }}>{score}</text>
-        <text x={cx} y={cy + 18} textAnchor="middle" style={{ fill: '#71717a', fontSize: 9, letterSpacing: 1.5 }}>SCORE</text>
-
-        {pos.map((n, i) => {
-          const dir = n.y > cy ? 1 : n.y < cy ? -1 : (n.x > cx ? 1 : -1)
-          const nodeR = 9 + n.strength * 7
-          return (
-            <g key={n.id} onClick={() => onJump(n.tab)} className="cursor-pointer"
-              style={{ transformOrigin: `${n.x}px ${n.y}px`, animation: `graphNodeIn .5s var(--ease-premium, ease) both`, animationDelay: `${0.25 + i * 0.08}s` }}>
-              <circle cx={n.x} cy={n.y} r={nodeR} fill="#0a0a0c" stroke={c} strokeOpacity={0.55 + n.strength * 0.45} strokeWidth={1.5} />
-              <circle cx={n.x} cy={n.y} r={2.5} fill={c} />
-              <text x={n.x} y={n.y + dir * (nodeR + 16)} textAnchor="middle" style={{ fill: '#e4e4e7', fontSize: 12, fontWeight: 600 }}>{n.label}</text>
-              <text x={n.x} y={n.y + dir * (nodeR + 30)} textAnchor="middle" style={{ fill: '#71717a', fontSize: 9.5 }}>{n.sub}</text>
-            </g>
-          )
-        })}
-      </svg>
     </div>
   )
 }
@@ -1802,8 +1823,9 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
       ) : (
         <div className="space-y-5 mt-3">
           <p className="text-[11px] text-zinc-600">
-            Source: {ci.totalReviewsCollected} real reviews across {(ci.productsAnalyzed ?? []).map(p => p.brand).join(', ')}
-            {' '}({(ci.productsAnalyzed ?? []).reduce((s, p) => s + p.reviewsCollected, 0)} collected, {ci.confidence >= 0.7 ? 'high' : ci.confidence >= 0.4 ? 'moderate' : 'low'} confidence)
+            Source: {ci.totalReviewsCollected} real reviews
+            {(ci.productsAnalyzed ?? []).length > 0 && <> across {(ci.productsAnalyzed ?? []).map(p => p.brand).join(', ')}</>}
+            {' '}({ci.confidence >= 0.7 ? 'high' : ci.confidence >= 0.4 ? 'moderate' : 'low'} confidence)
           </p>
 
           <div className="grid sm:grid-cols-2 gap-5">
@@ -1965,11 +1987,6 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
   const sig = m.signal_metadata
   const viralityP = viralityProvenance(sig)
 
-  const displayDims = (Object.entries(m.scores) as [string, { score: number; notes: string }][])
-    .filter(([key]) => key !== 'competition')
-  const { decision } = computeScore(m)
-  const radarColor = decision === 'BUILD_NOW' ? '#34d399' : decision === 'VALIDATE_FURTHER' ? '#fbbf24' : '#f87171'
-
   return (
     <div className="space-y-6">
       {/* Evidence first — real metrics before any AI-judged score. See
@@ -2023,16 +2040,6 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
           notes={m.scores.virality.notes}
           provenance={viralityP}
           virality={m.signal_evidence?.virality?.value}
-        />
-      </div>
-
-      {/* Dimension radar — the shape of the opportunity at a glance */}
-      <div className="pt-5 border-t border-white/[0.06]">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Dimension Scores</p>
-        <p className="text-[10px] text-zinc-600 mb-3">Mix of provenance per dimension — see Evidence above and Risk Assessment for the same scores with full notes.</p>
-        <DimensionRadar
-          dims={displayDims.map(([key, { score }]) => [DIM_LABELS[key] ?? key, score] as [string, number])}
-          color={radarColor}
         />
       </div>
 
@@ -2674,12 +2681,11 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
       {/* ── Main document column ────────────────────────────────────── */}
       <div className="space-y-5 min-w-0">
 
-        {/* ── Always visible: ticker, masthead, executive summary, graph, thesis ── */}
+        {/* ── Always visible: the first 15 seconds, then supporting detail ── */}
         <div className="space-y-5 animate-in">
-          <TickerStrip score={score} decision={decision} confidence={confidence} m={m} />
+          <DecisionStrip m={m} score={score} decision={decision} generatedAt={generatedAt} />
           <Masthead m={m} score={score} decision={decision} confidence={confidence} generatedAt={generatedAt} />
           <ExecutiveSummary m={m} />
-          <IntelligenceGraph m={m} score={score} decision={decision} onJump={jumpToTab} />
           <InvestmentThesisSection m={m} blocks={blocks} />
         </div>
 
