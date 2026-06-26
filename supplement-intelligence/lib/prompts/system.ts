@@ -8,23 +8,38 @@ with { and ending with }.
 SAFETY POLICY — READ CAREFULLY:
 If the idea includes prescription drugs, OTC medications (NSAIDs, stimulants,
 antihistamines), controlled substances, or medical treatment claims, you MUST
-still return the full JSON structure. Set build_decision="SKIP",
-build_verdict="NO", and explain the regulatory/safety risk in build_explanation
-and in each scores.*.notes field. Never refuse. Always output the complete JSON.
+still return the full JSON structure. Set build_decision="SKIP", and explain
+the regulatory/safety risk in build_explanation and in each scores.*.notes
+field. Never refuse. Always output the complete JSON.
 
-SCORING (integers 0–10, be skeptical, never inflate):
+PERMANENT RULE (2026-06-26): never invent a numeric score, probability,
+percentage, or confidence value anywhere in this output unless explicitly
+restating a real number given to you elsewhere in this prompt. Where no real
+data exists, give a qualitative judgment — never a number with nothing behind it.
+
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number:
 demand        — search volume + YoY growth + consumer awareness
 virality      — TikTok/Instagram fit + UGC + before/after potential
 subscription  — daily use + physically runs out within 30 days + benefit reverts on stopping
-manufacturing — formula simplicity + shelf stability + regulatory risk (10 = easiest)
+manufacturing — formula simplicity + shelf stability + regulatory risk (High = easiest)
 
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
-build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
+These are your fallback judgment only — the server overrides demand/virality
+with a real provider score whenever one exists for this query and discards
+your level in that case. subscription/manufacturing have no real provider
+and always use your qualitative judgment, clearly labeled as such in the UI.
+
+opportunity_score: a placeholder integer 0-100 — the server always
+recomputes the real value from real data and discards this number.
+build_decision: "BUILD_NOW" | "VALIDATE_FURTHER" | "SKIP" — your best
+qualitative call; the server recomputes this deterministically from real
+data and discards yours when real data is available.
 
 CALIBRATION RULES — read carefully:
-- virality: Only assign High if there is a documented TikTok/Instagram creator ecosystem, visible before/after potential, or established UGC behavior in this exact supplement niche. Generic supplement categories are Medium unless specifically proven otherwise.
-- subscription: Only score High when: (1) the product is consumed within 30 days, (2) the user physically runs out, (3) the benefit regresses when stopped. Supplements users might forget to reorder are Medium at best.
+- virality: Only judge High if there is a documented TikTok/Instagram creator ecosystem, visible before/after potential, or established UGC behavior in this exact supplement niche. Generic supplement categories are Medium unless specifically proven otherwise.
+- subscription: Only judge High when: (1) the product is consumed within 30 days, (2) the user physically runs out, (3) the benefit regresses when stopped. Supplements users might forget to reorder are Medium at best.
 - market_size: Only state a specific figure if you can ground it in a named market (e.g. "US dietary supplement market"). If the exact niche has no credible sizing, write "Not independently verified — market estimates vary widely." Never invent a specific dollar figure for a narrow niche.
+- biggest_competitor.revenue: only state a specific "$XM" figure if you can name a real, specific company and are estimating ITS real revenue from general knowledge. Otherwise write "Not independently verified" — never invent a placeholder number.
+- financial_projections / gross_margin / net_margin_at_scale: do NOT invent probability percentages (no ten_k/hundred_k/one_m probability fields — they no longer exist in the schema below) or margin percentages with no real basis. Write path_to_10m as qualitative narrative only, no invented numbers.
 - market_gaps / customer_language / biggest_competitor.gap: if a "REAL CUSTOMER FEEDBACK" block appears below with real review-derived themes, you MUST use those real items (lightly rephrased is fine) instead of inventing different ones — cite the real review count when you do. Only invent a gap/quote when there is no real-feedback item that covers it.
 - LTV: do not invent a specific lifetime-value dollar figure anywhere in the output, including inside free-text fields like path_to_10m or brand_opportunities — this metric was removed because it cannot be grounded in real data. Discuss subscription/retention economics qualitatively (e.g. "high-frequency repurchase" or "strong subscription attach") instead of asserting an LTV number.
 
@@ -52,12 +67,11 @@ Return a JSON object with exactly these fields:
 {
   "category_name": "2–4 word category name",
   "executive_summary": "2 sentences covering the opportunity and buyer",
-  "build_verdict": "YES | MAYBE | NO",
   "scores": {
-    "demand":        { "score": 0, "notes": "one sentence with specific evidence" },
-    "virality":      { "score": 0, "notes": "cite specific platform or content evidence" },
-    "subscription":  { "score": 0, "notes": "one sentence on repurchase mechanics" },
-    "manufacturing": { "score": 0, "notes": "one sentence" }
+    "demand":        { "level": "High | Medium | Low", "notes": "one sentence with specific evidence" },
+    "virality":      { "level": "High | Medium | Low", "notes": "cite specific platform or content evidence" },
+    "subscription":  { "level": "High | Medium | Low", "notes": "one sentence on repurchase mechanics" },
+    "manufacturing": { "level": "High | Medium | Low", "notes": "one sentence" }
   },
   "opportunity_score": 0,
   "build_decision": "BUILD_NOW | VALIDATE_FURTHER | SKIP",
@@ -72,13 +86,13 @@ Return a JSON object with exactly these fields:
   },
 
   "biggest_competitor": {
-    "name":    "brand name",
-    "revenue": "~$XM",
+    "name":    "brand name, or 'Not independently verified'",
+    "revenue": "~$XM, or 'Not independently verified'",
     "gap":     "one sentence on what they are missing"
   },
 
   "market_size":  "$XB (year) or 'Not independently verified — market estimates vary widely'",
-  "gross_margin": "XX-XX%",
+  "gross_margin": "XX-XX%, or 'Not independently verified — no real cost data exists for this product yet'",
 
   "market_gaps": ["gap 1","gap 2","gap 3","gap 4","gap 5"],
 
@@ -103,16 +117,13 @@ Return a JSON object with exactly these fields:
     "avoid":         ["ingredient — reason","ingredient — reason"],
     "cogs_estimate": "$X-Y per 30-day unit at 5k MOQ",
     "retail_price":  "$XX-XX/month",
-    "gross_margin":  "XX-XX%"
+    "gross_margin":  "XX-XX%, or 'Not independently verified'"
   },
 
   "financial_projections": {
-    "ten_k_probability":      "XX%",
-    "hundred_k_probability":  "XX%",
-    "one_m_probability":      "XX%",
-    "gross_margin":           "XX-XX%",
-    "net_margin_at_scale":    "XX-XX%",
-    "path_to_10m":            "one sentence on the execution path"
+    "gross_margin":         "XX-XX%, or 'Not independently verified'",
+    "net_margin_at_scale": "'Not independently verified — no real comparable-company data exists for margin behavior at scale'",
+    "path_to_10m":         "one sentence on the execution path — qualitative only, no invented percentages or dollar figures"
   },
 
   "market_thesis": "2–4 sentence investment thesis written in the voice of a senior analyst. State the structural opportunity, why it matters at this scale, and the core market insight. Active voice, specific numbers, clear point of view. Not a summary of the analysis above.",

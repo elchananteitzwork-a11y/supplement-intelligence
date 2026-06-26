@@ -250,12 +250,17 @@ function ScoreRing({ s, decision, size = 156 }: { s: number; decision: BuildDeci
   )
 }
 
-function VerdictBadge({ d }: { d: BuildDecision }) {
-  const cfg = {
-    BUILD_NOW:        { label: 'Build Now',      cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/25', dot: 'bg-emerald-400' },
-    VALIDATE_FURTHER: { label: 'Validate First', cls: 'text-amber-400  bg-amber-400/10  border-amber-400/25',   dot: 'bg-amber-400'  },
-    SKIP:             { label: 'Pass',           cls: 'text-red-400    bg-red-400/10    border-red-400/25',     dot: 'bg-red-400'    },
-  }[d]
+function VerdictBadge({ d, insufficientEvidence }: { d: BuildDecision; insufficientEvidence?: boolean }) {
+  const cfg = insufficientEvidence
+    // "Pass" reads as a verdict on the idea's quality. When no real provider
+    // returned anything at all, the honest message is "we couldn't assess
+    // this," not "this is a bad idea" — same zero score, different meaning.
+    ? { label: 'Insufficient Data', cls: 'text-zinc-400  bg-zinc-400/10  border-zinc-400/25', dot: 'bg-zinc-400' }
+    : {
+        BUILD_NOW:        { label: 'Build Now',      cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/25', dot: 'bg-emerald-400' },
+        VALIDATE_FURTHER: { label: 'Validate First', cls: 'text-amber-400  bg-amber-400/10  border-amber-400/25',   dot: 'bg-amber-400'  },
+        SKIP:             { label: 'Pass',           cls: 'text-red-400    bg-red-400/10    border-red-400/25',     dot: 'bg-red-400'    },
+      }[d]
   return (
     <span className={`inline-flex items-center gap-2 font-semibold text-[11px] tracking-[0.16em] px-3 py-1.5 rounded-full border uppercase ${cfg.cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -543,6 +548,17 @@ function firstSentence(text: string | null | undefined): string | null {
   return (match ? match[0] : text).trim()
 }
 
+// 2026-06-26 redesign: financial/competitor fields now sometimes contain the
+// full "Not independently verified — ..." sentence instead of a fabricated
+// number — correct, but too long for a compact chip. Shortened display only;
+// the full sentence is still available via title/tooltip where shown.
+function isUnverifiedText(v: string | undefined | null): boolean {
+  return !v || v === 'N/A' || v.toLowerCase().includes('not independently verified')
+}
+function shortFactValue(v: string): string {
+  return isUnverifiedText(v) ? 'Not verified' : v
+}
+
 function DecisionChipRow({ chip }: { chip: DecisionChip }) {
   return (
     <div className="flex-1 min-w-[150px] max-w-[220px]">
@@ -564,8 +580,11 @@ function DecisionStrip({
   m: MemoData; score: number; decision: BuildDecision; generatedAt?: string
 }) {
   const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : 'text-red-400'
-  const { groundedPct } = computeGroundedScore(m)
-  const groundedC = groundedPct >= 50 ? 'text-emerald-400' : groundedPct >= 25 ? 'text-amber-400' : 'text-red-400'
+  // 2026-06-26 redesign: groundedPct is now always 100 (at least one real
+  // dimension contributed to the score) or 0 (insufficientEvidence — no
+  // real dimension was found at all) — see lib/scoring.ts header comment.
+  const { groundedPct, insufficientEvidence } = computeGroundedScore(m)
+  const groundedC = insufficientEvidence ? 'text-red-400' : 'text-emerald-400'
   const chips = deriveDecisionChips(m)
   // VALIDATE_FURTHER's most decision-relevant sentence isn't "why this
   // might work" (the thesis already says that elsewhere) — it's "what to
@@ -585,7 +604,7 @@ function DecisionStrip({
         <div className="min-w-0">
           <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-1">{m.category_name}</p>
           <div className="flex items-baseline gap-3">
-            <VerdictBadge d={decision} />
+            <VerdictBadge d={decision} insufficientEvidence={insufficientEvidence} />
             <span className={`font-serif font-medium text-2xl ${c}`}>{score}<span className="text-zinc-600 text-sm font-sans"> / 100</span></span>
             <span className={`text-[11px] font-mono ${groundedC}`}>{groundedPct}% real data</span>
           </div>
@@ -645,28 +664,49 @@ function EvidenceCoveragePanel({ m }: { m: MemoData }) {
 }
 
 function ScoreBreakdownPanel({ m }: { m: MemoData }) {
-  const { dimensions, groundedPct } = computeGroundedScore(m)
+  const { dimensions, groundedPct, insufficientEvidence } = computeGroundedScore(m)
+  // weight > 0 dimensions are the only ones that ever fed the 0-100 score —
+  // every one of them is real, by construction (lib/scoring.ts). Dimensions
+  // with no real basis (subscription/manufacturing always; demand/virality/
+  // competition when their real provider returned nothing) carry zero
+  // weight and are shown separately, qualitatively, never as a number.
+  const scored      = dimensions.filter(d => d.weight > 0)
+  const qualitative = dimensions.filter(d => d.weight === 0)
+
   return (
     <div className="mt-7 pt-5 border-t border-white/[0.06]">
       <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">
-        Score Breakdown — {groundedPct}% grounded in real data
+        Score Breakdown {insufficientEvidence ? '— insufficient real evidence to score' : `— ${groundedPct}% grounded in real data`}
       </p>
-      <ProvenanceCaption p={opportunityScoreProvenance(groundedPct)} />
-      <div className="mt-3 space-y-2.5">
-        {dimensions.map(d => (
-          <div key={d.key} className="flex items-center gap-3">
-            <span className="text-xs text-zinc-300 w-40 shrink-0 truncate">{d.label}</span>
-            <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-              <div
-                className={`h-full ${d.source === 'verified' ? 'bg-emerald-400/60' : 'bg-amber-400/60'}`}
-                style={{ width: `${d.rawScore * 10}%` }}
-              />
+      <ProvenanceCaption p={opportunityScoreProvenance(groundedPct, insufficientEvidence)} />
+
+      {scored.length > 0 && (
+        <div className="mt-3 space-y-2.5">
+          {scored.map(d => (
+            <div key={d.key} className="flex items-center gap-3">
+              <span className="text-xs text-zinc-300 w-40 shrink-0 truncate">{d.label}</span>
+              <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                <div className="h-full bg-emerald-400/60" style={{ width: `${(d.rawScore ?? 0) * 10}%` }} />
+              </div>
+              <span className="text-xs font-mono text-zinc-400 w-10 text-right shrink-0">{d.rawScore}/10</span>
+              <EvidenceBadge type={d.source} source={d.sourceLabel} detail={`Weighted ${Math.round(d.weight * 100)}% of the final score.`} />
             </div>
-            <span className="text-xs font-mono text-zinc-400 w-10 text-right shrink-0">{d.rawScore}/10</span>
-            <EvidenceBadge type={d.source} source={d.sourceLabel} detail={`Weighted ${Math.round(d.weight * 100)}% of the final score.`} />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {qualitative.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-white/[0.05] space-y-2.5">
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider">Not Scored — AI Judgment Only, 0% Weight</p>
+          {qualitative.map(d => (
+            <div key={d.key} className="flex items-center gap-3">
+              <span className="text-xs text-zinc-400 w-40 shrink-0 truncate">{d.label}</span>
+              <span className="flex-1 text-xs text-zinc-500">{d.qualitativeLevel ?? 'Not assessed'}</span>
+              <EvidenceBadge type={d.source} source={d.sourceLabel} detail="Excluded from the 0-100 score entirely — shown for context only, never converted to a number." />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -707,6 +747,7 @@ function Masthead({
     : null
 
   const consumerIntelTimedOut = !m.consumer_intelligence && !!m.signal_metadata?.consumer_intelligence_attempted
+  const { insufficientEvidence } = computeGroundedScore(m)
 
   return (
     <div className={`card-premium p-6 sm:p-9 ${glow}`}>
@@ -727,7 +768,7 @@ function Masthead({
       <div className="flex flex-col sm:flex-row sm:items-center gap-7">
         <ScoreRing s={score} decision={decision} />
         <div className="flex-1 min-w-0">
-          <VerdictBadge d={decision} />
+          <VerdictBadge d={decision} insufficientEvidence={insufficientEvidence} />
           <h1 className="font-serif text-2xl sm:text-[1.9rem] font-medium mt-4 mb-1.5 leading-[1.15] tracking-tight">{m.category_name}</h1>
           <p className="text-xs text-zinc-500 uppercase tracking-wider">Opportunity Rating</p>
         </div>
@@ -738,7 +779,7 @@ function Masthead({
         <div className="flex gap-6">
           {([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
             .filter(([, v]) => v && v !== 'N/A')
-            .map(([l, v]) => <MetaChip key={l} label={l} value={v} />)}
+            .map(([l, v]) => <MetaChip key={l} label={l} value={shortFactValue(v)} />)}
         </div>
       </div>
 
@@ -764,6 +805,7 @@ function AtAGlanceRail({
   const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : 'text-red-400'
   const facts = ([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
     .filter(([, v]) => v && v !== 'N/A')
+  const { insufficientEvidence } = computeGroundedScore(m)
 
   return (
     <div className="card-premium p-5">
@@ -772,16 +814,16 @@ function AtAGlanceRail({
         <span className={`font-serif font-medium text-3xl ${c}`}>{score}</span>
         <span className="text-zinc-600 text-xs">/ 100</span>
       </div>
-      <VerdictBadge d={decision} />
+      <VerdictBadge d={decision} insufficientEvidence={insufficientEvidence} />
       <div className="mt-4 pt-4 border-t border-white/[0.06]">
         <ConfidencePill level={confidence.level} note={confidence.note} />
       </div>
       {facts.length > 0 && (
         <div className="mt-4 pt-4 border-t border-white/[0.06] space-y-2.5">
           {facts.map(([l, v]) => (
-            <div key={l} className="flex items-center justify-between gap-3" title={FACT_TOOLTIP[l.toUpperCase()]}>
+            <div key={l} className="flex items-center justify-between gap-3" title={isUnverifiedText(v) ? v : FACT_TOOLTIP[l.toUpperCase()]}>
               <span className="text-[10px] text-zinc-600 uppercase tracking-wider shrink-0">{l}</span>
-              <span className="text-xs font-semibold text-zinc-300 font-mono text-right">{v}</span>
+              <span className="text-xs font-semibold text-zinc-300 font-mono text-right">{shortFactValue(v)}</span>
             </div>
           ))}
         </div>
@@ -816,7 +858,15 @@ function MomentumSparkline({ positive, accent }: { positive: boolean; accent: st
   )
 }
 
-function MomentumBadge({ whyNow, demandNotes, demandScore }: { whyNow: string | null; demandNotes?: string; demandScore?: number }) {
+const LEVEL_TO_SIGNAL: Record<'High' | 'Medium' | 'Low', 'Strong' | 'Moderate' | 'Weak'> = {
+  High: 'Strong', Medium: 'Moderate', Low: 'Weak',
+}
+
+function MomentumBadge({ whyNow, demandNotes, demandLevel, legacyDemandScore }: {
+  whyNow: string | null; demandNotes?: string
+  demandLevel?: 'High' | 'Medium' | 'Low'
+  legacyDemandScore?: number   // old stored memos only — see lib/scoring.ts legacyScoreToLevel
+}) {
   const pct = extractGrowthPct(whyNow) ?? extractGrowthPct(demandNotes)
 
   if (pct !== null) {
@@ -837,19 +887,28 @@ function MomentumBadge({ whyNow, demandNotes, demandScore }: { whyNow: string | 
     )
   }
 
-  if (typeof demandScore === 'number') {
-    const level = demandScore >= 8 ? 'Strong' as const : demandScore >= 6 ? 'Moderate' as const : 'Weak' as const
+  // No real-language growth figure to restate — fall back to the AI's own
+  // qualitative judgment (never a number; legacyDemandScore only exists on
+  // memos generated before the 2026-06-26 redesign).
+  const level = demandLevel ?? legacyScoreToLevelDisplay(legacyDemandScore)
+  if (level) {
+    const signal = LEVEL_TO_SIGNAL[level]
     return (
-      <div className="flex items-center gap-2.5 shrink-0" title="Synthesized — derived from the model's own 0–10 demand score, not a measured trend.">
-        <SignalBars level={level} />
+      <div className="flex items-center gap-2.5 shrink-0" title="AI Interpretation — the model's own qualitative judgment, not a measured trend.">
+        <SignalBars level={signal} />
         <div>
-          <p className="text-xs font-medium text-zinc-300">{level}</p>
+          <p className="text-xs font-medium text-zinc-300">{signal}</p>
           <p className="text-[9px] text-zinc-600 uppercase tracking-wider">Momentum</p>
         </div>
       </div>
     )
   }
   return null
+}
+
+function legacyScoreToLevelDisplay(score: number | undefined): 'High' | 'Medium' | 'Low' | undefined {
+  if (typeof score !== 'number') return undefined
+  return score >= 7 ? 'High' : score >= 4 ? 'Medium' : 'Low'
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -886,7 +945,7 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
               <ProvenanceCaption p={STATIC_PROVENANCE.whyNow} />
             </div>
           </div>
-          <MomentumBadge whyNow={whyNow} demandNotes={m.scores.demand?.notes} demandScore={m.scores.demand?.score} />
+          <MomentumBadge whyNow={whyNow} demandNotes={m.scores.demand?.notes} demandLevel={m.scores.demand?.level} legacyDemandScore={m.scores.demand?.score} />
         </div>
       )}
     </div>
@@ -943,13 +1002,21 @@ function evidenceCitation(tag: string, m: MemoData): string | null {
   return null
 }
 
+// Qualitative-only (2026-06-26): 'High' is the build-reason bucket, 'Low' is
+// the risk bucket — see lib/scoring.ts header comment. No magnitude exists
+// to sort multiple 'High' dimensions against each other (that magnitude was
+// always the AI's own invented number), so ties are broken by a fixed
+// priority order instead of a numeric sort.
+function dimLevel(m: MemoData, k: 'demand' | 'virality' | 'subscription' | 'manufacturing'): 'High' | 'Medium' | 'Low' | undefined {
+  return m.scores[k]?.level ?? legacyScoreToLevelDisplay(m.scores[k]?.score)
+}
+
 function deriveTop3Build(m: MemoData): DerivedPoint[] {
   const points: Omit<DerivedPoint, 'evidence'>[] = []
   const dims = (
     ['demand','virality','subscription'] as const
-  ).map(k => ({ k, score: m.scores[k]?.score ?? 0, notes: m.scores[k]?.notes ?? '' }))
-    .filter(d => d.score >= 6 && d.notes)
-    .sort((a, b) => b.score - a.score)
+  ).map(k => ({ k, level: dimLevel(m, k), notes: m.scores[k]?.notes ?? '' }))
+    .filter(d => d.level === 'High' && d.notes)
 
   if (dims[0]) points.push({ text: dims[0].notes, tag: dims[0].k })
   if (dims[1]) points.push({ text: dims[1].notes, tag: dims[1].k })
@@ -978,15 +1045,17 @@ function deriveTop3Build(m: MemoData): DerivedPoint[] {
 
 function deriveTop3Risks(m: MemoData): DerivedRisk[] {
   const risks: Omit<DerivedRisk, 'evidence'>[] = []
+  // No magnitude to rank 'Low' dimensions against each other (see dimLevel
+  // comment) — severity is uniformly 'Medium' rather than reviving a fake
+  // High/Medium split that was always just bucketing an invented number.
   const dimRisks = (
     ['demand','virality','subscription','manufacturing'] as const
-  ).map(k => ({ score: m.scores[k]?.score ?? 10, notes: m.scores[k]?.notes ?? '', k }))
-    .filter(d => d.score <= 5 && d.notes)
-    .sort((a, b) => a.score - b.score)
+  ).map(k => ({ level: dimLevel(m, k), notes: m.scores[k]?.notes ?? '', k }))
+    .filter(d => d.level === 'Low' && d.notes)
 
   const riskTags: string[] = []
   for (const d of dimRisks.slice(0, 2)) {
-    risks.push({ text: d.notes, severity: d.score <= 3 ? 'High' : 'Medium' })
+    risks.push({ text: d.notes, severity: 'Medium' })
     riskTags.push(d.k)
   }
 
@@ -999,7 +1068,10 @@ function deriveTop3Risks(m: MemoData): DerivedRisk[] {
     riskTags.push('market')
   }
 
-  if (risks.length < 3 && m.biggest_competitor?.name && m.biggest_competitor.name !== 'N/A') {
+  const competitorIsVerified = m.biggest_competitor?.name
+    && m.biggest_competitor.name !== 'N/A'
+    && !m.biggest_competitor.name.toLowerCase().includes('not independently verified')
+  if (risks.length < 3 && competitorIsVerified) {
     risks.push({
       text: `${m.biggest_competitor.name} (${m.biggest_competitor.revenue}) already occupies the space — ${m.biggest_competitor.gap}`,
       severity: 'Medium',
@@ -1053,7 +1125,7 @@ function deriveValidationSteps(m: MemoData): string[] {
 }
 
 function deriveValidationBudget(m: MemoData): VBudget {
-  const mfgScore = m.scores.manufacturing?.score ?? 5
+  const mfgLevel = dimLevel(m, 'manufacturing') ?? 'Medium'
   const d        = m.build_decision
 
   if (d === 'SKIP') {
@@ -1063,9 +1135,9 @@ function deriveValidationBudget(m: MemoData): VBudget {
     return { range: '$1k–$3k', breakdown: 'Pre-sell page + customer research — no manufacturing at this stage' }
   }
   const [mfgLo, mfgHi, totalLo, totalHi] =
-    mfgScore >= 8 ? ['$2k', '$5k',  '$4k',  '$10k'] :
-    mfgScore >= 6 ? ['$4k', '$10k', '$7k',  '$18k'] :
-                    ['$8k', '$20k', '$12k', '$28k']
+    mfgLevel === 'High'   ? ['$2k', '$5k',  '$4k',  '$10k'] :
+    mfgLevel === 'Medium' ? ['$4k', '$10k', '$7k',  '$18k'] :
+                             ['$8k', '$20k', '$12k', '$28k']
   return {
     range:     `${totalLo}–${totalHi}`,
     breakdown: `Manufacturing test batch (${mfgLo}–${mfgHi}) + paid acquisition test ($2k–$5k) + logistics`,
@@ -1074,16 +1146,19 @@ function deriveValidationBudget(m: MemoData): VBudget {
 
 function deriveSuccessMetrics(m: MemoData): string[] {
   const fp  = m.financial_projections
-  const sub = m.scores.subscription?.score ?? 0
+  const sub = dimLevel(m, 'subscription')
   const out: string[] = []
 
+  // ten_k_probability: legacy-only field — new memos never populate it
+  // (see lib/scoring.ts computeTractionBand). No replacement sentence here;
+  // the Financial Outlook tab's Traction Read card covers this for new memos.
   if (fp.ten_k_probability && fp.ten_k_probability !== 'N/A') {
     out.push(`Reach $10k MRR within 90 days (model probability: ${fp.ten_k_probability})`)
   }
-  if (fp.gross_margin && fp.gross_margin !== 'N/A') {
+  if (fp.gross_margin && fp.gross_margin !== 'N/A' && !fp.gross_margin.toLowerCase().includes('not independently verified')) {
     out.push(`Gross margin at or above ${fp.gross_margin} by month 3`)
   }
-  out.push(sub >= 7
+  out.push(sub === 'High'
     ? 'Subscription conversion rate > 30% of first-time purchasers'
     : 'Repeat purchase rate > 20% within 60 days')
 
@@ -1094,9 +1169,9 @@ function deriveKillCriteria(m: MemoData): string[] {
   const sat = m.market_saturation
   const out: string[] = []
 
-  const demandScore = m.scores.demand?.score ?? 0
+  const demandLevel = dimLevel(m, 'demand')
   out.push(
-    demandScore < 6
+    demandLevel === 'Low' || demandLevel === 'Medium'
       ? 'Fewer than 30 organic units/month after 60-day test → insufficient market demand at this price'
       : 'Fewer than 50 organic units/month after 60-day test → adjust positioning before scaling',
   )
@@ -1462,16 +1537,18 @@ function MarketSaturationBlock({ m }: { m: MemoData }) {
 // with the existing pulse-ring animation, instead of another data row.
 // Score and notes are the same scores.virality fields the ledger row used.
 function TikTokSignalCard({
-  score, notes, provenance, virality,
-}: { score: number; notes: string; provenance: Provenance; virality?: ViralitySignal }) {
-  const level = score >= 8 ? 'Strong' as const : score >= 6 ? 'Moderate' as const : 'Weak' as const
-  const color = level === 'Strong' ? '#34d399' : level === 'Moderate' ? '#fbbf24' : '#71717a'
+  score, qualitativeLevel, notes, provenance, virality,
+}: { score: number | null; qualitativeLevel?: 'High' | 'Medium' | 'Low'; notes: string; provenance: Provenance; virality?: ViralitySignal }) {
+  const level = score !== null
+    ? (score >= 8 ? 'Strong' as const : score >= 6 ? 'Moderate' as const : 'Weak' as const)
+    : qualitativeLevel ? LEVEL_TO_SIGNAL[qualitativeLevel] : null
+  const color = level === 'Strong' ? '#34d399' : level === 'Moderate' ? '#fbbf24' : level === 'Weak' ? '#71717a' : '#52525b'
   const hasRaw = virality?.video_count !== undefined && virality?.view_count !== undefined
   return (
     <div className="rounded-xl border border-white/[0.07] bg-[#0d0d10] p-4">
       <div className="flex items-center gap-4">
         <div className="relative w-10 h-[58px] rounded-[11px] border-2 shrink-0 grid place-items-center" style={{ borderColor: `${color}55` }}>
-          <PulseRings level={level} />
+          {level && <PulseRings level={level} />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -1481,10 +1558,14 @@ function TikTokSignalCard({
           <p className="text-xs text-zinc-500 leading-snug line-clamp-2">{notes}</p>
         </div>
         <div className="text-right shrink-0">
-          <p className="font-serif font-medium text-2xl leading-none" style={{ color }}>
-            {score}<span className="text-zinc-600 text-[10px] font-sans">/10</span>
-          </p>
-          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mt-1">{level}</p>
+          {score !== null ? (
+            <p className="font-serif font-medium text-2xl leading-none" style={{ color }}>
+              {score}<span className="text-zinc-600 text-[10px] font-sans">/10</span>
+            </p>
+          ) : (
+            <p className="font-serif font-medium text-base leading-none" style={{ color }}>{qualitativeLevel ?? '—'}</p>
+          )}
+          {level && <p className="text-[9px] text-zinc-600 uppercase tracking-wider mt-1">{level}</p>}
         </div>
       </div>
       {hasRaw && (
@@ -1596,8 +1677,13 @@ function DemandEvidencePanel({ m }: { m: MemoData }) {
   const ev        = m.signal_evidence
   const ki        = m.keyword_intelligence
   const growthSig = ev?.growth?.value
-  const score     = m.scores.demand?.score ?? 0
-  const level     = score >= 8 ? 'Strong' as const : score >= 6 ? 'Moderate' as const : 'Weak' as const
+  // Real score when a real provider grounds it; null (never a fabricated
+  // number) when only the AI's qualitative judgment exists — see
+  // lib/scoring.ts computeGroundedScore, the single source of truth for
+  // whether this dimension is actually backed by real data.
+  const demandDim = computeGroundedScore(m).dimensions.find(d => d.key === 'demand')
+  const score     = demandDim?.rawScore ?? null
+  const level      = score === null ? null : score >= 8 ? 'Strong' as const : score >= 6 ? 'Moderate' as const : 'Weak' as const
 
   // "Monthly Search Volume" real only via DataForSEO's top keyword for this query.
   const topKeyword = ki?.top_buying?.[0]
@@ -2500,7 +2586,8 @@ function NewsIntelligenceSection({ m }: { m: MemoData }) {
 }
 
 function MarketIntelligenceContent({ m }: { m: MemoData }) {
-  const { subscription } = m.scores
+  const subscription = m.scores.subscription
+  const subscriptionLevel = dimLevel(m, 'subscription')
   const sig = m.signal_metadata
   const viralityP = viralityProvenance(sig)
 
@@ -2537,24 +2624,22 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
       <div className="pt-5 border-t border-white/[0.06] space-y-3">
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Other Signals</p>
         <div className="ledger">
-          {(() => {
-            const level = subscription.score >= 8 ? 'Strong' as const : subscription.score >= 6 ? 'Moderate' as const : 'Weak' as const
-            return (
-              <div className="ledger-row">
-                <span className="text-xs font-semibold text-zinc-300 w-28 shrink-0">Subscription</span>
-                <span className="font-serif font-medium text-base text-zinc-100 w-10 shrink-0">{subscription.score}<span className="text-zinc-600 text-[10px] font-sans">/10</span></span>
-                <SignalBars level={level} />
-                <span className="flex-1 text-xs text-zinc-500 truncate hidden md:inline">{subscription.notes}</span>
-                <span className="ml-auto shrink-0 flex items-center gap-2">
-                  <ProvenanceBadge p={subscriptionProvenance()} />
-                </span>
-              </div>
-            )
-          })()}
+          {subscriptionLevel && (
+            <div className="ledger-row">
+              <span className="text-xs font-semibold text-zinc-300 w-28 shrink-0">Subscription</span>
+              <span className="font-serif font-medium text-base text-zinc-100 w-16 shrink-0">{subscriptionLevel}</span>
+              <SignalBars level={LEVEL_TO_SIGNAL[subscriptionLevel]} />
+              <span className="flex-1 text-xs text-zinc-500 truncate hidden md:inline">{subscription?.notes}</span>
+              <span className="ml-auto shrink-0 flex items-center gap-2">
+                <ProvenanceBadge p={subscriptionProvenance()} />
+              </span>
+            </div>
+          )}
         </div>
         <TikTokSignalCard
-          score={m.scores.virality.score}
-          notes={m.scores.virality.notes}
+          score={computeGroundedScore(m).dimensions.find(d => d.key === 'virality')?.rawScore ?? null}
+          qualitativeLevel={dimLevel(m, 'virality')}
+          notes={m.scores.virality?.notes ?? ''}
           provenance={viralityP}
           virality={m.signal_evidence?.virality?.value}
         />
@@ -2596,7 +2681,7 @@ const DIFFICULTY_WHITESPACE: Record<string, number> = { Low: 84, Medium: 62, Hig
 function CompetitivePositionMap({ m }: { m: MemoData }) {
   const sat = m.market_saturation
   const comp = m.biggest_competitor
-  const hasComp = !!(comp?.name && comp.name !== 'N/A')
+  const hasComp = !!(comp?.name && comp.name !== 'N/A' && !comp.name.toLowerCase().includes('not independently verified'))
 
   const x = CONCENTRATION_X[sat?.concentration ?? 'Moderate'] ?? 50
   const usY = DIFFICULTY_WHITESPACE[sat?.entry_difficulty ?? 'Medium'] ?? 50
@@ -2646,7 +2731,7 @@ function CompetitivePositionMap({ m }: { m: MemoData }) {
 
 function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
   const comp = m.biggest_competitor
-  const hasComp = comp?.name && comp.name !== 'N/A'
+  const hasComp = !!(comp?.name && comp.name !== 'N/A' && !comp.name.toLowerCase().includes('not independently verified'))
   const compProvenance = biggestCompetitorProvenance(m.signal_metadata)
   const compVerified = !!m.signal_metadata?.competitor_revenue_verified
 
@@ -2692,10 +2777,13 @@ function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
 // FINANCIAL OUTLOOK
 // ═══════════════════════════════════════════════════════════════
 
-// ── Trajectory Timeline — the three probability bars as a milestone path
-// instead of three stacked progress bars. Node size/color tracks probability,
-// so the funnel reads as a trajectory you're walking, not a checklist.
+// ── Trajectory Timeline — legacy memos only (had real-looking probability
+// strings with no real basis — see lib/scoring.ts header). Memos generated
+// from 2026-06-26 onward never populate these three fields; TractionBand
+// below replaces this entirely for new memos.
 function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
+  if (!fp.ten_k_probability && !fp.hundred_k_probability && !fp.one_m_probability) return null
+
   const pct = (v?: string) => (v ? parseInt(v, 10) || 0 : 0)
   const colorFor = (p: number) => (p >= 60 ? '#34d399' : p >= 30 ? '#fbbf24' : '#71717a')
 
@@ -2712,7 +2800,7 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
     <div className="rounded-xl border border-white/[0.07] p-5 sm:p-7">
       <div className="flex items-center justify-between gap-3 mb-7">
         <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Revenue Trajectory</p>
-        <ProvenanceBadge p={STATIC_PROVENANCE.financialProjections} />
+        <ProvenanceBadge p={{ level: 'synthesized', source: 'Claude (AI synthesis)', detail: 'Legacy field from a memo generated before 2026-06-26 — these probability percentages were generated to look like forecasting-tool output, with no statistical base-rate model behind them. Memos generated after this date use a qualitative traction band instead — see below.' }} />
       </div>
       <div className="relative flex justify-between items-start">
         <div className="absolute left-[8%] right-[8%] top-[10px] h-[1.5px] bg-gradient-to-r from-zinc-600 via-amber-400/50 to-emerald-400/60" />
@@ -2729,6 +2817,25 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ── Traction Band — deterministic replacement for the trajectory timeline
+// above, computed server-side from real signals (lib/scoring.ts
+// computeTractionBand). No invented probability, no number at all — a
+// disclosed three-way qualitative read.
+function TractionBandCard({ band }: { band: string }) {
+  const cls = band === 'Strong comparable traction' ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/[0.04]'
+    : band === 'Some comparable traction' ? 'text-amber-400 border-amber-400/20 bg-amber-400/[0.04]'
+    : 'text-zinc-400 border-white/[0.08] bg-white/[0.02]'
+  return (
+    <div className={`rounded-xl border p-5 sm:p-7 ${cls}`}>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-[10px] uppercase tracking-wider opacity-80">Traction Read</p>
+        <ProvenanceBadge p={{ level: 'estimated', source: 'Server-side formula', detail: 'Computed deterministically from the real signal data available for this query (which real dimensions were found, and how strong the real revenue/demand score is) — not a probability, not AI-invented. Replaces the old ten_k/hundred_k/one_m probability fields, which had no real base-rate model behind them.' }} />
+      </div>
+      <p className="font-serif text-xl font-medium">{band}</p>
     </div>
   )
 }
@@ -2769,16 +2876,22 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
         </div>
       )}
       <TrajectoryTimeline fp={fp} />
+      {fp.traction_band && <TractionBandCard band={fp.traction_band} />}
       <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
         {([
           ['Gross Margin',     fp.gross_margin],
           ['Net at Scale',     fp.net_margin_at_scale],
-        ] as [string, string][]).map(([l, v]) => (
-          <div key={l} className="flex-1 px-3 py-3.5 text-center" title={STATIC_PROVENANCE.financialProjections.detail}>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">{l}</p>
-            <p className="font-serif font-medium text-base">{v ?? '—'}</p>
-          </div>
-        ))}
+        ] as [string, string][]).map(([l, v]) => {
+          const unverified = !v || v.toLowerCase().includes('not independently verified')
+          return (
+            <div key={l} className="flex-1 px-3 py-3.5 text-center" title={unverified ? v ?? STATIC_PROVENANCE.financialProjections.detail : STATIC_PROVENANCE.financialProjections.detail}>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">{l}</p>
+              <p className={unverified ? 'text-xs text-zinc-500 italic' : 'font-serif font-medium text-base'}>
+                {unverified ? 'Not verified' : v}
+              </p>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -2896,24 +3009,26 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
 // RISK ASSESSMENT — severity-sorted register
 // ═══════════════════════════════════════════════════════════════
 
-// Each scored dimension has a different provenance function (demand/virality
-// vary by signal_metadata, the rest are always model judgment) — this maps
-// dimension key to the right one so Risk Assessment can badge each row
-// accurately instead of guessing at a single blanket label for the tab.
-function dimensionProvenance(key: string, sig?: SignalMetadata): Provenance {
-  switch (key) {
-    case 'demand':        return demandProvenance(sig)
-    case 'virality':       return viralityProvenance(sig)
-    case 'subscription':  return subscriptionProvenance()
-    case 'manufacturing': return manufacturingScoreProvenance()
-    default:               return legacyCompetitionProvenance()
-  }
-}
-
 function RiskAssessmentContent({ m }: { m: MemoData }) {
-  const dims = (Object.entries(m.scores) as [string, { score: number; notes: string }][])
-    .filter(([key]) => key !== 'competition')
-  const weak = dims.filter(([, v]) => v.score <= 5).sort((a, b) => a[1].score - b[1].score)
+  // Single source of truth (2026-06-26 fix): previously read m.scores.X.score
+  // directly — the model's OWN raw number, which could silently disagree
+  // with the real, server-computed score computeGroundedScore actually used
+  // elsewhere on the same memo (e.g. Score Breakdown). Now reads the same
+  // resolved dimensions everywhere: real rawScore when one exists, the AI's
+  // qualitativeLevel only when it doesn't.
+  const resolvedDims = computeGroundedScore(m).dimensions
+    .filter(d => (['demand', 'virality', 'subscription', 'manufacturing'] as const).includes(d.key as never))
+  const weak = resolvedDims
+    .map(d => ({
+      key:      d.key,
+      notes:    m.scores[d.key as 'demand' | 'virality' | 'subscription' | 'manufacturing']?.notes ?? '',
+      isWeak:   d.rawScore !== undefined ? d.rawScore <= 5 : d.qualitativeLevel === 'Low',
+      severity: d.rawScore !== undefined ? (d.rawScore <= 3 ? 'High' as const : 'Medium' as const) : 'Medium' as const,
+      display:  d.rawScore !== undefined ? `${d.rawScore}/10` : (d.qualitativeLevel ?? 'Low'),
+      provenance: { level: d.source, source: d.sourceLabel, detail: d.sourceLabel } as Provenance,
+    }))
+    .filter(d => d.isWeak && d.notes)
+    .sort((a, b) => (a.severity === 'High' ? 0 : 1) - (b.severity === 'High' ? 0 : 1))
 
   // Real recall risk, from News Intelligence — this tab was previously
   // 100% AI-judged dimension scores with zero real external-event grounding,
@@ -2961,17 +3076,17 @@ function RiskAssessmentContent({ m }: { m: MemoData }) {
       )}
       {weak.length > 0 && (
       <div className="rounded-xl border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
-        {weak.map(([key, { score, notes }]) => (
-          <div key={key} className={`flex gap-3 px-4 py-3.5 ${score <= 3 ? 'bg-red-400/[0.04]' : 'bg-amber-400/[0.03]'}`}>
-            <span className={`font-serif font-medium text-base shrink-0 w-10 ${score <= 3 ? 'text-red-400' : 'text-amber-400'}`}>{score}/10</span>
+        {weak.map(d => (
+          <div key={d.key} className={`flex gap-3 px-4 py-3.5 ${d.severity === 'High' ? 'bg-red-400/[0.04]' : 'bg-amber-400/[0.03]'}`}>
+            <span className={`font-serif font-medium text-base shrink-0 w-10 ${d.severity === 'High' ? 'text-red-400' : 'text-amber-400'}`}>{d.display}</span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2 mb-1">
-                <p className={`text-[10px] font-semibold uppercase tracking-wider ${score <= 3 ? 'text-red-400' : 'text-amber-400'}`}>
-                  {DIM_LABELS[key] ?? key}
+                <p className={`text-[10px] font-semibold uppercase tracking-wider ${d.severity === 'High' ? 'text-red-400' : 'text-amber-400'}`}>
+                  {DIM_LABELS[d.key] ?? d.key}
                 </p>
-                <ProvenanceBadge p={dimensionProvenance(key, m.signal_metadata)} />
+                <ProvenanceBadge p={d.provenance} />
               </div>
-              <p className="text-sm text-zinc-300 leading-relaxed">{notes}</p>
+              <p className="text-sm text-zinc-300 leading-relaxed">{d.notes}</p>
             </div>
           </div>
         ))}
@@ -3019,7 +3134,7 @@ function MfgConfidencePill({ label }: { label: 'High' | 'Medium' | 'Low' }) {
   )
 }
 
-function ManufacturingDisplay({ est, mfgScore }: { est: MfgEstimate; mfgScore: number }) {
+function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: 'High' | 'Medium' | 'Low' }) {
   const formatCurrency = (n: number) => n < 1 ? `$${n.toFixed(2)}` : `$${n % 1 === 0 ? n : n.toFixed(1)}`
   const isVerified   = est.data_source !== 'ai_synthesis'
   const sourceProvenance = manufacturingTabProvenance(est.data_source)
@@ -3063,7 +3178,7 @@ function ManufacturingDisplay({ est, mfgScore }: { est: MfgEstimate; mfgScore: n
         <div className="flex-1 px-3 py-3">
           <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Manufacturing Difficulty</p>
           <p className={`text-sm font-semibold leading-snug ${complexityColor}`}>{est.complexity}</p>
-          {mfgScore > 0 && <p className="text-[11px] text-zinc-500 mt-0.5">Score: {mfgScore}/10</p>}
+          <p className="text-[11px] text-zinc-500 mt-0.5">AI ease judgment: {mfgLevel}</p>
         </div>
         <div className="flex-1 px-3 py-3 flex items-center justify-between">
           <MfgConfidencePill label={est.confidence_label} />
@@ -3106,8 +3221,10 @@ function ManufacturingIntelligenceContent({ m, isActive }: { m: MemoData; isActi
   const [status,   setStatus]   = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [estimate, setEstimate] = useState<MfgEstimate | null>(null)
 
-  const mfgScore = m.scores.manufacturing?.score ?? 5
-  const complexityHint = mfgScore >= 8 ? 'Low' : mfgScore >= 6 ? 'Medium' : 'High'
+  // manufacturing level is an EASE judgment (High = easiest) — complexity is
+  // the inverse: High ease → Low complexity hint for the real Apify lookup below.
+  const mfgLevel = dimLevel(m, 'manufacturing') ?? 'Medium'
+  const complexityHint = mfgLevel === 'High' ? 'Low' : mfgLevel === 'Low' ? 'High' : 'Medium'
 
   const load = useCallback(async () => {
     if (status !== 'idle') return
@@ -3155,7 +3272,7 @@ function ManufacturingIntelligenceContent({ m, isActive }: { m: MemoData; isActi
         </div>
       )}
       {status === 'done' && estimate && (
-        <ManufacturingDisplay est={estimate} mfgScore={mfgScore} />
+        <ManufacturingDisplay est={estimate} mfgLevel={mfgLevel} />
       )}
     </div>
   )

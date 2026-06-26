@@ -68,16 +68,13 @@ Given a pet product idea, return a compact Investment Memo as valid JSON.
 Output ONLY the raw JSON object — no markdown, no code fences, no explanation, no preamble. Your entire response must be a single valid JSON object starting with { and ending with }.
 
 SAFETY POLICY:
-If the idea involves prescription veterinary drugs, controlled substances, or treatment claims for serious diseases, still return the full JSON. Set build_decision="SKIP", build_verdict="NO", and explain the regulatory risk. Never refuse. Always output complete JSON.
+If the idea involves prescription veterinary drugs, controlled substances, or treatment claims for serious diseases, still return the full JSON. Set build_decision="SKIP", and explain the regulatory risk. Never refuse. Always output complete JSON.
 
-SCORING (integers 0–10, be skeptical, never inflate):
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number:
 demand        — search volume + YoY growth + pet-owner awareness
 virality      — TikTok pet content virality + before/after + cute/transformation potential
 subscription  — recurring monthly orders + pet health dependency + repurchase mechanics
-manufacturing — formulation simplicity + AAFCO/NASC compliance burden + ingredient sourcing (10 = easiest)
-
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
-build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
+manufacturing — formulation simplicity + AAFCO/NASC compliance burden + ingredient sourcing (High = easiest)
 
 EVIDENCE TIERS (for pet ingredients and claims):
 ★ = theoretical / no pet-specific data  ★★ = traditional use / mechanistic only

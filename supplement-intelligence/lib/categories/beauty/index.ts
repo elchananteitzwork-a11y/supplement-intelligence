@@ -68,16 +68,13 @@ Given a beauty or skincare product idea, return a compact Investment Memo as val
 Output ONLY the raw JSON object — no markdown, no code fences, no explanation, no preamble. Your entire response must be a single valid JSON object starting with { and ending with }.
 
 SAFETY POLICY:
-If the idea includes prescription drugs, medical devices requiring FDA 510(k), or treatment claims for medical conditions, still return the full JSON. Set build_decision="SKIP", build_verdict="NO", and explain the regulatory risk. Never refuse. Always output complete JSON.
+If the idea includes prescription drugs, medical devices requiring FDA 510(k), or treatment claims for medical conditions, still return the full JSON. Set build_decision="SKIP", and explain the regulatory risk. Never refuse. Always output complete JSON.
 
-SCORING (integers 0–10, be skeptical, never inflate):
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number:
 demand        — search volume + YoY growth + consumer awareness
 virality      — TikTok/Instagram transformation content + before/after + GRWM potential
 subscription  — daily routine use + skin regression without it + replenishment cadence
-manufacturing — formulation simplicity + stability + cosmetic regulatory burden (10 = easiest)
-
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
-build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
+manufacturing — formulation simplicity + stability + cosmetic regulatory burden (High = easiest)
 
 EVIDENCE TIERS (for skincare actives):
 ★ = theoretical / in vitro only  ★★ = traditional / mechanistic evidence

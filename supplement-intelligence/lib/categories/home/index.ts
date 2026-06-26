@@ -72,14 +72,11 @@ Output ONLY the raw JSON object — no markdown, no code fences, no explanation,
 SAFETY POLICY:
 If the idea requires certifications that cannot realistically be obtained at DTC scale (UL listing for electrical, CPSC compliance for children's products) and this represents a prohibitive barrier, set build_decision="SKIP" and explain the regulatory barrier. Otherwise always output complete JSON with a realistic assessment.
 
-SCORING (integers 0–10, be skeptical, never inflate):
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number:
 demand        — search volume + YoY growth + consumer interest
 virality      — TikTok #CleanTok #HomeOrg viral potential + aesthetic content + transformation UGC
 subscription  — consumable replenishment rate + replacement cycle + repurchase mechanics
-manufacturing — product complexity + tooling cost + supply chain difficulty (10 = easiest)
-
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
-build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
+manufacturing — product complexity + tooling cost + supply chain difficulty (High = easiest)
 
 EVIDENCE TIERS (for product claims and materials):
 ★ = theoretical / anecdotal  ★★ = standard industry practice / traditional

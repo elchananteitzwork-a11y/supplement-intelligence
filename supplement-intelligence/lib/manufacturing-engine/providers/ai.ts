@@ -44,14 +44,13 @@ Return exactly:
 {
   "unit_cost": { "low": 0.0, "high": 0.0, "currency": "USD" },
   "moq":       { "low": 0, "high": 0, "unit": "units" },
-  "supplier_count": { "estimate": 0, "confidence": "High | Medium | Low" },
+  "supplier_count": { "estimate": 0 },
   "top_supplier_rating": 0.0,
   "lead_time_days": { "low": 0, "high": 0 },
   "complexity": "Low | Medium | High | Very High",
-  "confidence": 0.0,
-  "confidence_label": "High | Medium | Low",
   "notes": "one sentence on the key manufacturing consideration or risk"
-}`
+}
+Do not include a "confidence" or "confidence_label" field — the caller sets that itself.`
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -85,12 +84,22 @@ export class AIManufacturingProvider implements ManufacturingProvider {
         category:           req.category,
         unit_cost:          parsed.unit_cost,
         moq:                parsed.moq,
-        supplier_count:     parsed.supplier_count,
+        // confidence here is also fixed, not model-self-reported — same
+        // reasoning as the top-level confidence/confidence_label below.
+        supplier_count:     { estimate: parsed.supplier_count?.estimate ?? 0, confidence: 'Low' as ConfidenceLabel },
         top_supplier_rating: parsed.top_supplier_rating ?? null,
         lead_time_days:     parsed.lead_time_days,
         complexity:         (parsed.complexity  ?? 'Medium') as ManufacturingComplexity,
-        confidence:         parsed.confidence   ?? 0.5,
-        confidence_label:   (parsed.confidence_label ?? 'Medium') as ConfidenceLabel,
+        // PERMANENT RULE (2026-06-26): never let the model self-report its
+        // own confidence — that's a number with no traceable basis, just
+        // one step removed from the estimate it's describing. This whole
+        // path is reached ONLY when no real supplier data was available
+        // (the Apify provider, with its own deterministic scoreConfidence()
+        // formula over real counts, always runs first) — so a fixed, low,
+        // deterministic confidence is the honest constant here, not a
+        // model guess dressed as a measurement.
+        confidence:         0.2,
+        confidence_label:   'Low' as ConfidenceLabel,
         data_source:        'ai_synthesis',
         notes:              parsed.notes ?? '',
         fetched_at:         new Date().toISOString(),

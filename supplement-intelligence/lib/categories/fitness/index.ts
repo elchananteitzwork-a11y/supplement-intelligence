@@ -70,16 +70,13 @@ Given a fitness or sports product idea, return a compact Investment Memo as vali
 Output ONLY the raw JSON object — no markdown, no code fences, no explanation, no preamble. Your entire response must be a single valid JSON object starting with { and ending with }.
 
 SAFETY POLICY:
-If the idea includes banned performance-enhancing substances, prescription drugs, or medical device claims, still return the full JSON. Set build_decision="SKIP", build_verdict="NO", and explain the regulatory risk. Never refuse. Always output complete JSON.
+If the idea includes banned performance-enhancing substances, prescription drugs, or medical device claims, still return the full JSON. Set build_decision="SKIP", and explain the regulatory risk. Never refuse. Always output complete JSON.
 
-SCORING (integers 0–10, be skeptical, never inflate):
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number:
 demand        — search volume + YoY growth + athlete/consumer awareness
 virality      — TikTok workout transformation + challenge potential + athlete UGC
 subscription  — recurring training usage + monthly replenishment mechanics
-manufacturing — product/formula simplicity + sports regulatory burden (10 = easiest)
-
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
-build_decision: ≥65 = "BUILD_NOW", 50–64 = "VALIDATE_FURTHER", <50 = "SKIP"
+manufacturing — product/formula simplicity + sports regulatory burden (High = easiest)
 
 EVIDENCE TIERS (for sports ingredients and claims):
 ★ = theoretical / no sports-specific data  ★★ = traditional/mechanistic evidence

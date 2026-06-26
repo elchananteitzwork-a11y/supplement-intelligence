@@ -337,7 +337,10 @@ export class KeepaProvider implements SignalProvider {
     const avgOffers      = avg(offers)
     const avgPrice       = avg(prices)
     const avgMonthlySold = avg(monthlySolds)
-    const avgMomentum90d = avg(momentum90dPcts)
+    // Rounded at the source — confirmed live (2026-06-26): an unrounded
+    // float here ("-74.11111111111111%") reached the UI verbatim.
+    const avgMomentum90dRaw = avg(momentum90dPcts)
+    const avgMomentum90d = avgMomentum90dRaw !== null ? Math.round(avgMomentum90dRaw * 10) / 10 : null
     const avgFbaFee      = avg(fbaPickPackFees)
     const avgReferralFee = avg(referralFeePcts)
 

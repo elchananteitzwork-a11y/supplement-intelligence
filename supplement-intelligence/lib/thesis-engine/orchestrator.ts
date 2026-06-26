@@ -35,6 +35,7 @@ import type {
   SourceAttribution,
   ConfidenceScore,
   ConfidenceLabel,
+  SignalStrength,
   ProviderId,
   VerdictSection,
   TimingSection,
@@ -136,6 +137,56 @@ function makeSignal(
 
 function dimToDirection(score: number): SignalDirection {
   return score >= 6 ? 'positive' : score >= 4 ? 'neutral' : 'negative'
+}
+
+// ── Deterministic verdict score (2026-06-26 permanent rule) ─────────────────
+// Claude's synthesis call was independently inventing verdict.opportunity_score
+// and verdict.confidence from scratch, discarding the real per-provider
+// signals (magnitude/confidence, themselves already real — see makeSignal/
+// makeConfidence above) it was given as context. This computes both
+// deterministically from those real signals instead, and overrides whatever
+// Claude wrote — same override pattern as lib/scoring.ts computeGroundedScore
+// in the main memo pipeline. signal_strength is then a pure function of the
+// resulting score, using the exact thresholds already documented on the
+// SignalStrength type (so it can never disagree with the number next to it,
+// which independently-invented numbers always risked doing).
+function computeRealVerdictScore(signals: Signal[], agg: AggregatedSignals | null): {
+  score: number; confidence: ConfidenceScore; signal_strength: SignalStrength
+} {
+  if (!signals.length) {
+    return {
+      score: 0,
+      confidence: { value: 0, label: 'PRELIMINARY', supports: 'No real signal data was available for this query.', limits: 'No provider returned data — this is not a real assessment.', convergence: false, providers: [] },
+      signal_strength: 'INSUFFICIENT',
+    }
+  }
+
+  // direction-aware: a negative signal should pull the score down, not just
+  // add unsigned magnitude — same spirit as computeGroundedScore's weighted
+  // average, adapted to this module's existing Signal shape rather than
+  // introducing a new one.
+  const directional = signals.reduce((s, sig) => {
+    const sign = sig.direction === 'positive' ? 1 : sig.direction === 'negative' ? -1 : 0
+    return s + sig.magnitude * sign
+  }, 0) / signals.length
+  const score = Math.max(0, Math.min(100, Math.round((directional + 1) * 50)))
+
+  const signal_strength: SignalStrength =
+    score >= 80 ? 'STRONG' : score >= 65 ? 'POSITIVE' : score >= 45 ? 'MIXED' : score >= 25 ? 'WEAK' : 'INSUFFICIENT'
+
+  const confValue = agg?.overall_confidence
+    ?? (signals.reduce((s, sig) => s + sig.confidence.value, 0) / signals.length)
+  const providers = Array.from(new Set(signals.flatMap(sig => sig.providers)))
+  const confidence: ConfidenceScore = {
+    value:   confValue,
+    label:   toConfidenceLabel(confValue),
+    supports: `${providers.length} real provider${providers.length === 1 ? '' : 's'} returned data for this query (${providers.join(', ')}).`,
+    limits:   providers.length < 3 ? 'Fewer than 3 independent providers — treat as directional.' : 'Multiple independent providers agree — see convergence below.',
+    convergence: providers.length >= 3,
+    providers,
+  }
+
+  return { score, confidence, signal_strength }
 }
 
 export function adaptAggregatedSignals(agg: AggregatedSignals, query: string): Signal[] {
@@ -528,7 +579,13 @@ Rules:
 - signals[] and sources[] inside each section should be empty arrays — the orchestrator populates them
 - Include 2-4 market_failures, 4-6 difficulty dimensions, 2-4 risks, 2-3 scope_limitations, 2-4 recommended_steps
 - Be specific and actionable — generic answers are worse than a narrow but precise read
-- opportunity_score should reflect actual market conditions, not a neutral default`
+- PERMANENT RULE (2026-06-26): verdict.opportunity_score, verdict.confidence,
+  verdict.signal_strength, and the top-level overall_confidence are all
+  discarded and recomputed deterministically from the real signals you were
+  given above — your numbers for these four fields are never read. Still
+  include placeholder values so the JSON parses, but put your real analytical
+  effort into headline/summary/one_liner and every other section's
+  qualitative text instead — that's what actually reaches the user unchanged.`
 }
 
 // ── Claude call ────────────────────────────────────────────────────────────
@@ -647,6 +704,21 @@ export async function synthesize(
   emit?.({ event: 'synthesis:started' })
   const prompt    = buildSynthesisPrompt(query, depth, signals, clusters)
   const synthesis = await callClaudeSynthesis(prompt)
+
+  // ── Permanent rule (2026-06-26): override Claude's own opportunity_score/
+  // confidence/signal_strength with the deterministic computation over real
+  // signals — see computeRealVerdictScore above. Claude's headline/summary/
+  // one_liner text stays untouched; only the three numbers/label it invented
+  // independently of the real data it was given are replaced.
+  const realVerdict = computeRealVerdictScore(signals, agg)
+  synthesis.verdict.opportunity_score = realVerdict.score
+  synthesis.verdict.confidence        = realVerdict.confidence
+  synthesis.verdict.signal_strength   = realVerdict.signal_strength
+  // Same real computation — overall_confidence describes the whole thesis,
+  // not just the verdict section, but both answer the same underlying
+  // question ("how much real data backs this"), so reusing one real value
+  // rather than inventing a second deterministic formula for the same thing.
+  synthesis.overall_confidence = realVerdict.confidence
 
   // ── Wire signals into sections ──────────────────────────────
   const sourceAttrs = buildSourceAttributions(agg)

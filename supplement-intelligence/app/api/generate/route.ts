@@ -6,7 +6,7 @@ import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }    from '@/lib/signal-engine'
 import { keywordEngine, enrichKeywordIntelligence, explainKeywordIntelligence } from '@/lib/keyword-engine'
 import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
-import { computeGroundedScore } from '@/lib/scoring'
+import { computeGroundedScore, computeTractionBand } from '@/lib/scoring'
 import { checkConsistency } from '@/lib/consistency'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
 import { buildNewsIntelligence } from '@/lib/news-engine'
@@ -88,12 +88,13 @@ function parseJSON(raw: string): MemoData {
 
 function buildSkipMemo(input: string, skipReason: string): MemoData {
   const NA = 'N/A'
-  const noScore = (note: string) => ({ score: 0, notes: note })
+  // No numeric score: this is a technical-failure placeholder, not an
+  // assessment — a fabricated "0/10" would look like a real judgment.
+  const noScore = (note: string) => ({ notes: note })
   const parseNote = 'Not assessed — AI response could not be parsed. Please try again.'
   return {
     category_name:     input.slice(0, 60),
     executive_summary: 'This category could not be analyzed due to a technical error. Please resubmit.',
-    build_verdict:     'NO',
     build_decision:    'SKIP',
     build_explanation: `Analysis failed (${skipReason}). This is a technical issue, not a safety concern — please resubmit.`,
     opportunity_score: 0,
@@ -125,12 +126,9 @@ function buildSkipMemo(input: string, skipReason: string): MemoData {
       gross_margin:  NA,
     },
     financial_projections: {
-      ten_k_probability:     NA,
-      hundred_k_probability: NA,
-      one_m_probability:     NA,
-      gross_margin:          NA,
-      net_margin_at_scale:   NA,
-      path_to_10m:           NA,
+      gross_margin:        NA,
+      net_margin_at_scale: NA,
+      path_to_10m:         NA,
     },
   }
 }
@@ -160,22 +158,23 @@ function validateMemo(memo: MemoData): string[] {
   // Top-level scalars
   if (!isNonEmpty(memo.category_name))     missing.push('category_name')
   if (!isNonEmpty(memo.executive_summary)) missing.push('executive_summary')
-  if (!isNonEmpty(memo.build_verdict))     missing.push('build_verdict')
   if (!isNonEmpty(memo.build_decision))    missing.push('build_decision')
   if (!isNonEmpty(memo.build_explanation)) missing.push('build_explanation')
   if (typeof memo.opportunity_score !== 'number') missing.push('opportunity_score')
   if (!isNonEmpty(memo.market_size))       missing.push('market_size')
   if (!isNonEmpty(memo.gross_margin))      missing.push('gross_margin')
 
-  // 4 dimension scores (competition removed in Phase 2, defensibility removed
-  // 2026-06-25; competition is optional for old memos)
+  // 4 dimensions (competition removed in Phase 2, defensibility removed
+  // 2026-06-25; competition is optional for old memos). 2026-06-26 redesign:
+  // checks for `level` (qualitative), not `score` — AI is no longer asked
+  // for a number here at all, see lib/scoring.ts header comment.
   const dims = ['demand','virality','subscription','manufacturing'] as const
   if (!memo.scores) {
     missing.push('scores')
   } else {
     for (const d of dims) {
-      if (typeof memo.scores[d]?.score !== 'number') missing.push(`scores.${d}.score`)
-      if (!isNonEmpty(memo.scores[d]?.notes))        missing.push(`scores.${d}.notes`)
+      if (!isNonEmpty(memo.scores[d]?.level)) missing.push(`scores.${d}.level`)
+      if (!isNonEmpty(memo.scores[d]?.notes)) missing.push(`scores.${d}.notes`)
     }
   }
 
@@ -219,15 +218,16 @@ function validateMemo(memo: MemoData): string[] {
     if (!isNonEmpty(pr.retail_price))  missing.push('product_recommendation.retail_price')
   }
 
-  // financial_projections (all 7 fields)
+  // financial_projections — 2026-06-26 redesign: ten_k/hundred_k/one_m
+  // probability are no longer requested (no real base-rate model exists —
+  // see lib/scoring.ts computeTractionBand, which replaces them
+  // server-side) and must NOT be required here, or every memo fails
+  // validation 3x and falls back to a SKIP placeholder for no reason.
   const fp = memo.financial_projections
   if (!fp) {
     missing.push('financial_projections')
   } else {
-    const fpFields = [
-      'ten_k_probability','hundred_k_probability','one_m_probability',
-      'gross_margin','net_margin_at_scale','path_to_10m',
-    ] as const
+    const fpFields = ['gross_margin', 'net_margin_at_scale', 'path_to_10m'] as const
     for (const f of fpFields) {
       if (!isNonEmpty(fp[f])) missing.push(`financial_projections.${f}`)
     }
@@ -561,17 +561,22 @@ export async function POST(req: Request) {
   }
 
   // ── Server-side score recalculation ───────────────────────────
-  // Audit finding (2026-06-24): the old 5-dimension formula was 100%
-  // LLM-self-assigned numbers, with the real Keepa/Apify/DataForSEO evidence
-  // sitting unused in signal_evidence. lib/scoring.ts replaces each
-  // dimension's number with the real provider score wherever one exists
-  // (revenue, market accessibility, consumer pain are NEW — previously not
-  // scored at all) and only falls back to the model's own number when no
-  // real signal exists, clearly marked as such in the UI breakdown.
+  // Permanent rule (2026-06-26): a dimension contributes a number to the
+  // score ONLY when backed by real provider data or a deterministic formula
+  // over real data. lib/scoring.ts excludes every dimension with no real
+  // basis entirely — it no longer falls back to the model's own invented
+  // number for anything. Those dimensions still show, qualitatively, in the
+  // UI breakdown — never as a number.
   if (!skipReason && memo.scores) {
     const grounded = computeGroundedScore(memo)
     memo.opportunity_score = grounded.score
     memo.build_decision    = grounded.decision
+    // Deterministic replacement for the model's invented ten_k/hundred_k/
+    // one_m probabilities (no longer requested in the prompt) — see
+    // lib/scoring.ts computeTractionBand.
+    if (memo.financial_projections) {
+      memo.financial_projections.traction_band = computeTractionBand(memo)
+    }
 
     // Server-side consistency check (lib/consistency.ts) — logged for
     // visibility now; the same check re-runs in the UI (ConsistencyFlagsPanel)
@@ -620,6 +625,10 @@ export async function POST(req: Request) {
       category_name:       memo.category_name,
       target_audience:     targetAudience?.trim() ?? null,
       price_point:         pricePoint?.trim()     ?? null,
+      // 2026-06-26 redesign: these dimensions no longer have a number (AI
+      // writes a qualitative `level` instead — see lib/scoring.ts) — left
+      // null going forward rather than fabricating one, same pattern
+      // already used below for the two previously-removed columns.
       score_demand:        memo.scores.demand?.score        ?? null,
       score_competition:   null,  // removed in Phase 2 — column kept for schema compat
       score_virality:      memo.scores.virality?.score      ?? null,
@@ -628,7 +637,7 @@ export async function POST(req: Request) {
       score_defensibility: null,  // removed 2026-06-25 — column kept for schema compat
       opportunity_score:   memo.opportunity_score,
       build_decision:      memo.build_decision,
-      build_verdict:       memo.build_verdict ?? null,
+      build_verdict:       null,  // removed 2026-06-26 — generated, never read by any UI, pure waste; column kept for schema compat
       memo_data:           memo,
       biggest_competitor:  memo.biggest_competitor?.name    ?? null,
       market_size:         memo.market_size                 ?? null,

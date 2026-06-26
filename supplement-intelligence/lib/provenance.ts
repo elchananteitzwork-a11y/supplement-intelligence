@@ -92,12 +92,12 @@ export const STATIC_PROVENANCE = {
 
 export function demandProvenance(sig?: SignalMetadata): Provenance {
   if (sig?.demand_verified) {
-    return estimated(
+    return verified(
       'Keepa (Amazon)',
-      'Real Amazon sales-rank / search-volume data was retrieved and inserted into the prompt as required grounding context, with an explicit instruction not to override it. The model still wrote the final score and notes text — compliance is a prompt instruction, not a server-enforced calculation.'
+      "The demand SCORE shown is computed server-side from real Amazon sales-rank/search-volume data (lib/scoring.ts computeGroundedScore) — the model's own number is discarded whenever real data exists. Supplementary notes text is still model-written."
     )
   }
-  return synthesized('No external demand data was available for this query — score and notes are the model\'s own estimate from training knowledge.')
+  return synthesized('No external demand data was available for this query — the score shown (if any) is the model\'s own qualitative judgment, not a number.')
 }
 
 export function viralityProvenance(sig?: SignalMetadata): Provenance {
@@ -417,13 +417,17 @@ export function scoreDimensionProvenance(d: ScoreDimension): Provenance {
     : estimated(d.sourceLabel, `This dimension's score (${d.rawScore}/10) is the model's own judgment — ${d.sourceLabel.toLowerCase()}.`)
 }
 
-// Overall score provenance — names what fraction of the score's weight is
-// actually grounded, since the score itself is now a blend.
-export function opportunityScoreProvenance(groundedPct: number): Provenance {
-  if (groundedPct >= 50) {
-    return estimated('Blended score', `${groundedPct}% of this score's weight comes from real provider data (Keepa/Apify/DataForSEO/TikTok); the rest is AI judgment, clearly marked below.`)
+// Overall score provenance (2026-06-26 redesign): dimensions with no real
+// basis no longer contribute any weight to the 0-100 score at all (see
+// lib/scoring.ts header comment) — so groundedPct is now always 100 (at
+// least one real dimension was found) or the score is flagged as
+// insufficient evidence entirely. There is no longer a "partially real"
+// blend to report; this caption now explains THAT rule, not a percentage.
+export function opportunityScoreProvenance(groundedPct: number, insufficientEvidence = false): Provenance {
+  if (insufficientEvidence) {
+    return synthesized('No real provider data was found for any dimension of this query. The score shown is not a real verdict — treat it as "not enough evidence to assess," not as a SKIP recommendation.')
   }
-  return synthesized(`Only ${groundedPct}% of this score's weight comes from real data — most of this number is AI judgment. Treat the BUILD_NOW/SKIP call with caution until more real signals are available.`)
+  return estimated('Server-side formula', `Every dimension that contributes to this 0-100 score is backed by real provider data (Keepa/Apify/DataForSEO/TikTok) or a disclosed formula over real data — dimensions with no real basis (shown below) carry zero weight and never contribute a number, by design.`)
 }
 
 // Consistency-check flags (lib/consistency.ts) — a claim that was checked
