@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import Anthropic           from '@anthropic-ai/sdk'
 import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }    from '@/lib/signal-engine'
-import { keywordEngine }   from '@/lib/keyword-engine'
+import { keywordEngine, enrichKeywordIntelligence, explainKeywordIntelligence } from '@/lib/keyword-engine'
 import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
 import { computeGroundedScore } from '@/lib/scoring'
 import { checkConsistency } from '@/lib/consistency'
@@ -372,6 +372,28 @@ export async function POST(req: Request) {
       })
     : null
 
+  // ── Keyword Intelligence enrichment (deterministic — clusters, opportunity
+  // discovery, seasonality, forecast, per-keyword scores) + AI Insights ──────
+  // Enrichment needs topCompetitors/consumerIntelligence above, so it can't
+  // start until here. The AI Insights pass (the one LLM step in this whole
+  // module — see lib/keyword-engine/explain.ts) is fired now and awaited
+  // late, right before persisting to the memo, so it overlaps with the much
+  // slower main Sonnet generation call below instead of adding to latency.
+  const enrichedKeywordIntelligence = keywordIntelligence
+    ? enrichKeywordIntelligence(keywordIntelligence, {
+        competitorBrands:   topCompetitors?.map(c => c.brand) ?? [],
+        realBenefitPhrases: consumerIntelligence
+          ? [...consumerIntelligence.positiveThemes, ...consumerIntelligence.featureRequests].map(t => t.label)
+          : [],
+      })
+    : null
+  const keywordInsightsPromise = enrichedKeywordIntelligence
+    ? explainKeywordIntelligence(enrichedKeywordIntelligence, input.trim(), module.name).catch((e: unknown) => {
+        console.error('Keyword AI Insights failed', { error: e instanceof Error ? e.message : e })
+        return null
+      })
+    : Promise.resolve(null)
+
   const systemPrompt = signals
     ? module.buildSignalAugmentedPrompt(module.analysisSystemPrompt, input.trim(), signals, consumerIntelligence)
     : module.analysisSystemPrompt
@@ -490,8 +512,11 @@ export async function POST(req: Request) {
   if (!skipReason && signals) {
     memo.signal_evidence = signals
   }
-  if (!skipReason && keywordIntelligence) {
-    memo.keyword_intelligence = keywordIntelligence
+  if (!skipReason && enrichedKeywordIntelligence) {
+    const keywordAiInsights = await keywordInsightsPromise
+    memo.keyword_intelligence = keywordAiInsights
+      ? { ...enrichedKeywordIntelligence, ai_insights: keywordAiInsights }
+      : enrichedKeywordIntelligence
   }
   if (!skipReason && consumerIntelligence) {
     memo.consumer_intelligence = consumerIntelligence

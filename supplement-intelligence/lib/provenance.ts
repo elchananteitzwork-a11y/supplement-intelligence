@@ -284,6 +284,68 @@ export function keywordIntelligenceProvenance(ki?: KeywordIntelligence | null): 
   )
 }
 
+// ── Keyword Intelligence Engine v2 (2026-06-26) — clusters, opportunity
+// scores, seasonality, forecast, AI insights. Same "no fallback to model
+// judgment for a number presented as fact" rule as the rest of this
+// no-fabrication zone: every function below returns null rather than a
+// guess when the underlying real field isn't present.
+
+export function keywordClusterProvenance(): Provenance {
+  return estimated(
+    'Server-side rules',
+    'Clusters are deterministic pattern-matches over the real DataForSEO keyword list (volume rank, word count, generic commerce/comparison/problem language, and real competitor brand names) — never an AI classification pass. A keyword can appear in more than one cluster.'
+  )
+}
+
+export function keywordOpportunityScoreProvenance(): Provenance {
+  return estimated(
+    'Server-side formula',
+    'Computed deterministically from real search volume (50% weight, log-scaled), real competition index (25%), and real keyword difficulty (25%). The arithmetic is exact; the weighting is a judgment call encoded in the formula, not derived from market research.'
+  )
+}
+
+export function keywordClickConversionProvenance(): Provenance {
+  return estimated(
+    'Server-side formula',
+    'Click potential assumes a 20% click-through rate for a top-3 organic ranking — a disclosed industry-typical benchmark, not measured for a listing that does not exist yet. Conversion potential additionally assumes a conversion rate tiered by search intent (2-10%). Treat both as directional, not a guarantee.'
+  )
+}
+
+export function keywordAmazonPpcProvenance(): Provenance {
+  return estimated(
+    'Estimated — not Amazon Ads data',
+    'This codebase has no live Amazon Ads API connection (the provider is an unimplemented stub). This range is derived from the keyword\'s real Google CPC, widened by real Amazon competitor density — a directional estimate, not a bid recommendation, and never presented as Amazon-sourced.'
+  )
+}
+
+export function keywordSearchIntentProvenance(source?: 'dataforseo' | 'computed' | null): Provenance | null {
+  if (!source) return null
+  if (source === 'dataforseo') return verified('DataForSEO', "Search intent classification pulled directly from DataForSEO's own labeling for this keyword.")
+  return estimated('Server-side rules', 'DataForSEO did not supply an intent classification for this keyword — this is a rule-based pattern match on generic commerce/navigational language, not a model guess and not provider-sourced.')
+}
+
+export function keywordSeasonalityProvenance(ki?: KeywordIntelligence | null): Provenance | null {
+  if (!ki?.seasonality) return null
+  return estimated(
+    'Server-side formula',
+    `Computed from real 12-month search-volume history for "${ki.seasonality.source_keyword}" (DataForSEO) using a coefficient-of-variation method — the same statistical method already used for category-level seasonality elsewhere in this report. The pattern thresholds are a judgment call; the underlying monthly volumes are real.`
+  )
+}
+
+export function keywordForecastProvenance(ki?: KeywordIntelligence | null): Provenance | null {
+  if (!ki?.forecast_12mo) return null
+  return estimated(
+    'Server-side formula',
+    'A seasonal-naive statistical projection (same calendar month last year × the real recent YoY trend, capped to a sane range) over real DataForSEO history — not an AI forecast, not a guarantee. Requires a full real 12-month history; shown only when that exists.'
+  )
+}
+
+export function keywordAiInsightsProvenance(): Provenance {
+  return synthesized(
+    'Narrative interpretation written by a separate, narrow AI pass over the real/computed keyword numbers above — it can describe and prioritize those numbers but cannot introduce a new metric, since none of its output is read back into any numeric field.'
+  )
+}
+
 export function consumerIntelligenceProvenance(ci?: ConsumerIntelligenceReport | null): Provenance | null {
   if (!ci) return null
   return verified(

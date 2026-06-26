@@ -66,10 +66,19 @@ interface DfsKeywordInfo {
   search_volume_trend?:  DfsSearchVolumeTrend   // DataForSEO's own pre-computed trend — preferred over our own derivation below
 }
 interface DfsKeywordProperties { keyword_difficulty?: number }
+// CONFIRMED VIA DOCS REVIEW (2026-06-26): related_keywords/live's keyword_data
+// does not include a search_intent_info field — that's only on a different
+// DataForSEO Labs endpoint (search_intent/live), which this provider does not
+// call (would be a second paid request per keyword). Typed here defensively
+// in case DataForSEO adds it to this endpoint later; when absent (the case
+// today), derive.ts's rule-based classifier fills search_intent instead and
+// tags it 'computed', never 'dataforseo'.
+interface DfsSearchIntentInfo { main_intent?: string }
 interface DfsKeywordData {
   keyword?:            string
   keyword_info?:       DfsKeywordInfo
   keyword_properties?: DfsKeywordProperties
+  search_intent_info?: DfsSearchIntentInfo
 }
 interface DfsItem { keyword_data?: DfsKeywordData }
 interface DfsResult { items?: DfsItem[] }
@@ -102,6 +111,22 @@ function computeGrowthPct(months: DfsMonthlySearch[]): number | null {
   return Math.round(((newAvg - oldAvg) / oldAvg) * 100)
 }
 
+const VALID_INTENTS = new Set(['commercial', 'transactional', 'informational', 'navigational'])
+
+// Real chronological history, for the seasonality/forecast/trend-chart layer
+// added 2026-06-26 — same real field already fetched to compute growth_pct,
+// previously discarded immediately after. Reuses the exact sort already
+// proven correct in computeGrowthPct (DataForSEO returns most-recent-first).
+function toMonthlyHistory(months: DfsMonthlySearch[]): { year: number; month: number; volume: number }[] {
+  const valid = months.filter(
+    (m): m is Required<DfsMonthlySearch> =>
+      typeof m.search_volume === 'number' && typeof m.year === 'number' && typeof m.month === 'number',
+  )
+  return valid
+    .sort((a, b) => (a.year * 12 + a.month) - (b.year * 12 + b.month))
+    .map(m => ({ year: m.year, month: m.month, volume: m.search_volume }))
+}
+
 function toMetric(data: DfsKeywordData): KeywordMetric | null {
   const keyword = data.keyword?.trim()
   const volume  = data.keyword_info?.search_volume
@@ -113,6 +138,13 @@ function toMetric(data: DfsKeywordData): KeywordMetric | null {
   const providerYearly = data.keyword_info?.search_volume_trend?.yearly
   const growth = typeof providerYearly === 'number' ? providerYearly : computeGrowthPct(data.keyword_info?.monthly_searches ?? [])
 
+  // Monthly/quarterly trend are the same real DataForSEO field family as
+  // yearly above — already in this response, just unused until now.
+  const trend30d = data.keyword_info?.search_volume_trend?.monthly
+  const trend90d = data.keyword_info?.search_volume_trend?.quarterly
+
+  const realIntent = data.search_intent_info?.main_intent?.toLowerCase()
+
   return {
     keyword,
     monthly_searches: volume,
@@ -120,6 +152,16 @@ function toMetric(data: DfsKeywordData): KeywordMetric | null {
     competition:       data.keyword_info?.competition ?? null,
     difficulty:        data.keyword_properties?.keyword_difficulty ?? null,
     cpc:               data.keyword_info?.cpc ?? null,
+
+    growth_pct_30d:  typeof trend30d === 'number' ? trend30d : null,
+    growth_pct_90d:  typeof trend90d === 'number' ? trend90d : null,
+    monthly_history: toMonthlyHistory(data.keyword_info?.monthly_searches ?? []),
+    // Real only if DataForSEO actually supplied it on this response (see the
+    // DfsSearchIntentInfo comment above — not present on this endpoint
+    // today). build.ts's enrichMetric() fills the computed fallback when
+    // this is null, and is careful never to overwrite a real value here.
+    search_intent:        realIntent && VALID_INTENTS.has(realIntent) ? (realIntent as KeywordMetric['search_intent']) : null,
+    search_intent_source: realIntent && VALID_INTENTS.has(realIntent) ? 'dataforseo' : null,
   }
 }
 

@@ -6,6 +6,7 @@ import type {
   GrowthSignal,
   SeasonalitySignal,
 } from '../types'
+import { coefficientOfVariation, cvToPattern, cvToStability, detectPeakAndLowMonths, MONTH_NAMES, avg } from '@/lib/stats'
 
 // ── Google Trends (unofficial public API) ─────────────────────────
 // Uses the `google-trends-api` npm package which wraps the same endpoints
@@ -42,10 +43,6 @@ function toSearchKeyword(category: string): string {
     .replace(/\bsupplements?\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim()
-}
-
-function avg(arr: number[]): number {
-  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
 }
 
 // Demand score from relative interest (0–100 scale → 0–10)
@@ -90,46 +87,16 @@ function growthToTrendStr(pct: number): string {
   return pct > 0 ? `+${Math.round(pct)}% YoY` : `${Math.round(pct)}% YoY`
 }
 
-// Seasonality score: high score = perennial (great for subscription).
-// CV (coefficient of variation) measures relative volatility.
-function cvToSeasonalityScore(cv: number): number {
-  if (cv < 15) return 9
-  if (cv < 25) return 8
-  if (cv < 35) return 7
-  if (cv < 50) return 5
-  if (cv < 65) return 3
-  return 1
-}
-
-function cvToPattern(cv: number): SeasonalitySignal['pattern'] {
-  if (cv < 30) return 'Perennial'
-  if (cv < 55) return 'Seasonal'
-  return 'Event-driven'
-}
-
 // Detect peak months by grouping weekly data points into calendar months
-// and returning the 1–2 months with above-average interest.
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
+// and returning the 1–2 months with above-average interest. Wraps the
+// shared lib/stats.ts helper (real timestamp → real month index conversion
+// stays here, since that's specific to this provider's weekly time format).
 function detectPeakMonths(points: TimelinePoint[]): string[] {
-  const monthly: Record<number, number[]> = {}
-  for (const pt of points) {
-    const d = new Date(Number(pt.time) * 1000)
-    const m = d.getUTCMonth()
-    if (!monthly[m]) monthly[m] = []
-    monthly[m].push(pt.value[0])
-  }
-  const monthlyAvg = Object.entries(monthly).map(([m, vals]) => ({
-    month: Number(m),
-    avg:   vals.reduce((a, b) => a + b, 0) / vals.length,
+  const monthPoints = points.map(pt => ({
+    month: new Date(Number(pt.time) * 1000).getUTCMonth(),
+    value: pt.value[0],
   }))
-  if (!monthlyAvg.length) return []
-  const overallAvg = monthlyAvg.reduce((s, x) => s + x.avg, 0) / monthlyAvg.length
-  return monthlyAvg
-    .filter(x => x.avg > overallAvg * 1.2)  // 20% above average = peak
-    .sort((a, b) => b.avg - a.avg)
-    .slice(0, 2)
-    .map(x => MONTH_NAMES[x.month])
+  return detectPeakAndLowMonths(monthPoints).peakMonths.slice(0, 2).map(m => MONTH_NAMES[m])
 }
 
 // ── Core provider class ───────────────────────────────────────────
@@ -204,9 +171,8 @@ export class GoogleTrendsProvider implements SignalProvider {
       momPct > 10  ? 'Accelerating' :
       momPct < -10 ? 'Decelerating' : 'Stable'
 
-    // ── Seasonality: coefficient of variation ──
-    const variance = values.reduce((s, v) => s + Math.pow(v - meanVal, 2), 0) / values.length
-    const cv       = meanVal > 0 ? (Math.sqrt(variance) / meanVal) * 100 : 100
+    // ── Seasonality: coefficient of variation (shared helper, see lib/stats.ts) ──
+    const cv       = coefficientOfVariation(values)
     const peakMonths = cvToPattern(cv) !== 'Perennial' ? detectPeakMonths(points) : []
 
     // ── Confidence: more points + higher avg = more reliable ──
@@ -227,7 +193,7 @@ export class GoogleTrendsProvider implements SignalProvider {
     }
 
     const seasonality: SeasonalitySignal = {
-      score:       cvToSeasonalityScore(cv),
+      score:       cvToStability(cv),
       confidence:  Math.min(0.85, confidence),
       pattern:     cvToPattern(cv),
       peak_months: peakMonths.length ? peakMonths : undefined,

@@ -3,7 +3,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { MemoData, BuildDecision, SignalMetadata } from '@/types/index'
 import type { ViralitySignal } from '@/lib/signal-engine/types'
-import type { KeywordMetric } from '@/lib/keyword-engine/types'
+import type {
+  KeywordMetric, KeywordIntelligence, KeywordCluster, KeywordOpportunitySignals,
+  KeywordSeasonality, KeywordForecastPoint, KeywordAIInsights,
+} from '@/lib/keyword-engine/types'
 import type { ThemeInsight } from '@/lib/consumer-intelligence'
 import { computeGroundedScore } from '@/lib/scoring'
 import { checkConsistency } from '@/lib/consistency'
@@ -21,6 +24,9 @@ import {
   marketAccessibilityProvenance, keywordIntelligenceProvenance, consumerIntelligenceProvenance,
   scoreDimensionProvenance, opportunityScoreProvenance, consistencyFlagProvenance,
   biggestCompetitorProvenance, computeEvidenceCoverage, newsIntelligenceProvenance,
+  keywordClusterProvenance, keywordOpportunityScoreProvenance, keywordClickConversionProvenance,
+  keywordAmazonPpcProvenance, keywordSearchIntentProvenance, keywordSeasonalityProvenance,
+  keywordForecastProvenance, keywordAiInsightsProvenance,
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
 import type { NewsItem } from '@/lib/news-engine/types'
@@ -372,6 +378,7 @@ function SectionIntro({ text }: { text: string }) {
 
 const NAV_SECTIONS = [
   { id: 'market-intelligence',       label: 'Market' },
+  { id: 'keyword-intelligence',      label: 'Keywords' },
   { id: 'news-intelligence',         label: 'News' },
   { id: 'consumer-intelligence',     label: 'Consumer' },
   { id: 'manufacturing-intelligence', label: 'Manufacturing' },
@@ -1698,19 +1705,19 @@ function CompetitionEvidencePanel({ m }: { m: MemoData }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// KEYWORD INTELLIGENCE — real per-keyword search data from DataForSEO
-// (m.keyword_intelligence, server-captured, never touched by the model).
-// Four buckets, each a literal Keyword / Monthly Searches / Growth table —
-// the goal is that a user immediately sees what people actually search for,
-// not a paraphrase of it.
+// KEYWORD INTELLIGENCE ENGINE (2026-06-26) — real per-keyword search data
+// from DataForSEO (m.keyword_intelligence, server-captured, never touched
+// by the model), plus clusters / opportunity discovery / seasonality /
+// forecast / per-keyword scores computed deterministically over those real
+// numbers (lib/keyword-engine/derive.ts, cluster.ts), plus one narrow AI
+// narrative pass over the results (lib/keyword-engine/explain.ts). See
+// lib/provenance.ts's "Keyword Intelligence Engine v2" block for the exact
+// verified/estimated/synthesized classification of every field below.
+// Every optional field is read defensively — memos generated before this
+// date have the original 4-bucket shape only and must keep rendering.
 // ═══════════════════════════════════════════════════════════════
 
-const KEYWORD_BUCKETS = [
-  { key: 'top_buying'   as const, label: 'Top Buying' },
-  { key: 'opportunity'  as const, label: 'Opportunity' },
-  { key: 'long_tail'    as const, label: 'Long-Tail' },
-  { key: 'fast_growing' as const, label: 'Fast-Growing' },
-]
+const KEYWORD_NAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function KeywordTable({ keywords }: { keywords: KeywordMetric[] }) {
   if (keywords.length === 0) {
@@ -1744,45 +1751,412 @@ function KeywordTable({ keywords }: { keywords: KeywordMetric[] }) {
   )
 }
 
-function KeywordIntelligenceSection({ m }: { m: MemoData }) {
-  const ki = m.keyword_intelligence
-  const [active, setActive] = useState<typeof KEYWORD_BUCKETS[number]['key']>('top_buying')
+function ExpandableKeywordTable({ keywords, collapseAt = 5 }: { keywords: KeywordMetric[]; collapseAt?: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const shown  = expanded ? keywords : keywords.slice(0, collapseAt)
+  const hidden = Math.max(0, keywords.length - collapseAt)
+  return (
+    <div>
+      <KeywordTable keywords={shown} />
+      {hidden > 0 && !expanded && (
+        <button onClick={() => setExpanded(true)} className="text-[11px] text-amber-400/70 hover:text-amber-400 transition-colors mt-2">
+          Show {hidden} more →
+        </button>
+      )}
+    </div>
+  )
+}
+
+function KeywordDataQualityBar({ ki }: { ki: KeywordIntelligence }) {
+  const pct = ki.confidence !== undefined ? Math.round(ki.confidence * 100) : null
+  return (
+    <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap text-[10px] text-zinc-500 bg-white/[0.02] border border-white/[0.06] rounded-lg px-3.5 py-2.5">
+      <span>Seed: <span className="text-zinc-300 font-mono">&ldquo;{ki.seed_keyword}&rdquo;</span></span>
+      <span>Source: <span className="text-zinc-300 font-mono">{ki.provider === 'dataforseo' ? 'DataForSEO' : ki.provider}</span></span>
+      {pct !== null && <span>Real-data completeness: <span className="text-zinc-300 font-mono">{pct}%</span></span>}
+      <span>Last updated: <span className="text-zinc-300 font-mono">{new Date(ki.fetched_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></span>
+    </div>
+  )
+}
+
+// Real 12-month volume bars + trend line — the actual DataForSEO history,
+// not a synthetic curve.
+function VolumeTrendChart({ history }: { history: { year: number; month: number; volume: number }[] }) {
+  if (history.length < 3) return null
+  const W = 600, H = 160, PAD = 22
+  const maxVol = Math.max(...history.map(h => h.volume), 1)
+  const barW = (W - PAD * 2) / history.length
+  const linePoints = history.map((h, i) => {
+    const x = PAD + i * barW + barW / 2
+    const y = H - PAD - (h.volume / maxVol) * (H - PAD * 2)
+    return `${x},${y}`
+  }).join(' ')
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-1">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Keyword Intelligence</p>
-        {keywordIntelligenceProvenance(ki) && <ProvenanceBadge p={keywordIntelligenceProvenance(ki)!} />}
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+        {history.map((h, i) => {
+          const x = PAD + i * barW
+          const barH = (h.volume / maxVol) * (H - PAD * 2)
+          return <rect key={i} x={x + 1} y={H - PAD - barH} width={Math.max(1, barW - 2)} height={barH} fill="rgba(200,164,99,0.22)" />
+        })}
+        <polyline points={linePoints} fill="none" stroke="#C8A463" strokeWidth="1.5" />
+        <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="rgba(255,255,255,0.08)" />
+      </svg>
+      <div className="flex justify-between text-[9px] text-zinc-600 mt-1">
+        <span>{history[0].year}-{String(history[0].month).padStart(2, '0')}</span>
+        <span>{history[history.length - 1].year}-{String(history[history.length - 1].month).padStart(2, '0')}</span>
+      </div>
+    </div>
+  )
+}
+
+// Real per-calendar-month average from the same monthly history — peak/low
+// coloring matches the already-computed seasonality.peak_months/low_months
+// (same coefficient-of-variation method as lib/stats.ts).
+function SeasonalityChart({ history, seasonality }: {
+  history: { year: number; month: number; volume: number }[]
+  seasonality: KeywordSeasonality
+}) {
+  const byMonth: Record<number, number[]> = {}
+  for (const h of history) {
+    const idx = h.month - 1
+    if (!byMonth[idx]) byMonth[idx] = []
+    byMonth[idx].push(h.volume)
+  }
+  const bars = KEYWORD_NAMES_SHORT.map((name, i) => {
+    const vals = byMonth[i] ?? []
+    const avgVol = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
+    return { name, avgVol, isPeak: seasonality.peak_months.includes(name), isLow: seasonality.low_months.includes(name) }
+  })
+  const maxVol = Math.max(...bars.map(b => b.avgVol), 1)
+  const W = 600, H = 120, PAD = 8
+  const barW = (W - PAD * 2) / 12
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+      {bars.map((b, i) => {
+        const barH = (b.avgVol / maxVol) * (H - 24)
+        const x = PAD + i * barW
+        const color = b.isPeak ? '#34d399' : b.isLow ? '#f87171' : 'rgba(255,255,255,0.18)'
+        return (
+          <g key={b.name}>
+            <rect x={x + 1} y={H - 18 - barH} width={Math.max(1, barW - 2)} height={barH} fill={color} />
+            <text x={x + barW / 2} y={H - 4} fontSize="8" textAnchor="middle" fill="#71717a">{b.name}</text>
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+function ForecastChart({ forecast }: { forecast: KeywordForecastPoint[] }) {
+  const W = 600, H = 120, PAD = 20
+  const maxVol = Math.max(...forecast.map(f => f.projected_volume), 1)
+  const points = forecast.map((f, i) => {
+    const x = PAD + (forecast.length > 1 ? (i / (forecast.length - 1)) * (W - PAD * 2) : 0)
+    const y = H - PAD - (f.projected_volume / maxVol) * (H - PAD * 2)
+    return `${x},${y}`
+  }).join(' ')
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+        <polyline points={points} fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="4 3" />
+        <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="rgba(255,255,255,0.08)" />
+      </svg>
+      <div className="flex justify-between text-[9px] text-zinc-600 mt-1">
+        <span>{forecast[0]?.month}</span>
+        <span>{forecast[forecast.length - 1]?.month}</span>
+      </div>
+    </div>
+  )
+}
+
+// Scatter: x = real competition index, y = real volume (log scale), size/color
+// = computed opportunity score. Capped to the top 25 by volume for readability.
+function OpportunityHeatmap({ metrics }: { metrics: KeywordMetric[] }) {
+  const pts = [...metrics]
+    .filter(m => m.competition !== null && m.competition !== undefined)
+    .sort((a, b) => b.monthly_searches - a.monthly_searches)
+    .slice(0, 25)
+  if (!pts.length) return <p className="text-xs text-zinc-600 italic py-4 text-center">No competition-index data available for this query.</p>
+
+  const W = 600, H = 260, PAD = 30
+  const maxVol = Math.max(...pts.map(p => p.monthly_searches), 1)
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="rgba(255,255,255,0.1)" />
+      <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="rgba(255,255,255,0.1)" />
+      {pts.map((p, i) => {
+        const x = PAD + (p.competition ?? 0) * (W - PAD * 2)
+        const y = H - PAD - (Math.log10(p.monthly_searches + 1) / Math.log10(maxVol + 1)) * (H - PAD * 2)
+        const score = p.opportunity_score ?? 0
+        const r = 3 + (score / 100) * 8
+        const color = score >= 60 ? '#34d399' : score >= 35 ? '#fbbf24' : '#71717a'
+        return <circle key={p.keyword + i} cx={x} cy={y} r={r} fill={color} fillOpacity={0.5} stroke={color} strokeWidth={1} />
+      })}
+      <text x={PAD} y={H - 10} fontSize="8" fill="#71717a">Low competition</text>
+      <text x={W - PAD - 62} y={H - 10} fontSize="8" fill="#71717a">High competition</text>
+      <text x={PAD + 2} y={PAD - 8} fontSize="8" fill="#71717a">High volume ↑</text>
+    </svg>
+  )
+}
+
+function ClusterDistributionChart({ clusters }: { clusters: KeywordCluster[] }) {
+  const withCounts = clusters.map(c => ({ label: c.label, count: c.keywords.length }))
+  const maxCount = Math.max(...withCounts.map(c => c.count), 1)
+  return (
+    <div className="space-y-1.5">
+      {withCounts.map(c => (
+        <div key={c.label} className="flex items-center gap-2">
+          <span className="text-[10px] text-zinc-500 w-32 sm:w-36 shrink-0 truncate">{c.label}</span>
+          <div className="flex-1 h-3 bg-white/[0.04] rounded-sm overflow-hidden">
+            <div className="h-full bg-brass/40" style={{ width: `${(c.count / maxCount) * 100}%` }} />
+          </div>
+          <span className="text-[10px] font-mono text-zinc-400 w-6 text-right">{c.count}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function KeywordClusterCard({ cluster }: { cluster: KeywordCluster }) {
+  return (
+    <div className="rounded-xl border border-white/[0.07] p-4">
+      <div className="flex items-center justify-between gap-3 mb-1.5">
+        <p className="text-xs font-semibold text-zinc-200">{cluster.label}</p>
+        <span className="text-[10px] font-mono text-zinc-500">{cluster.keywords.length}</span>
+      </div>
+      <p className="text-[10px] text-zinc-600 mb-3">{cluster.basis}</p>
+      <ExpandableKeywordTable keywords={cluster.keywords} collapseAt={5} />
+    </div>
+  )
+}
+
+function KeywordOpportunityDiscoverySection({ opp }: { opp: KeywordOpportunitySignals }) {
+  const groups: { label: string; keywords: KeywordMetric[]; hint: string }[] = [
+    { label: 'High Volume + Low Competition',  keywords: opp.high_volume_low_competition, hint: 'Real volume ≥1,000/mo with real competition index ≤0.35.' },
+    { label: 'Fastest Growing',                 keywords: opp.fastest_growing,              hint: 'Real positive YoY growth (DataForSEO history), sorted highest first.' },
+    { label: 'Highest Commercial Intent',        keywords: opp.highest_commercial_intent,    hint: 'Classified commercial/transactional intent, sorted by real volume.' },
+    { label: 'White-space Opportunities',         keywords: opp.white_space,                   hint: 'Real high volume + low competition + low difficulty + no real competitor brand overlap.' },
+  ]
+  return (
+    <div className="space-y-5">
+      <div className="grid sm:grid-cols-2 gap-4">
+        {groups.map(g => (
+          <div key={g.label} className="rounded-xl border border-white/[0.07] p-4">
+            <p className="text-xs font-semibold text-zinc-200 mb-1">{g.label}</p>
+            <p className="text-[10px] text-zinc-600 mb-3">{g.hint}</p>
+            <ExpandableKeywordTable keywords={g.keywords} collapseAt={5} />
+          </div>
+        ))}
+      </div>
+      {opp.not_buildable.length > 0 && (
+        <div className="rounded-lg bg-white/[0.02] border border-white/[0.07] px-4 py-3">
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Requested, Not Currently Buildable With Real Data</p>
+          <ul className="space-y-1.5">
+            {opp.not_buildable.map(item => (
+              <li key={item.label} className="text-[11px] text-zinc-500">
+                <span className="text-zinc-400 font-medium">{item.label}:</span> {item.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProductImpactStat({ label, value, provenance }: { label: string; value: string; provenance: Provenance | null }) {
+  return (
+    <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2.5">
+      <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-sm font-mono font-semibold text-zinc-100">{value}</p>
+      {provenance && <div className="mt-1.5"><ProvenanceBadge p={provenance} /></div>}
+    </div>
+  )
+}
+
+function KeywordAIInsightsPanel({ insights }: { insights: KeywordAIInsights }) {
+  const rows: [string, string][] = [
+    ['Top Opportunities', insights.top_opportunities],
+    ['Biggest Risks',     insights.biggest_risks],
+    ['Hidden Demand',     insights.hidden_demand],
+    ['Keyword Strategy',  insights.keyword_strategy],
+    ['SEO Strategy',      insights.seo_strategy],
+    ['Amazon Strategy',   insights.amazon_strategy],
+    ['Google Strategy',   insights.google_strategy],
+  ]
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-zinc-300 leading-relaxed font-serif italic">{insights.summary}</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        {rows.filter(([, v]) => v).map(([label, text]) => (
+          <div key={label} className="rounded-lg border border-white/[0.06] p-3.5">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">{label}</p>
+            <p className="text-xs text-zinc-400 leading-relaxed">{text}</p>
+          </div>
+        ))}
+      </div>
+      <ProvenanceCaption p={keywordAiInsightsProvenance()} />
+    </div>
+  )
+}
+
+function KeywordIntelligenceContent({ m }: { m: MemoData }) {
+  const ki = m.keyword_intelligence
+
+  if (!ki) {
+    return (
+      <div>
+        <SectionIntro text="Real per-keyword search data — volume, growth, competition, difficulty, and CPC — pulled directly from DataForSEO. Clusters, opportunity scores, and AI strategy notes are computed from those real numbers, never invented." />
+        <p className="text-sm font-mono text-zinc-600 italic py-6 text-center">No data available</p>
+      </div>
+    )
+  }
+
+  const allMetrics = [...ki.top_buying, ...ki.opportunity, ...ki.long_tail, ...ki.fast_growing]
+  const topKeyword  = [...allMetrics].sort((a, b) => b.monthly_searches - a.monthly_searches)[0] as KeywordMetric | undefined
+  const hasHistory  = (topKeyword?.monthly_history?.length ?? 0) >= 6
+  const volProv     = searchVolumeProvenance(ki)
+  const kiProv      = keywordIntelligenceProvenance(ki)
+
+  return (
+    <div className="space-y-8">
+      <SectionIntro text="Every chart and table below traces back to a real DataForSEO number. Clusters and scores are disclosed formulas over those real numbers (see badges); AI Insights at the bottom is the only narrative/interpretive layer." />
+      <KeywordDataQualityBar ki={ki} />
+
+      {hasHistory && topKeyword?.monthly_history && volProv && (
+        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-xs font-semibold text-zinc-200">Search Demand — &ldquo;{topKeyword.keyword}&rdquo;</p>
+            <ProvenanceBadge p={volProv} />
+          </div>
+          <VolumeTrendChart history={topKeyword.monthly_history} />
+        </div>
+      )}
+
+      {ki.seasonality && topKeyword?.monthly_history && (
+        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <p className="text-xs font-semibold text-zinc-200">Seasonality</p>
+            <ProvenanceBadge p={keywordSeasonalityProvenance(ki)!} />
+          </div>
+          <p className="text-[11px] text-zinc-500 mb-3">
+            Pattern: <span className="text-zinc-300 font-medium">{ki.seasonality.pattern}</span>
+            {ki.seasonality.peak_months.length > 0 && <> · Peak: <span className="text-emerald-400">{ki.seasonality.peak_months.join(', ')}</span></>}
+            {ki.seasonality.low_months.length > 0  && <> · Low: <span className="text-red-400/80">{ki.seasonality.low_months.join(', ')}</span></>}
+          </p>
+          <SeasonalityChart history={topKeyword.monthly_history} seasonality={ki.seasonality} />
+        </div>
+      )}
+
+      {ki.forecast_12mo && ki.forecast_12mo.length > 0 && (
+        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-xs font-semibold text-zinc-200">12-Month Forecast — &ldquo;{topKeyword?.keyword}&rdquo;</p>
+            <ProvenanceBadge p={keywordForecastProvenance(ki)!} />
+          </div>
+          <ForecastChart forecast={ki.forecast_12mo} />
+        </div>
+      )}
+
+      <div className="grid sm:grid-cols-2 gap-5">
+        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-xs font-semibold text-zinc-200">Opportunity Heatmap</p>
+            <ProvenanceBadge p={keywordOpportunityScoreProvenance()} />
+          </div>
+          <OpportunityHeatmap metrics={allMetrics} />
+          <p className="text-[10px] text-zinc-600 mt-2">X: real competition index · Y: real volume (log) · size/color: computed opportunity score</p>
+        </div>
+        {ki.clusters && ki.clusters.length > 0 && (
+          <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="text-xs font-semibold text-zinc-200">Keyword Distribution by Cluster</p>
+              <ProvenanceBadge p={keywordClusterProvenance()} />
+            </div>
+            <ClusterDistributionChart clusters={ki.clusters} />
+          </div>
+        )}
       </div>
 
-      {!ki ? (
-        <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+      {ki.clusters && ki.clusters.length > 0 ? (
+        <div>
+          <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Keyword Clusters</p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {ki.clusters.map(c => <KeywordClusterCard key={c.label} cluster={c} />)}
+          </div>
+        </div>
       ) : (
-        <>
-          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-            <p className="text-[10px] text-zinc-600">Seed: &ldquo;{ki.seed_keyword}&rdquo;</p>
-            <p className="text-[10px] text-zinc-500">
-              Keyword Source: <span className="font-mono text-zinc-300">{ki.provider === 'dataforseo' ? 'DataForSEO' : ki.provider}</span>
-            </p>
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Keyword Buckets</p>
+            {kiProv && <ProvenanceBadge p={kiProv} />}
           </div>
-          <div className="flex items-center gap-1 mb-3 overflow-x-auto no-scrollbar">
-            {KEYWORD_BUCKETS.map(b => (
-              <button
-                key={b.key}
-                onClick={() => setActive(b.key)}
-                className={`text-[12.5px] font-medium px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap ${
-                  active === b.key
-                    ? 'bg-brass/10 border-brass/40 text-brass'
-                    : 'bg-white/[0.04] border-white/[0.08] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.16]'
-                }`}
-              >
-                {b.label}
-              </button>
-            ))}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div><p className="text-[10px] text-zinc-500 mb-2">Top Buying</p><ExpandableKeywordTable keywords={ki.top_buying} /></div>
+            <div><p className="text-[10px] text-zinc-500 mb-2">Opportunity</p><ExpandableKeywordTable keywords={ki.opportunity} /></div>
+            <div><p className="text-[10px] text-zinc-500 mb-2">Long-Tail</p><ExpandableKeywordTable keywords={ki.long_tail} /></div>
+            <div><p className="text-[10px] text-zinc-500 mb-2">Fast-Growing</p><ExpandableKeywordTable keywords={ki.fast_growing} /></div>
           </div>
-          <KeywordTable keywords={ki[active]} />
-        </>
+        </div>
       )}
+
+      {ki.opportunities && (
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Opportunity Discovery</p>
+            <ProvenanceBadge p={keywordOpportunityScoreProvenance()} />
+          </div>
+          <KeywordOpportunityDiscoverySection opp={ki.opportunities} />
+        </div>
+      )}
+
+      {topKeyword && (topKeyword.amazon_ppc_estimate || topKeyword.click_potential !== undefined) && (
+        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+          <p className="text-xs font-semibold text-zinc-200 mb-3">Product Impact — &ldquo;{topKeyword.keyword}&rdquo;</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <ProductImpactStat
+              label="Click Potential"
+              value={topKeyword.click_potential != null ? `${topKeyword.click_potential.toLocaleString()}/mo` : '—'}
+              provenance={keywordClickConversionProvenance()}
+            />
+            <ProductImpactStat
+              label="Conversion Potential"
+              value={topKeyword.conversion_potential != null ? `${topKeyword.conversion_potential.toLocaleString()}/mo` : '—'}
+              provenance={keywordClickConversionProvenance()}
+            />
+            <ProductImpactStat
+              label="Google CPC"
+              value={topKeyword.cpc != null ? `$${topKeyword.cpc.toFixed(2)}` : '—'}
+              provenance={kiProv}
+            />
+            <ProductImpactStat
+              label="Amazon PPC (est.)"
+              value={topKeyword.amazon_ppc_estimate ? `$${topKeyword.amazon_ppc_estimate.low.toFixed(2)}–$${topKeyword.amazon_ppc_estimate.high.toFixed(2)}` : '—'}
+              provenance={keywordAmazonPpcProvenance()}
+            />
+          </div>
+          {topKeyword.search_intent && (
+            <p className="text-[10px] text-zinc-600 mt-3">
+              Search intent: <span className="text-zinc-300 font-medium capitalize">{topKeyword.search_intent}</span>
+              {keywordSearchIntentProvenance(topKeyword.search_intent_source) && (
+                <span className="ml-2"><ProvenanceBadge p={keywordSearchIntentProvenance(topKeyword.search_intent_source)!} /></span>
+              )}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div>
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">AI Insights</p>
+        {ki.ai_insights ? (
+          <KeywordAIInsightsPanel insights={ki.ai_insights} />
+        ) : (
+          <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+        )}
+      </div>
     </div>
   )
 }
@@ -2093,10 +2467,10 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
         <NumList items={m.market_gaps} />
       </div>
 
-      {/* Keyword Intelligence — real per-keyword search data, when available */}
-      <div className="pt-5 border-t border-white/[0.06]">
-        <KeywordIntelligenceSection m={m} />
-      </div>
+      {/* Keyword Intelligence has its own top-level tab (2026-06-26) — moved
+          out of here, same reasoning as the Consumer Intelligence move
+          below: a "core pillar" deserves its own destination, not a
+          footnote at the bottom of Market. */}
       {/* Real review-text themes now live in the Consumer Intelligence tab
           itself (see DeepDiveSection "Consumer Intelligence" below) — moved
           there 2026-06-24 so it's the PRIMARY content of that tab instead of
@@ -2696,6 +3070,12 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
           <div className={activeTab === 'market-intelligence' ? '' : 'hidden'}>
             <DeepDiveSection title="Market Intelligence">
               <MarketIntelligenceContent m={m} />
+            </DeepDiveSection>
+          </div>
+
+          <div className={activeTab === 'keyword-intelligence' ? '' : 'hidden'}>
+            <DeepDiveSection title="Keyword Intelligence">
+              <KeywordIntelligenceContent m={m} />
             </DeepDiveSection>
           </div>
 
