@@ -1802,8 +1802,8 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
       ) : (
         <div className="space-y-5 mt-3">
           <p className="text-[11px] text-zinc-600">
-            Source: {ci.totalReviewsCollected} real reviews across {ci.asinsAnalyzed.map(a => a.brand).join(', ')}
-            {' '}({ci.asinsAnalyzed.reduce((s, a) => s + a.reviewsCollected, 0)} collected, {ci.confidence >= 0.7 ? 'high' : ci.confidence >= 0.4 ? 'moderate' : 'low'} confidence)
+            Source: {ci.totalReviewsCollected} real reviews across {(ci.productsAnalyzed ?? []).map(p => p.brand).join(', ')}
+            {' '}({(ci.productsAnalyzed ?? []).reduce((s, p) => s + p.reviewsCollected, 0)} collected, {ci.confidence >= 0.7 ? 'high' : ci.confidence >= 0.4 ? 'moderate' : 'low'} confidence)
           </p>
 
           <div className="grid sm:grid-cols-2 gap-5">

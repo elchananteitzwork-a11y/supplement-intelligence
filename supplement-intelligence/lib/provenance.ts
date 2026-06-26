@@ -288,7 +288,7 @@ export function consumerIntelligenceProvenance(ci?: ConsumerIntelligenceReport |
   if (!ci) return null
   return verified(
     'Apify (Amazon reviews)',
-    `Every theme is a real, literal phrase pulled from ${ci.totalReviewsCollected} real customer reviews on ${ci.asinsAnalyzed.length} top competitor product(s) — no LLM summarization. Themes are found by deterministic phrase clustering (frequency + stemming, not free-form interpretation) and each one shows exactly how many of the analyzed reviews mentioned it. The review count next to every theme is the actual count, not an estimate.`
+    `Every theme is a real, literal phrase pulled from ${ci.totalReviewsCollected} real customer reviews on ${(ci.productsAnalyzed ?? []).length} top competitor product(s) — no LLM summarization. Themes are found by deterministic phrase clustering (frequency + stemming, not free-form interpretation) and each one shows exactly how many of the analyzed reviews mentioned it. The review count next to every theme is the actual count, not an estimate.`
   )
 }
 

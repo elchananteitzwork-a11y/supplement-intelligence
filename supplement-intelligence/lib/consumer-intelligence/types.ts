@@ -26,14 +26,18 @@ export interface SentimentBreakdown {
   negativePct:  number   // 1-2 star
 }
 
-export interface SourceAsin {
-  asin:             string
+// Generic field name on purpose (2026-06-26): every current source is an
+// Amazon ASIN via Apify, but nothing in this report's shape should assume
+// that — a future non-Amazon review source populates the same field with
+// its own product identifier.
+export interface SourceProduct {
+  productId:        string
   brand:            string
   reviewsCollected: number
 }
 
 export interface ConsumerIntelligenceReport {
-  asinsAnalyzed:         SourceAsin[]
+  productsAnalyzed:      SourceProduct[]
   totalReviewsCollected: number
   positivePoolSize:      number   // 4-5★ reviews used for positiveThemes
   negativePoolSize:      number   // 1-2★ reviews used for negativeThemes

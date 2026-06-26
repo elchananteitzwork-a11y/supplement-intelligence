@@ -133,7 +133,7 @@ export class CompetitionSignalProvider implements SignalProvider {
       .slice(0, 10)
       .filter(r => typeof r.stars === 'number' && typeof r.price?.value === 'number' && !!r.asin)
       .map(r => ({
-        asin:        r.asin!,
+        productId:   r.asin!,   // r.asin is Apify's real Amazon ASIN — productId is the generic core-model field it populates
         brand:       r.brand,
         reviewCount: r.reviewsCount,
         rating:      r.stars!,

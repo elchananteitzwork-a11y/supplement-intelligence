@@ -34,35 +34,39 @@ function keepaPrice(raw: number | undefined): number | null {
 }
 
 export interface RealCompetitorRevenue {
-  asin:        string
+  productId:   string
   brand:       string
   price:       number
   monthlySold: number
   revenue:     number
 }
 
-// Fetches real price + real monthlySold for one specific ASIN and computes
-// real revenue (price × units) — a measured/platform-estimated fact about
-// THIS exact competitor, not a category-wide average and not a guess.
+// Fetches real price + real monthlySold for one specific product and
+// computes real revenue (price × units) — a measured/platform-estimated
+// fact about THIS exact competitor, not a category-wide average and not a
+// guess. productId is generic at this function's boundary (it's what
+// route.ts passes in, sourced from top_competitors[].productId); Keepa
+// itself is Amazon-only, so internally this is always an ASIN — that's a
+// provider-layer detail, not something the caller needs to know.
 export async function fetchRealCompetitorRevenue(
-  asin:  string,
-  brand: string,
+  productId: string,
+  brand:     string,
 ): Promise<RealCompetitorRevenue | null> {
   const key = process.env.KEEPA_API_KEY
   if (!key) return null
 
   try {
-    const url = `${KEEPA_API}/product?key=${encodeURIComponent(key)}&domain=1&asin=${encodeURIComponent(asin)}&stats=90`
+    const url = `${KEEPA_API}/product?key=${encodeURIComponent(key)}&domain=1&asin=${encodeURIComponent(productId)}&stats=90`
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
     if (!res.ok) {
-      console.error('Real competitor lookup: Keepa HTTP error', { status: res.status, asin })
+      console.error('Real competitor lookup: Keepa HTTP error', { status: res.status, productId })
       return null
     }
 
     const data: { products?: KeepaSingleProduct[] } = await res.json()
     const product = data.products?.[0]
     if (!product) {
-      console.log('Real competitor lookup: no product returned', { asin, brand })
+      console.log('Real competitor lookup: no product returned', { productId, brand })
       return null
     }
 
@@ -70,13 +74,13 @@ export async function fetchRealCompetitorRevenue(
     const monthlySold = product.monthlySold
 
     if (price === null || !monthlySold || monthlySold <= 0) {
-      console.log('Real competitor lookup: missing price or monthlySold', { asin, brand, price, monthlySold })
+      console.log('Real competitor lookup: missing price or monthlySold', { productId, brand, price, monthlySold })
       return null
     }
 
-    return { asin, brand, price, monthlySold, revenue: Math.round(price * monthlySold) }
+    return { productId, brand, price, monthlySold, revenue: Math.round(price * monthlySold) }
   } catch (e: unknown) {
-    console.error('Real competitor lookup failed', { asin, error: e instanceof Error ? e.message : e })
+    console.error('Real competitor lookup failed', { productId, error: e instanceof Error ? e.message : e })
     return null
   }
 }

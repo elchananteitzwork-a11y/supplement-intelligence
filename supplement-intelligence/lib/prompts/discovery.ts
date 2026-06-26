@@ -15,7 +15,7 @@ import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 function buildConsumerIntelligenceContext(ci: ConsumerIntelligenceReport): string {
   const lines: string[] = [
     'REAL CUSTOMER FEEDBACK (verified, from actual Amazon reviews on the top competitor products):',
-    `Source: ${ci.totalReviewsCollected} real reviews across ${ci.asinsAnalyzed.map(a => a.brand).join(', ')}.`,
+    `Source: ${ci.totalReviewsCollected} real reviews across ${ci.productsAnalyzed.map(p => p.brand).join(', ')}.`,
     '',
   ]
 

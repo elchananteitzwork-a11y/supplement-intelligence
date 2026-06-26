@@ -1,4 +1,4 @@
 export { analyzeConsumerIntelligence } from './analyze'
 export type {
-  ConsumerIntelligenceReport, ThemeInsight, SentimentBreakdown, SourceAsin,
+  ConsumerIntelligenceReport, ThemeInsight, SentimentBreakdown, SourceProduct,
 } from './types'

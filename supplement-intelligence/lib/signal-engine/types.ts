@@ -84,10 +84,14 @@ export interface ReviewVelocitySignal extends SignalScore {
   review_concentration_ratio?: number    // 0–1 — share of total reviews held by the top 3 results combined; higher = more entrenched incumbents, harder to break in
   // Real per-listing detail behind the aggregates above — same source data,
   // kept itemized so "Meaningful Competitors" can show the actual list
-  // (brand/reviews/rating/price), not just a count. asin is also reused by
-  // Consumer Intelligence (lib/consumer-intelligence/) to know which real
-  // products to pull review text for, instead of re-searching.
-  top_competitors?: { asin: string; brand: string; reviewCount: number; rating: number; price: number }[]
+  // (brand/reviews/rating/price), not just a count. productId is also
+  // reused by Consumer Intelligence (lib/consumer-intelligence/) to know
+  // which real products to pull review text for, instead of re-searching.
+  // Generic field name on purpose (2026-06-26): every current provider is
+  // Amazon/Keepa-sourced, so productId is always an ASIN today, but nothing
+  // above the provider layer should assume that — a future Shopify/Walmart
+  // competition provider populates the same field with its own product ID.
+  top_competitors?: { productId: string; brand: string; reviewCount: number; rating: number; price: number }[]
 }
 
 // ── Provider output ───────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { cleanReviewText, splitSentences } from './clean-text'
 import { clusterPhrases } from './cluster'
 import type { SentenceRef } from './cluster'
 import type {
-  ConsumerIntelligenceReport, ThemeInsight, SentimentBreakdown, SourceAsin,
+  ConsumerIntelligenceReport, ThemeInsight, SentimentBreakdown, SourceProduct,
 } from './types'
 
 // ── Consumer Intelligence orchestrator ──────────────────────────────────────
@@ -20,8 +20,8 @@ import type {
 // (lib/signal-engine/providers/competition.ts top_competitors) — reused, not
 // re-searched, to avoid a second discovery cost.
 
-const TOTAL_REVIEW_BUDGET = 100
-const MAX_SOURCE_ASINS    = 2   // 50 reviews each ≈ 100 total at the same per-review cost as 1 call
+const TOTAL_REVIEW_BUDGET  = 100
+const MAX_SOURCE_PRODUCTS  = 2   // 50 reviews each ≈ 100 total at the same per-review cost as 1 call
 
 // ROOT CAUSE (found 2026-06-24, "Load failed" search-stability bug):
 // ReviewCollector's DEFAULT_CONFIG.timeout_ms is 15_000 — sized for the raw
@@ -49,10 +49,10 @@ const PROBLEM_CUES  = /\b(but|however|unfortunately|issue|problem|too (?:big|sma
 const REQUEST_CUES  = /\b(wish|want(?:ed)?|would be nice|should (?:have|add|include|make)|need(?:s)? to|hope they|please add|if only|i'?d love|would love)\b/i
 
 export async function analyzeConsumerIntelligence(
-  competitors: { asin: string; brand: string }[],
+  competitors: { productId: string; brand: string }[],
   query?: string,
 ): Promise<ConsumerIntelligenceReport | null> {
-  const targets = competitors.slice(0, MAX_SOURCE_ASINS)
+  const targets = competitors.slice(0, MAX_SOURCE_PRODUCTS)
   if (!targets.length) return null
 
   // Product/brand/query words aren't customer sentiment — exclude them so
@@ -66,24 +66,28 @@ export async function analyzeConsumerIntelligence(
       .filter(w => w.length > 1),
   ))
 
-  const reviewsPerAsin = Math.floor(TOTAL_REVIEW_BUDGET / targets.length)
-  const provider = new ApifyReviewProvider(reviewsPerAsin)
+  const reviewsPerProduct = Math.floor(TOTAL_REVIEW_BUDGET / targets.length)
+  const provider = new ApifyReviewProvider(reviewsPerProduct)
   if (!provider.enabled) return null
 
   // Parallel, not sequential — two independent Apify runs don't need to wait
   // on each other, and running them concurrently halves this stage's
   // worst-case wall-clock contribution to the overall request.
-  const fetchOne = async (target: { asin: string; brand: string }) => {
+  const fetchOne = async (target: { productId: string; brand: string }) => {
     try {
       const collector = new ReviewCollector([provider], {
-        max_reviews:  reviewsPerAsin,
+        max_reviews:  reviewsPerProduct,
         timeout_ms:   COLLECTOR_TIMEOUT_MS,
         max_retries:  COLLECTOR_MAX_RETRIES,
       })
-      const result = await collector.collect(target.asin)
+      // ReviewCollector.collect takes an Amazon ASIN today (it's a
+      // provider-layer concern — every current ReviewProvider is Amazon-
+      // only) — target.productId is that same value under its generic
+      // core-model name.
+      const result = await collector.collect(target.productId)
       return { target, reviews: result.reviews }
     } catch (e: unknown) {
-      console.error('[ConsumerIntelligence] collection failed', { asin: target.asin, error: e instanceof Error ? e.message : e })
+      console.error('[ConsumerIntelligence] collection failed', { productId: target.productId, error: e instanceof Error ? e.message : e })
       return { target, reviews: [] as CollectedReview[] }
     }
   }
@@ -97,7 +101,7 @@ export async function analyzeConsumerIntelligence(
     targets.map(target => ({ target, reviews: [] as CollectedReview[] })),
   )
 
-  const asinsAnalyzed: SourceAsin[] = []
+  const productsAnalyzed: SourceProduct[] = []
   const seen: Set<string> = new Set()
   const allReviews: CollectedReview[] = []
 
@@ -105,7 +109,7 @@ export async function analyzeConsumerIntelligence(
     const fresh = reviews.filter(r => !seen.has(r.id))
     fresh.forEach(r => seen.add(r.id))
     allReviews.push(...fresh)
-    asinsAnalyzed.push({ asin: target.asin, brand: target.brand, reviewsCollected: fresh.length })
+    productsAnalyzed.push({ productId: target.productId, brand: target.brand, reviewsCollected: fresh.length })
   }
 
   if (allReviews.length < 5) {
@@ -147,10 +151,10 @@ export async function analyzeConsumerIntelligence(
   )
 
   const sentimentBreakdown = computeSentimentBreakdown(cleaned)
-  const confidence = computeConfidence(cleaned.length, asinsAnalyzed.length)
+  const confidence = computeConfidence(cleaned.length, productsAnalyzed.length)
 
   return {
-    asinsAnalyzed,
+    productsAnalyzed,
     totalReviewsCollected: cleaned.length,
     positivePoolSize:      positive.length,
     negativePoolSize:      negative.length,
@@ -191,12 +195,12 @@ function computeSentimentBreakdown(reviews: CollectedReview[]): SentimentBreakdo
 
 // Volume-based confidence, no LLM-derived component (there is no LLM in this
 // pipeline) — more real reviews collected = more representative clusters.
-function computeConfidence(reviewCount: number, asinCount: number): number {
+function computeConfidence(reviewCount: number, productCount: number): number {
   const volumeFactor =
     reviewCount >= 90 ? 1.00 :
     reviewCount >= 60 ? 0.80 :
     reviewCount >= 30 ? 0.60 :
     reviewCount >= 15 ? 0.40 : 0.25
-  const sourceFactor = asinCount >= 2 ? 1.0 : 0.85   // single-product sample is slightly less representative
+  const sourceFactor = productCount >= 2 ? 1.0 : 0.85   // single-product sample is slightly less representative
   return Math.round(volumeFactor * sourceFactor * 100) / 100
 }
