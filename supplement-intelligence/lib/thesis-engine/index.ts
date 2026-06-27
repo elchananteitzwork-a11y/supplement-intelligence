@@ -41,7 +41,6 @@ export type {
   VerdictSection,
   TimingVerdict,
   WindowEstimate,
-  TrendSignalSummary,
   TimingSection,
   FailureTier,
   FailureSeverity,
@@ -75,7 +74,6 @@ export {
   THESIS_CACHE_TTL,
   CONVERGENCE_BOOST,
   SIGNAL_STRENGTH_THRESHOLDS,
-  FAILURE_TIER_THRESHOLDS,
   SOURCE_STALENESS_THRESHOLDS_MS,
 } from './types'
 

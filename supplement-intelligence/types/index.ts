@@ -9,25 +9,44 @@ export type BuildDecision = 'BUILD_NOW' | 'VALIDATE_FURTHER' | 'SKIP'
 export interface OpportunityMeta {
   week_added:  string   // ISO week this opp first appeared, e.g. "2026-W25"
   is_new:      boolean  // true on the week it first appeared in the cache
-  score_delta: number   // 0 for new items; signed Δ vs previous week for retained items
-  trending:    boolean  // score_delta > 0
+  // 2026-06-26 evidence-first redesign: there is no real per-opportunity
+  // numeric score to diff across weeks (see PromiseTier below) — trending
+  // is now a comparison of the AI's own qualitative tier, not a fabricated
+  // delta. 'up'/'down' compare promise rank (High=2/Medium=1/Low=0); 'new'
+  // has no previous tier to compare against.
+  promise_delta: 'up' | 'down' | 'same' | 'new'
+  trending:    boolean  // promise_delta === 'up'
 }
 
 export type CacheStatus = 'generated' | 'refreshed' | 'cached' | 'updated'
 
+// AI's overall qualitative read of an opportunity, replacing the old
+// fabricated 0-100 score (2026-06-26 evidence-first redesign). This is
+// "prioritize opportunities" — explicitly AI-allowed — expressed as a
+// tier label instead of a number dressed up as a measurement. Card order
+// (the AI's own returned sequence) carries the actual ranking; this tier
+// is the qualitative label shown alongside it.
+export type PromiseTier = 'High' | 'Medium' | 'Low'
+
+// Directional capital-intensity / time-to-market judgment — replaces the
+// old "$Xk-$Yk" / "X-Y days" fabricated figures, which had zero real
+// per-opportunity basis (no provider is ever queried per-candidate at
+// discovery time, only once for the whole broad category — see
+// CategorySignalPanel / buildSignalContext for the real, surfaced version
+// of that one data point).
+export type CapitalTier = 'Lean' | 'Moderate' | 'Capital-Intensive'
+export type LaunchSpeedTier = 'Fast' | 'Moderate' | 'Slow'
+
 export interface OpportunityCard {
   name: string
-  score: number
   rationale: string
-  startup_cost: string
+  promise: PromiseTier
+  startup_cost_tier: CapitalTier
   difficulty: 'Easy' | 'Medium' | 'Hard'
-  launch_time: string
+  launch_speed: LaunchSpeedTier
   _meta?: OpportunityMeta  // server-added after AI response, not in AI output
   scores: {
     demand: {
-      score: number
-      search_volume: string              // e.g. "82k/month"
-      trend: string                      // e.g. "+21% YoY" | "Stable"
       signal: 'Strong' | 'Moderate' | 'Weak'
     }
     // market_saturation replaces the scored competition dimension (Phase 2 unification)
@@ -36,30 +55,25 @@ export interface OpportunityCard {
       barrier: 'Low' | 'Medium' | 'High'
       note:    string
     }
-    // kept optional for backward compat with cached cards from before Phase 2
-    competition?: {
-      score?: number
-      competing_brands?: string
-      saturation?: 'Low' | 'Medium' | 'Medium-High' | 'High'
-      barrier?: 'Low' | 'Medium' | 'High'
-    }
     virality: {
-      score: number
       tiktok: 'High' | 'Medium' | 'Low'
       content_potential: 'High' | 'Medium' | 'Low'
       ugc: 'High' | 'Medium' | 'Low'
     }
     subscription: {
-      score: number
-      repeat_cycle: string               // e.g. "30 days"
       retention: 'High' | 'Medium' | 'Low'
     }
     manufacturing: {
-      score: number
       complexity: 'Low' | 'Medium' | 'High'
-      moq: string                        // e.g. "500–1,000 units"
     }
   }
+  // ── Legacy fields (pre-2026-06-26) ───────────────────────────────────
+  // Cached discovery_cache rows up to ~2 weeks old may still carry the old
+  // numeric shape. Never read for display or sorting in new code — present
+  // only so an old cached row doesn't crash the page before it ages out.
+  score?: number
+  startup_cost?: string
+  launch_time?: string
 }
 export type BuildVerdict  = 'YES' | 'MAYBE' | 'NO'
 

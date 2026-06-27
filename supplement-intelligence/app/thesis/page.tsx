@@ -142,20 +142,25 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
           <span className="text-zinc-700">·</span>
           <span className="text-sm text-zinc-400">{timing.phase_label}</span>
           <span className="text-zinc-700">·</span>
-          <span className="text-xs text-zinc-500">
-            ~{timing.window_estimate.estimated_months}mo window ({timing.window_estimate.direction})
+          <span className="text-xs text-zinc-500 capitalize">
+            Window {timing.window_estimate.direction}
           </span>
         </div>
         <p className="text-sm text-zinc-400 leading-relaxed">{timing.summary}</p>
-        {timing.trend_signals.length > 0 && (
+        <p className="text-xs text-zinc-500 mt-2">{timing.window_estimate.explanation}</p>
+        {/* Real, routed signals — not a synthesized re-statement of them */}
+        {timing.signals.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
-            {timing.trend_signals.map((ts, i) => (
+            {timing.signals.map((sig, i) => (
               <span key={i} className="text-xs px-2 py-1 rounded bg-white/[0.06] text-zinc-400">
-                {ts.label}: <span className="font-mono">{ts.metric}</span>
+                {sig.description}
               </span>
             ))}
           </div>
         )}
+        <div className="mt-3">
+          <ConfidenceBadge label={timing.confidence.label} value={timing.confidence.value}/>
+        </div>
       </div>
 
       {/* ── Market Failures ── */}
@@ -173,8 +178,6 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
                   </span>
                   <span className="text-xs text-zinc-600">·</span>
                   <span className="text-xs text-zinc-500 capitalize">{f.tier}</span>
-                  <span className="text-xs text-zinc-600">·</span>
-                  <span className="font-mono text-xs text-zinc-500">{Math.round(f.prevalence * 100)}%</span>
                 </div>
               </div>
               <p className="text-xs text-zinc-400 mb-2">{f.description}</p>
@@ -182,15 +185,16 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
             </div>
           ))}
         </div>
+        <div className="mt-3">
+          <ConfidenceBadge label={market_failures.confidence.label} value={market_failures.confidence.value}/>
+        </div>
       </div>
 
       {/* ── Difficulty ── */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-3">
           <p className="label">Difficulty</p>
-          <span className="font-mono text-sm font-bold text-zinc-300">
-            {difficulty.overall_score}/10 <span className="text-zinc-500 font-normal">{difficulty.overall_label}</span>
-          </span>
+          <span className="text-sm font-bold text-zinc-300">{difficulty.overall_label}</span>
         </div>
         <p className="text-xs text-zinc-500 mb-3">Primary challenge: {difficulty.primary_challenge}</p>
         <div className="grid grid-cols-2 gap-2">
@@ -198,15 +202,17 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
             <div key={dim.name} className="bg-white/[0.04] rounded-lg p-2.5">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] text-zinc-500 uppercase tracking-wide">{dim.name}</span>
-                <span className={`font-mono text-xs font-bold ${
+                <span className={`text-[10px] font-bold uppercase tracking-wide ${
                   dim.label === 'EASY' ? 'text-emerald-400' :
                   dim.label === 'MEDIUM' ? 'text-amber-400' : 'text-red-400'
-                }`}>{dim.score}/10</span>
+                }`}>{dim.label}</span>
               </div>
               <p className="text-[11px] text-zinc-400 leading-snug">{dim.explanation}</p>
-              {dim.metric && <p className="text-[10px] text-zinc-600 mt-0.5">{dim.metric}</p>}
             </div>
           ))}
+        </div>
+        <div className="mt-3">
+          <ConfidenceBadge label={difficulty.confidence.label} value={difficulty.confidence.value}/>
         </div>
       </div>
 
@@ -224,8 +230,8 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
           <p className="text-xs text-zinc-400">{product_thesis.differentiation.description}</p>
           <p className="text-xs text-zinc-600 mt-1">Moat: {product_thesis.differentiation.moat}</p>
         </div>
-        {product_thesis.price_range && (
-          <p className="text-xs text-zinc-500 mb-3">Target price: {product_thesis.price_range}</p>
+        {product_thesis.pricing_position && (
+          <p className="text-xs text-zinc-500 mb-3">Pricing position: {product_thesis.pricing_position}</p>
         )}
         <p className="label mb-2">Next Steps</p>
         <div className="space-y-2">
@@ -245,6 +251,9 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-3">
+          <ConfidenceBadge label={product_thesis.confidence.label} value={product_thesis.confidence.value}/>
         </div>
       </div>
 

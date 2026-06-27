@@ -60,6 +60,10 @@ function seededShuffle<T>(arr: T[], seed: string): T[] {
   return result
 }
 
+// Qualitative tier rank for comparing promise across weeks — a comparison
+// of the AI's own returned tier, not a fabricated numeric delta.
+const PROMISE_RANK: Record<string, number> = { High: 2, Medium: 1, Low: 0 }
+
 function enrichWithMeta(
   opps:         OpportunityCard[],
   cacheWeek:    string,
@@ -69,11 +73,11 @@ function enrichWithMeta(
   if (!previousOpps) {
     return opps.map(o => ({
       ...o,
-      _meta: { week_added: cacheWeek, is_new: true, score_delta: 0, trending: false } satisfies OpportunityMeta,
+      _meta: { week_added: cacheWeek, is_new: true, promise_delta: 'new', trending: false } satisfies OpportunityMeta,
     }))
   }
 
-  const prevScoreMap = new Map(previousOpps.map(o => [o.name.toLowerCase().trim(), o.score]))
+  const prevPromiseMap = new Map(previousOpps.map(o => [o.name.toLowerCase().trim(), o.promise]))
   const prevMetaMap  = new Map(
     previousOpps
       .filter((o): o is OpportunityCard & { _meta: OpportunityMeta } => !!o._meta)
@@ -81,18 +85,24 @@ function enrichWithMeta(
   )
 
   return opps.map(o => {
-    const key       = o.name.toLowerCase().trim()
-    const prevScore = prevScoreMap.get(key)
-    const prevMeta  = prevMetaMap.get(key)
-    const isNew     = prevScore === undefined
-    const delta     = isNew ? 0 : o.score - prevScore
+    const key         = o.name.toLowerCase().trim()
+    const prevPromise = prevPromiseMap.get(key)
+    const prevMeta    = prevMetaMap.get(key)
+    const isNew       = prevPromise === undefined
+    const promise_delta: OpportunityMeta['promise_delta'] = isNew
+      ? 'new'
+      : PROMISE_RANK[o.promise] > PROMISE_RANK[prevPromise]
+        ? 'up'
+        : PROMISE_RANK[o.promise] < PROMISE_RANK[prevPromise]
+          ? 'down'
+          : 'same'
     return {
       ...o,
       _meta: {
-        week_added:  isNew ? cacheWeek : (prevMeta?.week_added ?? prevWeek),
-        is_new:      isNew,
-        score_delta: delta,
-        trending:    !isNew && delta > 0,
+        week_added: isNew ? cacheWeek : (prevMeta?.week_added ?? prevWeek),
+        is_new:     isNew,
+        promise_delta,
+        trending:   promise_delta === 'up',
       } satisfies OpportunityMeta,
     }
   })
@@ -121,42 +131,35 @@ function err(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status })
 }
 
-// ── Server-side score recalculation ────────────────────────────
-// formula: round((demand + virality + subscription + manufacturing) / 40 × 100).
-// Defensibility removed 2026-06-25 — it was always 100% LLM judgment with no
-// real-data path (see lib/scoring.ts for the same change on the memo side).
-// Any stray defensibility/competition value left on an older cached card is
-// ignored here: every card is rescored under the current 4-dimension formula
-// on read, so old cache entries self-heal instead of needing a backfill.
+// ── 2026-06-26 evidence-first redesign ──────────────────────────
+// There is no real per-opportunity data at discovery time (the only real
+// provider call is the single category-level signalEngine.fetch() below,
+// surfaced honestly via `categorySignal` in the response — see
+// CategorySignalPanel client-side). The old 0-100 score was a deterministic
+// formula over four 100%-AI-invented 0-10 inputs, which is still a
+// fabricated measurement, not a real one. Ranking is now the AI's own
+// returned order (an explicitly-allowed "prioritize opportunities" act),
+// and `promise` is its qualitative tier label — never a number.
 
 const MAX_DISCOVER_ATTEMPTS = 3
 
-function recalculateCardScore(card: OpportunityCard): number {
-  const s = card.scores
-  const dimSum =
-    (s?.demand?.score        ?? 0) +
-    (s?.virality?.score      ?? 0) +
-    (s?.subscription?.score  ?? 0) +
-    (s?.manufacturing?.score ?? 0)
-  return Math.round((dimSum / 40) * 100)
-}
-
-// Type-guard: 4 required scored dimensions + structural fields.
-// competition is optional (legacy) — market_saturation replaces it.
+// Type-guard: structural fields + the qualitative tier fields every
+// dimension must carry. No numeric score field is required or accepted.
 function isValidCard(o: unknown): o is OpportunityCard {
   if (!o || typeof o !== 'object') return false
   const c = o as Partial<OpportunityCard>
   return (
     typeof c.name === 'string' && c.name.trim().length > 0 &&
     typeof c.rationale === 'string' && c.rationale.trim().length > 0 &&
-    typeof c.startup_cost === 'string' &&
+    (c.promise === 'High' || c.promise === 'Medium' || c.promise === 'Low') &&
+    typeof c.startup_cost_tier === 'string' &&
     typeof c.difficulty === 'string' &&
-    typeof c.launch_time === 'string' &&
+    typeof c.launch_speed === 'string' &&
     c.scores != null &&
-    typeof c.scores.demand?.score        === 'number' &&
-    typeof c.scores.virality?.score      === 'number' &&
-    typeof c.scores.subscription?.score  === 'number' &&
-    typeof c.scores.manufacturing?.score === 'number'
+    typeof c.scores.demand?.signal        === 'string' &&
+    typeof c.scores.virality?.tiktok      === 'string' &&
+    typeof c.scores.subscription?.retention   === 'string' &&
+    typeof c.scores.manufacturing?.complexity === 'string'
   )
 }
 
@@ -205,12 +208,7 @@ export async function POST(req: Request) {
     .maybeSingle()
 
   if (hit) {
-    // Re-apply server-side score recalculation so cached data generated before
-    // Phase 1 is corrected before being returned to the client.
-    const opps = (hit.opportunities as OpportunityCard[]).map(o => ({
-      ...o,
-      score: recalculateCardScore(o),
-    }))
+    const opps = hit.opportunities as OpportunityCard[]
 
     const { data: prevHit } = await sb
       .from('discovery_cache')
@@ -236,6 +234,11 @@ export async function POST(req: Request) {
       cache_status:      cacheStatus,
       cache_week:        cacheWeek,
       generated_at:      hit.generated_at,
+      // Real category-level signal is only fetched on a fresh generation
+      // (see below) — not persisted in discovery_cache, so cache hits
+      // don't carry one. The panel simply doesn't render rather than
+      // showing stale or fabricated data.
+      categorySignal:    null,
     })
   }
 
@@ -250,7 +253,7 @@ export async function POST(req: Request) {
   const previousOpps = prevEntry ? (prevEntry.opportunities as OpportunityCard[]) : null
 
   const baseSystemPrompt = previousOpps
-    ? module.buildRefreshPrompt(previousOpps.map(o => ({ name: o.name, score: o.score })))
+    ? module.buildRefreshPrompt(previousOpps.map(o => ({ name: o.name, promise: o.promise })))
     : module.discoverySystemPrompt
 
   // ── Signal Engine ──────────────────────────────────────────────
@@ -335,15 +338,14 @@ export async function POST(req: Request) {
       return err('Failed to parse opportunities — please try again.', 500)
     }
 
-    // ── Validate cards + server-side score recalculation ─────────
-    // isValidCard ensures all 6 dimension scores are present.
-    // recalculateCardScore replaces the LLM's top-level score with the
-    // server-computed value so sorting and display are always consistent.
+    // ── Validate cards ─────────────────────────────────────────────
+    // isValidCard ensures every dimension's qualitative fields are present.
+    // No server-side score to recompute or sort by — the AI's own returned
+    // order IS the ranking (an explicitly-allowed "prioritize opportunities"
+    // act), so it's preserved as-is rather than re-derived from a number.
     const valid = parsed
       .filter(isValidCard)
-      .map(o => ({ ...o, score: recalculateCardScore(o) }))
       .slice(0, 25)
-      .sort((a, b) => b.score - a.score)
 
     if (valid.length < 5) {
       console.error(`Too few valid opportunities (attempt ${attempt}/${MAX_DISCOVER_ATTEMPTS})`, {
@@ -394,5 +396,10 @@ export async function POST(req: Request) {
     cache_status:      (!!previousOpps ? 'refreshed' : 'generated') as CacheStatus,
     cache_week:        cacheWeek,
     generated_at:      generatedAt,
+    // Real category-level signal — was already fetched above and used only
+    // as invisible AI prompt context until now. Surfacing it honestly: this
+    // describes the broad category as a whole, not any individual
+    // opportunity below, so the UI must scope it that way too.
+    categorySignal:    signals,
   })
 }

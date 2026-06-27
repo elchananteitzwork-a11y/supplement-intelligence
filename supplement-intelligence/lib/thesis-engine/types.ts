@@ -323,35 +323,45 @@ export type TimingVerdict =
   | 'LATE'           // window may be closing; elevated risk of crowding
   | 'CLOSED'         // window assessment suggests overcrowding has set in
 
+// PERMANENT RULE (2026-06-26): estimated_months was a fabricated forecast
+// with no real basis (no model exists for "this window closes in N
+// months") — removed. direction/explanation are the AI's qualitative
+// timing read; confidence is now computed deterministically from the real
+// signals routed to this section (see computeSectionConfidence in
+// orchestrator.ts), never asked of the model.
 export interface WindowEstimate {
-  estimated_months:  number           // directional estimate, not a guarantee
   direction:         'opening' | 'open' | 'narrowing' | 'closed'
   explanation:       string           // plain English basis for the estimate
   confidence:        ConfidenceScore
 }
 
-// A synthesized trend summary for one data source in the timing section.
-export interface TrendSignalSummary {
-  provider:    ProviderId
-  label:       string        // e.g. "Google Search Demand"
-  metric:      string        // e.g. "+127% over 24 months"
-  direction:   SignalDirection
-  magnitude:   number        // 0–1
-}
+// TrendSignalSummary removed (2026-06-26) — it re-invented a "magnitude"
+// number for what the real, routed Signal[] (see TimingSection.signals,
+// inherited from ThesisSection) already carries for real. The UI renders
+// `signals` directly instead of this synthesized duplicate.
 
 export interface TimingSection extends ThesisSection {
   timing_verdict:  TimingVerdict
   window_estimate: WindowEstimate
-  trend_signals:   TrendSignalSummary[]  // one per contributing source
   phase_label:     string                // "Early Growth" | "Peak" | "Declining" | ...
 }
 
 // ── Market Failures ───────────────────────────────────────────────────────────
 
+// PERMANENT RULE (2026-06-26): `tier` is now the AI's own direct
+// qualitative call instead of being derived from a fabricated `prevalence`
+// fraction (there is no real measurement of "what % of the market is
+// affected" — the original FAILURE_TIER_THRESHOLDS mapping dressed up a
+// model guess as a percentage). Per-item `confidence` removed too — each
+// failure is itself a pattern-matched AI judgment (the schema's own
+// evidence.provider is literally 'ai_synthesis'), so there is no real
+// per-item basis to score; the section-level `confidence` (now computed
+// deterministically from the real signals routed here) is the honest
+// signal of how much real data backs this section overall.
 export type FailureTier =
-  | 'universal'    // ≥70% of market — category-defining unsolved problem
-  | 'common'       // 40–69% — widespread but not universal
-  | 'niche'        // <40%   — brand-specific or minor
+  | 'universal'    // category-defining unsolved problem, AI's own judgment
+  | 'common'       // widespread but not universal
+  | 'niche'        // brand-specific or minor
 
 export type FailureSeverity = 'High' | 'Medium' | 'Low'
 
@@ -363,9 +373,7 @@ export interface MarketFailure {
   description:    string           // one clear sentence
   tier:           FailureTier
   severity:       FailureSeverity
-  prevalence:     number           // 0–1 fraction of market affected
   evidence:       EvidenceItem[]
-  confidence:     ConfidenceScore
   // Representative examples from specific products (optional, from review engine)
   asin_examples?: string[]
   // The opportunity implied by this failure
@@ -373,22 +381,24 @@ export interface MarketFailure {
 }
 
 export interface MarketFailureSection extends ThesisSection {
-  failures: MarketFailure[]        // sorted by prevalence × severity
+  failures: MarketFailure[]        // ordered by the AI's own tier × severity judgment
 }
 
 // ── Difficulty ────────────────────────────────────────────────────────────────
 
+// PERMANENT RULE (2026-06-26): score/metric removed — both were fabricated
+// (no real per-dimension data exists for "Capital Required: 4/10" or
+// "$35K-75K estimated"). `label` is the AI's direct qualitative call and
+// is sufficient on its own; `explanation` carries the reasoning in prose
+// without dressing it up as a measurement.
 export interface DifficultyDimension {
   name:         string            // "Capital Required" | "Brand Trust" | ...
-  score:        number            // 0–10 (10 = hardest)
   label:        string            // "EASY" | "MEDIUM" | "HARD"
-  explanation:  string            // one sentence
-  metric?:      string            // "$35K–75K estimated" | "12–18 months"
+  explanation:  string            // one sentence, qualitative — no invented dollar/time figures
   providers:    ProviderId[]      // which sources this comes from
 }
 
 export interface DifficultySection extends ThesisSection {
-  overall_score:  number              // 0–10
   overall_label:  string              // "Medium Difficulty"
   dimensions:     DifficultyDimension[]
   primary_challenge: string           // the single hardest thing about this market
@@ -407,12 +417,19 @@ export interface DifferentiationAngle {
   vector:       string            // "Transparency + Proof"
   description:  string           // what specifically to do differently
   moat:         string            // why competitors won't easily copy this
-  time_to_build: string          // "4 months" — directional, not a guarantee
+  // 2026-06-26: qualitative pace description, not a specific month/day
+  // count — there is no real basis for "4 months" vs "6 months" for a
+  // product that doesn't exist yet. e.g. "Several months of formulation
+  // and testing work" rather than "4 months".
+  build_pace:   string
 }
 
 export interface ProductThesisSection extends ThesisSection {
   differentiation:   DifferentiationAngle
-  price_range?:      string            // "$38–$44"
+  // 2026-06-26: qualitative pricing position, not a specific "$38-$44" —
+  // there is no real basis for a dollar figure on an unlaunched product.
+  // e.g. "Premium tier, priced above commodity competitors."
+  pricing_position?: string
   recommended_steps: NextStep[]
   positioning_angle: string            // "The probiotic you can actually verify"
 }
@@ -429,6 +446,9 @@ export type RiskCategory  =
   | 'market'          // market dynamics could shift
   | 'regulatory'      // legal / compliance risk
 
+// confidence removed (2026-06-26) — like market_failures, each risk is a
+// pattern-matched AI judgment with no real per-item data source. severity
+// (qualitative) is the AI's call; nothing here pretends to be a measurement.
 export interface RiskItem {
   title:       string
   category:    RiskCategory
@@ -436,7 +456,6 @@ export interface RiskItem {
   description: string            // what the risk is
   trigger?:    string            // what would activate this risk
   mitigation?: string            // what would reduce this risk
-  confidence:  ConfidenceScore
 }
 
 // What this analysis does and does not cover — always surfaced in the thesis.
@@ -576,13 +595,6 @@ export const SIGNAL_STRENGTH_THRESHOLDS: Record<SignalStrength, [number, number]
   MIXED:        [45,   64],
   WEAK:         [25,   44],
   INSUFFICIENT: [ 0,   24],
-}
-
-// Prevalence thresholds for MarketFailure tiers.
-export const FAILURE_TIER_THRESHOLDS: Record<FailureTier, [number, number]> = {
-  universal: [0.70, 1.00],
-  common:    [0.40, 0.70],
-  niche:     [0.00, 0.40],
 }
 
 // Maximum data ages before a source's contribution is considered stale.

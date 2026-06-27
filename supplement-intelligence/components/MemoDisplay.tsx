@@ -3139,11 +3139,15 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
   const isVerified   = est.data_source !== 'ai_synthesis'
   const sourceProvenance = manufacturingTabProvenance(est.data_source)
 
-  const unitCostLow  = formatCurrency(est.unit_cost.low)
-  const unitCostHigh = formatCurrency(est.unit_cost.high)
-  const moq       = `${est.moq.low.toLocaleString()}–${est.moq.high.toLocaleString()} ${est.moq.unit}`
-  const leadTime  = `${est.lead_time_days.low}–${est.lead_time_days.high} days`
-  const suppliers = `~${est.supplier_count.estimate.toLocaleString()}`
+  // 2026-06-26 evidence-first redesign: the ai_synthesis fallback no longer
+  // fabricates these five fields when no real supplier data exists — they
+  // come back undefined/null rather than a number with nothing behind it.
+  // "Insufficient Verified Data" replaces the old invented figure.
+  const NO_DATA = 'Insufficient Verified Data'
+  const unitCostRange = est.unit_cost ? `${formatCurrency(est.unit_cost.low)}–${formatCurrency(est.unit_cost.high)}` : null
+  const moq       = est.moq            ? `${est.moq.low.toLocaleString()}–${est.moq.high.toLocaleString()} ${est.moq.unit}` : NO_DATA
+  const leadTime  = est.lead_time_days ? `${est.lead_time_days.low}–${est.lead_time_days.high} days` : NO_DATA
+  const suppliers = est.supplier_count ? `~${est.supplier_count.estimate.toLocaleString()}` : NO_DATA
   const rating    = est.top_supplier_rating != null ? `${est.top_supplier_rating}/5` : '—'
 
   const complexityColor =
@@ -3154,21 +3158,27 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
 
   const introText = isVerified
     ? `Live supplier data from ${est.data_source.replace(/_/g, ' ')}. Prices reflect per-unit cost at high-volume tier (USD).`
-    : 'AI estimates based on category benchmarks. Activate live supplier credentials for verified quotes.'
+    : 'No live supplier data was available for this query — only a qualitative complexity judgment is shown below. Activate live supplier credentials for verified quotes.'
 
   return (
     <div className="space-y-5">
       <p className="text-xs text-zinc-500 italic leading-relaxed">{introText}</p>
 
-      {/* Headline number */}
-      <div className="flex items-end gap-2">
-        <span className="font-serif font-medium text-3xl text-zinc-50 tracking-tight">{unitCostLow}–{unitCostHigh}</span>
-        <span className="text-xs text-zinc-500 mb-1">per unit, landed</span>
-      </div>
+      {/* Headline number — omitted entirely (not shown as "Insufficient
+          Verified Data" in giant serif type) when no real cost data exists,
+          rather than giving a non-number the same visual weight as a price. */}
+      {unitCostRange ? (
+        <div className="flex items-end gap-2">
+          <span className="font-serif font-medium text-3xl text-zinc-50 tracking-tight">{unitCostRange}</span>
+          <span className="text-xs text-zinc-500 mb-1">per unit, landed</span>
+        </div>
+      ) : (
+        <p className="text-sm text-zinc-500 italic">{NO_DATA} — no live supplier quote for this query.</p>
+      )}
 
       {/* Pipeline strip — Sourcing → Production → QA → Shipping */}
       <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-x-auto">
-        <PipelineStage label="Sourcing"   value={suppliers}        sub={`${est.supplier_count.confidence} confidence`} />
+        <PipelineStage label="Sourcing"   value={suppliers}        sub={est.supplier_count ? `${est.supplier_count.confidence} confidence` : undefined} />
         <PipelineStage label="Production" value={moq}              sub="MOQ" />
         <PipelineStage label="QA"         value={rating}           sub="avg. supplier rating" />
         <PipelineStage label="Shipping"   value={leadTime}         sub="lead time" />
@@ -3237,7 +3247,6 @@ function ManufacturingIntelligenceContent({ m, isActive }: { m: MemoData; isActi
           product:    m.category_name,
           category:   inferManufacturingCategory(m.product_recommendation?.format ?? ''),
           complexity: complexityHint,
-          moq_hint:   m.product_recommendation?.cogs_estimate ?? undefined,
         }),
       })
       if (!res.ok) throw new Error(`${res.status}`)

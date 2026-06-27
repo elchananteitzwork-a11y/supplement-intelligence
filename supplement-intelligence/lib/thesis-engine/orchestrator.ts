@@ -189,6 +189,39 @@ function computeRealVerdictScore(signals: Signal[], agg: AggregatedSignals | nul
   return { score, confidence, signal_strength }
 }
 
+// ── Deterministic per-section confidence (2026-06-26 permanent rule) ────────
+// Every thesis section (timing/market_failures/difficulty/product_thesis)
+// asked Claude to self-report its own confidence, independent of the real
+// signals routed to that section by routeSignalsToSection. Same violation
+// as the verdict section, same fix: compute it from the real signal subset
+// that actually backs this section instead. When no real signal routed to
+// a section at all, this honestly reports PRELIMINARY/0 rather than
+// whatever number the model invented.
+function computeSectionConfidence(sectionSignals: Signal[]): ConfidenceScore {
+  if (!sectionSignals.length) {
+    return {
+      value: 0,
+      label: 'PRELIMINARY',
+      supports: 'No real signal data was routed to this section.',
+      limits: 'This section is the model\'s qualitative read with no section-specific real-data grounding — treat as directional only.',
+      convergence: false,
+      providers: [],
+    }
+  }
+  const value = sectionSignals.reduce((s, sig) => s + sig.confidence.value, 0) / sectionSignals.length
+  const providers = Array.from(new Set(sectionSignals.flatMap(sig => sig.providers)))
+  return {
+    value,
+    label: toConfidenceLabel(value),
+    supports: `${providers.length} real provider${providers.length === 1 ? '' : 's'} contributed signals routed to this section (${providers.join(', ')}).`,
+    limits: providers.length < CONVERGENCE_BOOST.min_providers
+      ? 'Fewer than 3 independent providers routed here — treat as directional.'
+      : 'Multiple independent providers routed here — see convergence below.',
+    convergence: providers.length >= CONVERGENCE_BOOST.min_providers,
+    providers,
+  }
+}
+
 export function adaptAggregatedSignals(agg: AggregatedSignals, query: string): Signal[] {
   const signals: Signal[] = []
   const now = new Date().toISOString()
@@ -472,16 +505,12 @@ Produce a JSON object with this exact structure. Respond with ONLY the JSON — 
     "summary": "<2-3 sentences on trend trajectory and window>",
     "timing_verdict": "<ENTER_NOW|WATCH_CLOSELY|MONITOR|LATE|CLOSED>",
     "window_estimate": {
-      "estimated_months": <number>,
       "direction": "<opening|open|narrowing|closed>",
-      "explanation": "<plain English basis for estimate>",
-      "confidence": { "value": <0-1>, "label": "<...>", "supports": "<...>", "limits": "<...>", "convergence": false, "providers": [] }
+      "explanation": "<plain English basis for this read — no invented month/day counts>",
+      "confidence": { "value": 0, "label": "x", "supports": "x", "limits": "x", "convergence": false, "providers": [] }
     },
-    "trend_signals": [
-      { "provider": "<id>", "label": "<e.g. Google Search Demand>", "metric": "<e.g. +127% over 24mo>", "direction": "<positive|negative|neutral|mixed>", "magnitude": <0-1> }
-    ],
     "phase_label": "<Early Growth|Peak|Plateau|Declining>",
-    "confidence": { "value": <0-1>, "label": "<...>", "supports": "<...>", "limits": "<...>", "convergence": <bool>, "providers": [<ids>] },
+    "confidence": { "value": 0, "label": "x", "supports": "x", "limits": "x", "convergence": false, "providers": [] },
     "signals": [],
     "sources": []
   },
@@ -494,17 +523,15 @@ Produce a JSON object with this exact structure. Respond with ONLY the JSON — 
         "id": "mf_001",
         "title": "<short name e.g. Efficacy Verification Gap>",
         "description": "<one precise sentence>",
-        "tier": "<universal|common|niche>",
+        "tier": "<universal|common|niche — your own qualitative call, not derived from a percentage>",
         "severity": "<High|Medium|Low>",
-        "prevalence": <0-1>,
         "evidence": [
           { "type": "<customer_quote|statistical|trend|competitive|ai_synthesis>", "content": "<what was found>", "provider": "ai_synthesis" }
         ],
-        "confidence": { "value": <0-1>, "label": "<...>", "supports": "<...>", "limits": "<...>", "convergence": false, "providers": [] },
         "opportunity": "<what first-mover gains by solving this>"
       }
     ],
-    "confidence": { "value": <0-1>, "label": "<...>", "supports": "<...>", "limits": "<...>", "convergence": <bool>, "providers": [<ids>] },
+    "confidence": { "value": 0, "label": "x", "supports": "x", "limits": "x", "convergence": false, "providers": [] },
     "signals": [],
     "sources": []
   },
@@ -512,20 +539,17 @@ Produce a JSON object with this exact structure. Respond with ONLY the JSON — 
   "difficulty": {
     "headline": "<overall difficulty assessment>",
     "summary": "<2-3 sentences on what makes this hard or easy>",
-    "overall_score": <0-10>,
     "overall_label": "<Easy|Medium Difficulty|Hard|Very Hard>",
     "primary_challenge": "<the single hardest thing>",
     "dimensions": [
       {
         "name": "<e.g. Capital Required>",
-        "score": <0-10>,
         "label": "<EASY|MEDIUM|HARD>",
-        "explanation": "<one sentence>",
-        "metric": "<e.g. $35K–75K estimated launch>",
+        "explanation": "<one sentence — qualitative, no invented dollar figures or time estimates>",
         "providers": []
       }
     ],
-    "confidence": { "value": <0-1>, "label": "<...>", "supports": "<...>", "limits": "<...>", "convergence": <bool>, "providers": [<ids>] },
+    "confidence": { "value": 0, "label": "x", "supports": "x", "limits": "x", "convergence": false, "providers": [] },
     "signals": [],
     "sources": []
   },
@@ -537,14 +561,14 @@ Produce a JSON object with this exact structure. Respond with ONLY the JSON — 
       "vector": "<e.g. Transparency + Proof>",
       "description": "<what specifically to do differently>",
       "moat": "<why competitors won't easily copy this>",
-      "time_to_build": "<e.g. 4-6 months>"
+      "build_pace": "<qualitative pace, e.g. 'several months of formulation and testing' — no invented month/day count>"
     },
-    "price_range": "<e.g. $38-$44>",
+    "pricing_position": "<qualitative pricing position, e.g. 'Premium tier, priced above commodity competitors' — no invented dollar figure>",
     "recommended_steps": [
       { "action": "<specific action>", "rationale": "<why this first>", "priority": "<immediate|short_term|medium_term>", "time_frame": "<e.g. Week 1-2>" }
     ],
     "positioning_angle": "<the one-sentence brand promise>",
-    "confidence": { "value": <0-1>, "label": "<...>", "supports": "<...>", "limits": "<...>", "convergence": <bool>, "providers": [<ids>] },
+    "confidence": { "value": 0, "label": "x", "supports": "x", "limits": "x", "convergence": false, "providers": [] },
     "signals": [],
     "sources": []
   },
@@ -556,8 +580,7 @@ Produce a JSON object with this exact structure. Respond with ONLY the JSON — 
       "severity": "<High|Medium|Low>",
       "description": "<what could go wrong>",
       "trigger": "<what activates this risk>",
-      "mitigation": "<what reduces it>",
-      "confidence": { "value": <0-1>, "label": "<...>", "supports": "<...>", "limits": "<...>", "convergence": false, "providers": [] }
+      "mitigation": "<what reduces it>"
     }
   ],
 
@@ -565,27 +588,29 @@ Produce a JSON object with this exact structure. Respond with ONLY the JSON — 
     { "dimension": "<what is not covered>", "impact": "<why it matters>", "verify_with": "<how to check>" }
   ],
 
-  "overall_confidence": {
-    "value": <0-1>,
-    "label": "<VERY_HIGH|HIGH|MODERATE|LOW|PRELIMINARY>",
-    "supports": "<what data makes this credible>",
-    "limits": "<what would improve confidence>",
-    "convergence": <bool>,
-    "providers": [<ids of all contributing providers>]
-  }
+  "overall_confidence": { "value": 0, "label": "x", "supports": "x", "limits": "x", "convergence": false, "providers": [] }
 }
 
 Rules:
 - signals[] and sources[] inside each section should be empty arrays — the orchestrator populates them
 - Include 2-4 market_failures, 4-6 difficulty dimensions, 2-4 risks, 2-3 scope_limitations, 2-4 recommended_steps
 - Be specific and actionable — generic answers are worse than a narrow but precise read
-- PERMANENT RULE (2026-06-26): verdict.opportunity_score, verdict.confidence,
-  verdict.signal_strength, and the top-level overall_confidence are all
-  discarded and recomputed deterministically from the real signals you were
-  given above — your numbers for these four fields are never read. Still
-  include placeholder values so the JSON parses, but put your real analytical
-  effort into headline/summary/one_liner and every other section's
-  qualitative text instead — that's what actually reaches the user unchanged.`
+- PERMANENT RULE (2026-06-26): every "confidence" object shown above (verdict,
+  timing, market_failures, difficulty, product_thesis, and the top-level
+  overall_confidence), plus verdict.opportunity_score and
+  verdict.signal_strength, are ALL discarded and recomputed deterministically
+  server-side from the real signals you were given above — none of your
+  numbers for these are ever read. Fill them with the placeholder shown so
+  the JSON parses; put your real analytical effort into headline/summary/
+  one_liner and every other section's qualitative text instead — that's what
+  actually reaches the user unchanged.
+- PERMANENT RULE (2026-06-26): do not put any number anywhere in this output
+  unless this prompt explicitly gave you a real one above to restate exactly.
+  No score, percentage, dollar figure, or month/day count may appear in any
+  field, including inside free-text fields like description, explanation, or
+  summary — qualitative language only. market_failures[].tier and
+  difficulty[].label are your own direct qualitative calls, not derived from
+  a hidden number.`
 }
 
 // ── Claude call ────────────────────────────────────────────────────────────
@@ -724,8 +749,15 @@ export async function synthesize(
   const sourceAttrs = buildSourceAttributions(agg)
   const sectionNames = ['verdict', 'timing', 'market_failures', 'difficulty', 'product_thesis'] as const
   for (const s of sectionNames) {
-    synthesis[s].signals = routeSignalsToSection(s, signals)
+    const routed = routeSignalsToSection(s, signals)
+    synthesis[s].signals = routed
     synthesis[s].sources = sourceAttrs
+    // verdict's confidence is already the real, deterministic realVerdict.confidence
+    // set above — every other section's was still Claude's own invented
+    // number, independent of the real signals just routed to it one line up.
+    if (s !== 'verdict') {
+      synthesis[s].confidence = computeSectionConfidence(routed)
+    }
   }
 
   // ── Assemble MarketThesis ───────────────────────────────────

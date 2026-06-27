@@ -64,25 +64,25 @@ function summariseThesis(thesis: MarketThesis) {
   hr('TIMING')
   console.log(`  Verdict          : ${thesis.timing.timing_verdict}`)
   console.log(`  Phase            : ${thesis.timing.phase_label}`)
-  console.log(`  Window           : ~${thesis.timing.window_estimate.estimated_months} months (${thesis.timing.window_estimate.direction})`)
+  console.log(`  Window           : ${thesis.timing.window_estimate.direction} — ${thesis.timing.window_estimate.explanation}`)
   console.log(`  Summary          : ${thesis.timing.summary}`)
 
   hr('MARKET FAILURES')
   for (const f of thesis.market_failures.failures) {
-    console.log(`  [${f.tier.toUpperCase().padEnd(9)}] [${f.severity.padEnd(6)}] ${f.title} (${Math.round(f.prevalence * 100)}% prevalence)`)
+    console.log(`  [${f.tier.toUpperCase().padEnd(9)}] [${f.severity.padEnd(6)}] ${f.title}`)
     console.log(`    → ${f.opportunity}`)
   }
 
   hr('DIFFICULTY')
-  console.log(`  Overall          : ${thesis.difficulty.overall_score}/10 — ${thesis.difficulty.overall_label}`)
+  console.log(`  Overall          : ${thesis.difficulty.overall_label}`)
   console.log(`  Primary challenge: ${thesis.difficulty.primary_challenge}`)
   for (const dim of thesis.difficulty.dimensions) {
-    console.log(`  ${dim.name.padEnd(20)} ${dim.label.padEnd(6)} ${dim.score}/10  ${dim.metric ?? ''}`)
+    console.log(`  ${dim.name.padEnd(20)} ${dim.label.padEnd(6)}  ${dim.explanation}`)
   }
 
   hr('PRODUCT THESIS')
   console.log(`  Positioning      : "${thesis.product_thesis.positioning_angle}"`)
-  console.log(`  Price range      : ${thesis.product_thesis.price_range ?? 'not specified'}`)
+  console.log(`  Pricing position : ${thesis.product_thesis.pricing_position ?? 'not specified'}`)
   console.log(`  Differentiation  : ${thesis.product_thesis.differentiation.vector} — ${thesis.product_thesis.differentiation.description}`)
   console.log(`  Next steps:`)
   for (const step of thesis.product_thesis.recommended_steps) {

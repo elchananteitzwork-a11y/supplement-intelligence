@@ -14,52 +14,43 @@ Given a broad fitness or sports category, generate exactly 20 specific product o
 
 Include both physical products (equipment, accessories, apparel) and consumables (sports nutrition, hydration, recovery supplements) where appropriate.
 
-SCORING — each dimension is an integer 0–10 (be skeptical, never inflate). EVERY score must be accompanied by evidence fields.
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number. Every dimension must include its evidence fields.
 
-DEMAND (score + evidence):
-- search_volume: estimated monthly US search volume (e.g. "110k/month", "22k/month")
-- trend: YoY direction — "+N% YoY" / "Stable" / "-N% YoY"
+DEMAND:
 - signal: "Strong" (clear fitness-consumer awareness + growth), "Moderate", or "Weak"
-- score 8–10: >50k/month + growing; 5–7: 10–50k/month or stable; 0–4: <10k/month or declining
 
-MARKET SATURATION (qualitative — no score):
+MARKET SATURATION (qualitative):
 - level: "Low" (<20 brands), "Medium" (20–60), "High" (60–120), "Very High" (120+)
 - barrier: "Low" (white-label gear/supplements), "Medium" (proprietary formula or engineering), "High" (patents, celebrity athletes, dominant incumbents like Nike/Optimum Nutrition)
 - note: one sentence on who dominates and where the opportunity sits
 
-VIRALITY (score + evidence):
+VIRALITY:
 - tiktok: "High" (workout transformation, challenge potential, visible results), "Medium", "Low"
 - content_potential: "High" (before/after, workout demo, performance proof), "Medium", "Low"
 - ugc: "High" (athletes naturally film themselves training), "Medium", "Low"
-- score 8–10: all High; 5–7: mixed; 0–4: mostly Low
 
-SUBSCRIPTION (score + evidence):
-- repeat_cycle: natural repurchase cadence ("30 days", "60 days", "monthly", "one-time")
+SUBSCRIPTION:
 - retention: "High" (daily training dependency, recurring nutrition), "Medium", "Low"
-- score 8–10: monthly replenishment + High retention; 5–7: moderate; 0–4: one-time purchase
 
-MANUFACTURING (score + evidence) — 10 = easiest:
+MANUFACTURING:
 - complexity: "Low" (commodity sports nutrition, simple accessories), "Medium" (custom engineering, GMP sports nutrition), "High" (advanced materials, electronics, clinical-grade)
-- moq: estimated minimum order quantity
-- score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex or large MOQ
 
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
+PROMISE — your overall qualitative read across all dimensions (High | Medium | Low). Be skeptical — most opportunities should land Medium, not High.
 
-STARTUP COST:
-- Commodity sports nutrition or simple accessories: "$5k–$15k"
-- Custom formula or moderate product engineering: "$15k–$40k"
-- Advanced materials, clinical sports trials, electronics: "$40k–$100k"
-- High-complexity equipment or medical-grade: "$100k+"
+STARTUP COST TIER — directional capital-intensity judgment, not a dollar estimate:
+- Lean: commodity sports nutrition or simple accessories
+- Moderate: custom formula or moderate product engineering
+- Capital-Intensive: advanced materials, clinical sports trials, electronics, or medical-grade equipment
 
 DIFFICULTY:
 - Easy: commodity supplements (whey, creatine), simple accessories, white-label fitness goods
 - Medium: custom formulation, moderate R&D, niche sport positioning
 - Hard: novel ingredients with clinical claims, advanced equipment, competing with established athletes brands
 
-LAUNCH TIME:
-- Simple nutrition / accessories: "30–60 days"
-- Custom formula or moderate product: "60–120 days"
-- Complex engineering: "120–240 days"
+LAUNCH SPEED — directional time-to-market judgment, not a day-count estimate:
+- Fast: simple nutrition / accessories
+- Moderate: custom formula or moderate product engineering
+- Slow: complex engineering requirements
 ${SHARED_OPPORTUNITY_SCHEMA}`
 
 // ── Analysis prompt ────────────────────────────────────────────────────────

@@ -20,8 +20,10 @@ export interface CategoryModule {
   readonly discoverySystemPrompt: string
 
   // Returns a weekly-refresh variant of the discovery prompt.
+  // 2026-06-26: keyed on the AI's own qualitative promise tier, not a
+  // fabricated score — see types/index.ts PromiseTier.
   buildRefreshPrompt(
-    previous: Array<{ name: string; score: number }>,
+    previous: Array<{ name: string; promise: string }>,
   ): string
 
   // Optionally injects real-market signal data into any base prompt.

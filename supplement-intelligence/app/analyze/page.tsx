@@ -10,6 +10,7 @@ import {
   type CategoryClientConfig,
 } from '@/lib/categories/client-config'
 import type { OpportunityCard } from '@/types/index'
+import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import { IconSpark, IconTarget, IconBeaker } from '@/components/icons'
 
 // ── constants ─────────────────────────────────────────────────
@@ -65,12 +66,18 @@ const PRICES = [
 
 // ── helpers ────────────────────────────────────────────────────
 
-function scoreColor(s: number) {
-  return s >= 75 ? 'text-emerald-400' : s >= 60 ? 'text-amber-400' : 'text-red-400'
+// 2026-06-26 evidence-first redesign: no numeric score exists per
+// opportunity (only one category-level real signal per request, see
+// CategorySignalPanel) — every "how good/strong is this" color cue is now
+// keyed on the AI's own qualitative tier, never a fabricated number.
+function promiseColor(p: 'High' | 'Medium' | 'Low') {
+  return p === 'High' ? 'text-emerald-400' : p === 'Medium' ? 'text-amber-400' : 'text-red-400'
 }
 
-function dimColor(s: number) {
-  return s >= 8 ? 'text-emerald-400' : s >= 6 ? 'text-amber-400' : 'text-red-400'
+function tierColor(t: 'High' | 'Medium' | 'Low' | 'Strong' | 'Moderate' | 'Weak') {
+  return t === 'High' || t === 'Strong' ? 'text-emerald-400'
+       : t === 'Medium' || t === 'Moderate' ? 'text-amber-400'
+       : 'text-red-400'
 }
 
 // ── sub-components ─────────────────────────────────────────────
@@ -88,69 +95,77 @@ function DifficultyBadge({ d }: { d: OpportunityCard['difficulty'] }) {
   )
 }
 
+// Generic tier pill — used for startup_cost_tier and launch_speed, both
+// directional judgments (Lean/Moderate/Capital-Intensive, Fast/Moderate/Slow)
+// rather than dollar figures or day-counts with no real per-opportunity basis.
+function TierBadge({ value, good, bad }: { value: string; good: string; bad: string }) {
+  const cls = value === good
+    ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20'
+    : value === bad
+      ? 'text-red-400 bg-red-400/10 border-red-400/20'
+      : 'text-amber-400 bg-amber-400/10 border-amber-400/20'
+  return (
+    <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
+      {value}
+    </span>
+  )
+}
+
 function MetaRow({ opp }: { opp: OpportunityCard }) {
   return (
     <div className="flex divide-x divide-white/[0.06] rounded-lg border border-white/[0.06] mt-3 overflow-hidden">
       <div className="flex-1 px-2.5 py-2.5 text-center">
-        <p className="text-[10px] text-zinc-500 mb-1">Startup Cost</p>
-        <p className="text-xs font-semibold text-white">{opp.startup_cost}</p>
+        <p className="text-[10px] text-zinc-500 mb-1">Capital Tier</p>
+        <TierBadge value={opp.startup_cost_tier ?? '—'} good="Lean" bad="Capital-Intensive" />
       </div>
       <div className="flex-1 px-2.5 py-2.5 text-center">
         <p className="text-[10px] text-zinc-500 mb-1">Difficulty</p>
         <DifficultyBadge d={opp.difficulty} />
       </div>
       <div className="flex-1 px-2.5 py-2.5 text-center">
-        <p className="text-[10px] text-zinc-500 mb-1">Launch Time</p>
-        <p className="text-xs font-semibold text-white">{opp.launch_time}</p>
+        <p className="text-[10px] text-zinc-500 mb-1">Launch Speed</p>
+        <TierBadge value={opp.launch_speed ?? '—'} good="Fast" bad="Slow" />
       </div>
     </div>
   )
 }
 
 function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
-  const dims: { label: string; score: number; facts: string[] }[] = [
+  const dims: { label: string; tier: string; facts: string[] }[] = [
     {
       label: 'Demand',
-      score: scores.demand.score,
-      facts: [scores.demand.search_volume, scores.demand.trend, `Signal: ${scores.demand.signal}`],
+      tier: scores.demand.signal,
+      facts: [`Signal: ${scores.demand.signal}`],
     },
-    // Show market_saturation (new) or legacy competition if present
     ...(scores.market_saturation ? [{
       label: 'Market',
-      score: -1,  // no numeric score — qualitative only
+      tier: scores.market_saturation.level,
       facts: [`Saturation: ${scores.market_saturation.level}`, `Barrier: ${scores.market_saturation.barrier}`, scores.market_saturation.note ?? ''],
-    }] : scores.competition?.score != null ? [{
-      label: 'Competition',
-      score: scores.competition.score,
-      facts: [scores.competition.competing_brands ? `${scores.competition.competing_brands} brands` : '', `Sat: ${scores.competition.saturation ?? '?'}`, `Barrier: ${scores.competition.barrier ?? '?'}`].filter(Boolean),
     }] : []),
     {
       label: 'Virality',
-      score: scores.virality.score,
+      tier: scores.virality.tiktok,
       facts: [`TikTok: ${scores.virality.tiktok}`, `Content: ${scores.virality.content_potential}`, `UGC: ${scores.virality.ugc}`],
     },
     {
       label: 'Subscription',
-      score: scores.subscription.score,
-      facts: [scores.subscription.repeat_cycle, `Retention: ${scores.subscription.retention}`],
+      tier: scores.subscription.retention,
+      facts: [`Retention: ${scores.subscription.retention}`],
     },
     {
       label: 'Manufacturing',
-      score: scores.manufacturing.score,
-      facts: [`Complexity: ${scores.manufacturing.complexity}`, `MOQ: ${scores.manufacturing.moq}`],
+      tier: scores.manufacturing.complexity,
+      facts: [`Complexity: ${scores.manufacturing.complexity}`],
     },
   ]
 
   return (
     <div className="grid grid-cols-2 gap-2 mt-3">
-      {dims.map(({ label, score, facts }) => (
+      {dims.map(({ label, tier, facts }) => (
         <div key={label} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">{label}</span>
-            {score >= 0
-              ? <span className={`font-mono text-xs font-bold ${dimColor(score)}`}>{score}/10</span>
-              : <span className="text-[10px] text-zinc-600 uppercase tracking-wide">Qualitative</span>
-            }
+            <span className={`text-[10px] font-bold uppercase tracking-wide ${tierColor(tier as 'High' | 'Medium' | 'Low' | 'Strong' | 'Moderate' | 'Weak')}`}>{tier}</span>
           </div>
           <div className="space-y-0.5">
             {facts.map((f, i) => (
@@ -333,13 +348,25 @@ function DetectedCategoryBadge({ config }: { config: CategoryClientConfig }) {
   )
 }
 
-// ── Opportunity Map — a 2x2 score-vs-ease scatter, the primary hunting
-// surface for discovery. Replaces a scrolling list with a visual field
-// you scan and click into, the way an analyst scans a screener chart.
+// ── Opportunity Map — a promise-vs-ease grid, the primary hunting surface
+// for discovery. Replaces a scrolling list with a visual field you scan
+// and click into, the way an analyst scans a screener chart.
+//
+// 2026-06-26 evidence-first redesign: this used to plot a fabricated 0-100
+// score on a continuous Y-axis, implying precision that never existed (no
+// per-opportunity real data is ever fetched at discovery time). Both axes
+// are now discrete qualitative buckets — promise (High/Medium/Low, the AI's
+// own editorial tier) and difficulty (Easy/Medium/Hard) — jittered within
+// their bucket for the same scannable scatter feel, without pretending the
+// position is a measurement.
 // ─────────────────────────────────────────────────────────────────
 
 function easeOf(d: OpportunityCard['difficulty']) {
   return d === 'Easy' ? 84 : d === 'Medium' ? 50 : 17
+}
+
+function promiseY(p: OpportunityCard['promise']) {
+  return p === 'High' ? 17 : p === 'Medium' ? 50 : 84
 }
 
 function hashJitter(seed: string, range: number) {
@@ -359,7 +386,7 @@ function OpportunityMap({
     <div className="card-premium p-5 sm:p-7">
       <div className="flex items-center justify-between mb-1">
         <p className="label">Opportunity Map</p>
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wider hidden sm:inline">Score vs. ease of execution</p>
+        <p className="text-[10px] text-zinc-600 uppercase tracking-wider hidden sm:inline">Promise vs. ease of execution — AI judgment, not measured</p>
       </div>
       <div className="relative mt-7 h-[300px] sm:h-[400px] ml-8 border-l border-b border-white/[0.14]">
         {/* quadrant dividers */}
@@ -373,17 +400,17 @@ function OpportunityMap({
         <span className="absolute bottom-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-zinc-700">Low priority</span>
 
         {/* y-axis labels */}
-        {[100, 50, 0].map(v => (
-          <span key={v} className="absolute -left-7 -translate-y-1/2 text-[9px] text-zinc-600 font-mono" style={{ top: `${100 - v}%` }}>{v}</span>
+        {(['High', 'Medium', 'Low'] as const).map(p => (
+          <span key={p} className="absolute -left-9 -translate-y-1/2 text-[9px] text-zinc-600 uppercase tracking-wide" style={{ top: `${promiseY(p)}%` }}>{p}</span>
         ))}
 
         {/* points */}
         {opportunities.map((opp, i) => {
           const x = Math.min(97, Math.max(2, easeOf(opp.difficulty) + hashJitter(opp.name, 14)))
-          const y = Math.min(96, Math.max(3, 100 - opp.score + hashJitter(opp.name + 'y', 5)))
+          const y = Math.min(96, Math.max(3, promiseY(opp.promise) + hashJitter(opp.name + 'y', 10)))
           const isTop    = i < 3
           const isSel    = selectedName === opp.name
-          const c        = opp.score >= 75 ? '#34d399' : opp.score >= 60 ? '#fbbf24' : '#f87171'
+          const c        = opp.promise === 'High' ? '#34d399' : opp.promise === 'Medium' ? '#fbbf24' : '#f87171'
           const size     = isSel ? 15 : isTop ? 11 : 7
           return (
             <button
@@ -401,7 +428,7 @@ function OpportunityMap({
                 }}
               />
               <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2 py-1 rounded-md bg-[#15151a] border border-white/[0.1] text-[10px] text-zinc-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                {opp.name} · {opp.score}
+                {opp.name} · {opp.promise}
               </span>
             </button>
           )
@@ -425,11 +452,11 @@ function OpportunityDetail({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <h3 className="font-semibold text-base leading-snug">{opp.name}</h3>
-            <span className={`font-serif font-medium text-2xl ${scoreColor(opp.score)}`}>{opp.score}</span>
+            <span className={`font-serif font-semibold text-sm uppercase tracking-wide ${promiseColor(opp.promise)}`}>{opp.promise}</span>
           </div>
           <p className="text-sm text-zinc-400 mt-1.5">{opp.rationale}</p>
           <p className="text-[10px] text-zinc-600 italic mt-2">
-            AI-estimated, not independently verified — search volume, trend, and dimension scores are model output, sometimes informed by real signal data but not guaranteed to match it. Open the full report for per-field source detail.
+            AI editorial judgment, not independently verified — promise tier and dimension labels are model output, not a measurement. See the Category Signal panel for the one real data point behind this search. Open the full report for per-field source detail on your specific idea.
           </p>
           <MetaRow opp={opp} />
           <EvidenceGrid scores={opp.scores} />
@@ -455,7 +482,7 @@ function OpportunityTable({
     <div className="rounded-lg border border-white/[0.08] overflow-hidden">
       <div className="grid grid-cols-[2rem_1fr_5.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_4.5rem] gap-3 px-4 py-2 text-[10px] text-zinc-600 uppercase tracking-wider border-b border-white/[0.08] bg-white/[0.02] font-mono">
         <span>#</span><span>Opportunity</span><span className="text-right">Difficulty</span>
-        <span className="text-right hidden sm:inline">Signal</span><span className="text-right">Score</span>
+        <span className="text-right hidden sm:inline">Signal</span><span className="text-right">Promise</span>
       </div>
       <div className="divide-y divide-white/[0.05]">
         {opportunities.map((opp, i) => (
@@ -471,10 +498,56 @@ function OpportunityTable({
             </span>
             <span className="text-xs text-right text-zinc-400">{opp.difficulty}</span>
             <span className="text-xs text-right text-zinc-500 hidden sm:inline">{opp.scores.demand.signal}</span>
-            <span className={`text-sm text-right font-mono font-semibold ${scoreColor(opp.score)}`}>{opp.score}</span>
+            <span className={`text-xs text-right font-semibold uppercase tracking-wide ${promiseColor(opp.promise)}`}>{opp.promise}</span>
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ── Category Signal — the ONE real data point fetched for the whole broad
+// category at discovery time. Surfaces signalEngine.fetch() honestly
+// instead of leaving it as invisible AI prompt context: scoped explicitly
+// to the category as a whole, never attributed to any individual
+// opportunity card above. Absent entirely on cache hits (not persisted —
+// see app/api/discover/route.ts) or when no provider returned data.
+function CategorySignalPanel({ signal, category }: { signal: AggregatedSignals | null; category: string }) {
+  if (!signal) return null
+  const rows: { label: string; value: string }[] = []
+  if (signal.demand?.value) {
+    const d = signal.demand.value
+    if (d.search_volume) rows.push({ label: 'Search volume', value: d.search_volume })
+    if (d.trend)         rows.push({ label: 'Trend', value: d.trend })
+  }
+  if (signal.growth?.value?.yoy_change) rows.push({ label: 'YoY (Amazon BSR)', value: signal.growth.value.yoy_change })
+  if (signal.competition?.value) {
+    const c = signal.competition.value
+    if (c.competing_brands) rows.push({ label: 'Competing sellers', value: c.competing_brands })
+    if (c.saturation)       rows.push({ label: 'Saturation', value: c.saturation })
+  }
+  if (signal.pricing?.value?.avg_price) rows.push({ label: 'Avg. price', value: signal.pricing.value.avg_price })
+  if (signal.virality?.value?.tiktok)   rows.push({ label: 'TikTok signal', value: signal.virality.value.tiktok })
+
+  if (!rows.length) return null
+
+  return (
+    <div className="card p-4 mb-4">
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Real Category Signal</p>
+        <span className="text-[10px] text-zinc-600 font-mono">{signal.providers_used.join(', ')} · {Math.round(signal.overall_confidence * 100)}% confidence</span>
+      </div>
+      <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+        {rows.map(r => (
+          <div key={r.label} className="leading-tight">
+            <span className="text-[10px] text-zinc-600">{r.label}: </span>
+            <span className="text-xs font-mono text-zinc-300">{r.value}</span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-zinc-600 mt-2 italic">
+        Real provider data for the broad category &ldquo;{category}&rdquo; as a whole — not specific to any individual opportunity below.
+      </p>
     </div>
   )
 }
@@ -510,6 +583,8 @@ export default function AnalyzePage() {
   const [resultCategoryName, setResultCategoryName] = useState('')
   const [resultsView,        setResultsView]        = useState<'map' | 'list'>('map')
   const [selectedOpp,        setSelectedOpp]        = useState<string | null>(null)
+  const [categorySignal,     setCategorySignal]     = useState<AggregatedSignals | null>(null)
+  const [searchedQuery,      setSearchedQuery]      = useState('')
 
   const category        = getCategoryClientConfig(categoryId)
   const resolvedConfig  = resolvedCategoryId ? getCategoryClientConfig(resolvedCategoryId) : null
@@ -587,6 +662,7 @@ export default function AnalyzePage() {
         cache_status: status,
         categoryId: detectedCategoryId,
         categoryName,
+        categorySignal: signal,
       } = await res.json()
 
       setOpportunities(opps)
@@ -596,6 +672,8 @@ export default function AnalyzePage() {
       setCacheWeek(week ?? '')
       setCacheStatus(status ?? '')
       setResultCategoryName(categoryName ?? '')
+      setCategorySignal(signal ?? null)
+      setSearchedQuery(input.trim())
       if (detectedCategoryId) setResolvedCategoryId(detectedCategoryId)
       setMode('results')
     } catch (err: unknown) {
@@ -730,6 +808,8 @@ export default function AnalyzePage() {
           </p>
 
           {error && <div className="mb-6"><ErrorBanner message={error} networkFailure={networkFailure} /></div>}
+
+          <CategorySignalPanel signal={categorySignal} category={searchedQuery} />
 
           {/* ── view toggle ── */}
           <div className="flex items-center gap-1 mb-5 border-b border-white/[0.07]">

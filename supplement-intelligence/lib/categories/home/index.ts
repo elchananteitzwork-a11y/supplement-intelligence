@@ -14,52 +14,43 @@ Given a broad home or lifestyle category, generate exactly 20 specific product o
 
 Home & Lifestyle covers: kitchen gadgets, home organization, cleaning products, home decor, candles & fragrance, bathroom accessories, bedroom & sleep products, outdoor/garden, laundry, small appliances, storage, sustainability products, and everyday lifestyle goods.
 
-SCORING — each dimension is an integer 0–10 (be skeptical, never inflate). EVERY score must be accompanied by evidence fields.
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number. Every dimension must include its evidence fields.
 
-DEMAND (score + evidence):
-- search_volume: estimated monthly US search volume (e.g. "200k/month", "35k/month")
-- trend: YoY direction — "+N% YoY" / "Stable" / "-N% YoY"
+DEMAND:
 - signal: "Strong" (proven consumer demand + trending), "Moderate" (consistent demand), or "Weak" (niche, declining)
-- score 8–10: >80k/month + growing; 5–7: 20–80k/month or stable; 0–4: <20k/month or declining
 
-MARKET SATURATION (qualitative — no score):
+MARKET SATURATION (qualitative):
 - level: "Low" (<20 brands), "Medium" (20–60), "High" (60–120), "Very High" (120+)
 - barrier: "Low" (white-label friendly), "Medium" (proprietary formula or compliance needed), "High" (vet backing, clinical trials, dominant incumbents)
 - note: one sentence on who dominates and where the opportunity sits
 
-VIRALITY (score + evidence):
+VIRALITY:
 - tiktok: "High" (#CleanTok #HomeOrganization viral potential, aesthetic content), "Medium", "Low"
 - content_potential: "High" (transformation, before/after, unboxing, aesthetic), "Medium", "Low"
 - ugc: "High" (creators naturally film home content), "Medium", "Low"
-- score 8–10: all High; 5–7: mixed; 0–4: mostly Low
 
-SUBSCRIPTION (score + evidence):
-- repeat_cycle: natural repurchase cadence ("30 days" for consumables, "12+ months" for durables)
+SUBSCRIPTION:
 - retention: "High" (daily consumable use, replacement necessity), "Medium", "Low"
-- score 8–10: monthly consumable + High retention; 5–7: moderate; 0–4: one-time durable
 
-MANUFACTURING (score + evidence) — 10 = easiest:
+MANUFACTURING:
 - complexity: "Low" (simple import, standard materials), "Medium" (custom tooling, moderate design), "High" (electronics, complex engineering, specialized materials)
-- moq: estimated minimum order quantity
-- score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex or large MOQ
 
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
+PROMISE — your overall qualitative read across all dimensions (High | Medium | Low). Be skeptical — most opportunities should land Medium, not High.
 
-STARTUP COST — tooling/sourcing + MOQ + packaging + brand + initial marketing:
-- Simple import with no tooling: "$3k–$10k"
-- Custom design, moderate tooling: "$10k–$30k"
-- Electronics, complex engineering, advanced materials: "$30k–$80k"
-- Major tooling, compliance certifications (UL, CE, ETL): "$80k+"
+STARTUP COST TIER — directional capital-intensity judgment, not a dollar estimate:
+- Lean: simple import with no tooling
+- Moderate: custom design, moderate tooling
+- Capital-Intensive: electronics, complex engineering, advanced materials, or major compliance certifications (UL, CE, ETL)
 
 DIFFICULTY:
 - Easy: simple white-label import, strong aesthetic play, TikTok-native product
 - Medium: custom design or tooling required, moderate retail/logistics complexity
 - Hard: electronics, complex supply chain, strong incumbents with retail shelf presence
 
-LAUNCH TIME:
-- Simple import / white-label: "30–60 days"
-- Custom design with tooling: "90–180 days"
-- Electronics / complex: "180–360 days"
+LAUNCH SPEED — directional time-to-market judgment, not a day-count estimate:
+- Fast: simple import / white-label
+- Moderate: custom design with tooling
+- Slow: electronics / complex requirements
 ${SHARED_OPPORTUNITY_SCHEMA}`
 
 // ── Analysis prompt ────────────────────────────────────────────────────────

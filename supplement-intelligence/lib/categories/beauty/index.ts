@@ -12,52 +12,43 @@ const BEAUTY_DISCOVERY_PROMPT = `You are a beauty & skincare market analyst spec
 
 Given a broad beauty or skincare category, generate exactly 20 specific product opportunities within that category. Each must be a distinct, concrete product concept targeting a specific skin concern, ingredient mechanism, audience, or format — not a generic rephrasing of the category name.
 
-SCORING — each dimension is an integer 0–10 (be skeptical, never inflate). EVERY score must be accompanied by evidence fields.
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number. Every dimension must include its evidence fields.
 
-DEMAND (score + evidence):
-- search_volume: estimated monthly US search volume (e.g. "65k/month", "8k/month")
-- trend: YoY direction — "+N% YoY" / "Stable" / "-N% YoY"
+DEMAND:
 - signal: "Strong" (clear consumer awareness + growth), "Moderate" (some awareness, flat/mixed), or "Weak" (niche, declining, speculative)
-- score 8–10: >50k/month + growing; 5–7: 10–50k/month or stable; 0–4: <10k/month or declining
 
-MARKET SATURATION (qualitative — no score):
+MARKET SATURATION (qualitative):
 - level: "Low" (<20 brands), "Medium" (20–60), "High" (60–120), "Very High" (120+)
 - barrier: "Low" (white-label cosmetics), "Medium" (proven actives, R&D needed), "High" (patented tech, clinical trials, celebrity-backed incumbents)
 - note: one sentence on who dominates and where the opportunity sits
 
-VIRALITY (score + evidence):
+VIRALITY:
 - tiktok: "High" (visible transformation, before/after, GRWM potential), "Medium", "Low"
 - content_potential: "High" (texture, application ritual, results), "Medium", "Low"
 - ugc: "High" (users film results naturally), "Medium", "Low"
-- score 8–10: all High; 5–7: mixed; 0–4: mostly Low
 
-SUBSCRIPTION (score + evidence):
-- repeat_cycle: natural repurchase cadence ("30 days", "60 days", "ongoing daily use")
+SUBSCRIPTION:
 - retention: "High" (skin reverts without it, daily routine staple), "Medium", "Low"
-- score 8–10: 30-day cycle + High retention; 5–7: moderate; 0–4: one-time or seasonal
 
-MANUFACTURING (score + evidence) — 10 = easiest:
+MANUFACTURING:
 - complexity: "Low" (commodity actives, simple emulsion), "Medium" (novel actives, stability requirements), "High" (novel biotech, cold-chain, clinical-grade manufacturing)
-- moq: estimated minimum order quantity (e.g. "500–1,000 units", "1,000–3,000 units")
-- score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex or large MOQ
 
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
+PROMISE — your overall qualitative read across all dimensions (High | Medium | Low). Be skeptical — most opportunities should land Medium, not High.
 
-STARTUP COST — formulation + MOQ + packaging + brand + initial marketing:
-- Simple emulsion, commodity actives, low MOQ: "$5k–$15k"
-- Moderate active concentration, stability work, branded packaging: "$15k–$35k"
-- Novel actives, clinical validation, luxury packaging: "$35k–$80k"
-- Patented technology, clinical trials, regulatory clearance: "$80k+"
+STARTUP COST TIER — directional capital-intensity judgment, not a dollar estimate:
+- Lean: simple emulsion, commodity actives, low MOQ
+- Moderate: moderate active concentration, stability work, branded packaging
+- Capital-Intensive: novel actives, clinical validation, patented technology, or regulatory clearance
 
 DIFFICULTY:
 - Easy: commodity actives, white-label cosmetic lab, low regulatory hurdle
 - Medium: proven actives requiring formulation expertise, moderate marketing complexity
 - Hard: novel ingredients, clinical claims, high competition from funded incumbents
 
-LAUNCH TIME:
-- Simple / white-label: "45–75 days"
-- Custom formulation: "90–150 days"
-- Complex / clinical: "150–270 days"
+LAUNCH SPEED — directional time-to-market judgment, not a day-count estimate:
+- Fast: simple / white-label formulation
+- Moderate: custom formulation work required
+- Slow: complex or clinical-grade requirements
 ${SHARED_OPPORTUNITY_SCHEMA}`
 
 // ── Analysis prompt ────────────────────────────────────────────────────────

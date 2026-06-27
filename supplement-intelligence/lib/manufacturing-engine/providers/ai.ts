@@ -8,49 +8,36 @@ import type {
 } from '../types'
 
 // ── AI-powered manufacturing estimator (Phase 1 provider) ──────────────────
-// Uses Claude with category-specific knowledge to estimate manufacturing
-// parameters. Estimates are directional intelligence, not verified quotes.
-// Future providers (Alibaba, Made-in-China) will validate and replace these
-// estimates with real supplier data.
+// Fallback only — runs when the real Apify supplier-search provider fails
+// or returns nothing. Estimates directional category-level manufacturing
+// difficulty only; never a substitute for real supplier quotes.
+//
+// PERMANENT RULE (2026-06-26): this provider previously also fabricated
+// unit_cost, moq, supplier_count, top_supplier_rating, and lead_time_days —
+// specific-looking numbers with zero real basis (no live supplier was ever
+// queried on this path). Removed entirely. The only output now is
+// `complexity` (a qualitative judgment, already labeled as such in the UI)
+// and free-text `notes`. When this path is active, the UI shows
+// "Insufficient Verified Data" for cost/MOQ/lead-time/supplier-count/
+// rating instead of a number with nothing behind it.
 
 const SYSTEM_PROMPT = `You are a manufacturing intelligence analyst specializing in DTC consumer products.
 
-Given a product name, category, and optional complexity hints, estimate manufacturing parameters.
+Given a product name, category, and optional complexity hints, judge the manufacturing complexity tier.
 
 Return ONLY a valid JSON object — no markdown, no code fences, no explanation.
 
-CALIBRATION BY CATEGORY:
-- supplements (capsules/powder): MOQ 250–2000 units, unit cost $2–8, lead time 45–90 days
-- supplements (gummies/liquid): MOQ 500–3000 units, unit cost $3–12, lead time 60–120 days
-- beauty (serums/creams): MOQ 300–2000 units, unit cost $3–15, lead time 60–90 days
-- beauty (complex/clinical): MOQ 1000–5000 units, unit cost $8–30, lead time 90–150 days
-- fitness (nutrition): same as supplements
-- fitness (equipment/accessories): MOQ 100–500 units, unit cost $5–40, lead time 60–150 days
-- pets (treats/soft chews): MOQ 500–2000 units, unit cost $2–8, lead time 45–90 days
-- pets (specialized formula): MOQ 1000–5000 units, unit cost $5–20, lead time 90–150 days
-- home (simple import): MOQ 50–500 units, unit cost $3–20, lead time 45–90 days
-- home (custom tooling/electronics): MOQ 200–2000 units, unit cost $10–60, lead time 90–240 days
-
-SUPPLIER COUNT ESTIMATES:
-- Low complexity, commodity category: 200–500 suppliers globally
-- Medium complexity, specialized: 50–200 suppliers
-- High complexity, clinical/advanced: 10–50 suppliers
-- Very High complexity: 5–20 suppliers
-
-RATING: Top suppliers in each category typically rate 4.5–5.0 on Alibaba for established verticals.
-For niche or complex products, assume 4.0–4.7 from vetted suppliers.
+CALIBRATION:
+- Low: commodity ingredients/materials, simple process, widely available suppliers
+- Medium: custom formulation/design, moderate stability or tooling requirements
+- High: novel ingredients/materials, specialized process, cold-chain or precision tooling
+- Very High: regulated/clinical-grade, advanced engineering, narrow supplier pool
 
 Return exactly:
 {
-  "unit_cost": { "low": 0.0, "high": 0.0, "currency": "USD" },
-  "moq":       { "low": 0, "high": 0, "unit": "units" },
-  "supplier_count": { "estimate": 0 },
-  "top_supplier_rating": 0.0,
-  "lead_time_days": { "low": 0, "high": 0 },
   "complexity": "Low | Medium | High | Very High",
-  "notes": "one sentence on the key manufacturing consideration or risk"
-}
-Do not include a "confidence" or "confidence_label" field — the caller sets that itself.`
+  "notes": "one sentence on the key manufacturing consideration or risk — qualitative only, no invented cost figures, unit counts, or day estimates"
+}`
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -65,13 +52,12 @@ export class AIManufacturingProvider implements ManufacturingProvider {
       `Product: "${req.product}"`,
       `Category: ${req.category}`,
       req.complexity ? `Complexity hint: ${req.complexity}` : null,
-      req.moq_hint   ? `MOQ hint from discovery: ${req.moq_hint}` : null,
     ].filter(Boolean).join('\n')
 
     try {
       const msg = await ai.messages.create({
         model:      'claude-haiku-4-5-20251001',
-        max_tokens: 600,
+        max_tokens: 300,
         system:     SYSTEM_PROMPT,
         messages:   [{ role: 'user', content: prompt }],
       })
@@ -80,16 +66,16 @@ export class AIManufacturingProvider implements ManufacturingProvider {
       const parsed = JSON.parse(s)
 
       return {
-        product:            req.product,
-        category:           req.category,
-        unit_cost:          parsed.unit_cost,
-        moq:                parsed.moq,
-        // confidence here is also fixed, not model-self-reported — same
-        // reasoning as the top-level confidence/confidence_label below.
-        supplier_count:     { estimate: parsed.supplier_count?.estimate ?? 0, confidence: 'Low' as ConfidenceLabel },
-        top_supplier_rating: parsed.top_supplier_rating ?? null,
-        lead_time_days:     parsed.lead_time_days,
-        complexity:         (parsed.complexity  ?? 'Medium') as ManufacturingComplexity,
+        product:             req.product,
+        category:            req.category,
+        // No real supplier data was available on this path — these stay
+        // undefined/null rather than carrying an invented number.
+        unit_cost:           undefined,
+        moq:                 undefined,
+        supplier_count:      undefined,
+        top_supplier_rating: null,
+        lead_time_days:      undefined,
+        complexity:          (parsed.complexity ?? 'Medium') as ManufacturingComplexity,
         // PERMANENT RULE (2026-06-26): never let the model self-report its
         // own confidence — that's a number with no traceable basis, just
         // one step removed from the estimate it's describing. This whole

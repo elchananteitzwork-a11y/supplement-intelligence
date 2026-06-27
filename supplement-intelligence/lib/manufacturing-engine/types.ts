@@ -24,11 +24,16 @@ export interface LeadTimeRange {
 export interface ManufacturingEstimate {
   product:            string
   category:           string
-  unit_cost:          CostRange
-  moq:                MOQRange
-  supplier_count:     { estimate: number; confidence: ConfidenceLabel }
-  top_supplier_rating: number | null   // 0–5, null if unknown
-  lead_time_days:     LeadTimeRange
+  // 2026-06-26 evidence-first redesign: these five fields are optional
+  // because the ai_synthesis fallback (no real supplier data available)
+  // no longer fabricates them — it returns undefined/null instead of an
+  // invented cost/MOQ/lead-time/supplier-count/rating. They are always
+  // populated by the real Apify provider when it succeeds.
+  unit_cost?:          CostRange
+  moq?:                MOQRange
+  supplier_count?:     { estimate: number; confidence: ConfidenceLabel }
+  top_supplier_rating: number | null   // 0–5, null if unknown or unverified
+  lead_time_days?:     LeadTimeRange
   complexity:         ManufacturingComplexity
   confidence:         number           // 0–1
   confidence_label:   ConfidenceLabel
@@ -52,7 +57,6 @@ export interface ManufacturingRequest {
   product:     string
   category:    string
   complexity?: string   // hint from opportunity card ("Low" | "Medium" | "High")
-  moq_hint?:   string   // text MOQ from discovery card (e.g. "500–1,000 units")
 }
 
 // Provider interface — designed for future Alibaba/MIC/GS integrations

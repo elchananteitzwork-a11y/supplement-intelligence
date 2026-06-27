@@ -159,56 +159,52 @@ export function buildSignalContext(
 
 // ── Base discovery prompt ─────────────────────────────────────────
 
+// PERMANENT RULE (2026-06-26): no numeric score anywhere in this schema —
+// see SHARED_OPPORTUNITY_SCHEMA in lib/categories/shared-prompts.ts for the
+// full rationale. This is the one category (supplements) with its own
+// discovery prompt instead of the shared one, so it needs the identical
+// treatment applied by hand.
 export const DISCOVERY_PROMPT = `You are a supplement market analyst specializing in consumer brand opportunity identification.
 
 Given a broad supplement category, generate exactly 20 specific supplement product opportunities within that category. Each must be a distinct, concrete product concept targeting a specific problem, mechanism, or audience — not just a rephrasing of the category name.
 
-SCORING — each dimension is an integer 0–10 (be skeptical, never inflate). EVERY score must be accompanied by evidence fields. Never output a score without its evidence.
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number. Every dimension must include its evidence fields.
 
-DEMAND (score + evidence):
-- search_volume: estimated monthly search volume in the format "NNk/month" (e.g. "82k/month", "12k/month")
-- trend: YoY direction in the format "+N% YoY" / "Stable" / "-N% YoY"
+DEMAND:
 - signal: "Strong" (clear consumer awareness + growth), "Moderate" (some awareness, flat/mixed trend), or "Weak" (niche, declining, or speculative)
-- score 8–10: >50k/month + growing; 5–7: 10–50k/month or stable; 0–4: <10k/month or declining
 
-MARKET SATURATION (qualitative — no score, do not include a numeric score field):
+MARKET SATURATION (qualitative):
 - level: "Low" (<20 established brands, white space exists), "Medium" (20–60 brands, niches available), "High" (60–120 brands, strong incumbents), "Very High" (120+ brands, dominated)
 - barrier: "Low" (white-label friendly), "Medium" (some R&D or positioning moat needed), "High" (clinical claims, patents, or dominant incumbents)
 - note: one sentence on who dominates and where the real opportunity sits
 
-VIRALITY (score + evidence):
+VIRALITY:
 - tiktok: "High" (strong content angle, active creator ecosystem), "Medium" (some content but not viral), "Low" (boring/clinical category)
 - content_potential: "High" (before/after, transformation, taste), "Medium", "Low"
 - ugc: "High" (users naturally share results), "Medium", "Low"
-- score 8–10: all three High; 5–7: mixed; 0–4: mostly Low
 
-SUBSCRIPTION (score + evidence):
-- repeat_cycle: natural repurchase cadence (e.g. "30 days", "60 days", "ongoing daily use")
+SUBSCRIPTION:
 - retention: "High" (symptom returns on stopping, daily habit), "Medium" (occasional use), "Low" (one-time or seasonal)
-- score 8–10: 30-day cycle + High retention; 5–7: moderate; 0–4: one-time or seasonal
 
-MANUFACTURING (score + evidence) — 10 = easiest:
+MANUFACTURING:
 - complexity: "Low" (commodity ingredients, capsules/powder), "Medium" (custom blend, moderate stability), "High" (novel ingredients, specialized form, cold-chain)
-- moq: estimated minimum order quantity (e.g. "250–500 units", "1,000–2,500 units", "5,000+ units")
-- score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex formula or large MOQ
 
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
+PROMISE — your overall qualitative read across all dimensions (High | Medium | Low). Be skeptical — most opportunities should land Medium, not High.
 
-STARTUP COST — total capital to first sale (formulation + MOQ + packaging + brand + basic marketing):
-- Commodity formula, low MOQ: "$3k–$8k"
-- Moderate formulation complexity or higher MOQ: "$8k–$20k"
-- Complex formula, clinical ingredients, or specialty packaging: "$20k–$50k"
-- High regulatory burden or extensive R&D: "$50k+"
+STARTUP COST TIER — directional capital-intensity judgment, not a dollar estimate:
+- Lean: commodity formula, low MOQ
+- Moderate: moderate formulation complexity or higher MOQ
+- Capital-Intensive: complex formula, clinical ingredients, specialty packaging, high regulatory burden, or extensive R&D
 
 DIFFICULTY — overall operator difficulty (Easy / Medium / Hard):
 - Easy: commodity ingredients, white-label friendly, low regulatory risk
 - Medium: some R&D, moderate marketing complexity, or niche audience
 - Hard: novel ingredients, clinical claims, high competition, or complex ops
 
-LAUNCH TIME — from first investment to first sale:
-- Easy/white-label: "30–60 days"
-- Moderate custom formula: "60–120 days"
-- Complex or regulated: "120–180 days"
+LAUNCH SPEED — directional time-to-market judgment, not a day-count estimate:
+- Fast: easy / white-label
+- Moderate: custom formula
+- Slow: complex or regulated requirements
 
 Return ONLY a valid JSON array — no markdown, no code fences, no explanation, no preamble.
 Start with [ and end with ].
@@ -216,16 +212,13 @@ Start with [ and end with ].
 [
   {
     "name": "2–5 word specific opportunity name",
-    "score": 0,
-    "rationale": "one sentence on the biggest opportunity or risk driving the score",
-    "startup_cost": "$Xk–$Yk",
+    "rationale": "one sentence on the biggest opportunity or risk",
+    "promise": "High | Medium | Low",
+    "startup_cost_tier": "Lean | Moderate | Capital-Intensive",
     "difficulty": "Easy | Medium | Hard",
-    "launch_time": "X–Y days",
+    "launch_speed": "Fast | Moderate | Slow",
     "scores": {
       "demand": {
-        "score": 0,
-        "search_volume": "NNk/month",
-        "trend": "+N% YoY",
         "signal": "Strong | Moderate | Weak"
       },
       "market_saturation": {
@@ -234,20 +227,15 @@ Start with [ and end with ].
         "note": "one sentence on competitive dynamics"
       },
       "virality": {
-        "score": 0,
         "tiktok": "High | Medium | Low",
         "content_potential": "High | Medium | Low",
         "ugc": "High | Medium | Low"
       },
       "subscription": {
-        "score": 0,
-        "repeat_cycle": "30 days",
         "retention": "High | Medium | Low"
       },
       "manufacturing": {
-        "score": 0,
-        "complexity": "Low | Medium | High",
-        "moq": "N–N units"
+        "complexity": "Low | Medium | High"
       }
     }
   }
@@ -257,18 +245,18 @@ Rules:
 - Generate exactly 20 opportunities
 - Be specific: "Women's Bloating Relief", "Post-Antibiotic Recovery", "GLP-1 Digestive Support" — not "Gut Supplement"
 - Vary opportunities across different audiences, mechanisms, and product angles
-- Sort by opportunity_score descending
-- Be analytically skeptical — most scores should land in the 5–8 range, not 9–10
-- Every score field MUST have its accompanying evidence fields — omitting evidence is not allowed`
+- Order the array by your own promise judgment, strongest first — this ordering IS the ranking; do not also invent a numeric score to justify it
+- Be analytically skeptical — most opportunities should land Medium, not High
+- Do not put any number into any field anywhere in this schema, including inside free-text fields like rationale or the market_saturation note — qualitative language only`
 
 // Builds a weekly-refresh system prompt that layers continuity instructions
 // on top of the base DISCOVERY_PROMPT. Claude uses the previous list as
 // context but still applies all evidence + scoring rules from above.
 export function buildRefreshPrompt(
-  previous: Array<{ name: string; score: number }>,
+  previous: Array<{ name: string; promise: string }>,
 ): string {
   const list = previous
-    .map((o, i) => `${i + 1}. ${o.name} (score: ${o.score})`)
+    .map((o, i) => `${i + 1}. ${o.name} (promise: ${o.promise})`)
     .join('\n')
 
   return `${DISCOVERY_PROMPT}
@@ -281,10 +269,10 @@ ${list}
 
 Refresh rules (apply after all rules above):
 - Keep opportunities that remain strong and relevant; use their EXACT same name if retaining them
-- Retained opportunity scores may shift ±4 points based on current perspective
+- Retained opportunities' promise tier may shift one step (e.g. Medium→High) based on current perspective — never invent a numeric score
 - Replace 4–6 of the weakest or most stale entries with completely new ideas not in the list above
 - New ideas must follow the same specificity and evidence standards as the main prompt
-- Return exactly 20 total, sorted by opportunity_score descending`
+- Return exactly 20 total, sorted by your own promise judgment (best first)`
 }
 
 // Augments any system prompt (base or refresh) with Signal Engine data.

@@ -12,52 +12,43 @@ const PETS_DISCOVERY_PROMPT = `You are a pet market analyst specializing in cons
 
 Given a broad pet product category, generate exactly 20 specific product opportunities within that category. Each must be a distinct, concrete product concept targeting a specific pet type, health concern, life stage, or owner need — not a generic rephrasing of the category name.
 
-SCORING — each dimension is an integer 0–10 (be skeptical, never inflate). EVERY score must be accompanied by evidence fields.
+DIMENSION JUDGMENT — qualitative only (High | Medium | Low), never a number. Every dimension must include its evidence fields.
 
-DEMAND (score + evidence):
-- search_volume: estimated monthly US search volume (e.g. "90k/month", "14k/month")
-- trend: YoY direction — "+N% YoY" / "Stable" / "-N% YoY"
+DEMAND:
 - signal: "Strong" (clear pet-owner awareness + growth), "Moderate", or "Weak"
-- score 8–10: >50k/month + growing; 5–7: 10–50k/month or stable; 0–4: <10k/month or declining
 
-MARKET SATURATION (qualitative — no score):
+MARKET SATURATION (qualitative):
 - level: "Low" (<20 brands), "Medium" (20–60), "High" (60–120), "Very High" (120+)
 - barrier: "Low" (white-label friendly), "Medium" (proprietary formula or compliance needed), "High" (vet backing, clinical trials, dominant incumbents)
 - note: one sentence on who dominates and where the opportunity sits
 
-VIRALITY (score + evidence):
+VIRALITY:
 - tiktok: "High" (cute pet content, transformation, before/after), "Medium", "Low"
 - content_potential: "High" (happy pet reaction, visible results), "Medium", "Low"
 - ugc: "High" (pet owners naturally share product results), "Medium", "Low"
-- score 8–10: all High; 5–7: mixed; 0–4: mostly Low
 
-SUBSCRIPTION (score + evidence):
-- repeat_cycle: natural repurchase cadence ("30 days", "monthly", "ongoing daily use")
+SUBSCRIPTION:
 - retention: "High" (pet health/food dependency, vet recommended), "Medium", "Low"
-- score 8–10: monthly cycle + High retention; 5–7: moderate; 0–4: one-time or seasonal
 
-MANUFACTURING (score + evidence) — 10 = easiest:
+MANUFACTURING:
 - complexity: "Low" (commodity ingredients, simple treat format), "Medium" (custom blend, AAFCO or NASC compliance), "High" (novel ingredients, veterinary-grade, cold-chain)
-- moq: estimated minimum order quantity
-- score 8–10: Low complexity + small MOQ; 5–7: moderate; 0–4: complex or large MOQ
 
-opportunity_score = round((demand + virality + subscription + manufacturing) / 40 × 100)
+PROMISE — your overall qualitative read across all dimensions (High | Medium | Low). Be skeptical — most opportunities should land Medium, not High.
 
-STARTUP COST — formulation/sourcing + MOQ + packaging + brand + initial marketing:
-- Simple treats, chews, or accessories: "$4k–$12k"
-- Custom formula, NASC compliance, moderate MOQ: "$12k–$30k"
-- Veterinary-grade, clinical validation, specialty ingredients: "$30k–$70k"
-- FDA CVM / Rx vet products: "$70k+"
+STARTUP COST TIER — directional capital-intensity judgment, not a dollar estimate:
+- Lean: simple treats, chews, or accessories
+- Moderate: custom formula, NASC compliance, moderate MOQ
+- Capital-Intensive: veterinary-grade, clinical validation, specialty ingredients, or FDA CVM / Rx vet products
 
 DIFFICULTY:
 - Easy: commodity treats/accessories, white-label pet goods, low regulatory hurdle
 - Medium: custom formula needing NASC compliance, moderate pet-marketing complexity
 - Hard: veterinary backing required, clinical claims, dominant category incumbents
 
-LAUNCH TIME:
-- Simple accessories / treats: "30–60 days"
-- Custom formula: "60–120 days"
-- Vet-grade / clinical: "120–240 days"
+LAUNCH SPEED — directional time-to-market judgment, not a day-count estimate:
+- Fast: simple accessories / treats
+- Moderate: custom formula
+- Slow: vet-grade / clinical requirements
 ${SHARED_OPPORTUNITY_SCHEMA}`
 
 // ── Analysis prompt ────────────────────────────────────────────────────────

@@ -10,10 +10,10 @@ import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 // Generic weekly-refresh wrapper for any category's discovery prompt.
 export function buildGenericRefreshPrompt(
   baseDiscoveryPrompt: string,
-  previous: Array<{ name: string; score: number }>,
+  previous: Array<{ name: string; promise: string }>,
 ): string {
   const list = previous
-    .map((o, i) => `${i + 1}. ${o.name} (score: ${o.score})`)
+    .map((o, i) => `${i + 1}. ${o.name} (promise: ${o.promise})`)
     .join('\n')
 
   return `${baseDiscoveryPrompt}
@@ -26,10 +26,10 @@ ${list}
 
 Refresh rules (apply after all rules above):
 - Keep opportunities that remain strong and relevant; use their EXACT same name if retaining them
-- Retained opportunity scores may shift ±4 points based on current perspective
+- Retained opportunities' promise tier may shift one step (e.g. Medium→High) based on current perspective — never invent a numeric score
 - Replace 4–6 of the weakest or most stale entries with completely new ideas not in the list above
 - New ideas must follow the same specificity and evidence standards as the main prompt
-- Return exactly 20 total, sorted by opportunity_score descending`
+- Return exactly 20 total, sorted by your own promise judgment (best first)`
 }
 
 // Re-export the signal augmentation utility — identical for all categories.
@@ -46,6 +46,13 @@ export function buildSharedSignalAugmentedPrompt(
 // Identical schema instruction appended to every category's discovery prompt.
 // Keeping it here ensures a single source of truth for the OpportunityCard shape.
 
+// PERMANENT RULE (2026-06-26): no numeric score anywhere in this schema.
+// Discovery never fetches real per-opportunity data (only one category-
+// level signal call per request, surfaced separately and honestly via
+// CategorySignalPanel) — a 0-10 or 0-100 number here would have zero real
+// basis no matter what formula combined it. "promise" is your own
+// qualitative prioritization judgment (explicitly allowed), not a
+// measurement; card order should already reflect it, best first.
 export const SHARED_OPPORTUNITY_SCHEMA = `
 Return ONLY a valid JSON array — no markdown, no code fences, no explanation, no preamble.
 Start with [ and end with ].
@@ -53,16 +60,13 @@ Start with [ and end with ].
 [
   {
     "name": "2–5 word specific opportunity name",
-    "score": 0,
-    "rationale": "one sentence on the biggest opportunity or risk driving the score",
-    "startup_cost": "$Xk–$Yk",
+    "rationale": "one sentence on the biggest opportunity or risk",
+    "promise": "High | Medium | Low",
+    "startup_cost_tier": "Lean | Moderate | Capital-Intensive",
     "difficulty": "Easy | Medium | Hard",
-    "launch_time": "X–Y days",
+    "launch_speed": "Fast | Moderate | Slow",
     "scores": {
       "demand": {
-        "score": 0,
-        "search_volume": "NNk/month",
-        "trend": "+N% YoY",
         "signal": "Strong | Moderate | Weak"
       },
       "market_saturation": {
@@ -71,20 +75,15 @@ Start with [ and end with ].
         "note": "one sentence on competitive dynamics"
       },
       "virality": {
-        "score": 0,
         "tiktok": "High | Medium | Low",
         "content_potential": "High | Medium | Low",
         "ugc": "High | Medium | Low"
       },
       "subscription": {
-        "score": 0,
-        "repeat_cycle": "30 days",
         "retention": "High | Medium | Low"
       },
       "manufacturing": {
-        "score": 0,
-        "complexity": "Low | Medium | High",
-        "moq": "N–N units"
+        "complexity": "Low | Medium | High"
       }
     }
   }
@@ -94,9 +93,9 @@ Rules:
 - Generate exactly 20 opportunities
 - Be specific: target a distinct problem, audience, mechanism, or angle — not a generic rephrasing
 - Vary opportunities across different audiences, use-cases, and product formats
-- Sort by opportunity_score descending
-- Be analytically skeptical — most scores should land in the 5–8 range, not 9–10
-- Every score field MUST have its accompanying evidence fields — omitting evidence is not allowed`
+- Order the array by your own promise judgment, strongest first — this ordering IS the ranking; do not also invent a numeric score to justify it
+- Be analytically skeptical — most opportunities should land Medium, not High
+- Do not put any number into any field anywhere in this schema, including inside free-text fields like rationale or the market_saturation note — qualitative language only`
 
 // ── Shared analysis memo JSON schema ─────────────────────────────────────
 // All categories produce the same MemoData shape so the existing UI renders them.

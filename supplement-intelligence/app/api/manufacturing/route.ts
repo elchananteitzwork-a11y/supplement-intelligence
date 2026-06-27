@@ -25,17 +25,17 @@ function err(msg: string, status = 400) {
 }
 
 // POST /api/manufacturing
-// Body: { product, category, complexity?, moq_hint? }
+// Body: { product, category, complexity? }
 // Returns: ManufacturingEstimate | { error }
 export async function POST(req: Request) {
   const sb = supabaseFromCookies()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return err('Unauthorized', 401)
 
-  let body: { product?: string; category?: string; complexity?: string; moq_hint?: string }
+  let body: { product?: string; category?: string; complexity?: string }
   try { body = await req.json() } catch { return err('Invalid JSON body') }
 
-  const { product, category, complexity, moq_hint } = body
+  const { product, category, complexity } = body
 
   if (!product?.trim())  return err('product is required')
   if (!category?.trim()) return err('category is required')
@@ -46,7 +46,6 @@ export async function POST(req: Request) {
     product:    product.trim(),
     category:   category.trim(),
     complexity: complexity?.trim(),
-    moq_hint:   moq_hint?.trim(),
   }, 28_000)
 
   if (!estimate) {
