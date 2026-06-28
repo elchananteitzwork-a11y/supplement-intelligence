@@ -2,6 +2,11 @@ import type { BuildDecision } from '@/types/index'
 
 const DECISION_COLOR: Record<BuildDecision, string> = {
   BUILD_NOW: '#34d399', VALIDATE_FURTHER: '#fbbf24', SKIP: '#f87171',
+  // Distinct from all three above — this isn't "real data, mediocre result,"
+  // it's "no real data for this exact idea, but the surrounding category is
+  // real" — a different kind of finding, not a point on the same good-to-bad
+  // spectrum the other three colors represent.
+  CATEGORY_CREATION_CANDIDATE: '#38bdf8',
 }
 
 // Compact full-circle progress ring — a mini instrument reading for card

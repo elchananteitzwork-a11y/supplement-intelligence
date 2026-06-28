@@ -83,7 +83,7 @@ export const STATIC_PROVENANCE = {
   ),
   opportunityScore: estimated(
     'Server-side formula',
-    'Computed deterministically as a weighted blend of demand, revenue, market accessibility, consumer pain, virality, subscription, and manufacturing, recalculated server-side so the model cannot misreport its own math. The formula is exact; dimensions with a real provider use that real score, the rest are the model\'s own 0–10 judgment call — see the score breakdown for which is which.'
+    'Computed deterministically as a weighted blend of demand, market accessibility, profitability, customer pain, virality, subscription, and manufacturing feasibility, recalculated server-side so the model cannot misreport its own math. Market Accessibility and Safety can each cap the final decision below what the weighted score alone would imply (a gate, never an added penalty). Dimensions with a real provider use that real score; the rest are the model\'s own 0–10 judgment call — see the score breakdown for which is which.'
   ),
 } satisfies Record<string, Provenance>
 
@@ -295,13 +295,21 @@ export function competitionEvidenceProvenance(signals?: AggregatedSignals | null
 // Market Accessibility Score is a separate, clearly-derived SCORE (not a raw
 // count) built on top of the competition evidence above. Scores are allowed
 // a model-judgment fallback because a score is inherently a judgment call;
-// counts are not.
-export function marketAccessibilityProvenance(signals?: AggregatedSignals | null): Provenance {
+// counts are not. As of the 2026-06-28 Decision Engine redesign, this is a
+// blend of up to three independent real sub-signals (Apify review
+// concentration 45%, Keepa offers-based saturation 30%, DataForSEO keyword
+// difficulty 25% — see lib/scoring.ts computeMarketAccessibility), not the
+// Apify signal alone, and can act as a partial gate on the final decision
+// (a severely inaccessible market caps the recommendation, it never
+// subtracts an additional penalty from the score itself).
+export function marketAccessibilityProvenance(signals?: AggregatedSignals | null, ki?: KeywordIntelligence | null): Provenance {
   const hasRealCompetitorData = signals?.review_velocity?.value.meaningful_competitor_count !== undefined
-  if (!hasRealCompetitorData) return synthesized('Computed from model judgment only — no real competitor/review data was available to ground this score.')
+                              || !!signals?.competition
+                              || typeof ki?.top_buying?.[0]?.difficulty === 'number'
+  if (!hasRealCompetitorData) return synthesized('Computed from model judgment only — no real competitor/review/keyword-difficulty data was available to ground this score.')
   return estimated(
     'Server-side formula',
-    "Computed deterministically from the real review-count and review-concentration data above. The arithmetic is exact and server-enforced; the thresholds that decide what counts as 'accessible' are a judgment call encoded in the formula, not derived from market research."
+    "Computed deterministically by blending whichever of three real sub-signals are available: Apify review concentration, Keepa's own offers-based saturation signal, and DataForSEO's keyword difficulty. The arithmetic is exact and server-enforced; the blend weights and the thresholds that decide what counts as 'accessible' (and the points below which a severely inaccessible market caps the final decision) are a judgment call encoded in the formula, not derived from market research."
   )
 }
 
@@ -517,4 +525,60 @@ export function computeEvidenceCoverage(m: MemoData): EvidenceCoverage {
     pct: totalCount > 0 ? Math.round((groundedCount / totalCount) * 100) : 0,
     groundedCount, totalCount, verifiedCount, estimatedCount, synthesizedCount, unknownCount,
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DECISION ENGINE v2 (2026-06-28) — disclosures for Evidence Breadth,
+// Channel Concentration, the Category-Creation-Candidate path, and the
+// Customer Pain known limitation. Distinct from computeEvidenceCoverage
+// above: that function measures how much of the WHOLE memo (narrative
+// fields included) is grounded; these measure specifically how many
+// independent real providers/channels fed the Opportunity Score itself.
+// ═══════════════════════════════════════════════════════════════
+
+export function evidenceBreadthProvenance(): Provenance {
+  return estimated(
+    'Server-side formula',
+    'Real, deterministic count of how many of this app\'s real data providers (of the total registered) actually returned data used by a composite or a gate for this exact query — not a measure of data quality or score confidence, only of how many independent sources were checked.'
+  )
+}
+
+// Channel Concentration: what FRACTION of the contributing evidence comes
+// from a single channel type. A query backed entirely by Amazon-marketplace
+// data (Keepa + Apify-Amazon, both reading the same underlying platform)
+// looks "evidence-rich" by raw provider count while still being a single
+// vantage point — this makes that visible without inventing a penalty for it.
+export function channelConcentrationProvenance(): Provenance {
+  return estimated(
+    'Server-side formula',
+    'Real, deterministic share of contributing evidence concentrated in each channel type (Amazon Marketplace, Search/SEO, Social/Community, Manufacturing/Supply, Regulatory/Safety). Multiple providers within the same channel type (e.g. Keepa and Apify-Amazon, both reading the Amazon marketplace) still represent one vantage point, not independent corroboration — Cross-Channel Corroboration below requires at least two distinct channel types, not just two providers.'
+  )
+}
+
+// Each CHANNEL_COVERAGE_NOTES entry (lib/scoring.ts) is fixed, structural
+// text about what a channel type can never see by platform design — not a
+// per-query measurement, so it carries its own provenance tier rather than
+// reusing estimated()/verified() above, which both imply a computed value.
+export function coverageNoteProvenance(): Provenance {
+  return {
+    level: 'unknown',
+    source: 'Structural disclosure',
+    detail: 'This is a fixed statement about what this channel type can never see by platform design (e.g. Amazon-only, US-only, TikTok/Reddit demographic skew) — it does not vary per query and is not a measurement of this specific result.',
+  }
+}
+
+export function categoryCreationProvenance(broadQuery: string): Provenance {
+  return estimated(
+    'Server-side formula',
+    `No real demand evidence was found for the specific query, but a broader version of it ("${broadQuery}") showed real, healthy demand evidence. The score and decision shown reflect that broader category's real data, not the specific idea — this is a distinct finding (a white-space pattern), not a same-spectrum point between Build/Validate/Pass.`
+  )
+}
+
+// KNOWN, DOCUMENTED LIMITATION (architecture review, 2026-06-28): every real
+// signal available in this codebase was tested against the question "is
+// this category's dissatisfaction fixable by a better product, or
+// inherent to the problem itself" and found insufficient to answer it.
+// Disclosed honestly here rather than forced into a weak proxy.
+export function consumerPainLimitationNote(): string {
+  return "This score measures how much real dissatisfaction exists and how richly customers describe it — it cannot currently distinguish a category where that dissatisfaction is fixable by a better product from one where customers are inherently hard to satisfy regardless of product quality. No real data source available in this app (review text, ratings, or otherwise) answers that distinction reliably. Treat a high score here as 'real, well-documented pain' — confirm fixability through your own qualitative read of the example quotes above before treating it as a guarantee."
 }

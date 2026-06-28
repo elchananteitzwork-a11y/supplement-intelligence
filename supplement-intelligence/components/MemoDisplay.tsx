@@ -8,7 +8,7 @@ import type {
   KeywordSeasonality, KeywordForecastPoint, KeywordAIInsights,
 } from '@/lib/keyword-engine/types'
 import type { ThemeInsight } from '@/lib/consumer-intelligence'
-import { computeGroundedScore } from '@/lib/scoring'
+import { computeGroundedScore, CHANNEL_COVERAGE_NOTES } from '@/lib/scoring'
 import { checkConsistency } from '@/lib/consistency'
 import {
   IconTrendUp, IconTrendDown, IconBeaker, IconArrowRight, IconX, IconAlert,
@@ -29,6 +29,8 @@ import {
   keywordForecastProvenance, keywordAiInsightsProvenance,
   demandMomentum90dProvenance, realFeeDataProvenance, newsSentimentProvenance,
   topRegionsProvenance,
+  evidenceBreadthProvenance, channelConcentrationProvenance, coverageNoteProvenance,
+  categoryCreationProvenance, consumerPainLimitationNote,
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
 import type { NewsItem } from '@/lib/news-engine/types'
@@ -225,7 +227,7 @@ function ScoreRing({ s, decision, size = 156 }: { s: number; decision: BuildDeci
   const cx = w / 2
   const cy = h - m
   const r  = w / 2 - m
-  const c  = decision === 'BUILD_NOW' ? '#34d399' : decision === 'VALIDATE_FURTHER' ? '#fbbf24' : '#f87171'
+  const c  = decision === 'BUILD_NOW' ? '#34d399' : decision === 'VALIDATE_FURTHER' ? '#fbbf24' : decision === 'CATEGORY_CREATION_CANDIDATE' ? '#38bdf8' : '#f87171'
   const pathLen = Math.PI * r
   const arcPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`
   const ticks = [0, 20, 40, 60, 80, 100]
@@ -265,6 +267,10 @@ function VerdictBadge({ d, insufficientEvidence }: { d: BuildDecision; insuffici
         BUILD_NOW:        { label: 'Build Now',      cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/25', dot: 'bg-emerald-400' },
         VALIDATE_FURTHER: { label: 'Validate First', cls: 'text-amber-400  bg-amber-400/10  border-amber-400/25',   dot: 'bg-amber-400'  },
         SKIP:             { label: 'Pass',           cls: 'text-red-400    bg-red-400/10    border-red-400/25',     dot: 'bg-red-400'    },
+        // Real evidence shows the broader category is alive; none exists
+        // for this exact idea because it has no market footprint yet — a
+        // distinct finding, not a point on the Build/Validate/Pass spectrum.
+        CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation', cls: 'text-sky-400 bg-sky-400/10 border-sky-400/25', dot: 'bg-sky-400' },
       }[d]
   return (
     <span className={`inline-flex items-center gap-2 font-semibold text-[11px] tracking-[0.16em] px-3 py-1.5 rounded-full border uppercase ${cfg.cls}`}>
@@ -584,7 +590,7 @@ function DecisionStrip({
 }: {
   m: MemoData; score: number; decision: BuildDecision; generatedAt?: string
 }) {
-  const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : 'text-red-400'
+  const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : decision === 'CATEGORY_CREATION_CANDIDATE' ? 'text-sky-400' : 'text-red-400'
   // 2026-06-26 redesign: groundedPct is now always 100 (at least one real
   // dimension contributed to the score) or 0 (insufficientEvidence — no
   // real dimension was found at all) — see lib/scoring.ts header comment.
@@ -596,7 +602,11 @@ function DecisionStrip({
   // do before deciding," which is exactly deriveValidationSteps' first,
   // most concrete step. BUILD_NOW/SKIP keep the thesis-derived synthesis,
   // since for those two verdicts the "why" is the more useful one-liner.
-  const synthesis = decision === 'VALIDATE_FURTHER'
+  // CATEGORY_CREATION_CANDIDATE gets the same "what to do" treatment as
+  // VALIDATE_FURTHER, not the thesis — the thesis was written about the
+  // specific idea without knowing the score is actually based on a broader
+  // category's real data, so it risks implying false confidence here.
+  const synthesis = decision === 'VALIDATE_FURTHER' || decision === 'CATEGORY_CREATION_CANDIDATE'
     ? deriveValidationSteps(m)[0] ?? firstSentence(m.market_thesis ?? m.executive_summary)
     : firstSentence(m.market_thesis ?? m.executive_summary)
   const dateLabel = generatedAt
@@ -624,7 +634,7 @@ function DecisionStrip({
       {synthesis && (
         <div className="mt-5 rounded-lg bg-amber-400/[0.04] border border-amber-400/15 px-3.5 py-3">
           <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-semibold mb-1.5">
-            {decision === 'VALIDATE_FURTHER' ? 'What To Do First' : 'Analyst View'}
+            {decision === 'VALIDATE_FURTHER' || decision === 'CATEGORY_CREATION_CANDIDATE' ? 'What To Do First' : 'Analyst View'}
           </p>
           <p className="text-sm text-zinc-300 leading-relaxed font-serif italic">{synthesis}</p>
         </div>
@@ -669,7 +679,7 @@ function EvidenceCoveragePanel({ m }: { m: MemoData }) {
 }
 
 function ScoreBreakdownPanel({ m }: { m: MemoData }) {
-  const { dimensions, groundedPct, insufficientEvidence } = computeGroundedScore(m)
+  const { dimensions, groundedPct, insufficientEvidence, evidenceBreadth, categoryCreationContext } = computeGroundedScore(m)
   // weight > 0 dimensions are the only ones that ever fed the 0-100 score —
   // every one of them is real, by construction (lib/scoring.ts). Dimensions
   // with no real basis (subscription/manufacturing always; demand/virality/
@@ -677,9 +687,17 @@ function ScoreBreakdownPanel({ m }: { m: MemoData }) {
   // weight and are shown separately, qualitatively, never as a number.
   const scored      = dimensions.filter(d => d.weight > 0)
   const qualitative = dimensions.filter(d => d.weight === 0)
+  const contributedChannels = evidenceBreadth.channelBreakdown.filter(c => c.contributed)
 
   return (
     <div className="mt-7 pt-5 border-t border-white/[0.06]">
+      {categoryCreationContext && (
+        <div className="mb-4 rounded-lg bg-sky-400/[0.04] border border-sky-400/15 px-3.5 py-3">
+          <p className="text-[9px] text-sky-400/80 uppercase tracking-widest font-semibold mb-1.5">Category Creation Candidate</p>
+          <ProvenanceCaption p={categoryCreationProvenance(categoryCreationContext.broadQuery)} />
+        </div>
+      )}
+
       <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">
         Score Breakdown {insufficientEvidence ? '— insufficient real evidence to score' : `— ${groundedPct}% grounded in real data`}
       </p>
@@ -688,13 +706,18 @@ function ScoreBreakdownPanel({ m }: { m: MemoData }) {
       {scored.length > 0 && (
         <div className="mt-3 space-y-2.5">
           {scored.map(d => (
-            <div key={d.key} className="flex items-center gap-3">
-              <span className="text-xs text-zinc-300 w-40 shrink-0 truncate">{d.label}</span>
-              <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                <div className="h-full bg-emerald-400/60" style={{ width: `${(d.rawScore ?? 0) * 10}%` }} />
+            <div key={d.key}>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-zinc-300 w-40 shrink-0 truncate">{d.label}</span>
+                <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                  <div className="h-full bg-emerald-400/60" style={{ width: `${(d.rawScore ?? 0) * 10}%` }} />
+                </div>
+                <span className="text-xs font-mono text-zinc-400 w-10 text-right shrink-0">{d.rawScore}/10</span>
+                <EvidenceBadge type={d.source} source={d.sourceLabel} detail={`Weighted ${Math.round(d.weight * 100)}% of the final score.`} />
               </div>
-              <span className="text-xs font-mono text-zinc-400 w-10 text-right shrink-0">{d.rawScore}/10</span>
-              <EvidenceBadge type={d.source} source={d.sourceLabel} detail={`Weighted ${Math.round(d.weight * 100)}% of the final score.`} />
+              {d.key === 'consumerPain' && (
+                <p className="mt-1 text-[10px] text-zinc-600 leading-relaxed pl-[172px]">{consumerPainLimitationNote()}</p>
+              )}
             </div>
           ))}
         </div>
@@ -712,6 +735,46 @@ function ScoreBreakdownPanel({ m }: { m: MemoData }) {
           ))}
         </div>
       )}
+
+      <div className="mt-5 pt-4 border-t border-white/[0.05]">
+        <div className="flex items-baseline justify-between gap-3 mb-1.5">
+          <p className="text-[9px] text-zinc-600 uppercase tracking-wider">Evidence Breadth</p>
+          <span className="text-xs font-mono text-zinc-400">{evidenceBreadth.contributingProviders.length} / {evidenceBreadth.totalScoreEligibleProviders} providers</span>
+        </div>
+        <ProvenanceCaption p={evidenceBreadthProvenance()} />
+
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {evidenceBreadth.channelBreakdown.map(c => (
+            <span
+              key={c.channel}
+              title={CHANNEL_COVERAGE_NOTES[c.channel]}
+              className={`text-[10px] px-2 py-1 rounded-full border ${c.contributed ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/25' : 'text-zinc-600 bg-white/[0.02] border-white/[0.06]'}`}
+            >
+              {c.label}
+            </span>
+          ))}
+        </div>
+
+        <p className="mt-2 text-[10px] text-zinc-600">
+          {evidenceBreadth.crossChannelCorroborated
+            ? `Corroborated across ${evidenceBreadth.distinctChannelTypes} distinct channel types.`
+            : contributedChannels.length === 1
+              ? `Backed by only one channel type (${contributedChannels[0].label}) — no independent corroboration from a different kind of source.`
+              : 'No real channel contributed evidence to this score.'}
+        </p>
+        <ProvenanceCaption p={channelConcentrationProvenance()} />
+
+        {contributedChannels.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {contributedChannels.map(c => (
+              <p key={c.channel} className="text-[10px] text-zinc-600 leading-relaxed">
+                <span className="text-zinc-500">{c.label}:</span> {CHANNEL_COVERAGE_NOTES[c.channel]}
+              </p>
+            ))}
+          </div>
+        )}
+        <ProvenanceCaption p={coverageNoteProvenance()} />
+      </div>
     </div>
   )
 }
@@ -807,7 +870,7 @@ function AtAGlanceRail({
   m: MemoData; score: number; decision: BuildDecision
   confidence: { level: 'High' | 'Medium' | 'Low'; note: string }
 }) {
-  const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : 'text-red-400'
+  const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : decision === 'CATEGORY_CREATION_CANDIDATE' ? 'text-sky-400' : 'text-red-400'
   const facts = ([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
     .filter(([, v]) => v && v !== 'N/A')
   const { insufficientEvidence } = computeGroundedScore(m)
@@ -1123,6 +1186,13 @@ function deriveValidationSteps(m: MemoData): string[] {
       `Only proceed to ${fmt} manufacturing if pre-sell conversion exceeds 2% within 30 days.`,
     ]
   }
+  if (d === 'CATEGORY_CREATION_CANDIDATE') {
+    return [
+      `Real demand evidence exists for the broader category, not this exact idea — validate that the specific variant has its own distinct demand before assuming the category's demand transfers.`,
+      `Run a small paid test or landing page using THIS exact positioning, not the broader category's, to see if it converts on its own.`,
+      `Do not commit to manufacturing until the specific-variant test above shows real signal — broader-category strength alone is not evidence for this exact product.`,
+    ]
+  }
   return [
     `Do not allocate manufacturing capital at this score.`,
     `If pursuing anyway, validate the primary risk with the smallest possible test before any spend.`,
@@ -1138,6 +1208,9 @@ function deriveValidationBudget(m: MemoData): VBudget {
   }
   if (d === 'VALIDATE_FURTHER') {
     return { range: '$1k–$3k', breakdown: 'Pre-sell page + customer research — no manufacturing at this stage' }
+  }
+  if (d === 'CATEGORY_CREATION_CANDIDATE') {
+    return { range: '$1k–$3k', breakdown: 'Specific-variant pre-sell test — broader category demand does not transfer automatically; no manufacturing at this stage' }
   }
   const [mfgLo, mfgHi, totalLo, totalHi] =
     mfgLevel === 'High'   ? ['$2k', '$5k',  '$4k',  '$10k'] :
@@ -1855,7 +1928,7 @@ function CompetitionEvidencePanel({ m }: { m: MemoData }) {
           { label: 'Market Concentration',   value: rv?.review_concentration_ratio !== undefined ? `${Math.round(rv.review_concentration_ratio * 100)}% held by top 3 sellers` : undefined, provenance: compP },
         ]}
         scoreLabel="Market Accessibility Score"
-        scoreProvenance={marketAccessibilityProvenance(ev)}
+        scoreProvenance={marketAccessibilityProvenance(ev, m.keyword_intelligence)}
         score={score}
         scoreLevel={level}
       />
@@ -3404,6 +3477,7 @@ function FinalRecommendation({ m, decision }: { m: MemoData; decision: BuildDeci
     BUILD_NOW:        { label: 'Build Now',      cls: 'text-emerald-400', bg: 'bg-emerald-400/5 border-emerald-400/15' },
     VALIDATE_FURTHER: { label: 'Validate First', cls: 'text-amber-400',   bg: 'bg-amber-400/5 border-amber-400/15'   },
     SKIP:             { label: 'Pass',           cls: 'text-red-400',     bg: 'bg-red-400/5 border-red-400/15'       },
+    CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation Candidate', cls: 'text-sky-400', bg: 'bg-sky-400/5 border-sky-400/15' },
   }[decision]
 
   return (

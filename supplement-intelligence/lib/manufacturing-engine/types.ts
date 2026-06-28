@@ -30,6 +30,16 @@ export interface ManufacturingEstimate {
   // invented cost/MOQ/lead-time/supplier-count/rating. They are always
   // populated by the real Apify provider when it succeeds.
   unit_cost?:          CostRange
+  // Real per-unit cost filtered to listings whose MOQ falls in the bottom
+  // tercile of this query's results — i.e. the price tier an actual
+  // first-order, not-yet-at-scale buyer could access (2026-06-28 Decision
+  // Engine redesign — Profitability's COGS Margin sub-signal uses this
+  // instead of `unit_cost`, which mixes in bulk-tier pricing no new
+  // entrant's first order would qualify for). Absent when no listing in
+  // the result set has a low enough MOQ to populate this honestly —
+  // never backfilled from the wider aggregate, since that would silently
+  // reintroduce the same incumbent/at-scale bias this field exists to remove.
+  realistic_unit_cost?: CostRange
   moq?:                MOQRange
   supplier_count?:     { estimate: number; confidence: ConfidenceLabel }
   top_supplier_rating: number | null   // 0–5, null if unknown or unverified

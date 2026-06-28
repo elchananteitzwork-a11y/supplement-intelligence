@@ -49,6 +49,14 @@ export interface ConsumerIntelligenceReport {
   featureRequests:       ThemeInsight[]   // pattern-filtered (wish/want/should/need), ALL ratings
   positiveThemes:        ThemeInsight[]   // ranked full list, 4-5★ pool — backs What Customers Love / Positive Themes
 
+  // Real, deterministic pattern-match over the same review text already
+  // collected for the themes above (2026-06-28 Decision Engine redesign —
+  // gives the Subscription/Retention composite its first real-data path;
+  // no new provider, no new fetch, same corpus). mentionedBy = distinct
+  // reviews containing repurchase language ("reorder", "ran out",
+  // "subscribe", "every month", etc.); outOf = total reviews analyzed.
+  repurchaseLanguage: { mentionedBy: number; outOf: number }
+
   confidence:  number   // 0-1, driven by review volume — see analyze.ts
   generatedAt: string
 }

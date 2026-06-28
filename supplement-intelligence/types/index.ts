@@ -2,8 +2,16 @@ import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
 import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 import type { NewsIntelligence } from '@/lib/news-engine/types'
+import type { ManufacturingEstimate } from '@/lib/manufacturing-engine/types'
 
-export type BuildDecision = 'BUILD_NOW' | 'VALIDATE_FURTHER' | 'SKIP'
+// CATEGORY_CREATION_CANDIDATE added 2026-06-28 (Decision Engine redesign) —
+// distinct from SKIP/insufficient-evidence: real evidence shows the broader
+// category is alive, but no real evidence exists for this exact specific
+// idea because it doesn't have a market footprint yet. Always server-
+// assigned by lib/scoring.ts — the AI's own build_decision guess (always
+// one of the other three) is discarded and overridden the same way every
+// other build_decision is, so the prompt schema does not need this value.
+export type BuildDecision = 'BUILD_NOW' | 'VALIDATE_FURTHER' | 'SKIP' | 'CATEGORY_CREATION_CANDIDATE'
 
 // Server-computed; never produced by the AI. Optional for backward compat.
 export interface OpportunityMeta {
@@ -212,6 +220,32 @@ export interface MemoData {
   // object are LLM-written, and only as a separate parallel call (see
   // lib/news-engine/explain.ts) — completely outside the main prompt/schema.
   news_intelligence?: NewsIntelligence
+  // Real manufacturing estimate (lib/manufacturing-engine), persisted on the
+  // memo when available (2026-06-28 Decision Engine redesign — Profitability's
+  // COGS Margin sub-signal and the Manufacturing Feasibility composite both
+  // read this). NOT YET populated by app/api/generate/route.ts — manufacturing
+  // is currently fetched lazily, on-demand, from the Manufacturing tab
+  // (/api/manufacturing), never eagerly during generation. This field exists
+  // so lib/scoring.ts's formulas are correct and ready the moment that
+  // fetch-timing dependency is resolved; until then it is always undefined,
+  // and both composites above gracefully degrade to qualitative-only exactly
+  // as documented in the frozen architecture.
+  manufacturing_estimate?: ManufacturingEstimate
+  // Category-Creation-Candidate broad-query evidence (2026-06-28 Decision
+  // Engine redesign) — persisted, not ephemeral, so lib/scoring.ts's
+  // no-argument computeGroundedScore(m) reads the SAME broad-query data on
+  // every later call (e.g. from components/MemoDisplay.tsx) that it used
+  // at generation time. Without persisting this, a re-render computed from
+  // the stored memo alone would diverge from what was actually saved —
+  // the exact "two different numbers in two places" class of bug this
+  // codebase has fixed before. Only ever set when the specific query's own
+  // demand evidence was absent and a broader version of the query had real
+  // data instead.
+  category_creation_broad_evidence?: {
+    broadQuery: string
+    signal_evidence?: AggregatedSignals
+    keyword_intelligence?: KeywordIntelligence
+  }
 }
 
 export interface Analysis {

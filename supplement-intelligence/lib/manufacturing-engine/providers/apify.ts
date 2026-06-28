@@ -122,6 +122,51 @@ function extractPriceRange(
   return { low: p25.low, high: p75.high }
 }
 
+// Real per-listing MOQ quantity, same regex `extractPriceRange`'s sibling
+// `parseMOQ` already uses, just returning the raw number instead of
+// folding it into an aggregate range — needed here to pair MOQ with price
+// on the SAME listing rather than computing each independently.
+function parseMOQQuantity(minOrderQuantity: string | undefined): number | null {
+  if (!minOrderQuantity) return null
+  const qtyMatch = minOrderQuantity.match(/[\d,]+/)
+  if (!qtyMatch) return null
+  const qty = parseInt(qtyMatch[0].replace(/,/g, ''), 10)
+  return qty > 0 && qty <= 1_000_000 ? qty : null
+}
+
+// Real COGS filtered to the MOQ tier an actual first-order buyer could
+// access (2026-06-28 Decision Engine redesign — see realistic_unit_cost on
+// ManufacturingEstimate). Unlike extractPriceRange, this pairs MOQ and price
+// on the SAME listing: takes the bottom tercile by MOQ, then the median
+// price within that filtered, achievable-order-size subset. Returns null
+// (never a backfilled guess) when fewer than 3 listings have both a parsed
+// MOQ and a parsed price — too thin a sample to filter meaningfully.
+function extractRealisticUnitCost(
+  products: ApifyProduct[],
+): { low: number; high: number } | null {
+  const paired = products
+    .map(p => {
+      const qty   = parseMOQQuantity(p.minOrderQuantity)
+      const price = p.priceFormatted ? parsePrice(p.priceFormatted) : null
+      return qty !== null && price !== null ? { qty, price } : null
+    })
+    .filter((r): r is { qty: number; price: { low: number; high: number } } => r !== null)
+
+  if (paired.length < 3) return null
+
+  paired.sort((a, b) => a.qty - b.qty)
+  const tercileEnd = Math.max(1, Math.ceil(paired.length / 3))
+  const lowMoqTier = paired.slice(0, tercileEnd)
+
+  const prices = lowMoqTier.map(p => p.price.low).sort((a, b) => a - b)
+  const median = prices[Math.floor(prices.length / 2)]
+  // A real, narrow band around the median (±15%) rather than a single point —
+  // consistent with every other ManufacturingEstimate field being a range,
+  // not a point estimate, and avoids implying more precision than a median
+  // of a handful of listings actually supports.
+  return { low: +(median * 0.85).toFixed(2), high: +(median * 1.15).toFixed(2) }
+}
+
 // ── MOQ parsing ───────────────────────────────────────────────────────────────
 // minOrderQuantity: "Min. order: 500 boxes" | "Min. order: 1,000 units"
 
@@ -305,6 +350,7 @@ export class ApifyProvider implements ManufacturingProvider {
     const leadTime  = estimateLeadTime(req)
     const rating    = topRating(products)
     const suppliers = topSuppliers(products)
+    const realisticUnitCost = extractRealisticUnitCost(products)
     const { confidence, confidence_label } = scoreConfidence(priced, products.length, rating !== null)
 
     const complexity: ManufacturingComplexity =
@@ -316,6 +362,7 @@ export class ApifyProvider implements ManufacturingProvider {
       products:   products.length,
       priced,
       priceRange,
+      realisticUnitCost: realisticUnitCost ? `${realisticUnitCost.low}–${realisticUnitCost.high}` : 'n/a',
       moq:        `${moq.low}–${moq.high} ${moq.unit}`,
       leadTime:   `${leadTime.low}–${leadTime.high} days`,
       confidence: `${Math.round(confidence * 100)}%`,
@@ -326,6 +373,7 @@ export class ApifyProvider implements ManufacturingProvider {
       product:             req.product,
       category:            req.category,
       unit_cost:           { ...priceRange, currency: 'USD' },
+      realistic_unit_cost: realisticUnitCost ? { ...realisticUnitCost, currency: 'USD' } : undefined,
       moq,
       supplier_count:      {
         estimate:   products.length,

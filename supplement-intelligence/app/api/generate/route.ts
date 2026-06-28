@@ -137,6 +137,33 @@ function err(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status })
 }
 
+// ── Category-Creation-Candidate query broadening ─────────────────────────
+// Same generic-tail-stripping idea already used independently inside
+// lib/keyword-engine/dataforseo.ts and lib/signal-engine/providers/
+// tiktok.ts, generalized here to the whole query string for the
+// Category-Creation diagnostic rather than one provider's own retry list.
+const GENERIC_TAIL_WORDS = new Set([
+  'supplement', 'supplements', 'support', 'relief', 'formula', 'gummies',
+  'capsules', 'powder', 'serum', 'cream', 'women', 'men', 'kids',
+])
+
+function broadenQuery(query: string): string | null {
+  const lower = query.toLowerCase().trim()
+  const words = lower.split(/\s+/).filter(Boolean)
+  if (words.length <= 1) return null
+
+  // Drop anything after a "for"/"with" clause — that's almost always the
+  // specific audience/use-case modifier, not the underlying category.
+  const clauseIdx = words.findIndex(w => w === 'for' || w === 'with')
+  const base = clauseIdx > 0 ? words.slice(0, clauseIdx) : words
+
+  const stripped = [...base]
+  while (stripped.length > 1 && GENERIC_TAIL_WORDS.has(stripped[stripped.length - 1])) stripped.pop()
+
+  const broad = stripped.join(' ')
+  return broad && broad !== lower ? broad : null
+}
+
 // ── Phase 1: Output validation ─────────────────────────────────
 // Checks every field required for a complete report. Used by the retry
 // loop to decide whether to re-attempt before falling back to buildSkipMemo.
@@ -351,6 +378,37 @@ export async function POST(req: Request) {
   // ── Await signal engine results (most of the latency elapsed during DB checks above) ─
   const signals = await signalPromise
   const keywordIntelligence = await keywordPromise
+
+  // ── Category-Creation-Candidate diagnostic ───────────────────────────────
+  // Frozen architecture (2026-06-28): when the specific query shows no real
+  // demand data at all, check whether a broader version of the same query
+  // does — reusing the exact generic-tail-stripping technique already used
+  // by lib/keyword-engine/dataforseo.ts and lib/signal-engine/providers/
+  // tiktok.ts, generalized to the whole query rather than one provider's
+  // own retry candidates. A bounded, short second fetch — this never blocks
+  // the main path beyond its own timeout, and only runs at all when the
+  // specific query's demand data is genuinely absent, not merely weak.
+  const specificDemandLooksAbsent =
+    !keywordIntelligence?.top_buying?.[0]?.monthly_searches && !signals?.demand && !signals?.growth
+
+  let broadQueryEvidence: MemoData['category_creation_broad_evidence']
+
+  if (specificDemandLooksAbsent) {
+    const broadQuery = broadenQuery(input.trim())
+    if (broadQuery) {
+      const [broadSignals, broadKeyword] = await Promise.all([
+        signalEngine.fetch({ query: broadQuery, categoryId: module.id }, 20_000).catch(() => null),
+        keywordEngine.fetch(broadQuery, 8_000).catch(() => null),
+      ])
+      if (broadSignals || broadKeyword) {
+        broadQueryEvidence = { broadQuery, signal_evidence: broadSignals ?? undefined, keyword_intelligence: broadKeyword ?? undefined }
+        console.log('Category-Creation-Candidate: broad-query evidence fetched', {
+          specificQuery: input.trim(), broadQuery,
+          broadHasSignals: !!broadSignals, broadHasKeyword: !!broadKeyword,
+        })
+      }
+    }
+  }
 
   // ── Consumer Intelligence: real review-text themes ──────────────────────
   // Depends on competitor ASINs found by Competition Intelligence above —
@@ -568,6 +626,13 @@ export async function POST(req: Request) {
   // number for anything. Those dimensions still show, qualitatively, in the
   // UI breakdown — never as a number.
   if (!skipReason && memo.scores) {
+    // Persisted, not passed as an argument — see MemoData.
+    // category_creation_broad_evidence and lib/scoring.ts header comment:
+    // every later call to computeGroundedScore(memo) (e.g. from
+    // components/MemoDisplay.tsx on a future render) must see the exact
+    // same broad-query evidence used here, or the displayed score could
+    // diverge from what was actually saved.
+    if (broadQueryEvidence) memo.category_creation_broad_evidence = broadQueryEvidence
     const grounded = computeGroundedScore(memo)
     memo.opportunity_score = grounded.score
     memo.build_decision    = grounded.decision

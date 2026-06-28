@@ -47,6 +47,11 @@ const TOTAL_TIMEOUT_MS = 85_000
 
 const PROBLEM_CUES  = /\b(but|however|unfortunately|issue|problem|too (?:big|small|large|strong|expensive|hard|tiny|bitter)|disappoint|doesn'?t|did ?n'?t|don'?t|hard to|difficult to|hate|complain|wish it|stopped working|broke|defective|smell|taste(?:s)? bad)\b/i
 const REQUEST_CUES  = /\b(wish|want(?:ed)?|would be nice|should (?:have|add|include|make)|need(?:s)? to|hope they|please add|if only|i'?d love|would love)\b/i
+// Real, deterministic repurchase-behavior language — same pattern-matching
+// technique already used for PROBLEM_CUES/REQUEST_CUES above, not a new
+// category of analysis. Feeds the Subscription/Retention composite (see
+// lib/scoring.ts) — never AI-judged, a literal phrase match over real text.
+const REPURCHASE_CUES = /\b(re-?order(?:ed|ing)?|re-?purchas(?:e|ed|ing)|re-?buy(?:ing)?|subscribe|subscription|auto-?ship|ran out|run(?:s)? out|out of (?:it|this|these)|order(?:ed|ing)? again|bought again|buy(?:ing)? again|every month|each month|monthly|repeat (?:customer|buyer|purchase)|been using (?:it|this) for (?:months|years)|stocked up|buying more)\b/i
 
 export async function analyzeConsumerIntelligence(
   competitors: { productId: string; brand: string }[],
@@ -153,6 +158,11 @@ export async function analyzeConsumerIntelligence(
   const sentimentBreakdown = computeSentimentBreakdown(cleaned)
   const confidence = computeConfidence(cleaned.length, productsAnalyzed.length)
 
+  // Distinct reviews (not sentences) whose body matches repurchase-behavior
+  // language — counted across all ratings, same scope as mostMentionedProblems,
+  // since repurchase behavior is a fact about usage, not sentiment.
+  const repurchaseReviewCount = cleaned.filter(r => REPURCHASE_CUES.test(r.body)).length
+
   return {
     productsAnalyzed,
     totalReviewsCollected: cleaned.length,
@@ -163,6 +173,7 @@ export async function analyzeConsumerIntelligence(
     mostMentionedProblems,
     featureRequests,
     positiveThemes,
+    repurchaseLanguage: { mentionedBy: repurchaseReviewCount, outOf: cleaned.length },
     confidence,
     generatedAt: new Date().toISOString(),
   }

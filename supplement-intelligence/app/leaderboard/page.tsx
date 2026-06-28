@@ -20,9 +20,10 @@ export default async function Leaderboard() {
   ])
 
   const rows = (data ?? []) as LeaderboardRow[]
-  const build    = rows.filter(r => r.build_decision === 'BUILD_NOW').length
-  const validate = rows.filter(r => r.build_decision === 'VALIDATE_FURTHER').length
-  const skip     = rows.filter(r => r.build_decision === 'SKIP').length
+  const build      = rows.filter(r => r.build_decision === 'BUILD_NOW').length
+  const validate   = rows.filter(r => r.build_decision === 'VALIDATE_FURTHER').length
+  const skip       = rows.filter(r => r.build_decision === 'SKIP').length
+  const categoryCreation = rows.filter(r => r.build_decision === 'CATEGORY_CREATION_CANDIDATE').length
 
   const pro   = profile as Profile | null
   const used  = pro?.analyses_used  ?? 0
@@ -57,9 +58,10 @@ export default async function Leaderboard() {
           {/* stats */}
           <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden mb-8">
             {[
-              { l: 'Build Now', n: build,    c: 'text-emerald-400' },
-              { l: 'Validate',  n: validate,  c: 'text-amber-400'   },
-              { l: 'Skip',      n: skip,      c: 'text-red-400'     },
+              { l: 'Build Now',         n: build,           c: 'text-emerald-400' },
+              { l: 'Validate',          n: validate,        c: 'text-amber-400'   },
+              { l: 'Category Creation', n: categoryCreation, c: 'text-sky-400'    },
+              { l: 'Skip',              n: skip,            c: 'text-red-400'     },
             ].map(s => (
               <div key={s.l} className="flex-1 px-4 py-4">
                 <p className={`text-2xl font-serif font-medium ${s.c}`}>{s.n}</p>

@@ -7,6 +7,7 @@ const DECISION_CFG: Record<BuildDecision, { label: string; cls: string; color: s
   BUILD_NOW:        { label: 'Build Now',      cls: 'text-emerald-400', color: '#34d399' },
   VALIDATE_FURTHER: { label: 'Validate First', cls: 'text-amber-400',   color: '#fbbf24' },
   SKIP:             { label: 'Pass',           cls: 'text-red-400',     color: '#f87171' },
+  CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation', cls: 'text-sky-400', color: '#38bdf8' },
 }
 
 interface OpportunityCardProps {
