@@ -61,24 +61,30 @@ interface DfsSearchVolumeTrend { monthly?: number; quarterly?: number; yearly?: 
 interface DfsKeywordInfo {
   search_volume?:        number
   competition?:          number
+  competition_level?:    string   // real qualitative label, e.g. "HIGH" — CONFIRMED VIA LIVE CALL 2026-06-27
   cpc?:                  number
+  low_top_of_page_bid?:  number   // real Google Ads bid range — CONFIRMED VIA LIVE CALL 2026-06-27
+  high_top_of_page_bid?: number
   monthly_searches?:     DfsMonthlySearch[]
   search_volume_trend?:  DfsSearchVolumeTrend   // DataForSEO's own pre-computed trend — preferred over our own derivation below
 }
 interface DfsKeywordProperties { keyword_difficulty?: number }
-// CONFIRMED VIA DOCS REVIEW (2026-06-26): related_keywords/live's keyword_data
-// does not include a search_intent_info field — that's only on a different
-// DataForSEO Labs endpoint (search_intent/live), which this provider does not
-// call (would be a second paid request per keyword). Typed here defensively
-// in case DataForSEO adds it to this endpoint later; when absent (the case
-// today), derive.ts's rule-based classifier fills search_intent instead and
-// tags it 'computed', never 'dataforseo'.
+// UPDATED 2026-06-27: the 2026-06-26 "docs review" comment below claiming
+// search_intent_info is absent from this endpoint was wrong — CONFIRMED VIA
+// LIVE CALL 2026-06-27 that it is now present (DataForSEO appears to have
+// added it since). Left the defensive optional typing in place either way;
+// toMetric() below already reads it correctly when present.
 interface DfsSearchIntentInfo { main_intent?: string }
+// CONFIRMED VIA LIVE CALL 2026-06-27: both real and present on every item.
+interface DfsSerpInfo { serp_item_types?: string[]; se_results_count?: number }
+interface DfsBacklinksInfo { referring_domains?: number }
 interface DfsKeywordData {
   keyword?:            string
   keyword_info?:       DfsKeywordInfo
   keyword_properties?: DfsKeywordProperties
   search_intent_info?: DfsSearchIntentInfo
+  serp_info?:          DfsSerpInfo
+  avg_backlinks_info?: DfsBacklinksInfo
 }
 interface DfsItem { keyword_data?: DfsKeywordData }
 interface DfsResult { items?: DfsItem[] }
@@ -145,6 +151,9 @@ function toMetric(data: DfsKeywordData): KeywordMetric | null {
 
   const realIntent = data.search_intent_info?.main_intent?.toLowerCase()
 
+  const lowBid  = data.keyword_info?.low_top_of_page_bid
+  const highBid = data.keyword_info?.high_top_of_page_bid
+
   return {
     keyword,
     monthly_searches: volume,
@@ -162,6 +171,12 @@ function toMetric(data: DfsKeywordData): KeywordMetric | null {
     // this is null, and is careful never to overwrite a real value here.
     search_intent:        realIntent && VALID_INTENTS.has(realIntent) ? (realIntent as KeywordMetric['search_intent']) : null,
     search_intent_source: realIntent && VALID_INTENTS.has(realIntent) ? 'dataforseo' : null,
+
+    competition_level:     data.keyword_info?.competition_level ?? null,
+    top_of_page_bid_range: typeof lowBid === 'number' && typeof highBid === 'number' ? { low: lowBid, high: highBid } : null,
+    serp_features:         data.serp_info?.serp_item_types ?? null,
+    serp_results_count:    data.serp_info?.se_results_count ?? null,
+    avg_referring_domains: data.avg_backlinks_info?.referring_domains != null ? Math.round(data.avg_backlinks_info.referring_domains) : null,
   }
 }
 

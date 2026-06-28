@@ -29,10 +29,15 @@ interface ApifyProduct {
   companyName?:       string
   tradeAssurance?:    boolean
   goldSupplierYears?: string   // e.g. "6 yrs"
-  countryCode?:       string
+  countryCode?:       string   // real, present on every result — was typed but never read until 2026-06-27
   supplierScore?:     string | number  // 0–5
   productId?:         string
   url?:               string
+  // CONFIRMED VIA LIVE CALL 2026-06-27: real boolean field, present on
+  // every result — directly answers whether this supplier offers
+  // OEM/private-label customization, the core question this tab exists
+  // to answer for a not-yet-built product.
+  customizable?:      boolean
 }
 
 // ── Category suffix ───────────────────────────────────────────────────────────
@@ -207,6 +212,8 @@ function topSuppliers(products: ApifyProduct[]): ManufacturingEstimate['top_supp
       rating:              !isNaN(numericScore) && numericScore >= 1 && numericScore <= 5 ? numericScore : null,
       trade_assurance:      p.tradeAssurance,
       gold_supplier_years:  p.goldSupplierYears,
+      country_code:         p.countryCode,
+      customizable:         p.customizable,
     })
     if (result.length >= MAX_TOP_SUPPLIERS) break
   }

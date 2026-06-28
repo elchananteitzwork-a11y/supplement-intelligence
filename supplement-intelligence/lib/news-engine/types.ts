@@ -13,6 +13,7 @@ import type { GdeltSentiment } from './sentiment'
 export type NewsCategory =
   | 'Product Launch'
   | 'FDA Recall'
+  | 'Adverse Event Signal'
   | 'Regulatory Change'
   | 'Acquisition'
   | 'Funding Round'
@@ -42,6 +43,23 @@ export interface NewsItem {
   // openFDA only — real recall status (CONFIRMED VIA LIVE CALL 2026-06-26:
   // "Ongoing" seen live; openFDA also documents "Completed"/"Terminated").
   recall_status?: string
+
+  // openFDA /food/event only — real CAERS adverse-event signal, distinct
+  // from a recall (CONFIRMED VIA LIVE CALL 2026-06-27: real, queryable
+  // dataset — 2,189 records for a common category). A consumer-reported
+  // reaction, not a regulatory action — disclosed as such in the UI.
+  adverse_event_reactions?: string[]
+
+  // PubMed only — real NLM-assigned study-design type from esummary's
+  // pubtype[] field (CONFIRMED VIA LIVE CALL 2026-06-27: real values seen
+  // include "Journal Article", "Letter"; PubMed's own controlled vocabulary
+  // also includes "Randomized Controlled Trial", "Meta-Analysis",
+  // "Systematic Review", etc.). Picks the most methodologically informative
+  // value present rather than a generic type — see STUDY_TYPE_PRIORITY in
+  // providers/pubmed.ts. Replaces what used to be an AI-judged ★ evidence
+  // tier for any study this provider actually surfaces with a real,
+  // independently verifiable label.
+  study_type?: string
 }
 
 export interface NewsSummary {

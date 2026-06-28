@@ -28,6 +28,7 @@ import {
   keywordAmazonPpcProvenance, keywordSearchIntentProvenance, keywordSeasonalityProvenance,
   keywordForecastProvenance, keywordAiInsightsProvenance,
   demandMomentum90dProvenance, realFeeDataProvenance, newsSentimentProvenance,
+  topRegionsProvenance,
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
 import type { NewsItem } from '@/lib/news-engine/types'
@@ -36,11 +37,15 @@ import type { NewsItem } from '@/lib/news-engine/types'
 interface MfgEstimate {
   product:            string
   category:           string
-  unit_cost:          { low: number; high: number; currency: string }
-  moq:                { low: number; high: number; unit: string }
-  supplier_count:     { estimate: number; confidence: 'High' | 'Medium' | 'Low' }
+  // Optional since 2026-06-26 — the ai_synthesis fallback no longer
+  // fabricates these when no real supplier data exists (see
+  // lib/manufacturing-engine/providers/ai.ts); only the real Apify/Alibaba
+  // path populates them.
+  unit_cost?:          { low: number; high: number; currency: string }
+  moq?:                { low: number; high: number; unit: string }
+  supplier_count?:     { estimate: number; confidence: 'High' | 'Medium' | 'Low' }
   top_supplier_rating: number | null
-  lead_time_days:     { low: number; high: number }
+  lead_time_days?:     { low: number; high: number }
   complexity:         string
   confidence:         number
   confidence_label:   'High' | 'Medium' | 'Low'
@@ -49,7 +54,7 @@ interface MfgEstimate {
   // Real named suppliers (2026-06-26 data-coverage audit) — optional since
   // only the Apify path currently populates this; absent from any AI-
   // synthesis-sourced estimate.
-  top_suppliers?: { name: string; rating?: number | null; trade_assurance?: boolean; gold_supplier_years?: string }[]
+  top_suppliers?: { name: string; rating?: number | null; trade_assurance?: boolean; gold_supplier_years?: string; country_code?: string; customizable?: boolean }[]
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1677,6 +1682,7 @@ function DemandEvidencePanel({ m }: { m: MemoData }) {
   const ev        = m.signal_evidence
   const ki        = m.keyword_intelligence
   const growthSig = ev?.growth?.value
+  const demandSig = ev?.demand?.value
   // Real score when a real provider grounds it; null (never a fabricated
   // number) when only the AI's qualitative judgment exists — see
   // lib/scoring.ts computeGroundedScore, the single source of truth for
@@ -1697,6 +1703,7 @@ function DemandEvidencePanel({ m }: { m: MemoData }) {
         { label: 'Search Growth %',        value: growthSig?.yoy_change, provenance: searchGrowthProvenance(ev) },
         { label: 'Search Trend Direction', value: growthSig?.momentum,   provenance: searchGrowthProvenance(ev) },
         { label: '90-Day Demand Momentum', value: growthSig?.momentum_90d_pct != null ? `${growthSig.momentum_90d_pct > 0 ? '+' : ''}${growthSig.momentum_90d_pct}%` : undefined, provenance: demandMomentum90dProvenance(ev) },
+        { label: 'Top Regions',            value: demandSig?.top_regions?.length ? demandSig.top_regions.join(', ') : undefined, provenance: topRegionsProvenance(ev) },
       ]}
       scoreLabel="Demand Score"
       scoreProvenance={demandProvenance(m.signal_metadata)}
@@ -1747,6 +1754,23 @@ function RevenueEvidencePanel({ m }: { m: MemoData }) {
 interface MeaningfulCompetitor {
   brand: string; reviewCount: number; rating: number; price: number
   position?: number; breadcrumb?: string; bullets?: string[]
+  ingredients_label?: string
+}
+
+function CompetitorIngredientsRow({ label }: { label: string }) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <tr className="border-t border-white/[0.05] bg-white/[0.01]">
+      <td colSpan={5} className="py-2 px-3">
+        <button onClick={() => setExpanded(e => !e)} className="text-[10px] text-emerald-400/70 hover:text-emerald-400 transition-colors">
+          {expanded ? 'Hide' : 'Show'} real ingredients label {expanded ? '↑' : '↓'}
+        </button>
+        {expanded && (
+          <p className="mt-2 text-[11px] text-zinc-500 leading-relaxed">{label}</p>
+        )}
+      </td>
+    </tr>
+  )
 }
 
 function CompetitorBulletsRow({ bullets }: { bullets: string[] }) {
@@ -1800,6 +1824,7 @@ function MeaningfulCompetitorsList({ competitors }: { competitors: MeaningfulCom
                   <td className="py-2 px-3 text-right font-mono text-zinc-300">${c.price.toFixed(2)}</td>
                 </tr>
                 {c.bullets && c.bullets.length > 0 && <CompetitorBulletsRow bullets={c.bullets} />}
+                {c.ingredients_label && <CompetitorIngredientsRow label={c.ingredients_label} />}
               </Fragment>
             ))}
           </tbody>
@@ -2286,6 +2311,51 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
         </div>
       )}
 
+      {/* Real SERP/backlink/bid signal — same DataForSEO call already being
+          made, surfaced for the first time (2026-06-27 provider audit). */}
+      {topKeyword && (topKeyword.serp_features?.length || topKeyword.avg_referring_domains != null || topKeyword.top_of_page_bid_range || topKeyword.competition_level) && (
+        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-xs font-semibold text-zinc-200">Search Visibility — &ldquo;{topKeyword.keyword}&rdquo;</p>
+            {kiProv && <ProvenanceBadge p={kiProv} />}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+            <ProductImpactStat
+              label="Competition"
+              value={topKeyword.competition_level ?? '—'}
+              provenance={kiProv}
+            />
+            <ProductImpactStat
+              label="Top-of-Page Bid"
+              value={topKeyword.top_of_page_bid_range ? `$${topKeyword.top_of_page_bid_range.low.toFixed(2)}–$${topKeyword.top_of_page_bid_range.high.toFixed(2)}` : '—'}
+              provenance={kiProv}
+            />
+            <ProductImpactStat
+              label="Competing Results"
+              value={topKeyword.serp_results_count != null ? topKeyword.serp_results_count.toLocaleString() : '—'}
+              provenance={kiProv}
+            />
+            <ProductImpactStat
+              label="Avg. Referring Domains"
+              value={topKeyword.avg_referring_domains != null ? topKeyword.avg_referring_domains.toLocaleString() : '—'}
+              provenance={kiProv}
+            />
+          </div>
+          {topKeyword.serp_features && topKeyword.serp_features.length > 0 && (
+            <div>
+              <p className="text-[10px] text-zinc-600 mb-1.5">SERP features currently shown for this query:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {topKeyword.serp_features.map(f => (
+                  <span key={f} className="text-[10px] text-zinc-400 bg-white/[0.04] border border-white/[0.08] rounded-full px-2 py-0.5">
+                    {f.replace(/_/g, ' ')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">AI Insights</p>
         {ki.ai_insights ? (
@@ -2455,6 +2525,7 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
 
 const NEWS_CATEGORY_CLS: Record<string, string> = {
   'FDA Recall':              'text-red-400 bg-red-400/10 border-red-400/20',
+  'Adverse Event Signal':    'text-orange-400 bg-orange-400/10 border-orange-400/20',
   'Regulatory Change':       'text-amber-400 bg-amber-400/10 border-amber-400/20',
   'Acquisition':             'text-violet-400 bg-violet-400/10 border-violet-400/20',
   'Funding Round':           'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
@@ -2499,6 +2570,21 @@ function NewsItemCard({ item }: { item: NewsItem }) {
             </span>
           )}
           {item.recall_status && <span className="text-zinc-500">{item.recall_status}</span>}
+        </p>
+      )}
+      {/* Real NLM study-design type (PubMed esummary pubtype[]) — replaces
+          an AI-judged evidence tier with a verifiable methodology label for
+          any study this provider actually surfaces. */}
+      {item.study_type && (
+        <p className="text-[11px] mb-1.5">
+          <span className="font-semibold text-brass">{item.study_type}</span>
+        </p>
+      )}
+      {/* Real openFDA CAERS adverse-event reactions — a consumer-reported
+          signal, distinct from a recall (no regulatory action implied). */}
+      {item.adverse_event_reactions && item.adverse_event_reactions.length > 0 && (
+        <p className="text-[11px] text-amber-400/90 mb-1.5">
+          Reported reactions: {item.adverse_event_reactions.slice(0, 4).join(', ')}
         </p>
       )}
       <p className="text-[11px] text-zinc-600 mb-2">{item.source} · {Math.round(item.confidence * 100)}% relevance match</p>
@@ -3197,13 +3283,32 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
 
       {est.top_suppliers && est.top_suppliers.length > 0 && (
         <div className="rounded-xl border border-white/[0.07] p-4">
-          <p className="text-xs font-semibold text-zinc-200 mb-3">Real Named Suppliers</p>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-xs font-semibold text-zinc-200">Real Named Suppliers</p>
+            {/* Deterministic count of real country_code values above — not an
+                AI estimate, just an arithmetic tally of the suppliers already
+                listed below. */}
+            {(() => {
+              const withCountry = est.top_suppliers!.filter(s => s.country_code)
+              if (!withCountry.length) return null
+              const counts = new Map<string, number>()
+              for (const s of withCountry) counts.set(s.country_code!, (counts.get(s.country_code!) ?? 0) + 1)
+              const [topCountry, topCount] = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]
+              return (
+                <span className="text-[10px] text-zinc-500 font-mono">
+                  {topCount}/{withCountry.length} based in {topCountry}
+                </span>
+              )
+            })()}
+          </div>
           <ul className="space-y-2">
             {est.top_suppliers.map((s, i) => (
               <li key={i} className="flex items-center justify-between gap-3 text-sm">
                 <span className="text-zinc-300 font-medium truncate">{s.name}</span>
                 <span className="flex items-center gap-2 text-[11px] text-zinc-500 shrink-0">
+                  {s.country_code && <span className="font-mono text-zinc-600">{s.country_code}</span>}
                   {s.rating != null && <span className="font-mono text-zinc-400">{s.rating.toFixed(1)}/5</span>}
+                  {s.customizable && <span className="text-sky-400">OEM/Customizable</span>}
                   {s.trade_assurance && <span className="text-emerald-400">Trade Assurance</span>}
                   {s.gold_supplier_years && <span>{s.gold_supplier_years} gold supplier</span>}
                 </span>

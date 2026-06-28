@@ -50,6 +50,13 @@ export interface ManufacturingEstimate {
     rating?:               number | null
     trade_assurance?:      boolean
     gold_supplier_years?:  string
+    // ── Additive (2026-06-27 provider capability audit) — both real and
+    // present on every Alibaba scraper result; countryCode was already
+    // typed on the raw ApifyProduct interface but never read. customizable
+    // directly answers "is OEM/private-label actually offered by this
+    // supplier" — the core question this tab exists to answer.
+    country_code?:        string   // ISO 2-letter, e.g. "CN"
+    customizable?:        boolean
   }[]
 }
 

@@ -18,6 +18,12 @@ export interface DemandSignal extends SignalScore {
   search_volume?: string
   trend?:         string                    // e.g. "+21% YoY" | "Stable" — real period-over-period computation, not a guess
   signal?:        'Strong' | 'Moderate' | 'Weak'
+  // Real Google Trends interestByRegion data (CONFIRMED VIA LIVE CALL
+  // 2026-06-27) — same free, unofficial provider already in use, a second
+  // real endpoint it exposes beyond interestOverTime. US states ranked by
+  // relative search interest for this exact query — a geographic demand-
+  // concentration signal that doesn't exist anywhere else in this codebase.
+  top_regions?: string[]
 }
 
 export interface CompetitionSignal extends SignalScore {
@@ -124,6 +130,14 @@ export interface ReviewVelocitySignal extends SignalScore {
     position?:   number     // 1-indexed real search-result rank for this exact query
     breadcrumb?: string     // e.g. "Health & Household > Vitamins, Minerals & Supplements > Minerals > Magnesium"
     bullets?:    string[]   // real bullet-point copy from the actual listing
+    // Real verbatim "Ingredients" label text from the listing's own
+    // importantInformation block (CONFIRMED VIA LIVE CALL 2026-06-27:
+    // real and present, e.g. "Magnesium (as magnesium glycinate) 120 mg").
+    // Stored verbatim, never re-parsed into structured name/dose pairs —
+    // label formatting varies too much across brands to parse reliably
+    // without risking a wrong structured value being read as more
+    // authoritative than the source text actually supports.
+    ingredients_label?: string
   }[]
 }
 

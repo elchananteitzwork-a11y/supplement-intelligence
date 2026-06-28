@@ -47,6 +47,20 @@ interface JungleeResult {
   // search-result order is the array index itself (see computeSignals).
   breadCrumbs?: string
   features?:    string[]
+  // CONFIRMED VIA LIVE CALL 2026-06-27: real and present on every result —
+  // a structured "Important information" block mirroring Amazon's own
+  // product-detail accordion (Safety Information, Indications, Ingredients,
+  // Directions, Legal Disclaimer). The "Ingredients" item's text often
+  // contains the real per-serving dose, e.g. "Magnesium (as magnesium
+  // glycinate) 120 mg" — grounds formula comparisons in what a real
+  // competitor's label actually says instead of AI general knowledge.
+  importantInformation?: { items?: { title?: string; text?: string }[] }
+}
+
+function extractIngredientsLabel(r: JungleeResult): string | undefined {
+  const item = r.importantInformation?.items?.find(it => it.title === 'Ingredients')
+  const text = item?.text?.trim()
+  return text && text.length > 0 ? text : undefined
 }
 
 function avg(arr: number[]): number | null {
@@ -155,6 +169,7 @@ export class CompetitionSignalProvider implements SignalProvider {
         position:    r._position,
         breadcrumb:  r.breadCrumbs || undefined,
         bullets:     r.features?.length ? r.features : undefined,
+        ingredients_label: extractIngredientsLabel(r),
       }))
 
     const score      = accessibilityScore(meaningfulBrands.size, concentration)

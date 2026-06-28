@@ -41,6 +41,32 @@ export interface KeywordMetric {
    *  stub) — this is an explicitly Estimated band derived from real Google
    *  CPC + real Amazon competition density, never a verified fact. */
   amazon_ppc_estimate?: { low: number; high: number } | null
+
+  // ── Additive (2026-06-27 provider capability audit) — all real, all from
+  // the SAME DataForSEO related_keywords/live call already being made
+  // (CONFIRMED VIA LIVE CALL 2026-06-27), zero new provider cost.
+
+  /** DataForSEO's own ready-made qualitative label for `competition` (e.g.
+   *  "HIGH"/"MEDIUM"/"LOW") — was being re-derived from the raw 0-1 number
+   *  elsewhere; this is the provider's own value instead. */
+  competition_level?: string | null
+  /** Real Google Ads advertiser bid range (USD) for top-of-page placement —
+   *  a sharper commercial-intent signal than CPC alone, since it shows the
+   *  spread advertisers actually pay, not just the average. */
+  top_of_page_bid_range?: { low: number; high: number } | null
+  /** Real SERP feature types Google shows for this exact keyword (e.g.
+   *  "ai_overview", "people_also_ask", "product_considerations") — reveals
+   *  what kind of result currently wins the SERP, not just how many
+   *  competitors there are. */
+  serp_features?: string[] | null
+  /** Real total indexed results competing for this keyword. */
+  serp_results_count?: number | null
+  /** Real average backlink-authority signal across pages currently ranking
+   *  for this keyword (DataForSEO's avg_backlinks_info) — an SEO-difficulty/
+   *  moat signal distinct from keyword_difficulty, which only measures
+   *  on-page competition density, not the link-authority bar to actually
+   *  outrank current results. */
+  avg_referring_domains?: number | null
 }
 
 export interface KeywordMonthlyPoint {

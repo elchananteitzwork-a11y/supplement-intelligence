@@ -103,6 +103,85 @@ async function fetchEndpoint(
   }
 }
 
+// ── CAERS adverse-event reports (/food/event) ───────────────────────────────
+// CONFIRMED VIA LIVE CALL 2026-06-27: real, queryable dataset — 1,766 records
+// for "magnesium" as a products.name_brand match alone. Distinct from a
+// recall: this is a consumer-reported reaction, not a regulatory action — no
+// admission of cause is implied (openFDA's own disclaimer says so), and the
+// UI must not present it as "the FDA recalled this." Same product-relevance
+// risk as a recall search: name_brand can match a CONCOMITANT product the
+// consumer also happened to be taking, not the one actually suspected — so
+// this filters to reports where the keyword matches a product specifically
+// in the SUSPECT role, same spirit as the existing haystack relevance check
+// on the recalls endpoint above.
+
+const CAERS_API_BASE = 'https://api.fda.gov/food/event.json'
+const CAERS_INFO_PAGE = 'https://www.fda.gov/food/compliance-enforcement/cfsan-adverse-event-reporting-system-caers'
+const MAX_ADVERSE_EVENTS = 5
+
+interface FdaEventProduct { name_brand?: string; role_code?: string; role?: string }
+interface FdaEventResult {
+  report_number?: string
+  reactions?:     string[]
+  date_created?:  string   // YYYYMMDD
+  products?:      FdaEventProduct[]
+}
+
+async function fetchAdverseEvents(keyword: string, windowDays: number): Promise<NewsItem[]> {
+  const cacheKey = `openfda:caers:${keyword}:${windowDays}`
+  const cached = cacheGet<NewsItem[]>(cacheKey)
+  if (cached) return cached
+
+  try {
+    const url = `${CAERS_API_BASE}?search=products.name_brand:"${encodeURIComponent(keyword)}"&limit=20&sort=date_created:desc`
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) {
+      if (res.status !== 404) console.warn('[openFDA CAERS] HTTP error', { status: res.status })
+      cacheSet(cacheKey, [], CACHE_TTL_MS)
+      return []
+    }
+    const data: { results?: FdaEventResult[] } = await res.json()
+    const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000
+    const kwLower = keyword.toLowerCase()
+
+    const items: NewsItem[] = (data.results ?? [])
+      .map((r, i): NewsItem | null => {
+        const date = parseFdaDate(r.date_created)
+        if (!date || new Date(date).getTime() < cutoff) return null
+        if (!r.reactions?.length) return null
+        // Require the keyword to match a product specifically marked SUSPECT,
+        // not just any product (incl. concomitant) in the report.
+        const suspectMatch = (r.products ?? []).some(
+          p => p.role === 'SUSPECT' && p.name_brand?.toLowerCase().includes(kwLower),
+        )
+        if (!suspectMatch) return null
+        const reactions = r.reactions.slice(0, MAX_ADVERSE_EVENTS)
+        return {
+          id:         `openfda-caers-${i}`,
+          headline:   `Consumer-Reported Reaction: ${reactions.slice(0, 3).join(', ')}`,
+          date,
+          source:     'FDA CAERS',
+          url:        CAERS_INFO_PAGE,
+          category:   'Adverse Event Signal',
+          // Lower than recalls' 0.95 — CAERS is a real dataset but, per
+          // openFDA's own disclaimer, an unverified consumer report, not a
+          // confirmed cause-and-effect finding the way a recall is.
+          confidence: 0.7,
+          provider:   'openfda',
+          adverse_event_reactions: reactions,
+        }
+      })
+      .filter((x): x is NewsItem => x !== null)
+      .slice(0, MAX_ADVERSE_EVENTS)
+
+    cacheSet(cacheKey, items, CACHE_TTL_MS)
+    return items
+  } catch (e: unknown) {
+    console.warn('[openFDA CAERS] fetch failed', { error: e instanceof Error ? e.message : e })
+    return []
+  }
+}
+
 export class OpenFdaProvider implements NewsProvider {
   readonly name    = 'openfda'
   readonly enabled = true
@@ -112,10 +191,11 @@ export class OpenFdaProvider implements NewsProvider {
     const keyword = toPrimaryKeyword(ctx.query)
     if (!keyword) return []
 
-    const [food, drug] = await Promise.all([
+    const [food, drug, adverseEvents] = await Promise.all([
       fetchEndpoint('food', keyword, ctx.windowDays),
       fetchEndpoint('drug', keyword, ctx.windowDays),
+      fetchAdverseEvents(keyword, ctx.windowDays),
     ])
-    return [...food, ...drug]
+    return [...food, ...drug, ...adverseEvents]
   }
 }

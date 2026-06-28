@@ -230,6 +230,14 @@ export function demandMomentum90dProvenance(signals?: AggregatedSignals | null):
   return estimated('Keepa', "Real 90-day percent change in Keepa's own monthlySold estimate for the category's top bestsellers — a more direct demand-momentum measurement than the BSR-ratio trend above, but still built on Keepa's modeled units-sold figure, not a directly observed fact.")
 }
 
+// "Top Regions" — real Google Trends interestByRegion data (CONFIRMED VIA
+// LIVE CALL 2026-06-27), a direct measurement (US states ranked by relative
+// search interest for this exact query), not a derived computation.
+export function topRegionsProvenance(signals?: AggregatedSignals | null): Provenance | null {
+  if (!signals?.demand?.value.top_regions?.length) return null
+  return verified('Google Trends', 'Real US state-level relative search interest for this exact query, directly from Google Trends — not a category-wide average.')
+}
+
 // "Amazon Referral Fee" / "FBA Pick & Pack Fee" — real Amazon fee-schedule
 // data mirrored by Keepa per-product (CONFIRMED VIA LIVE CALL 2026-06-26:
 // referralFeePercentage / fbaFees.pickAndPackFee on the Keepa product

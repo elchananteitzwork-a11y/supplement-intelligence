@@ -21,6 +21,14 @@ const googleTrends = require('google-trends-api') as {
     geo?:       string
     category?:  number
   }) => Promise<string>
+  // CONFIRMED VIA LIVE CALL 2026-06-27: same free, unofficial provider,
+  // a second real endpoint it exposes — real US state-level relative
+  // interest, not previously called anywhere in this codebase.
+  interestByRegion: (opts: {
+    keyword:     string
+    geo?:        string
+    resolution?: 'COUNTRY' | 'REGION' | 'CITY' | 'DMA'
+  }) => Promise<string>
 }
 
 // ── Raw response shapes ───────────────────────────────────────────
@@ -31,6 +39,13 @@ interface TimelinePoint {
   value:            number[]
   hasData:          boolean[]
   isPartial?:       boolean
+}
+
+interface RegionPoint {
+  geoCode:  string
+  geoName:  string
+  value:    number[]
+  hasData:  boolean[]
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -107,6 +122,24 @@ export class GoogleTrendsProvider implements SignalProvider {
   // Disabled when GOOGLE_TRENDS_DISABLED=true (escape hatch if rate-limited).
   readonly enabled = process.env.GOOGLE_TRENDS_DISABLED !== 'true'
 
+  // Best-effort, additive — a failure here (rate limit, parse error) never
+  // blocks the main interestOverTime signal, since this only adds a single
+  // extra field (top_regions) rather than gating the whole provider.
+  private async fetchTopRegions(keyword: string): Promise<string[] | undefined> {
+    try {
+      const raw = await googleTrends.interestByRegion({ keyword, geo: 'US', resolution: 'REGION' })
+      const parsed: { default: { geoMapData: RegionPoint[] } } = JSON.parse(raw)
+      const regions = (parsed.default.geoMapData ?? [])
+        .filter(r => r.hasData?.[0] && r.value[0] > 0)
+        .sort((a, b) => b.value[0] - a.value[0])
+        .slice(0, 3)
+        .map(r => r.geoName)
+      return regions.length ? regions : undefined
+    } catch {
+      return undefined
+    }
+  }
+
   async fetch(ctx: SignalContext): Promise<ProviderSignals | null> {
     const category = ctx.query
     const keyword = toSearchKeyword(category)
@@ -114,11 +147,10 @@ export class GoogleTrendsProvider implements SignalProvider {
 
     try {
       const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-      const raw = await googleTrends.interestOverTime({
-        keyword,
-        startTime: oneYearAgo,
-        geo:       'US',
-      })
+      const [raw, topRegions] = await Promise.all([
+        googleTrends.interestOverTime({ keyword, startTime: oneYearAgo, geo: 'US' }),
+        this.fetchTopRegions(keyword),
+      ])
 
       const parsed: { default: { timelineData: TimelinePoint[] } } = JSON.parse(raw)
       const all    = parsed.default.timelineData ?? []
@@ -130,7 +162,7 @@ export class GoogleTrendsProvider implements SignalProvider {
         return null
       }
 
-      return this.computeSignals(category, keyword, valid)
+      return this.computeSignals(category, keyword, valid, topRegions)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       // Google Trends returns a 302→/sorry page when rate-limited.
@@ -148,9 +180,10 @@ export class GoogleTrendsProvider implements SignalProvider {
   }
 
   private computeSignals(
-    category: string,
-    keyword:  string,
-    points:   TimelinePoint[],
+    category:    string,
+    keyword:     string,
+    points:      TimelinePoint[],
+    topRegions?: string[],
   ): ProviderSignals {
     const values   = points.map(pt => pt.value[0])
     const meanVal  = avg(values)
@@ -183,6 +216,7 @@ export class GoogleTrendsProvider implements SignalProvider {
       confidence,
       trend:      growthToTrendStr(growthPct),
       signal:     interestToSignal(meanVal),
+      top_regions: topRegions,
     }
 
     const growth: GrowthSignal = {
@@ -207,6 +241,7 @@ export class GoogleTrendsProvider implements SignalProvider {
       pts:        values.length,
       avgInterest: Math.round(meanVal),
       growthPct:  Math.round(growthPct) + '%',
+      topRegions: topRegions ?? 'none',
       cv:         Math.round(cv) + '%',
       pattern:    cvToPattern(cv),
       momentum,

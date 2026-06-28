@@ -16,7 +16,7 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000
 const NCBI_TOOL = 'supplement-intelligence'
 
 interface EsearchResponse { esearchresult?: { idlist?: string[] } }
-interface EsummaryItem { title?: string; sortpubdate?: string; pubdate?: string; source?: string }
+interface EsummaryItem { title?: string; sortpubdate?: string; pubdate?: string; source?: string; pubtype?: string[] }
 interface EsummaryResponse { result?: Record<string, EsummaryItem | string[]> }
 
 function parsePubmedDate(sortpubdate: string | undefined): string | null {
@@ -24,6 +24,30 @@ function parsePubmedDate(sortpubdate: string | undefined): string | null {
   // Format: "2026/06/23 00:00"
   const d = new Date(sortpubdate.replace(' ', 'T').replace(/\//g, '-') + 'Z')
   return isNaN(d.getTime()) ? null : d.toISOString()
+}
+
+// CONFIRMED VIA LIVE CALL 2026-06-27: esummary's pubtype[] is a real NLM-
+// assigned field, but typically contains a generic entry ("Journal Article")
+// alongside (or instead of) a methodologically specific one. Most-informative-
+// first so "Meta-Analysis" wins over "Journal Article" when both are present;
+// a study with only generic types gets no study_type rather than a label
+// that doesn't actually say anything about methodology.
+const STUDY_TYPE_PRIORITY = [
+  'Meta-Analysis',
+  'Systematic Review',
+  'Randomized Controlled Trial',
+  'Controlled Clinical Trial',
+  'Clinical Trial',
+  'Multicenter Study',
+  'Comparative Study',
+  'Observational Study',
+  'Review',
+  'Case Reports',
+]
+
+function pickStudyType(pubtype: string[] | undefined): string | undefined {
+  if (!pubtype?.length) return undefined
+  return STUDY_TYPE_PRIORITY.find(t => pubtype.includes(t))
 }
 
 export class PubMedProvider implements NewsProvider {
@@ -71,6 +95,7 @@ export class PubMedProvider implements NewsProvider {
             category:   'Scientific Study',
             confidence: 0.9,   // PubMed is authoritative + exact title/abstract phrase match
             provider:   'pubmed',
+            study_type: pickStudyType(entry.pubtype),
           }
         })
         .filter((x): x is NewsItem => x !== null)
