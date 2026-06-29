@@ -4,6 +4,7 @@ import {
   SHARED_OPPORTUNITY_SCHEMA,
   SHARED_MEMO_SCHEMA,
 } from '../shared-prompts'
+import { matchesToken, confirmRelevanceWithLLM } from '../relevance-matching'
 import type { CategoryModule } from '../types'
 
 // ── Discovery prompt ───────────────────────────────────────────────────────
@@ -117,11 +118,11 @@ const BEAUTY_TOKENS = new Set([
   'skin','hair','nail','nails','makeup','luxury skincare','drugstore',
 ])
 
-function isRelevantQuery(raw: string): boolean {
+async function isRelevantQuery(raw: string): Promise<boolean> {
   const lower = raw.toLowerCase()
   const words = lower.split(/\W+/).filter(Boolean)
   for (const w of words) {
-    if (BEAUTY_TOKENS.has(w)) return true
+    if (matchesToken(w, BEAUTY_TOKENS)) return true
   }
   for (let i = 0; i < words.length - 1; i++) {
     if (BEAUTY_TOKENS.has(`${words[i]} ${words[i + 1]}`)) return true
@@ -131,7 +132,7 @@ function isRelevantQuery(raw: string): boolean {
   for (const phrase of twoWord) {
     if (BEAUTY_TOKENS.has(phrase)) return true
   }
-  return false
+  return confirmRelevanceWithLLM(raw, 'beauty')
 }
 
 function isBroadQuery(input: string): boolean {

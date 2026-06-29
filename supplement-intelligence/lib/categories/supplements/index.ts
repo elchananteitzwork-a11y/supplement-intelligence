@@ -4,6 +4,7 @@ import {
   buildSignalAugmentedSystemPrompt,
 } from '@/lib/prompts/discovery'
 import { SYSTEM_PROMPT } from '@/lib/prompts/system'
+import { matchesToken, confirmRelevanceWithLLM } from '../relevance-matching'
 import type { CategoryModule } from '../types'
 
 // ── Broad-vs-specific detection ────────────────────────────────────────────
@@ -60,16 +61,16 @@ const SUPPLEMENT_TOKENS = new Set([
   'liver','heart','bone','cartilage','blood','blood sugar',
 ])
 
-function isRelevantQuery(raw: string): boolean {
+async function isRelevantQuery(raw: string): Promise<boolean> {
   const lower = raw.toLowerCase()
   const words = lower.split(/\W+/).filter(Boolean)
   for (const w of words) {
-    if (SUPPLEMENT_TOKENS.has(w)) return true
+    if (matchesToken(w, SUPPLEMENT_TOKENS)) return true
   }
   for (let i = 0; i < words.length - 1; i++) {
     if (SUPPLEMENT_TOKENS.has(`${words[i]} ${words[i + 1]}`)) return true
   }
-  return false
+  return confirmRelevanceWithLLM(raw, 'supplements')
 }
 
 // ── Supplements module ─────────────────────────────────────────────────────

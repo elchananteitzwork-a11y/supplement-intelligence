@@ -59,9 +59,17 @@ async function fetchEndpoint(
     const url = `${FDA_API}/${endpoint}/enforcement.json?search=product_description:"${encodeURIComponent(keyword)}"&limit=10&sort=report_date:desc`
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
     if (!res.ok) {
-      if (res.status !== 404) console.warn('[openFDA] HTTP error', { endpoint, status: res.status })
-      cacheSet(cacheKey, [], CACHE_TTL_MS)
-      return []
+      // openFDA returns 404 for "zero records matched" — a real, checked
+      // result (cache it as such). Any other non-ok status (429, 5xx, etc.)
+      // is a genuine failed check, not a verified-clean one — must NOT be
+      // cached as if it were, and must propagate so the caller (the Safety
+      // Gate, via NewsEngine's failedProviders) can tell the two apart.
+      if (res.status === 404) {
+        cacheSet(cacheKey, [], CACHE_TTL_MS)
+        return []
+      }
+      console.warn('[openFDA] HTTP error', { endpoint, status: res.status })
+      throw new Error(`openFDA ${endpoint} HTTP ${res.status}`)
     }
     const data: { results?: FdaEnforcementResult[] } = await res.json()
     const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000
@@ -98,8 +106,12 @@ async function fetchEndpoint(
     cacheSet(cacheKey, items, CACHE_TTL_MS)
     return items
   } catch (e: unknown) {
+    // Network error, timeout, or the HTTP-error throw above — a genuine
+    // failed check, never cached, and re-thrown (not swallowed to []) so
+    // NewsEngine records this provider as failed rather than "ran, found
+    // nothing" — see engine.ts failedProviders.
     console.warn('[openFDA] fetch failed', { endpoint, error: e instanceof Error ? e.message : e })
-    return []
+    throw e
   }
 }
 
@@ -136,8 +148,19 @@ async function fetchAdverseEvents(keyword: string, windowDays: number): Promise<
     const url = `${CAERS_API_BASE}?search=products.name_brand:"${encodeURIComponent(keyword)}"&limit=20&sort=date_created:desc`
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
     if (!res.ok) {
+      // 404 = real "zero records" result, cached as such (same as
+      // fetchEndpoint above). Any other status is a genuine failed check —
+      // NOT cached (so the next request gets a fresh attempt, not a false
+      // "clean" reading for 6h), but also NOT re-thrown: unlike the recall
+      // checks below, a CAERS-only failure doesn't void this provider's
+      // higher-confidence recall data (HARDENING FIX 2026-06-28 — the
+      // original D1 fix made ANY of the 3 sub-checks failing discard all
+      // 3, which was over-conservative for the one lowest-confidence,
+      // lowest-gate-weight signal of the three; see computeSafetyGateTier,
+      // which only escalates on adverse events at a >=2 threshold, well
+      // below the recall checks' single-item SKIP/VALIDATE_FURTHER bars).
       if (res.status !== 404) console.warn('[openFDA CAERS] HTTP error', { status: res.status })
-      cacheSet(cacheKey, [], CACHE_TTL_MS)
+      if (res.status === 404) cacheSet(cacheKey, [], CACHE_TTL_MS)
       return []
     }
     const data: { results?: FdaEventResult[] } = await res.json()
@@ -177,6 +200,8 @@ async function fetchAdverseEvents(keyword: string, windowDays: number): Promise<
     cacheSet(cacheKey, items, CACHE_TTL_MS)
     return items
   } catch (e: unknown) {
+    // Swallowed, not re-thrown — see the HTTP-error branch above for why a
+    // CAERS-only failure shouldn't void this provider's recall data.
     console.warn('[openFDA CAERS] fetch failed', { error: e instanceof Error ? e.message : e })
     return []
   }

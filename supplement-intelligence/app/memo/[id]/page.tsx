@@ -4,6 +4,7 @@ import { createClient }       from '@/lib/supabase/server'
 import type { Analysis }      from '@/types/index'
 import MemoDisplay            from '@/components/MemoDisplay'
 import FeedbackWidget         from '@/components/FeedbackWidget'
+import OutcomeWidget          from '@/components/OutcomeWidget'
 import CopyLinkButton         from '@/components/CopyLinkButton'
 
 export default async function MemoPage({ params }: { params: { id: string } }) {
@@ -34,6 +35,12 @@ export default async function MemoPage({ params }: { params: { id: string } }) {
 
         {/* memo */}
         <MemoDisplay memo={a.memo_data} generatedAt={a.created_at} />
+
+        {/* outcome tracking */}
+        <div className="mt-8 lg:max-w-[840px]">
+          <p className="label mb-3">Outcome Tracking</p>
+          <OutcomeWidget analysisId={a.id} />
+        </div>
 
         {/* feedback */}
         <div className="mt-8 lg:max-w-[840px]">

@@ -1,4 +1,4 @@
-import type { MemoData } from '@/types/index'
+import type { MemoData, BuildDecision } from '@/types/index'
 
 // ── Server-side consistency checks ──────────────────────────────────────────
 //
@@ -21,7 +21,7 @@ export interface ConsistencyFlag {
   evidence: string   // what the real evidence says
 }
 
-export function checkConsistency(m: MemoData): ConsistencyFlag[] {
+export function checkConsistency(m: MemoData, decision: BuildDecision): ConsistencyFlag[] {
   const flags: ConsistencyFlag[] = []
   const rv  = m.signal_evidence?.review_velocity?.value
   const sat = m.market_saturation
@@ -56,8 +56,11 @@ export function checkConsistency(m: MemoData): ConsistencyFlag[] {
   }
 
   // 3. BUILD_NOW with no real documented customer pain
+  // Uses the live `decision` argument, not m.build_decision (stored at
+  // generation time, under whatever scoring formula was live then) — so
+  // this can never flag (or fail to flag) based on a stale decision.
   const ci = m.consumer_intelligence
-  if (ci && m.build_decision === 'BUILD_NOW' && ci.totalReviewsCollected >= 30) {
+  if (ci && decision === 'BUILD_NOW' && ci.totalReviewsCollected >= 30) {
     const hasRealPainSignal = ci.negativeThemes.length > 0 || ci.featureRequests.length > 0
     if (!hasRealPainSignal) {
       flags.push({

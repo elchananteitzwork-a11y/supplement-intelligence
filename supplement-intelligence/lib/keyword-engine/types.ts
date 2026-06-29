@@ -146,6 +146,17 @@ export interface KeywordIntelligence {
    *  with real competition+difficulty+cpc present), not a model confidence. */
   confidence?: number
 
+  // Keyword Relevance Guard (2026-06-28 production audit) — set when every
+  // broadening candidate's top-volume keyword described a different market
+  // than the original query (e.g. "Senior Dog Mobility Support" ->
+  // "mobility scooter") and was rejected rather than credited. When this is
+  // set, `top_buying`/`opportunity`/`long_tail`/`fast_growing` are all
+  // empty — computeDemand() and searchVolumeProvenance() already treat an
+  // empty top_buying as "no verified data" with zero code changes, so this
+  // field exists purely for honest UI disclosure (see lib/provenance.ts
+  // searchVolumeProvenance), never for crediting a number or scoring.
+  relevance_rejected?: { keyword: string; monthly_searches: number; reason: string } | null
+
   provider:     string
   fetched_at:   string
 }
@@ -153,5 +164,15 @@ export interface KeywordIntelligence {
 export interface KeywordProvider {
   readonly name:    string
   readonly enabled: boolean
-  fetch(seedKeyword: string): Promise<KeywordIntelligence | null>
+  /** PR review finding (2026-06-28): the engine's old timeout was a bare
+   *  `Promise.race` against a timer — when the timer won, the caller moved
+   *  on but the provider's in-flight HTTP call (and, for a multi-candidate
+   *  provider, every remaining fallback attempt) kept running unawaited in
+   *  the background: wasted billed API calls with no caller ever reading
+   *  the result. `signal` lets the engine actually cancel that work rather
+   *  than abandon it. Implementations MUST pass it into their underlying
+   *  fetch() calls and check `signal?.aborted` between any sequential
+   *  retry/fallback attempts — an implementation that ignores it will not
+   *  be cancelled when the engine's deadline passes. */
+  fetch(seedKeyword: string, signal?: AbortSignal): Promise<KeywordIntelligence | null>
 }

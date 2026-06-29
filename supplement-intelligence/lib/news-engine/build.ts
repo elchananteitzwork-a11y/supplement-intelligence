@@ -31,12 +31,15 @@ export async function buildNewsIntelligence(
   // with GDELT's own strict rate limit on the artlist request inside
   // newsEngine.fetch() below. That's an accepted, honest failure mode —
   // sentiment is best-effort and never blocks headline items.
-  const [{ items, providersUsed }, sentiment] = await Promise.all([
+  const [{ items, providersUsed, failedProviders }, sentiment] = await Promise.all([
     newsEngine
       .fetch({ query, categoryId, windowDays: NEWS_WINDOW_DAYS }, fetchTimeoutMs)
       .catch((e: unknown) => {
         console.error('[NewsIntelligence] fetch failed', { error: e instanceof Error ? e.message : e })
-        return { items: [], providersUsed: [] }
+        // Total engine failure — we don't know which providers would have
+        // run, so fail closed: mark openfda failed rather than silently
+        // clean, since that's the one provider a safety decision depends on.
+        return { items: [], providersUsed: [], failedProviders: ['openfda'] }
       }),
     fetchGdeltSentiment(query, NEWS_WINDOW_DAYS).catch((e: unknown) => {
       console.error('[NewsIntelligence] sentiment fetch failed', { error: e instanceof Error ? e.message : e })
@@ -46,7 +49,7 @@ export async function buildNewsIntelligence(
 
   if (!items.length) {
     return {
-      items: [], providersUsed, fetchedAt: new Date().toISOString(),
+      items: [], providersUsed, failedProviders, fetchedAt: new Date().toISOString(),
       windowDays: NEWS_WINDOW_DAYS, summary: NO_NEWS_SUMMARY, hasRecentNews: false, sentiment,
     }
   }
@@ -63,6 +66,7 @@ export async function buildNewsIntelligence(
   return {
     items:         finalItems,
     providersUsed,
+    failedProviders,
     fetchedAt:     new Date().toISOString(),
     windowDays:    NEWS_WINDOW_DAYS,
     summary:       explained?.summary ?? ITEMS_EXIST_NO_SUMMARY,

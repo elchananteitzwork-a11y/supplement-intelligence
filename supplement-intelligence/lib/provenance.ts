@@ -205,6 +205,15 @@ export function toConfidenceBand(pctStr: string | undefined): string {
 // Neither Keepa nor Google Trends can measure this (see DemandSignal.search_volume
 // comment in lib/signal-engine/types.ts) and no longer try to.
 export function searchVolumeProvenance(ki?: KeywordIntelligence | null): Provenance | null {
+  // Keyword Relevance Guard (2026-06-28 production audit): DataForSEO DID
+  // return real data, but every candidate's top keyword described a
+  // different market than the original query (e.g. "Senior Dog Mobility
+  // Support" -> "mobility scooter") — distinct from genuinely finding
+  // nothing, so it gets its own message rather than falling through to the
+  // generic "no data" synthesized fallback at this function's call site.
+  if (ki?.relevance_rejected) {
+    return unsupported('No verified search volume for the exact product. Related market volume found but not credited.')
+  }
   if (!ki || ki.top_buying.length === 0) return null
   return verified('DataForSEO', "Real monthly search volume for this query's top keyword, pulled directly from DataForSEO's keyword database.")
 }

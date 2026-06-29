@@ -66,6 +66,12 @@ const TO_USD: Record<string, number> = {
   AUD: 0.64,   CAD: 0.73,  MXN: 0.052,  THB: 0.028,
   ARS: 0.001,  PHP: 0.017, CLP: 0.001,  PEN: 0.26,
   COP: 0.00023, NGN: 0.00063, EGP: 0.02, PKR: 0.0036,
+  // Added 2026-06-28 (hardening pass) — real, additional common Alibaba
+  // listing currencies that were previously falling through to the removed
+  // guessed-rate fallback (see parsePrice).
+  SGD: 0.74,   HKD: 0.128,  KRW: 0.00072, JPY: 0.0067,
+  SEK: 0.095,  NOK: 0.091,  DKK: 0.145,   VND: 0.00004,
+  IDR: 0.000062, MYR: 0.22, TWD: 0.031,
 }
 
 function parseNumericValue(s: string): number {
@@ -101,7 +107,15 @@ function parsePrice(formatted: string): { low: number; high: number } | null {
     symbol === '€' ? 'EUR' :
     symbol === '£' ? 'GBP' : symbol
 
-  const rate = TO_USD[code] ?? 0.1
+  // HARDENING FIX (2026-06-28): previously fell back to a guessed 0.1 rate
+  // for any currency code not in TO_USD — a real, demonstrable distortion
+  // (e.g. SGD's real rate is ~0.74; 0.1 understates cost ~7.4x, overstating
+  // margin). Consistent with this codebase's "real data or null, never a
+  // guess" rule: if we don't have a real exchange rate for this currency,
+  // we don't have a real USD price for this listing — drop it rather than
+  // silently misconvert it. All 3 call sites already filter out `null`.
+  const rate = TO_USD[code]
+  if (rate === undefined) return null
   const low  = +(Math.min(...parts) * rate).toFixed(2)
   const high = +(Math.max(...parts) * rate).toFixed(2)
   return { low: Math.max(low, 0.01), high: Math.max(high, low) }
@@ -137,10 +151,17 @@ function parseMOQQuantity(minOrderQuantity: string | undefined): number | null {
 // Real COGS filtered to the MOQ tier an actual first-order buyer could
 // access (2026-06-28 Decision Engine redesign — see realistic_unit_cost on
 // ManufacturingEstimate). Unlike extractPriceRange, this pairs MOQ and price
-// on the SAME listing: takes the bottom tercile by MOQ, then the median
-// price within that filtered, achievable-order-size subset. Returns null
-// (never a backfilled guess) when fewer than 3 listings have both a parsed
-// MOQ and a parsed price — too thin a sample to filter meaningfully.
+// on the SAME listing: takes the bottom tercile by MOQ, then the 25th
+// percentile price within that filtered, achievable-order-size subset.
+// HARDENING FIX (2026-06-28): was the MEDIAN of the tercile, which on a
+// typical tercile of 4 sorted-ascending listings averages the 2nd/3rd —
+// measurably higher than what a buyer at the tercile's own lowest MOQ would
+// actually pay, partially undoing the bias-correction this field exists
+// for. p25 (the same conservative-percentile pattern lib/scoring.ts's
+// realisticPrice() already uses) sits closer to the true low-MOQ end
+// without collapsing to a single, noisier data point. Returns null (never
+// a backfilled guess) when fewer than 3 listings have both a parsed MOQ and
+// a parsed price — too thin a sample to filter meaningfully.
 function extractRealisticUnitCost(
   products: ApifyProduct[],
 ): { low: number; high: number } | null {
@@ -159,12 +180,12 @@ function extractRealisticUnitCost(
   const lowMoqTier = paired.slice(0, tercileEnd)
 
   const prices = lowMoqTier.map(p => p.price.low).sort((a, b) => a - b)
-  const median = prices[Math.floor(prices.length / 2)]
-  // A real, narrow band around the median (±15%) rather than a single point —
-  // consistent with every other ManufacturingEstimate field being a range,
-  // not a point estimate, and avoids implying more precision than a median
-  // of a handful of listings actually supports.
-  return { low: +(median * 0.85).toFixed(2), high: +(median * 1.15).toFixed(2) }
+  const p25price = prices[Math.floor(prices.length * 0.25)]
+  // A real, narrow band around the p25 price (±15%) rather than a single
+  // point — consistent with every other ManufacturingEstimate field being a
+  // range, not a point estimate, and avoids implying more precision than a
+  // handful of listings actually supports.
+  return { low: +(p25price * 0.85).toFixed(2), high: +(p25price * 1.15).toFixed(2) }
 }
 
 // ── MOQ parsing ───────────────────────────────────────────────────────────────
@@ -175,7 +196,7 @@ const UNIT_MAP: Record<string, string> = {
   bag: 'bags', set: 'sets', kg: 'kg', kilogram: 'kg',
 }
 
-function parseMOQ(products: ApifyProduct[]): { low: number; high: number; unit: string } {
+function parseMOQ(products: ApifyProduct[]): { low: number; high: number; unit: string } | undefined {
   const parsed: Array<{ qty: number; unit: string }> = []
 
   for (const p of products) {
@@ -188,7 +209,15 @@ function parseMOQ(products: ApifyProduct[]): { low: number; high: number; unit: 
     parsed.push({ qty, unit: UNIT_MAP[rawUnit] ?? 'units' })
   }
 
-  if (!parsed.length) return { low: 500, high: 2000, unit: 'units' }
+  // HARDENING FIX (2026-06-28): previously returned a hardcoded, fabricated
+  // { low: 500, high: 2000, unit: 'units' } here — a fictional MOQ range
+  // with zero basis in any real listing, directly violating this codebase's
+  // own "real data or null, never invented" rule (the sibling function
+  // extractRealisticUnitCost already follows that rule correctly). The UI
+  // (components/MemoDisplay.tsx) already renders "No data available" when
+  // `moq` is undefined — returning undefined here was always the correct,
+  // already-supported path; the fallback just never used it.
+  if (!parsed.length) return undefined
 
   parsed.sort((a, b) => a.qty - b.qty)
   const p25  = parsed[Math.floor(parsed.length * 0.25)]
@@ -363,7 +392,7 @@ export class ApifyProvider implements ManufacturingProvider {
       priced,
       priceRange,
       realisticUnitCost: realisticUnitCost ? `${realisticUnitCost.low}–${realisticUnitCost.high}` : 'n/a',
-      moq:        `${moq.low}–${moq.high} ${moq.unit}`,
+      moq:        moq ? `${moq.low}–${moq.high} ${moq.unit}` : 'n/a',
       leadTime:   `${leadTime.low}–${leadTime.high} days`,
       confidence: `${Math.round(confidence * 100)}%`,
       named_suppliers: suppliers?.length ?? 0,

@@ -45,13 +45,40 @@ const COLLECTOR_MAX_RETRIES = 1   // a slow-but-working call should NOT be retri
 // allotted slice of the overall request budget — see app/api/generate/route.ts.
 const TOTAL_TIMEOUT_MS = 85_000
 
-const PROBLEM_CUES  = /\b(but|however|unfortunately|issue|problem|too (?:big|small|large|strong|expensive|hard|tiny|bitter)|disappoint|doesn'?t|did ?n'?t|don'?t|hard to|difficult to|hate|complain|wish it|stopped working|broke|defective|smell|taste(?:s)? bad)\b/i
+// NOTE (negation fix): bare doesn't/don't/didn't were previously their own
+// standalone alternatives here — removed. A negation contraction's mere
+// presence was never itself evidence of a problem ("doesn't taste bad" was
+// matching as a complaint purely because it contains "doesn't"), and it gave
+// the now-added negation check below nothing useful to do for this specific
+// alternative (the cue WAS the negation). Genuinely negated complaints like
+// "doesn't work" are no longer caught by this list alone — an accepted
+// recall trade-off for removing a worse false-positive source.
+const PROBLEM_CUES  = /\b(but|however|unfortunately|issue|problem|too (?:big|small|large|strong|expensive|hard|tiny|bitter)|disappoint|hard to|difficult to|hate|complain|wish it|stopped working|broke|defective|smell|taste(?:s)? bad)\b/i
 const REQUEST_CUES  = /\b(wish|want(?:ed)?|would be nice|should (?:have|add|include|make)|need(?:s)? to|hope they|please add|if only|i'?d love|would love)\b/i
 // Real, deterministic repurchase-behavior language — same pattern-matching
 // technique already used for PROBLEM_CUES/REQUEST_CUES above, not a new
 // category of analysis. Feeds the Subscription/Retention composite (see
 // lib/scoring.ts) — never AI-judged, a literal phrase match over real text.
 const REPURCHASE_CUES = /\b(re-?order(?:ed|ing)?|re-?purchas(?:e|ed|ing)|re-?buy(?:ing)?|subscribe|subscription|auto-?ship|ran out|run(?:s)? out|out of (?:it|this|these)|order(?:ed|ing)? again|bought again|buy(?:ing)? again|every month|each month|monthly|repeat (?:customer|buyer|purchase)|been using (?:it|this) for (?:months|years)|stocked up|buying more)\b/i
+
+// Negation guard: a cue word/phrase immediately preceded by a negation token
+// means the opposite of what the bare cue implies ("won't reorder", "don't
+// want this", "doesn't taste bad") — matching it as-is silently inverted the
+// signal. Checks only the few words directly before each match (English
+// negation overwhelmingly precedes what it negates), not a full parse —
+// same deterministic-regex tier as the cues above, not a new analysis method.
+const NEGATION_TOKENS = /\b(not|never|no|none|nothing|without|cannot|can'?t|won'?t|wouldn'?t|shouldn'?t|doesn'?t|don'?t|didn'?t|isn'?t|wasn'?t|aren'?t|weren'?t)\b/i
+const NEGATION_WINDOW_WORDS = 4
+
+function hasUnnegatedMatch(text: string, cueRegex: RegExp): boolean {
+  const flags   = cueRegex.flags.includes('g') ? cueRegex.flags : cueRegex.flags + 'g'
+  const matches = Array.from(text.matchAll(new RegExp(cueRegex.source, flags)))
+  return matches.some(match => {
+    const start  = match.index ?? 0
+    const before = text.slice(0, start).trim().split(/\s+/).slice(-NEGATION_WINDOW_WORDS).join(' ')
+    return !NEGATION_TOKENS.test(before)
+  })
+}
 
 export async function analyzeConsumerIntelligence(
   competitors: { productId: string; brand: string }[],
@@ -133,8 +160,8 @@ export async function analyzeConsumerIntelligence(
   const negativeSentences = toSentences(negative)
   const positiveSentences = toSentences(positive)
   const allSentences      = toSentences(cleaned)
-  const problemSentences  = allSentences.filter(s => PROBLEM_CUES.test(s.text))
-  const requestSentences  = allSentences.filter(s => REQUEST_CUES.test(s.text))
+  const problemSentences  = allSentences.filter(s => hasUnnegatedMatch(s.text, PROBLEM_CUES))
+  const requestSentences  = allSentences.filter(s => hasUnnegatedMatch(s.text, REQUEST_CUES))
 
   const toThemes = (clusters: ReturnType<typeof clusterPhrases>, poolSize: number): ThemeInsight[] =>
     clusters.map(c => ({
@@ -161,7 +188,7 @@ export async function analyzeConsumerIntelligence(
   // Distinct reviews (not sentences) whose body matches repurchase-behavior
   // language — counted across all ratings, same scope as mostMentionedProblems,
   // since repurchase behavior is a fact about usage, not sentiment.
-  const repurchaseReviewCount = cleaned.filter(r => REPURCHASE_CUES.test(r.body)).length
+  const repurchaseReviewCount = cleaned.filter(r => hasUnnegatedMatch(r.body, REPURCHASE_CUES)).length
 
   return {
     productsAnalyzed,

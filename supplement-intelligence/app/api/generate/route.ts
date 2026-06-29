@@ -6,10 +6,11 @@ import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }    from '@/lib/signal-engine'
 import { keywordEngine, enrichKeywordIntelligence, explainKeywordIntelligence } from '@/lib/keyword-engine'
 import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
-import { computeGroundedScore, computeTractionBand } from '@/lib/scoring'
+import { computeGroundedScore, computeTractionBand, SCORING_ENGINE_VERSION } from '@/lib/scoring'
 import { checkConsistency } from '@/lib/consistency'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
 import { buildNewsIntelligence } from '@/lib/news-engine'
+import { shouldConsumeSlot } from '@/lib/analysis-slot-policy'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
 // CONFIRMED VIA LOAD TEST (2026-06-24, 17 real generations): single-attempt
@@ -38,12 +39,36 @@ import type { MemoData, SignalMetadata } from '@/types/index'
 // budget (root cause: a 15s default HTTP timeout on a ~70s-real-latency
 // Apify call, causing wasted retries — fixed in
 // lib/consumer-intelligence/analyze.ts). That stage is now parallelized and
-// hard-capped at 85s. New worst case: ~75s signals + ~85s consumer
-// intelligence + ~100s generation + overhead ≈ 270s, so 285s keeps real
-// margin under both this ceiling and the platform's 300s.
+// hard-capped at 85s.
+//
+// CORRECTED 2026-06-28 (production-readiness audit): the ~270s estimate
+// above only ever accounted for ONE Anthropic attempt — it never budgeted
+// for MAX_GENERATE_ATTEMPTS retries (each its own 100s abort timer) or the
+// Category-Creation-Candidate broadened re-fetch added the same day. Two
+// real fixes, not a raised ceiling (the platform's own hard cap is already
+// 300s on this plan, so there's nowhere left to raise it to):
+//   1. The broadened re-fetch and Consumer Intelligence have no data
+//      dependency on each other and now run in parallel (Promise.all)
+//      instead of accidentally sequential — reclaims ~20s.
+//   2. hasTimeForAnotherAttempt() (below) makes the retry loop check real
+//      remaining budget before burning another ~100s attempt that can't
+//      finish in time, falling back to the existing buildSkipMemo/timeout
+//      paths instead of risking a hard platform kill after every upstream
+//      API call has already been paid for. Single-attempt worst case is
+//      now ~75s signals + ~85s consumer intelligence (broadened re-fetch
+//      absorbed into that window) + ~100s generation + overhead ≈ 260s,
+//      comfortably under both this ceiling and the platform's 300s; the
+//      budget guard ensures a 2nd/3rd attempt only ever starts when it can
+//      actually finish within 285s.
 export const maxDuration = 285
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// Single source of truth for which model generated this memo's narrative —
+// used both in the actual API call below AND in the persisted
+// analyses.model_version field, so the two can never silently drift apart
+// (the DB column previously had its own independent default value that the
+// application code never referenced or kept in sync).
+const ANTHROPIC_MODEL = 'claude-sonnet-4-6'
 
 // ── input limits ───────────────────────────────────────────────
 const MAX_INPUT    = 500
@@ -169,6 +194,22 @@ function broadenQuery(query: string): string | null {
 // loop to decide whether to re-attempt before falling back to buildSkipMemo.
 
 const MAX_GENERATE_ATTEMPTS = 3
+// Matches the abortTimer value in the retry loop below — kept as one named
+// constant so the budget check and the actual timer can't silently drift
+// apart from each other.
+const ANTHROPIC_ATTEMPT_TIMEOUT_MS = 100_000
+// Score computation, DB writes, news/keyword finalization after the loop —
+// a conservative, real estimate of the non-Anthropic work still left once
+// a memo is accepted, not a guess pulled from nowhere.
+const POST_GENERATION_OVERHEAD_MS  = 15_000
+
+// True only when there's real remaining budget (under this route's own
+// maxDuration, documented above) for one more full Anthropic attempt plus
+// the work that still has to happen after it — never just "attempts left."
+function hasTimeForAnotherAttempt(requestStart: number): boolean {
+  const elapsed = Date.now() - requestStart
+  return elapsed + ANTHROPIC_ATTEMPT_TIMEOUT_MS + POST_GENERATION_OVERHEAD_MS < maxDuration * 1000
+}
 
 function isNonEmpty(v: unknown): boolean {
   if (v === null || v === undefined) return false
@@ -265,6 +306,20 @@ function validateMemo(memo: MemoData): string[] {
 
 // ── route ──────────────────────────────────────────────────────
 export async function POST(req: Request) {
+  // Latency budget guard (2026-06-28): the maxDuration comment above already
+  // documents a worst case of ~270s assuming exactly ONE Anthropic attempt —
+  // it never accounted for MAX_GENERATE_ATTEMPTS retries, each with its own
+  // 100s abort timer, or the Category-Creation-Candidate re-fetch added this
+  // session. Two attempts alone (~75s signals + ~85s consumer intelligence +
+  // 200s for 2 Anthropic calls) already exceeds both this route's 285s
+  // maxDuration and the platform's hard 300s ceiling — a real risk of paying
+  // for every upstream API call and still getting hard-killed with nothing
+  // delivered. requestStart lets the retry loop below check real remaining
+  // budget before burning another ~100s on a retry that can't finish in time,
+  // falling back to the existing buildSkipMemo/timeout-response paths
+  // instead — never a redesign of the retry logic, just an earlier, safer
+  // exit when the budget is already gone.
+  const requestStart = Date.now()
   const sb = supabaseFromCookies()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return err('Unauthorized', 401)
@@ -308,7 +363,8 @@ export async function POST(req: Request) {
   // Skipped when request originated from discovery (already relevant by construction)
   // or when using Open Discovery (classification implies relevance).
   const wasAutoClassified = !rawCategoryId || rawCategoryId === 'auto'
-  if (!fromDiscovery && !wasAutoClassified && !module.isRelevantQuery(input.trim())) {
+  const needsRelevanceCheck = !fromDiscovery && !wasAutoClassified
+  if (needsRelevanceCheck && !(await module.isRelevantQuery(input.trim()))) {
     return err(
       `This tool currently analyzes ${module.name.toLowerCase()} ideas only. Try something like "${module.examples.specific[0]}".`,
       400,
@@ -322,7 +378,17 @@ export async function POST(req: Request) {
   // shorter silently dropped a result that had already succeeded and been
   // billed. Matches that provider's own internal AbortSignal.timeout(80_000).
   const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 75_000).catch(() => null)
-  const keywordPromise = keywordEngine.fetch(input.trim(), 8_000).catch(() => null)
+  // ROOT CAUSE FIX (2026-06-28, "Monthly Search Volume often shows no data"
+  // investigation): this outer race ceiling (8s) was SHORTER than
+  // lib/keyword-engine/dataforseo.ts's own internal per-attempt
+  // AbortSignal.timeout(12_000) — a real, in-flight DataForSEO call that
+  // was about to succeed could be discarded by this outer timeout before
+  // it ever got the chance to. Now also has to cover up to 3 sequential
+  // retry candidates (exact phrase, "for X" clause stripped, generic-tail
+  // stripped) after today's broadening fix, not just one. 25s comfortably
+  // covers that and costs nothing on the overall request's critical path —
+  // this runs concurrently with the 75s signalPromise above, not after it.
+  const keywordPromise = keywordEngine.fetch(input.trim(), 25_000).catch(() => null)
   // News Intelligence: independent of signals/competitors, so it fires here
   // rather than waiting on topCompetitors below. Includes its own Haiku
   // "why it matters" pass internally — never touches the main Sonnet prompt
@@ -391,24 +457,31 @@ export async function POST(req: Request) {
   const specificDemandLooksAbsent =
     !keywordIntelligence?.top_buying?.[0]?.monthly_searches && !signals?.demand && !signals?.growth
 
-  let broadQueryEvidence: MemoData['category_creation_broad_evidence']
-
-  if (specificDemandLooksAbsent) {
-    const broadQuery = broadenQuery(input.trim())
-    if (broadQuery) {
+  // Latency: this re-fetch and Consumer Intelligence below have no data
+  // dependency on each other (Consumer Intelligence only needs
+  // topCompetitors, already available from `signals` above) — they
+  // previously ran sequentially purely by accident of code order, adding
+  // up to ~20s of pure waste on top of an already-tight overall budget (see
+  // maxDuration comment). Built as a promise here, awaited together with
+  // consumerIntelligencePromise below instead of immediately.
+  const broadQueryEvidencePromise: Promise<MemoData['category_creation_broad_evidence']> =
+    (async () => {
+      if (!specificDemandLooksAbsent) return undefined
+      const broadQuery = broadenQuery(input.trim())
+      if (!broadQuery) return undefined
       const [broadSignals, broadKeyword] = await Promise.all([
         signalEngine.fetch({ query: broadQuery, categoryId: module.id }, 20_000).catch(() => null),
-        keywordEngine.fetch(broadQuery, 8_000).catch(() => null),
+        // Same outer-timeout fix as the main keywordPromise above — was 8s,
+        // shorter than dataforseo.ts's own internal 12s per-attempt ceiling.
+        keywordEngine.fetch(broadQuery, 20_000).catch(() => null),
       ])
-      if (broadSignals || broadKeyword) {
-        broadQueryEvidence = { broadQuery, signal_evidence: broadSignals ?? undefined, keyword_intelligence: broadKeyword ?? undefined }
-        console.log('Category-Creation-Candidate: broad-query evidence fetched', {
-          specificQuery: input.trim(), broadQuery,
-          broadHasSignals: !!broadSignals, broadHasKeyword: !!broadKeyword,
-        })
-      }
-    }
-  }
+      if (!broadSignals && !broadKeyword) return undefined
+      console.log('Category-Creation-Candidate: broad-query evidence fetched', {
+        specificQuery: input.trim(), broadQuery,
+        broadHasSignals: !!broadSignals, broadHasKeyword: !!broadKeyword,
+      })
+      return { broadQuery, signal_evidence: broadSignals ?? undefined, keyword_intelligence: broadKeyword ?? undefined }
+    })()
 
   // ── Consumer Intelligence: real review-text themes ──────────────────────
   // Depends on competitor ASINs found by Competition Intelligence above —
@@ -423,12 +496,17 @@ export async function POST(req: Request) {
   // own discovery. The underlying counts/quotes the UI shows still come
   // straight from memo.consumer_intelligence, untouched by the model.
   const topCompetitors = signals?.review_velocity?.value.top_competitors
-  const consumerIntelligence = topCompetitors?.length
-    ? await analyzeConsumerIntelligence(topCompetitors, input.trim()).catch((e: unknown) => {
+  const consumerIntelligencePromise = topCompetitors?.length
+    ? analyzeConsumerIntelligence(topCompetitors, input.trim()).catch((e: unknown) => {
         console.error('Consumer Intelligence failed', { error: e instanceof Error ? e.message : e })
         return null
       })
-    : null
+    : Promise.resolve(null)
+
+  const [broadQueryEvidence, consumerIntelligence] = await Promise.all([
+    broadQueryEvidencePromise,
+    consumerIntelligencePromise,
+  ])
 
   // ── Keyword Intelligence enrichment (deterministic — clusters, opportunity
   // discovery, seasonality, forecast, per-keyword scores) + AI Insights ──────
@@ -488,13 +566,13 @@ export async function POST(req: Request) {
   for (let attempt = 1; attempt <= MAX_GENERATE_ATTEMPTS; attempt++) {
     const t0         = Date.now()
     const controller = new AbortController()
-    const abortTimer = setTimeout(() => controller.abort(), 100_000)
+    const abortTimer = setTimeout(() => controller.abort(), ANTHROPIC_ATTEMPT_TIMEOUT_MS)
     let rawText = ''
 
     try {
       const msg = await ai.messages.create(
         {
-          model:      'claude-sonnet-4-6',
+          model:      ANTHROPIC_MODEL,
           max_tokens: 3500,
           system:     systemPrompt,
           messages:   [{ role: 'user', content: userMessage }],
@@ -502,6 +580,16 @@ export async function POST(req: Request) {
         { signal: controller.signal },
       )
       clearTimeout(abortTimer)
+      // TEMP AUDIT INSTRUMENTATION (2026-06-28) — discovery already logs its
+      // own token usage; the main generate call never has. Added to answer
+      // "is token usage efficient" with real numbers during the full-engine
+      // audit. Flag for removal-or-keep decision after the audit — not left
+      // in silently either way.
+      console.log('Generate: Anthropic usage', {
+        attempt, model: ANTHROPIC_MODEL,
+        input_tokens:  msg.usage?.input_tokens,
+        output_tokens: msg.usage?.output_tokens,
+      })
       rawText       = msg.content[0].type === 'text' ? msg.content[0].text : ''
       generationMs += Date.now() - t0
     } catch (e: unknown) {
@@ -514,8 +602,8 @@ export async function POST(req: Request) {
       // signal is unambiguous: it's only ever flipped by the timer below.
       const isAbort = controller.signal.aborted
       if (isAbort) {
-        console.error(`Anthropic timeout after 55 s (attempt ${attempt}/${MAX_GENERATE_ATTEMPTS})`)
-        if (attempt < MAX_GENERATE_ATTEMPTS) continue
+        console.error(`Anthropic timeout after ${ANTHROPIC_ATTEMPT_TIMEOUT_MS / 1000}s (attempt ${attempt}/${MAX_GENERATE_ATTEMPTS})`)
+        if (attempt < MAX_GENERATE_ATTEMPTS && hasTimeForAnotherAttempt(requestStart)) continue
         return err('Analysis timed out — no slot used. Please try again.', 504)
       }
       if (e instanceof Anthropic.APIError) {
@@ -534,7 +622,7 @@ export async function POST(req: Request) {
       console.error(`JSON parse error (attempt ${attempt}/${MAX_GENERATE_ATTEMPTS})`, {
         categoryId: module.id, raw_length: rawText.length, snippet: rawText.slice(0, 300),
       })
-      if (attempt < MAX_GENERATE_ATTEMPTS) continue
+      if (attempt < MAX_GENERATE_ATTEMPTS && hasTimeForAnotherAttempt(requestStart)) continue
       skipReason = 'json_parse_failure'
       memo = buildSkipMemo(input.trim(), skipReason)
       break
@@ -546,7 +634,7 @@ export async function POST(req: Request) {
       console.error(`Incomplete memo (attempt ${attempt}/${MAX_GENERATE_ATTEMPTS})`, {
         categoryId: module.id, missing: missingFields,
       })
-      if (attempt < MAX_GENERATE_ATTEMPTS) continue
+      if (attempt < MAX_GENERATE_ATTEMPTS && hasTimeForAnotherAttempt(requestStart)) continue
       skipReason = 'incomplete_memo'
       memo = buildSkipMemo(input.trim(), skipReason)
       break
@@ -636,6 +724,9 @@ export async function POST(req: Request) {
     const grounded = computeGroundedScore(memo)
     memo.opportunity_score = grounded.score
     memo.build_decision    = grounded.decision
+    // Stamped so this score can always be traced to the exact formula that
+    // produced it — see lib/scoring.ts SCORING_ENGINE_VERSION header comment.
+    memo.scoring_version   = SCORING_ENGINE_VERSION
     // Deterministic replacement for the model's invented ten_k/hundred_k/
     // one_m probabilities (no longer requested in the prompt) — see
     // lib/scoring.ts computeTractionBand.
@@ -646,7 +737,7 @@ export async function POST(req: Request) {
     // Server-side consistency check (lib/consistency.ts) — logged for
     // visibility now; the same check re-runs in the UI (ConsistencyFlagsPanel)
     // since it's a pure function of the same persisted memo fields.
-    const flags = checkConsistency(memo)
+    const flags = checkConsistency(memo, grounded.decision)
     if (flags.length > 0) {
       console.warn('Consistency check flagged claims', {
         category: input.trim(),
@@ -666,7 +757,8 @@ export async function POST(req: Request) {
   })
 
   // ── Atomic slot consumption ────────────────────────────────────
-  if (!devUnlimited) {
+  // See shouldConsumeSlot() above for the root-cause story.
+  if (shouldConsumeSlot(skipReason, devUnlimited)) {
     const { data: slotGranted, error: slotErr } = await sb
       .rpc('consume_analysis_slot', { p_user_id: user.id })
 
@@ -702,6 +794,13 @@ export async function POST(req: Request) {
       score_defensibility: null,  // removed 2026-06-25 — column kept for schema compat
       opportunity_score:   memo.opportunity_score,
       build_decision:      memo.build_decision,
+      scoring_version:     memo.scoring_version ?? null,
+      // Explicit, not relying on the DB column's own default — see
+      // ANTHROPIC_MODEL above. Every code path that reaches this insert
+      // (including the buildSkipMemo fallback for an unparseable/incomplete
+      // response) already made a real call to this model; the model
+      // attribution is accurate even when the output itself was discarded.
+      model_version:       ANTHROPIC_MODEL,
       build_verdict:       null,  // removed 2026-06-26 — generated, never read by any UI, pure waste; column kept for schema compat
       memo_data:           memo,
       biggest_competitor:  memo.biggest_competitor?.name    ?? null,
@@ -718,38 +817,30 @@ export async function POST(req: Request) {
     return err('Failed to save analysis — your slot was refunded.', 500)
   }
 
-  // Upsert leaderboard
-  const { data: existing } = await sb
-    .from('leaderboard')
-    .select('id, opportunity_score, analysis_count')
-    .eq('category_name', memo.category_name)
-    .maybeSingle()
-
-  if (!existing) {
-    await sb.from('leaderboard').insert({
-      category_name:      memo.category_name,
-      opportunity_score:  memo.opportunity_score,
-      build_decision:     memo.build_decision,
-      biggest_competitor: memo.biggest_competitor?.name ?? null,
-      market_size:        memo.market_size             ?? null,
-      best_analysis_id:   analysis.id,
-      analysis_count:     1,
-    })
-  } else {
-    const better = memo.opportunity_score > (existing.opportunity_score ?? 0)
-    await sb.from('leaderboard')
-      .update({
-        analysis_count: (existing.analysis_count ?? 0) + 1,
-        last_analyzed:  new Date().toISOString(),
-        ...(better && {
-          opportunity_score:  memo.opportunity_score,
-          build_decision:     memo.build_decision,
-          biggest_competitor: memo.biggest_competitor?.name ?? null,
-          market_size:        memo.market_size             ?? null,
-          best_analysis_id:   analysis.id,
-        }),
-      })
-      .eq('id', existing.id)
+  // Upsert leaderboard — atomic at the DB layer (supabase/migrations/
+  // 008_atomic_leaderboard_upsert.sql). HARDENING FIX (2026-06-28): the
+  // previous read-then-update here was a real race — two concurrent
+  // analyses of the same category_name could both read the same row, then
+  // each write back against stale data, losing one update or under-
+  // counting analysis_count. A single INSERT ... ON CONFLICT DO UPDATE is
+  // serialized at the row level by Postgres, so every concurrent caller
+  // sees a consistent view; the "is this score from a comparable formula
+  // version, and is it actually better" decision now happens inside that
+  // same atomic statement instead of in application code between two
+  // separate round-trips.
+  const { error: leaderboardErr } = await sb.rpc('upsert_leaderboard_entry', {
+    p_category_name:      memo.category_name,
+    p_opportunity_score:  memo.opportunity_score,
+    p_build_decision:     memo.build_decision,
+    p_scoring_version:    memo.scoring_version ?? null,
+    p_biggest_competitor: memo.biggest_competitor?.name ?? null,
+    p_market_size:        memo.market_size             ?? null,
+    p_best_analysis_id:   analysis.id,
+  })
+  if (leaderboardErr) {
+    // Non-fatal: the analysis itself already saved successfully above —
+    // a leaderboard-display hiccup shouldn't fail the whole request.
+    console.error('Leaderboard upsert failed', leaderboardErr)
   }
 
   return NextResponse.json({ analysisId: analysis.id, memo })

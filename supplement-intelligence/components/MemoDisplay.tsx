@@ -607,7 +607,7 @@ function DecisionStrip({
   // specific idea without knowing the score is actually based on a broader
   // category's real data, so it risks implying false confidence here.
   const synthesis = decision === 'VALIDATE_FURTHER' || decision === 'CATEGORY_CREATION_CANDIDATE'
-    ? deriveValidationSteps(m)[0] ?? firstSentence(m.market_thesis ?? m.executive_summary)
+    ? deriveValidationSteps(m, decision)[0] ?? firstSentence(m.market_thesis ?? m.executive_summary)
     : firstSentence(m.market_thesis ?? m.executive_summary)
   const dateLabel = generatedAt
     ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -783,8 +783,11 @@ function ScoreBreakdownPanel({ m }: { m: MemoData }) {
 // (lib/consistency.ts) and contradicted it, or had none to point to.
 // Rendered visibly, not suppressed — finding zero flags is reported too,
 // so absence of warnings isn't ambiguous with "wasn't checked."
-function ConsistencyFlagsPanel({ m }: { m: MemoData }) {
-  const flags = checkConsistency(m)
+function ConsistencyFlagsPanel({ m, decision }: { m: MemoData; decision: BuildDecision }) {
+  // Live decision, not m.build_decision — same fix as deriveValidationSteps/
+  // deriveValidationBudget above, so this panel can never contradict the
+  // masthead's decision on the same render.
+  const flags = checkConsistency(m, decision)
   return (
     <div className="mt-6 pt-5 border-t border-white/[0.06]">
       <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">Consistency Check</p>
@@ -853,7 +856,7 @@ function Masthead({
 
       <EvidenceCoveragePanel m={m} />
       <ScoreBreakdownPanel m={m} />
-      <ConsistencyFlagsPanel m={m} />
+      <ConsistencyFlagsPanel m={m} decision={decision} />
     </div>
   )
 }
@@ -1158,8 +1161,11 @@ function deriveTop3Risks(m: MemoData): DerivedRisk[] {
   return risks.slice(0, 3).map((r, i) => ({ ...r, evidence: evidenceCitation(riskTags[i], m) }))
 }
 
-function deriveValidationSteps(m: MemoData): string[] {
-  const d    = m.build_decision
+function deriveValidationSteps(m: MemoData, decision: BuildDecision): string[] {
+  // Takes the live, recomputed decision — not m.build_decision (stored at
+  // generation time, under whatever scoring formula was live then) — so
+  // this never contradicts the masthead's decision on the same render.
+  const d    = decision
   const gap  = m.market_gaps?.[0]?.replace(/\.$/, '') ?? 'the primary market gap'
   // Prefer the real, review-text-derived pain point over the AI-invented
   // one when available — same fix as the Consumer Intelligence tab: real
@@ -1199,9 +1205,10 @@ function deriveValidationSteps(m: MemoData): string[] {
   ]
 }
 
-function deriveValidationBudget(m: MemoData): VBudget {
+function deriveValidationBudget(m: MemoData, decision: BuildDecision): VBudget {
   const mfgLevel = dimLevel(m, 'manufacturing') ?? 'Medium'
-  const d        = m.build_decision
+  // Same fix as deriveValidationSteps above — live decision, not stale m.build_decision.
+  const d        = decision
 
   if (d === 'SKIP') {
     return { range: '$500–$2k', breakdown: 'Market research only — no manufacturing recommended' }
@@ -1284,11 +1291,11 @@ const BLOCK_CFG = [
   { key: 'angle'    as const, Icon: IconArrowRight, title: 'Recommended entry angle', cls: 'border-brass/20      bg-brass/[0.05]',   head: 'text-brass'    },
 ]
 
-function InvestmentThesisSection({ m, blocks }: { m: MemoData; blocks: DecisionBlocksData }) {
+function InvestmentThesisSection({ m, blocks, decision }: { m: MemoData; blocks: DecisionBlocksData; decision: BuildDecision }) {
   const buildPts = deriveTop3Build(m)
   const risks    = deriveTop3Risks(m)
-  const steps    = deriveValidationSteps(m)
-  const budget   = deriveValidationBudget(m)
+  const steps    = deriveValidationSteps(m, decision)
+  const budget   = deriveValidationBudget(m, decision)
   const metrics  = deriveSuccessMetrics(m)
   const kill     = deriveKillCriteria(m)
 
@@ -1767,12 +1774,24 @@ function DemandEvidencePanel({ m }: { m: MemoData }) {
   // "Monthly Search Volume" real only via DataForSEO's top keyword for this query.
   const topKeyword = ki?.top_buying?.[0]
   const searchVolP = searchVolumeProvenance(ki)
+  // Keyword Relevance Guard: DataForSEO found real data, but it described a
+  // different market than this query (e.g. "mobility scooter" for "Senior
+  // Dog Mobility Support") — show that explicitly rather than the generic
+  // "No data available", which would look identical to genuinely finding
+  // nothing. Set as the row's `value` (not left undefined) specifically so
+  // EvidencePanel's provenance-badge filter (`row.value && row.provenance`)
+  // still surfaces the Unsupported badge instead of silently dropping it.
+  const searchVolValue = topKeyword
+    ? `${topKeyword.monthly_searches.toLocaleString()}/mo ("${topKeyword.keyword}")`
+    : ki?.relevance_rejected
+      ? 'No verified search volume for the exact product. Related market volume found but not credited.'
+      : undefined
 
   return (
     <EvidencePanel
       title="Demand Evidence"
       metrics={[
-        { label: 'Monthly Search Volume',  value: topKeyword ? `${topKeyword.monthly_searches.toLocaleString()}/mo ("${topKeyword.keyword}")` : undefined, provenance: searchVolP },
+        { label: 'Monthly Search Volume',  value: searchVolValue, provenance: searchVolP },
         { label: 'Search Growth %',        value: growthSig?.yoy_change, provenance: searchGrowthProvenance(ev) },
         { label: 'Search Trend Direction', value: growthSig?.momentum,   provenance: searchGrowthProvenance(ev) },
         { label: '90-Day Demand Momentum', value: growthSig?.momentum_90d_pct != null ? `${growthSig.momentum_90d_pct > 0 ? '+' : ''}${growthSig.momentum_90d_pct}%` : undefined, provenance: demandMomentum90dProvenance(ev) },
@@ -3471,7 +3490,7 @@ function ManufacturingIntelligenceContent({ m, isActive }: { m: MemoData; isActi
 // ═══════════════════════════════════════════════════════════════
 
 function FinalRecommendation({ m, decision }: { m: MemoData; decision: BuildDecision }) {
-  const budget = deriveValidationBudget(m)
+  const budget = deriveValidationBudget(m, decision)
   const kill   = deriveKillCriteria(m)
   const cfg = {
     BUILD_NOW:        { label: 'Build Now',      cls: 'text-emerald-400', bg: 'bg-emerald-400/5 border-emerald-400/15' },
@@ -3541,7 +3560,7 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
           <DecisionStrip m={m} score={score} decision={decision} generatedAt={generatedAt} />
           <Masthead m={m} score={score} decision={decision} confidence={confidence} generatedAt={generatedAt} />
           <ExecutiveSummary m={m} />
-          <InvestmentThesisSection m={m} blocks={blocks} />
+          <InvestmentThesisSection m={m} blocks={blocks} decision={decision} />
         </div>
 
         {/* ── Sticky horizontal tab strip (mobile/tablet only) ───────── */}

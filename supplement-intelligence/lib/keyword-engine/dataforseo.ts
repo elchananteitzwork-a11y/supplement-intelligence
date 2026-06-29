@@ -1,4 +1,5 @@
 import type { KeywordProvider, KeywordIntelligence, KeywordMetric } from './types'
+import { checkKeywordRelevance } from './relevance-guard'
 
 // ── DataForSEO Labs — Related Keywords (live) ──────────────────────────────
 //
@@ -45,14 +46,64 @@ const GENERIC_TAIL = new Set([
   'loss', 'health', 'care', 'boost', 'gummies', 'capsules', 'powder',
 ])
 
+// ROOT CAUSE (found 2026-06-28, "Monthly Search Volume often shows no data"
+// investigation): this function only stripped a fixed set of generic
+// PRODUCT-TYPE words from the end of the query — it had no handling for the
+// extremely common "for <audience>" / "with <use case>" clause, even though
+// that exact pattern (app/api/generate/route.ts's own broadenQuery,
+// independently built for the Category-Creation-Candidate path) already
+// exists elsewhere in this codebase for the identical reason. CONFIRMED VIA
+// LIVE CALL 2026-06-28: "joint supplement for aging dogs" -> 0 real items;
+// "joint supplement for dogs" -> 36 items incl. 33,100/mo real volume;
+// "joint supplement" -> 32 items incl. 14,800/mo. The data was never
+// missing — the retry logic never tried the query that would have found it.
 function broadenedCandidates(seedKeyword: string): string[] {
   const words = seedKeyword.toLowerCase().trim().split(/\s+/).filter(Boolean)
   const candidates: string[] = [seedKeyword]
+
+  const clauseIdx = words.findIndex(w => w === 'for' || w === 'with')
+  if (clauseIdx > 0) {
+    candidates.push(words.slice(0, clauseIdx).join(' '))
+  }
+
   const trimmed = [...words]
   while (trimmed.length > 1 && GENERIC_TAIL.has(trimmed[trimmed.length - 1])) {
     trimmed.pop()
     candidates.push(trimmed.join(' '))
   }
+
+  // Found during the multi-query production validation sweep (2026-06-28):
+  // a SECOND, distinct failure pattern — multi-word descriptive phrases with
+  // no "for"/"with" clause and no GENERIC_TAIL trailing word still often
+  // have zero data on the exact phrase. CONFIRMED VIA LIVE CALL: "Post-
+  // Workout Tendon Recovery" -> 0 items; "Tendon Recovery" (same phrase
+  // minus its leading qualifier word) -> 31 items. Unlike the trailing
+  // GENERIC_TAIL list (a small, known vocabulary of product-type words),
+  // there's no equivalent small vocabulary of LEADING qualifier words to
+  // check against — they're highly varied ("Post-Workout", "Overnight",
+  // "Plant-Based", etc.) — so this tries dropping just the first word
+  // unconditionally, once, rather than building another fixed word list.
+  // Bounded to one extra attempt and only when >=3 words remain, so a
+  // 2-word phrase is never diluted to a single, overly generic word.
+  if (words.length >= 3) {
+    candidates.push(words.slice(1).join(' '))
+  }
+  // A 4+-word phrase can need TWO leading words dropped, not just one —
+  // CONFIRMED VIA LIVE CALL: "Cartilage Regeneration Collagen Peptides" -> 0
+  // items; "Regeneration Collagen Peptides" (1 dropped) -> still 0;
+  // "Collagen Peptides" (2 dropped) -> 59 items with real volume. Same
+  // one-extra-attempt, no-fixed-vocabulary reasoning as above, one step
+  // further — still bounded (only fires on long phrases, only ever 2 words
+  // dropped, never collapses below 2 remaining words). Deliberately NOT
+  // extended further than this: a separate confirmed case ("Morning
+  // Stiffness Relief Rapid-Release") has zero real data at the 1-word- and
+  // 2-word-dropped levels too — that's a genuine absence, not a bug, and
+  // is correctly left to resolve to "No data available" rather than forcing
+  // ever-more-aggressive stripping to manufacture a result.
+  if (words.length >= 4) {
+    candidates.push(words.slice(2).join(' '))
+  }
+
   return candidates
 }
 
@@ -184,7 +235,7 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
   readonly name    = 'dataforseo'
   readonly enabled = !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD)
 
-  async fetch(seedKeyword: string): Promise<KeywordIntelligence | null> {
+  async fetch(seedKeyword: string, signal?: AbortSignal): Promise<KeywordIntelligence | null> {
     if (!this.enabled) return null
     const keyword = seedKeyword.trim()
     if (!keyword) return null
@@ -192,21 +243,79 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
     // Try the exact phrase first; only broaden (and spend a second real call)
     // if it genuinely came back empty. Most queries will resolve on the first
     // try, so this doesn't double the cost of every lookup.
+    // PR review finding (2026-06-28): checking `signal?.aborted` before each
+    // candidate (not just inside fetchOnce) means that once the caller's
+    // overall deadline has passed, this loop stops proposing NEW candidates
+    // instead of starting one more billed call it'll never get to use.
+    //
+    // Keyword Relevance Guard (2026-06-28 production audit): DataForSEO's
+    // related-keyword graph can return a real, high-volume keyword that has
+    // nothing to do with the original query as the top hit for a broadened
+    // (or even exact) seed — CONFIRMED VIA LIVE CALL: "Senior Dog Mobility
+    // Support" surfaced "mobility scooter" (human mobility aids) as its
+    // single highest-volume related keyword. Every candidate's metrics are
+    // checked against the TRUE original query (not the broadened candidate
+    // string) before anything is credited as Monthly Search Volume — this
+    // runs even on a direct/unbroadened hit, since the drift is in
+    // DataForSEO's related-keyword suggestions, not just in this file's own
+    // broadening. The single best (highest-volume) rejected candidate across
+    // all attempts is kept for honest "found but not credited" disclosure
+    // (lib/provenance.ts), never for scoring.
+    let bestRejected: { keyword: string; monthly_searches: number; reason: string } | null = null
+
     for (const candidate of broadenedCandidates(keyword)) {
-      const metrics = await this.fetchOnce(candidate)
-      if (metrics && metrics.length >= MIN_USABLE_KEYWORDS) {
-        return this.bucket(candidate, metrics)
+      if (signal?.aborted) return null
+      const metrics = await this.fetchOnce(candidate, signal)
+      if (!metrics || metrics.length < MIN_USABLE_KEYWORDS) continue
+
+      const byVolumeDesc = [...metrics].sort((a, b) => b.monthly_searches - a.monthly_searches)
+      const relevant = byVolumeDesc.find(m => checkKeywordRelevance(keyword, m.keyword).allowed)
+
+      if (relevant) {
+        return this.bucket(candidate, metrics, relevant)
+      }
+
+      const top = byVolumeDesc[0]
+      if (top && !bestRejected) {
+        bestRejected = {
+          keyword: top.keyword,
+          monthly_searches: top.monthly_searches,
+          reason: checkKeywordRelevance(keyword, top.keyword).reason,
+        }
+      }
+    }
+
+    if (bestRejected) {
+      console.log('DataForSEO: relevance guard rejected every candidate\'s top keyword', { original: keyword, ...bestRejected })
+      return {
+        seed_keyword: keyword,
+        top_buying: [], opportunity: [], long_tail: [], fast_growing: [],
+        provider: 'dataforseo',
+        fetched_at: new Date().toISOString(),
+        relevance_rejected: bestRejected,
       }
     }
     return null
   }
 
-  private async fetchOnce(keyword: string): Promise<KeywordMetric[] | null> {
+  private async fetchOnce(keyword: string, externalSignal?: AbortSignal): Promise<KeywordMetric[] | null> {
+    if (externalSignal?.aborted) return null
+
+    // Combine the caller's overall-deadline signal with this call's own
+    // 12s per-attempt timeout — whichever fires first aborts the request.
+    // No `AbortSignal.any` (Node 20.3+ only, and this repo doesn't pin an
+    // `engines` field) — wired by hand so this works on any Node version
+    // that has native fetch + AbortController.
+    const controller = new AbortController()
+    const onExternalAbort = () => controller.abort()
+    externalSignal?.addEventListener('abort', onExternalAbort)
+    const perCallTimeout = setTimeout(() => controller.abort(), 12_000)
+
     try {
       const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64')
       const res = await fetch(ENDPOINT, {
         method:  'POST',
-        signal:  AbortSignal.timeout(12_000),
+        signal:  controller.signal,
         headers: {
           'Authorization': `Basic ${auth}`,
           'Content-Type':  'application/json',
@@ -248,15 +357,40 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
       }
       return metrics
     } catch (e: unknown) {
-      console.error('DataForSEO provider error', { keyword, error: e instanceof Error ? e.message : e })
+      // Distinguish an intentional cancellation (caller's deadline passed,
+      // or this call's own 12s attempt timeout) from a genuine provider
+      // failure — PR review finding: once timeouts can fire from an
+      // external signal too, logging every abort as "provider error" would
+      // make DataForSEO look unreliable in production logs when it was
+      // simply cancelled on purpose.
+      const aborted = e instanceof Error && e.name === 'AbortError'
+      if (aborted) {
+        console.log('DataForSEO call cancelled (timeout or caller deadline)', { keyword })
+      } else {
+        console.error('DataForSEO provider error', { keyword, error: e instanceof Error ? e.message : e })
+      }
       return null
+    } finally {
+      clearTimeout(perCallTimeout)
+      externalSignal?.removeEventListener('abort', onExternalAbort)
     }
   }
 
-  private bucket(seedKeyword: string, metrics: KeywordMetric[]): KeywordIntelligence {
+  private bucket(seedKeyword: string, metrics: KeywordMetric[], guardedTop: KeywordMetric): KeywordIntelligence {
     const byVolumeDesc = [...metrics].sort((a, b) => b.monthly_searches - a.monthly_searches)
 
-    const top_buying = byVolumeDesc.slice(0, ITEMS_PER_BUCKET)
+    // Keyword Relevance Guard: top_buying[0] is the one number computeDemand()
+    // and the UI treat as THE verified Monthly Search Volume — promote the
+    // highest-volume keyword that's actually relevant to the original query
+    // into that position if a higher-volume but irrelevant one would
+    // otherwise have won by raw volume alone. Positions 1-9 and the other 3
+    // buckets are left as natural volume-sorted keyword-research data (a
+    // different, already-labeled feature — out of scope for this guard).
+    const ordered = guardedTop === byVolumeDesc[0]
+      ? byVolumeDesc
+      : [guardedTop, ...byVolumeDesc.filter(m => m !== guardedTop)]
+
+    const top_buying = ordered.slice(0, ITEMS_PER_BUCKET)
 
     const opportunity = [...metrics]
       .filter(m => m.monthly_searches >= MIN_VOLUME_FOR_OPPORTUNITY && (m.difficulty ?? 100) <= MAX_DIFFICULTY_FOR_OPPORTUNITY)

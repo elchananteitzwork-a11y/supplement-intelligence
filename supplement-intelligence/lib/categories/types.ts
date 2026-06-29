@@ -43,8 +43,12 @@ export interface CategoryModule {
   readonly analysisSystemPrompt: string
 
   // Gate that decides whether an input string is relevant to this category.
-  // Used by the generate route to reject off-category queries.
-  isRelevantQuery(input: string): boolean
+  // Used by the generate route to reject off-category queries. Async: the
+  // fast vocabulary check runs first and resolves synchronously in the
+  // common case, but falls through to an LLM confirmation (see
+  // lib/categories/relevance-matching.ts confirmRelevanceWithLLM) when it
+  // finds no match, rather than rejecting on a closed-vocabulary miss.
+  isRelevantQuery(input: string): Promise<boolean>
 
   // ── Client-safe helpers ─────────────────────────────────────────────────
   // These contain no server-only imports and can be used in client components.

@@ -4,6 +4,7 @@ import {
   SHARED_OPPORTUNITY_SCHEMA,
   SHARED_MEMO_SCHEMA,
 } from '../shared-prompts'
+import { matchesToken, confirmRelevanceWithLLM } from '../relevance-matching'
 import type { CategoryModule } from '../types'
 
 // ── Discovery prompt ───────────────────────────────────────────────────────
@@ -105,8 +106,12 @@ const FITNESS_TOKENS = new Set([
   'hiking','climbing','rowing','tennis','basketball','soccer','football',
   'golf','boxing','martial arts','mma','bjj','wrestling','dance',
   // sports nutrition
+  // ROOT CAUSE (found 2026-06-28 production audit): "EAA supplement" was
+  // rejected — 'bcaa' (Branched-Chain Amino Acids) was already listed but
+  // its sibling abbreviation 'eaa' (Essential Amino Acids), an equally
+  // common real sports-nutrition term, was simply missing from the list.
   'pre-workout','preworkout','post-workout','protein powder','whey','casein',
-  'creatine','bcaa','amino acid','electrolyte','hydration','energy drink',
+  'creatine','bcaa','bcaas','eaa','eaas','amino acid','electrolyte','hydration','energy drink',
   'sports drink','recovery drink','mass gainer','fat burner','thermogenic',
   'caffeine','beta-alanine','citrulline','arginine','glutamine',
   // fitness equipment
@@ -125,11 +130,11 @@ const FITNESS_TOKENS = new Set([
   'weight training','functional fitness','performance nutrition',
 ])
 
-function isRelevantQuery(raw: string): boolean {
+async function isRelevantQuery(raw: string): Promise<boolean> {
   const lower = raw.toLowerCase()
   const words = lower.split(/\W+/).filter(Boolean)
   for (const w of words) {
-    if (FITNESS_TOKENS.has(w)) return true
+    if (matchesToken(w, FITNESS_TOKENS)) return true
   }
   const multiWord = [
     'pre-workout','post-workout','protein powder','mass gainer','fat burner',
@@ -143,7 +148,7 @@ function isRelevantQuery(raw: string): boolean {
   for (const phrase of multiWord) {
     if (lower.includes(phrase)) return true
   }
-  return false
+  return confirmRelevanceWithLLM(raw, 'fitness')
 }
 
 function isBroadQuery(input: string): boolean {

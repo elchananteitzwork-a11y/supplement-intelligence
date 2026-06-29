@@ -4,6 +4,7 @@ import {
   SHARED_OPPORTUNITY_SCHEMA,
   SHARED_MEMO_SCHEMA,
 } from '../shared-prompts'
+import { matchesToken, confirmRelevanceWithLLM } from '../relevance-matching'
 import type { CategoryModule } from '../types'
 
 // ── Discovery prompt ───────────────────────────────────────────────────────
@@ -112,11 +113,11 @@ const PETS_TOKENS = new Set([
   'novel protein','omega','fish oil','glucosamine','chondroitin',
 ])
 
-function isRelevantQuery(raw: string): boolean {
+async function isRelevantQuery(raw: string): Promise<boolean> {
   const lower = raw.toLowerCase()
   const words = lower.split(/\W+/).filter(Boolean)
   for (const w of words) {
-    if (PETS_TOKENS.has(w)) return true
+    if (matchesToken(w, PETS_TOKENS)) return true
   }
   const multiWord = [
     'dog food','cat food','pet food','dog treat','cat treat',
@@ -126,7 +127,7 @@ function isRelevantQuery(raw: string): boolean {
   for (const phrase of multiWord) {
     if (lower.includes(phrase)) return true
   }
-  return false
+  return confirmRelevanceWithLLM(raw, 'pets')
 }
 
 function isBroadQuery(input: string): boolean {

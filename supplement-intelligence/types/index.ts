@@ -149,6 +149,12 @@ export interface MemoData {
   build_decision:   BuildDecision
   build_explanation: string
   opportunity_score: number
+  // Stamped by lib/scoring.ts SCORING_ENGINE_VERSION at generation time —
+  // optional only for backward compat with memos generated before this
+  // existed. Lets every consumer of opportunity_score/build_decision tell
+  // whether two memos were scored under the same formula before treating
+  // their numbers as comparable.
+  scoring_version?: string
 
   // ── Analyst-voice synthesis (added v2) — optional for backward compat ──
   market_thesis?:     string           // 2–4 sentence investment thesis in senior analyst voice
@@ -263,6 +269,12 @@ export interface Analysis {
   score_manufacturing: number
   opportunity_score:  number
   build_decision:     BuildDecision
+  scoring_version?:   string  // see MemoData.scoring_version
+  // Which Anthropic model generated the narrative portions of this memo —
+  // distinct from scoring_version (the deterministic formula version).
+  // Outcome-tracking needs both: the formula can be right while the model
+  // version that wrote the narrative changes, or vice versa.
+  model_version?:     string
   memo_data:          MemoData
   biggest_competitor: string | null
   market_size:        string | null
@@ -270,11 +282,41 @@ export interface Analysis {
   generation_ms:      number | null
 }
 
+// ── Outcome Tracking ────────────────────────────────────────────────────
+// Real, user-reported, post-hoc ground truth — collected so the platform's
+// central unverified claim (does a BUILD_NOW recommendation actually
+// outperform a SKIP) can eventually be checked against real outcomes
+// instead of taken on faith. One row per analysis (analysis_id is the
+// primary key in the DB — strict 1:1, upserted as status changes over
+// time, not a history log). See supabase/migrations/009_outcome_tracking.sql.
+
+export type BuiltStatus  = 'not_started' | 'in_progress' | 'built' | 'abandoned'
+export type LaunchStatus = 'not_launched' | 'launched' | 'discontinued'
+// 'too_early_to_tell' is a real, distinct value — not a stand-in for "no
+// report yet." A future BUILD_NOW-vs-SKIP query should be able to tell
+// "user hasn't reported" apart from "user reported they don't know yet."
+export type OutcomeVerdict = 'success' | 'failure' | 'too_early_to_tell'
+
+export interface AnalysisOutcome {
+  analysis_id:          string
+  user_id:              string
+  built_status:         BuiltStatus
+  launch_status:        LaunchStatus
+  // Optional, self-reported — never estimated or backfilled if absent,
+  // same no-fabrication rule as every other real-data field in this app.
+  monthly_revenue_usd:  number | null
+  outcome_verdict:      OutcomeVerdict | null
+  notes:                string | null
+  created_at:           string
+  updated_at:           string
+}
+
 export interface LeaderboardRow {
   id:                uuid
   category_name:     string
   opportunity_score: number
   build_decision:    BuildDecision
+  scoring_version?:  string  // see MemoData.scoring_version — not comparable across versions
   biggest_competitor: string | null
   market_size:       string | null
   analysis_count:    number

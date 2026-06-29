@@ -73,6 +73,13 @@ export interface NewsSummary {
 export interface NewsIntelligence {
   items:         NewsItem[]
   providersUsed: string[]
+  // Real, deterministic: providers that threw or hit this engine's own
+  // timeout, distinct from providers that ran and legitimately found
+  // nothing — see lib/news-engine/engine.ts NewsFetchResult.failedProviders.
+  // Lets the Safety Gate (lib/scoring.ts) tell "openFDA checked, found no
+  // recalls" apart from "openFDA's check never completed" instead of
+  // treating both as equally clean.
+  failedProviders: string[]
   fetchedAt:     string
   windowDays:    number
   summary:       NewsSummary

@@ -68,16 +68,27 @@ export class PubMedProvider implements NewsProvider {
       // why this beats both a bare word (domain-ambiguous) and a 3+ word
       // phrase (near-zero results).
       const term = `"${phrase}"[tiab]`
+      // HARDENING FIX (2026-06-28): unlike openFDA, PubMed's E-utilities
+      // never use a non-200 status to mean "zero results" — a genuinely
+      // empty search comes back as HTTP 200 with an empty idlist (handled
+      // below). So every `!res.ok` here is a real failure, not a "checked,
+      // clean" result — must not be cached as if it were (was previously
+      // caching `[]` for 6h on any HTTP error, the exact "checked vs.
+      // didn't check" honesty gap already fixed for openFDA). Re-thrown so
+      // NewsEngine records pubmed as a failed provider rather than "ran,
+      // found nothing" — harmless today (nothing currently keys off a
+      // pubmed-specific failedProviders entry the way the Safety Gate keys
+      // off openfda), but accurate bookkeeping, not a guess.
       const searchUrl = `${EUTILS}/esearch.fcgi?db=pubmed&term=${encodeURIComponent(term)}&retmax=5&retmode=json&datetype=pdat&reldate=${ctx.windowDays}&tool=${NCBI_TOOL}`
       const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(10_000) })
-      if (!searchRes.ok) { cacheSet(cacheKey, [], CACHE_TTL_MS); return [] }
+      if (!searchRes.ok) throw new Error(`PubMed esearch HTTP ${searchRes.status}`)
       const searchData: EsearchResponse = await searchRes.json()
       const ids = searchData.esearchresult?.idlist ?? []
       if (!ids.length) { cacheSet(cacheKey, [], CACHE_TTL_MS); return [] }
 
       const summaryUrl = `${EUTILS}/esummary.fcgi?db=pubmed&id=${ids.join(',')}&retmode=json&tool=${NCBI_TOOL}`
       const summaryRes = await fetch(summaryUrl, { signal: AbortSignal.timeout(10_000) })
-      if (!summaryRes.ok) { cacheSet(cacheKey, [], CACHE_TTL_MS); return [] }
+      if (!summaryRes.ok) throw new Error(`PubMed esummary HTTP ${summaryRes.status}`)
       const summaryData: EsummaryResponse = await summaryRes.json()
 
       const items: NewsItem[] = ids
@@ -103,8 +114,9 @@ export class PubMedProvider implements NewsProvider {
       cacheSet(cacheKey, items, CACHE_TTL_MS)
       return items
     } catch (e: unknown) {
+      // Never cached, re-thrown — see the HTTP-error checks above.
       console.warn('[PubMed] fetch failed', { phrase, error: e instanceof Error ? e.message : e })
-      return []
+      throw e
     }
   }
 }

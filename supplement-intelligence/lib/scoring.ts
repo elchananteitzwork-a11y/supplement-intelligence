@@ -53,6 +53,17 @@ export interface EvidenceBreadth {
   crossChannelCorroborated:    boolean  // distinctChannelTypes >= 2 — caps the confidence tier at "Moderate" when false
 }
 
+// Stamped onto every memo/analyses-row/leaderboard-row at generation time
+// (same pattern as lib/thesis-engine/types.ts THESIS_ENGINE_VERSION) so a
+// score can always be traced to the exact formula that produced it. This
+// composite architecture (Demand/Market Accessibility/Profitability/
+// Customer Pain/Virality/Subscription/Manufacturing Feasibility + gates) is
+// "2.0.0" — bump this string any time BASE_WEIGHTS or a composite formula
+// changes, so old and new scores are never silently compared as if
+// equivalent (see app/api/generate/route.ts leaderboard upsert and
+// app/leaderboard/page.tsx for the two places this is checked).
+export const SCORING_ENGINE_VERSION = '2.0.0'
+
 export interface GroundedScore {
   score:       number   // 0-100
   decision:    BuildDecision
@@ -101,7 +112,17 @@ const PROVIDER_CHANNEL: Record<string, ChannelType> = {
   'apify-alibaba':        'manufacturing_supply',
   openfda:                'regulatory_safety',
 }
-const TOTAL_SCORE_ELIGIBLE_PROVIDERS = Object.keys(PROVIDER_CHANNEL).length
+// HARDENING FIX (2026-06-28): kept in PROVIDER_CHANNEL above (so a future
+// contribution is still correctly classified if reddit is ever enabled),
+// but excluded from the denominator below — reddit has zero credentials
+// configured anywhere in this codebase (lib/signal-engine/providers/
+// reddit.ts: `enabled = !!(REDDIT_CLIENT_ID && REDDIT_CLIENT_SECRET)`,
+// neither set). Counting a provider that can never contribute made the
+// breadth percentage's own ceiling mathematically unreachable (max 8/9 ever
+// achievable), which is misleading for a metric whose whole purpose is
+// disclosure. Update this set if reddit credentials are ever added.
+const STRUCTURALLY_DISABLED_PROVIDERS = new Set(['reddit'])
+const TOTAL_SCORE_ELIGIBLE_PROVIDERS = Object.keys(PROVIDER_CHANNEL).length - STRUCTURALLY_DISABLED_PROVIDERS.size
 
 // Fixed, structural, never query-specific — describes what a channel type
 // can and cannot see by platform design, not a measurement of this result.
@@ -205,7 +226,7 @@ function searchVolumeToScore(volume: number): number {
 
 interface RealResult { rawScore: number | null; sourceLabel: string }
 
-function computeDemand(m: MemoData): RealResult {
+export function computeDemand(m: MemoData): RealResult {
   const topKeyword = m.keyword_intelligence?.top_buying?.[0]
   const se = m.signal_evidence
 
@@ -398,10 +419,17 @@ function consumerPainScore(m: MemoData): number | null {
 const MIN_REVIEWS_FOR_REPURCHASE_SIGNAL = 15
 
 function subscriptionScore(m: MemoData): number | null {
-  const rl = m.consumer_intelligence?.repurchaseLanguage
-  if (!rl || rl.outOf < MIN_REVIEWS_FOR_REPURCHASE_SIGNAL) return null
+  const ci = m.consumer_intelligence
+  const rl = ci?.repurchaseLanguage
+  if (!ci || !rl || rl.outOf < MIN_REVIEWS_FOR_REPURCHASE_SIGNAL) return null
   const rate = rl.mentionedBy / rl.outOf
-  return Math.max(0, Math.min(10, Math.round(rate * 40)))
+  const raw  = Math.max(0, Math.min(10, rate * 40))
+  // HARDENING FIX (2026-06-28): Customer Pain already dampens by the same
+  // ci.confidence (volume/source-based) before rounding — Subscription drew
+  // from the identical consumer_intelligence object but skipped this,
+  // letting a thin, low-confidence sample report with the same visual
+  // certainty as a well-supported one. Same treatment now, for consistency.
+  return Math.round(raw * ci.confidence)
 }
 
 // ── Manufacturing Feasibility — real, but blocked on fetch timing ─────────
@@ -439,6 +467,11 @@ function manufacturingFeasibilityScore(m: MemoData): RealResult {
 // ── Safety Gate — deterministic decision override, never additive ─────────
 
 function computeSafetyGateTier(m: MemoData): BuildDecision | null {
+  // openFDA's check failing/timing out must never read the same as "checked,
+  // clean" — that would give false reassurance exactly when the safety check
+  // didn't actually run. See lib/news-engine/engine.ts failedProviders.
+  if (m.news_intelligence?.failedProviders?.includes('openfda')) return 'VALIDATE_FURTHER'
+
   const items = m.news_intelligence?.items ?? []
   const recalls = items.filter(i => i.provider === 'openfda' && i.recall_classification)
   const adverseEvents = items.filter(i => i.provider === 'openfda' && i.adverse_event_reactions?.length)
@@ -566,15 +599,42 @@ export function computeGroundedScore(m: MemoData): GroundedScore {
   const evidenceBreadth = computeEvidenceBreadth(m)
   const broadEvidence = m.category_creation_broad_evidence
 
+  // HARDENING FIX (2026-06-28): only the Demand composite is replaced with
+  // the broader query's real result — every other composite keeps using
+  // the SPECIFIC product's own real evidence where it exists. The original
+  // implementation replaced the whole `signal_evidence`/`keyword_intelligence`
+  // object, which silently switched Market Accessibility, Profitability, and
+  // Virality to the broader category's data too (they all read from the same
+  // container) — mixing a different product's competitive/pricing/virality
+  // picture into THIS product's result with no principled justification.
+  // Operating at the composite level instead of the whole-memo level avoids
+  // that: it matches the header comment's actual intent ("reuses the Demand
+  // composite's own formula on a broader query," nothing else).
   const tryCategoryCreation = (): GroundedScore | null => {
     if (!broadEvidence) return null
-    const broadMemo: MemoData = { ...m, signal_evidence: broadEvidence.signal_evidence, keyword_intelligence: broadEvidence.keyword_intelligence, category_creation_broad_evidence: undefined }
-    const broadDemand = computeDemand(broadMemo)
+    const broadMemoForDemand: MemoData = { ...m, signal_evidence: broadEvidence.signal_evidence, keyword_intelligence: broadEvidence.keyword_intelligence }
+    const broadDemand = computeDemand(broadMemoForDemand)
     if ((broadDemand.rawScore ?? 0) < BROAD_DEMAND_STRONG_THRESHOLD) return null
-    const broadResult = computeGroundedScore(broadMemo) // category_creation_broad_evidence cleared above — no recursion
+
+    const mergedCandidates = candidates.map(c =>
+      c.key === 'demand'
+        ? { key: 'demand', label: 'Demand', weight: BASE_WEIGHTS.demand, rawScore: broadDemand.rawScore!, source: 'verified' as const, sourceLabel: broadDemand.sourceLabel }
+        : c,
+    )
+    const { score, weightedDecision, dimensions } = scoreFromCandidates(mergedCandidates)
+    // Gates and the safety tier still reflect the SPECIFIC product's own
+    // real evidence — a broader category's accessibility/safety profile
+    // doesn't answer whether THIS exact product clears those bars.
+    const safetyTier = computeSafetyGateTier(m)
+    const gatedDecision = mostConservative([weightedDecision, ...gateTiers, safetyTier])
+
     return {
-      ...broadResult,
-      decision: 'CATEGORY_CREATION_CANDIDATE',
+      score,
+      decision: gatedDecision === 'SKIP' ? 'SKIP' : 'CATEGORY_CREATION_CANDIDATE',
+      dimensions,
+      groundedPct: 100,
+      insufficientEvidence: false,
+      evidenceBreadth,
       categoryCreationContext: { broadQuery: broadEvidence.broadQuery },
     }
   }
