@@ -7,6 +7,10 @@ import type {
   SignalContext,
 } from './types'
 
+// Distinct sentinel object (not `null`) so a genuine timeout can be told
+// apart from a provider's own promise legitimately resolving to `null`.
+const TIMED_OUT = Symbol('signal-engine-timed-out')
+
 // ── Aggregation helpers ───────────────────────────────────────────
 
 // Build an AggregatedDimension from one or more provider contributions.
@@ -60,10 +64,17 @@ export class SignalEngine {
   }
 
   // Run all enabled providers in parallel.
-  // Individual provider failures (timeout, API error, no data) are swallowed —
-  // the engine returns whatever set of signals did come back.
-  // If NO providers return data, returns null so the caller can fall back to
-  // pure-AI discovery unchanged.
+  // Individual provider failures (timeout, API error) are swallowed — the
+  // engine returns whatever set of signals did come back. If NO providers
+  // return data, returns null so the caller can fall back to pure-AI
+  // discovery unchanged.
+  //
+  // Resilience layer (2026-06-29): failed_providers uses a sentinel value
+  // for the timeout race (mirroring lib/news-engine/engine.ts's TIMED_OUT
+  // pattern) specifically so a provider that genuinely errored/timed out
+  // can be told apart from one that ran fine and legitimately found no
+  // data for this query — both used to look identical (a bare `null`),
+  // which would have mislabeled "no data" as a provider failure.
   async fetch(ctx: SignalContext, timeoutMs = 12_000): Promise<AggregatedSignals | null> {
     const enabled = this.providers.filter(p => p.enabled)
     if (!enabled.length) return null
@@ -72,29 +83,36 @@ export class SignalEngine {
       enabled.map(p =>
         Promise.race([
           p.fetch(ctx),
-          new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs)),
+          new Promise<typeof TIMED_OUT>(resolve => setTimeout(() => resolve(TIMED_OUT), timeoutMs)),
         ]),
       ),
     )
 
     const signals: ProviderSignals[] = []
+    const failedProviders: string[] = []
     for (let i = 0; i < results.length; i++) {
       const r = results[i]
-      if (r.status === 'fulfilled' && r.value !== null) {
-        signals.push(r.value)
-      } else if (r.status === 'rejected') {
+      if (r.status === 'rejected') {
+        failedProviders.push(enabled[i].name)
         console.error(`SignalEngine: provider ${enabled[i].name} threw`, r.reason)
+      } else if (r.value === TIMED_OUT) {
+        failedProviders.push(enabled[i].name)
+        console.error(`SignalEngine: provider ${enabled[i].name} timed out`)
+      } else if (r.value !== null) {
+        signals.push(r.value)
       }
+      // else: provider resolved cleanly to null — ran fine, legitimately
+      // no data for this query. Not a failure, just not used.
     }
 
     if (!signals.length) return null
 
-    return this.aggregate(signals)
+    return this.aggregate(signals, failedProviders)
   }
 
   // ── Private: merge ProviderSignals[] → AggregatedSignals ─────
 
-  private aggregate(signals: ProviderSignals[]): AggregatedSignals {
+  private aggregate(signals: ProviderSignals[], failedProviders: string[]): AggregatedSignals {
     // For each dimension, collect contributions from every provider that
     // returned data for that dimension.
     type DimKey = keyof Omit<ProviderSignals, 'provider' | 'fetched_at' | 'confidence'>
@@ -128,6 +146,7 @@ export class SignalEngine {
       ...result,
       providers_used:     providersUsed,
       overall_confidence: Math.round(overallConf * 100) / 100,
+      failed_providers:   failedProviders,
     } as AggregatedSignals
   }
 }

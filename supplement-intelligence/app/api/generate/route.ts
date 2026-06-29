@@ -11,6 +11,7 @@ import { checkConsistency } from '@/lib/consistency'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
 import { buildNewsIntelligence } from '@/lib/news-engine'
 import { shouldConsumeSlot } from '@/lib/analysis-slot-policy'
+import { handleProviderError } from '@/lib/provider-errors'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
 // CONFIRMED VIA LOAD TEST (2026-06-24, 17 real generations): single-attempt
@@ -606,12 +607,14 @@ export async function POST(req: Request) {
         if (attempt < MAX_GENERATE_ATTEMPTS && hasTimeForAnotherAttempt(requestStart)) continue
         return err('Analysis timed out — no slot used. Please try again.', 504)
       }
-      if (e instanceof Anthropic.APIError) {
-        console.error('Anthropic API error', { status: e.status, message: e.message, error: e.error })
-      } else {
-        console.error('Anthropic error', e)
-      }
-      return err('AI service error — no slot used. Please try again.', 500)
+      // ROOT CAUSE (found 2026-06-29 live, real Anthropic credit
+      // exhaustion mid-session): this used to return one blanket "AI
+      // service error" for every failure type. handleProviderError()
+      // still logs the full technical detail server-side, but now
+      // differentiates the user-facing message (credits vs rate limit vs
+      // outage vs auth) instead of a single undifferentiated bucket.
+      const message = handleProviderError(e, { route: '/api/generate', attempt, category: input.trim() })
+      return err(`${message} (no slot used)`, 500)
     }
 
     // ── Parse ──────────────────────────────────────────────────

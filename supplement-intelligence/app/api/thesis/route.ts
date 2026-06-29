@@ -12,6 +12,7 @@ import type {
   ThesisRequest,
   ThesisDepth,
 }                              from '@/lib/thesis-engine'
+import { handleProviderError } from '@/lib/provider-errors'
 
 // Vercel Pro: allow up to 2 minutes for signal collection + Claude synthesis.
 // 'deep' analyses may approach this ceiling for large category corpora.
@@ -226,16 +227,13 @@ export async function POST(req: Request): Promise<Response> {
         },
       )
     } catch (synthErr) {
-      const message = synthErr instanceof Error
-        ? synthErr.message
-        : 'Analysis failed — please try again'
-
-      console.error('[/api/thesis] synthesis error', {
-        query:   normalized,
-        depth,
-        user_id: user.id,
-        error:   synthErr,
-      })
+      // ROOT CAUSE (found 2026-06-29 live, during a real Anthropic credit
+      // exhaustion): this used to send synthErr.message straight into the
+      // SSE stream — a raw provider error (e.g. "Your credit balance is
+      // too low to access the Anthropic API...") would have reached the
+      // browser verbatim. handleProviderError() logs the real detail
+      // server-side and returns only a safe, category-appropriate message.
+      const message = handleProviderError(synthErr, { route: '/api/thesis', query: normalized, depth, user_id: user.id })
 
       // Refund slot so the user is not penalised for a server-side failure
       if (slotConsumed) {

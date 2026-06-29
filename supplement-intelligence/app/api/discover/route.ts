@@ -4,6 +4,7 @@ import { createServerClient }   from '@supabase/ssr'
 import Anthropic                from '@anthropic-ai/sdk'
 import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }         from '@/lib/signal-engine'
+import { handleProviderError }  from '@/lib/provider-errors'
 import type { OpportunityCard, OpportunityMeta, CacheStatus } from '@/types/index'
 
 export const maxDuration = 300
@@ -313,14 +314,12 @@ export async function POST(req: Request) {
         if (attempt < MAX_DISCOVER_ATTEMPTS) continue
         return err('Discovery timed out — please try again.', 504)
       }
-      if (e instanceof Anthropic.APIError) {
-        console.error('Anthropic API error (discover)', {
-          status: e.status, message: e.message, error: JSON.stringify(e.error),
-        })
-      } else {
-        console.error('Discovery error', e)
-      }
-      return err('AI service error — please try again.', 500)
+      // See lib/provider-errors.ts — logs the real technical detail
+      // server-side, returns only a safe, category-appropriate message
+      // (credits/rate-limit/outage/auth all used to collapse into one
+      // undifferentiated "AI service error").
+      const message = handleProviderError(e, { route: '/api/discover', attempt, category: input.trim() })
+      return err(message, 500)
     }
 
     // ── Parse ────────────────────────────────────────────────────

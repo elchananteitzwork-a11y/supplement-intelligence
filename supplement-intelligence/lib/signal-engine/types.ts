@@ -182,6 +182,15 @@ export interface AggregatedSignals {
 
   providers_used:     string[]
   overall_confidence: number   // avg across all populated dimensions
+
+  // Resilience layer (2026-06-29): mirrors the same field already on
+  // NewsIntelligence (lib/news-engine/types.ts) — a provider that errored
+  // or returned no usable data for this query, distinct from one that was
+  // never registered/enabled at all. providers_used only shows the
+  // success side; this is the other half of "clearly indicate which
+  // providers succeeded and which failed" rather than silently omitting
+  // failures from the response.
+  failed_providers?: string[]
 }
 
 // ── Provider contract ─────────────────────────────────────────────
