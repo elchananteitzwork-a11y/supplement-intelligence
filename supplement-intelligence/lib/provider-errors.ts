@@ -71,6 +71,13 @@ export function classifyProviderError(e: unknown): ClassifiedProviderError {
  *  user-facing message — the one call site every route's catch block needs. */
 export function handleProviderError(e: unknown, context: Record<string, unknown>): string {
   const classified = classifyProviderError(e)
-  console.error('Provider error', { category: classified.category, ...context, technicalDetail: classified.technicalDetail })
+  // BUG (found live, 2026-06-29 end-to-end verification): both
+  // app/api/discover and app/api/generate pass a context object with their
+  // own `category` key (the product category being analyzed, e.g.
+  // "Hydration") — spreading context AFTER the classifier's own `category`
+  // silently overwrote the actual error classification in the log with an
+  // unrelated string. The classifier's own fields must always win; caller
+  // context is supplementary, so it's spread first now, not last.
+  console.error('Provider error', { ...context, errorCategory: classified.category, technicalDetail: classified.technicalDetail })
   return classified.userMessage
 }

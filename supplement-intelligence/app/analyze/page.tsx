@@ -548,6 +548,15 @@ function CategorySignalPanel({ signal, category }: { signal: AggregatedSignals |
       <p className="text-[10px] text-zinc-600 mt-2 italic">
         Real provider data for the broad category &ldquo;{category}&rdquo; as a whole — not specific to any individual opportunity below.
       </p>
+      {/* Resilience layer (2026-06-29): providers_used above only shows the
+          success side — this is the other half of "clearly indicate which
+          providers succeeded and which failed" rather than silently
+          omitting a provider that errored or timed out from the response. */}
+      {!!signal.failed_providers?.length && (
+        <p className="text-[10px] text-amber-500/70 mt-1">
+          Temporarily unavailable: {signal.failed_providers.join(', ')} — other sources above are unaffected.
+        </p>
+      )}
     </div>
   )
 }
