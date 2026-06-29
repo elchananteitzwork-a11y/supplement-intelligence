@@ -472,15 +472,24 @@ function parseTrendDirection(text: string | undefined): 'up' | 'down' | undefine
   return m[1] === '-' ? 'down' : 'up'
 }
 
-function daysAgo(iso: string): number {
-  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000))
+// HYDRATION FIX (2026-06-29): was Date.now() - new Date(iso).getTime() —
+// Date.now() evaluates once at SSR time and again at client hydration
+// time, so any recall date close to a 24h rounding boundary could render
+// a different integer server vs client, a real (if rare — only fires
+// when a recall exists) cause of React's "text content does not match
+// server-rendered HTML" hydration error. Anchoring to the analysis's own
+// stable, stored generatedAt timestamp instead of the live clock makes
+// this deterministic — and is more correct anyway: a frozen report
+// shouldn't show a "days ago" figure that changes every time you reload it.
+function daysAgo(iso: string, asOf: string): number {
+  return Math.max(0, Math.round((new Date(asOf).getTime() - new Date(iso).getTime()) / 86_400_000))
 }
 
 // Every value here traces to a real provider — no AI-estimated number is
 // ever eligible for this row. A dimension with no real source shows "No
 // real data" rather than falling back to the model's guess, same rule as
 // the rest of this report's evidence layer.
-function deriveDecisionChips(m: MemoData): DecisionChip[] {
+function deriveDecisionChips(m: MemoData, generatedAt: string): DecisionChip[] {
   const se = m.signal_evidence
   const chips: DecisionChip[] = []
 
@@ -541,7 +550,7 @@ function deriveDecisionChips(m: MemoData): DecisionChip[] {
     chips.push({
       label: 'Risk',
       value: recall
-        ? `${recall.recall_classification && recall.recall_classification !== 'Not Yet Classified' ? `${recall.recall_classification} ` : ''}Recall, ${daysAgo(recall.date)}d ago`
+        ? `${recall.recall_classification && recall.recall_classification !== 'Not Yet Classified' ? `${recall.recall_classification} ` : ''}Recall, ${daysAgo(recall.date, generatedAt)}d ago`
         : 'No recalls found',
       subValue: recall?.recall_status ? `status: ${recall.recall_status}` : undefined,
       source: recall ? 'openFDA' : ni.providersUsed.join('/'),
@@ -598,7 +607,7 @@ function DecisionStrip({
   // real dimension was found at all) — see lib/scoring.ts header comment.
   const { groundedPct, insufficientEvidence } = computeGroundedScore(m)
   const groundedC = insufficientEvidence ? 'text-red-400' : 'text-emerald-400'
-  const chips = deriveDecisionChips(m)
+  const chips = deriveDecisionChips(m, generatedAt ?? new Date(0).toISOString())
   // VALIDATE_FURTHER's most decision-relevant sentence isn't "why this
   // might work" (the thesis already says that elsewhere) — it's "what to
   // do before deciding," which is exactly deriveValidationSteps' first,
@@ -611,8 +620,15 @@ function DecisionStrip({
   const synthesis = decision === 'VALIDATE_FURTHER' || decision === 'CATEGORY_CREATION_CANDIDATE'
     ? deriveValidationSteps(m, decision)[0] ?? firstSentence(m.market_thesis ?? m.executive_summary)
     : firstSentence(m.market_thesis ?? m.executive_summary)
+  // HYDRATION FIX (2026-06-29): explicit timeZone: 'UTC' on every
+  // toLocaleDateString call in this file (5 sites) — without it, the
+  // runtime's local timezone decides the calendar date, and the server
+  // (UTC) and a client browser (whatever local timezone) can render a
+  // different day for the exact same timestamp whenever it falls within
+  // a few hours of UTC midnight — a real, if narrow, cause of React's
+  // "text content does not match server-rendered HTML" hydration error.
   const dateLabel = generatedAt
-    ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
     : null
 
   return (
@@ -816,7 +832,7 @@ function Masthead({
       ? 'shadow-[0_0_60px_rgba(251,191,36,.06)]'
       : ''
   const dateLabel = generatedAt
-    ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
     : null
 
   const consumerIntelTimedOut = !m.consumer_intelligence && !!m.signal_metadata?.consumer_intelligence_attempted
@@ -2044,7 +2060,7 @@ function KeywordDataQualityBar({ ki }: { ki: KeywordIntelligence }) {
       <span>Seed: <span className="text-zinc-300 font-mono">&ldquo;{ki.seed_keyword}&rdquo;</span></span>
       <span>Source: <span className="text-zinc-300 font-mono">{ki.provider === 'dataforseo' ? 'DataForSEO' : ki.provider}</span></span>
       {pct !== null && <span>Real-data completeness: <span className="text-zinc-300 font-mono">{pct}%</span></span>}
-      <span>Last updated: <span className="text-zinc-300 font-mono">{new Date(ki.fetched_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></span>
+      <span>Last updated: <span className="text-zinc-300 font-mono">{new Date(ki.fetched_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</span></span>
     </div>
   )
 }
@@ -2651,7 +2667,7 @@ const TRAJECTORY_CLS: Record<string, string> = {
 }
 
 function NewsItemCard({ item }: { item: NewsItem }) {
-  const dateStr = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const dateStr = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
   return (
     <a
       href={item.url}

@@ -190,7 +190,7 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
 
       {data.updated_at && (
         <p className="text-[11px] text-zinc-600">
-          Last updated {new Date(data.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          Last updated {new Date(data.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
         </p>
       )}
     </div>

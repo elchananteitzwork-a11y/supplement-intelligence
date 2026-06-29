@@ -129,10 +129,48 @@ function significantWords(text: string): Set<string> {
       .filter(w => w.length > 3 && !STOPWORDS.has(w)),
   )
 }
+
+// QUALITY FIX (2026-06-29, production smoke test): plain word-overlap let
+// through two loose false-positive matches. CONFIRMED VIA LIVE PRODUCTION
+// DATA: "Elderberry Immune Gummies for Adults" was credited with "NatureWise
+// Vitamin D3...Immune Support..." (a different product entirely, sharing
+// only the marketing claim "immune") and "Adjustable Ankle Weights for
+// Walking" was credited with "Amazon Basics...Dumbbell Hand Weights" (shares
+// the product-type word "weights", but a different body location). Neither
+// case is the original bug's severity (an unrelated product with zero
+// shared vocabulary) — both share a real word — but neither is a correct
+// match either. Two narrow, additive checks close both gaps without
+// touching the core overlap logic (preserves recall for every previously-
+// confirmed genuine match: niacinamide/toner, magnesium/glycinate/sleep,
+// slow feeder/bowl all still pass, since each has a substantive, non-claim,
+// location-consistent overlap word independent of these two new checks).
+const GENERIC_CLAIM_WORDS = new Set([
+  'immune', 'support', 'relief', 'recovery', 'boost', 'defense', 'health',
+  'care', 'daily', 'natural', 'premium', 'advanced', 'complete', 'formula',
+  'wellness', 'strength', 'energy', 'balance', 'active', 'extra', 'total',
+])
+const BODY_LOCATION_WORDS = new Set([
+  'ankle', 'wrist', 'hand', 'knee', 'neck', 'back', 'shoulder', 'foot',
+  'head', 'waist', 'arm', 'leg', 'elbow', 'hip',
+])
 function hasWordOverlap(query: string, title: string): boolean {
   const queryWords = significantWords(query)
   const titleWords  = significantWords(title)
-  return Array.from(queryWords).some(w => titleWords.has(w))
+  const overlap = Array.from(queryWords).filter(w => titleWords.has(w))
+  if (overlap.length === 0) return false
+
+  // A shared word must include at least one term that isn't a generic
+  // marketing claim — "immune"/"support" etc. appear across huge swaths
+  // of unrelated products and aren't evidence of a real product match.
+  if (!overlap.some(w => !GENERIC_CLAIM_WORDS.has(w))) return false
+
+  // If the query names a specific body location, the candidate must name
+  // the SAME one (or none) — sharing a product-type word like "weights"
+  // isn't enough if the query says "ankle" and the candidate says "hand".
+  const queryLocations = Array.from(queryWords).filter(w => BODY_LOCATION_WORDS.has(w))
+  if (queryLocations.length > 0 && !queryLocations.some(w => titleWords.has(w))) return false
+
+  return true
 }
 
 function keepaPrice(raw: number | undefined): number | null {
