@@ -8,6 +8,7 @@ import type {
   PricingSignal,
   RevenueSignal,
 } from '../types'
+import { checkKeywordRelevance } from '../../keyword-engine/relevance-guard'
 
 // ── Keepa API constants ───────────────────────────────────────────
 
@@ -106,6 +107,33 @@ interface KeepaBestsellerResponse {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
+
+// checkKeywordRelevance (imported above) is deliberately permissive when
+// the original query contains no species/demographic/body-area/product-type
+// term at all — by design, for ITS use case (DataForSEO keyword broadening).
+// CONFIRMED VIA LIVE REGRESSION (2026-06-29): that permissiveness is too
+// wide for Keepa's bestseller sample specifically — "Decorative Ceramic
+// Garden Gnome" / "Antique Pocket Watch Collection" hit none of those
+// vocab lists and so were still credited with an unrelated category
+// bestseller's revenue. This generic, title-vs-query word-overlap check is
+// a second, independent gate — local to this file, NOT a change to the
+// shared relevance-guard module (which stays exactly as validated for its
+// own callers) — requiring at least one real shared word as a coarse but
+// category-agnostic backstop.
+const STOPWORDS = new Set([
+  'the', 'and', 'for', 'with', 'from', 'this', 'that', 'your', 'pack', 'count',
+])
+function significantWords(text: string): Set<string> {
+  return new Set(
+    text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+      .filter(w => w.length > 3 && !STOPWORDS.has(w)),
+  )
+}
+function hasWordOverlap(query: string, title: string): boolean {
+  const queryWords = significantWords(query)
+  const titleWords  = significantWords(title)
+  return Array.from(queryWords).some(w => titleWords.has(w))
+}
 
 function keepaPrice(raw: number | undefined): number | null {
   if (raw === undefined || raw === NO_DATA || raw <= 0) return null
@@ -208,7 +236,7 @@ export class KeepaProvider implements SignalProvider {
         return null
       }
 
-      return this.computeSignals(valid)
+      return this.computeSignals(valid, category)
     } catch (e) {
       console.error('Keepa provider error', { category, error: e instanceof Error ? e.message : e })
       return null
@@ -261,7 +289,7 @@ export class KeepaProvider implements SignalProvider {
 
   // ── Private: compute standardized signals ─────────────────────
 
-  private computeSignals(products: KeepaProduct[]): ProviderSignals {
+  private computeSignals(products: KeepaProduct[], query: string): ProviderSignals {
     const bsrs90:       number[] = []
     const bsrs365:      number[] = []
     const offers:       number[] = []
@@ -316,9 +344,38 @@ export class KeepaProvider implements SignalProvider {
 
       // monthlySold is a top-level field (not in stats array).
       // Confirmed: 70k–100k for top-10 Vitamins & Supplements products.
+      // Deliberately UNGATED by relevance — shared with the Demand signal's
+      // score-boost below, which is out of scope for this fix (see gate
+      // comment on productRevenues just below) and already disclosed as a
+      // category-wide aggregate (lib/provenance.ts unitsSoldProvenance).
       if (p.monthlySold && p.monthlySold > 0) monthlySolds.push(p.monthlySold)
 
-      if (price !== null && price > 0 && p.monthlySold && p.monthlySold > 0) {
+      // ROOT CAUSE FIX (2026-06-29, live investigation): productRevenues
+      // (price × monthlySold for ONE product — the basis for
+      // est_monthly_revenue/top_seller_revenue/avg_seller_revenue) used to
+      // be pushed unconditionally, regardless of whether this bestseller
+      // had anything to do with the query. CONFIRMED VIA LIVE CALL:
+      // "Peptide-Fortified Scalp Mask" was credited with $2,446,000/mo —
+      // the revenue of La Roche-Posay's Toleriane face moisturizer, the
+      // single highest-revenue ASIN in the entire Beauty department's
+      // bestseller list (CATEGORY_NODES is resolved by category only, with
+      // no way to search Keepa for the specific product). Reusing the same
+      // relevance check already proven for keyword broadening
+      // (lib/keyword-engine/relevance-guard.ts) against this product's
+      // real title — only the dollar-revenue figures are gated; Demand,
+      // Competition, Growth, Pricing, fees, rating, and review-count below
+      // are untouched (they're either already disclosed as category-wide
+      // or are legitimately category-uniform facts, not a per-product
+      // dollar claim, and changing them would alter existing scoring
+      // behavior, which is out of scope for this fix).
+      // Both gates must agree: the vocab-based guard catches species/body-
+      // area/demographic drift, the word-overlap check catches everything
+      // else it can't see (see hasWordOverlap comment above).
+      const isRelevantBestseller =
+        !!p.title &&
+        checkKeywordRelevance(query, p.title).allowed &&
+        hasWordOverlap(query, p.title)
+      if (isRelevantBestseller && price !== null && price > 0 && p.monthlySold && p.monthlySold > 0) {
         productRevenues.push(price * p.monthlySold)
       }
 

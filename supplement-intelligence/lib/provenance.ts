@@ -265,8 +265,22 @@ export function unitsSoldProvenance(signals?: AggregatedSignals | null): Provena
 }
 
 // "Estimated Monthly Revenue" / "Top Seller Revenue" / "Average Seller Revenue"
+// ROOT CAUSE FIX (2026-06-29, live investigation): lib/signal-engine/
+// providers/keepa.ts now only populates these 3 dollar fields when at
+// least one of the sampled bestsellers is actually relevant to the query
+// (checkKeywordRelevance against the product's real title) — previously
+// "Peptide-Fortified Scalp Mask" was credited with $2,446,000/mo, the
+// revenue of an unrelated La Roche-Posay face moisturizer that happened to
+// be Beauty's top-grossing bestseller. When none of the sampled products
+// are relevant, the revenue object still exists (rating/review-count/fees/
+// units-sold are a separate, already-disclosed category-wide aggregate,
+// untouched by this fix) but these 3 fields are undefined — that absence
+// gets this specific message instead of a generic "no data available".
 export function revenueEvidenceProvenance(signals?: AggregatedSignals | null): Provenance | null {
   if (!signals?.revenue) return null
+  if (!signals.revenue.value.top_seller_revenue && !signals.revenue.value.est_monthly_revenue) {
+    return unsupported('No verified product revenue. Keepa found no bestseller relevant to this specific product — category-wide revenue was not credited.')
+  }
   return estimated(
     'Keepa',
     "Real price × Keepa's own estimated units-sold, for the category's top bestsellers overall — not your specific product idea. monthlySold is itself Keepa's modeled estimate, not a measured fact, so this number carries that uncertainty forward."

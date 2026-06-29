@@ -516,14 +516,16 @@ function deriveDecisionChips(m: MemoData): DecisionChip[] {
     chips.push({ label: 'Competition', value: 'No real data', source: '—' })
   }
 
-  // REVENUE — real price × real units-sold, never a category guess.
+  // REVENUE — real price × real units-sold for a bestseller actually
+  // relevant to this query (lib/signal-engine/providers/keepa.ts gates
+  // this on checkKeywordRelevance) — never a category-wide guess.
   const rev = se?.revenue?.value
   if (rev?.top_seller_revenue) {
     chips.push({ label: 'Revenue', value: `${rev.top_seller_revenue} top seller`, source: se!.revenue!.primarySource })
   } else if (rev?.est_monthly_revenue) {
     chips.push({ label: 'Revenue', value: `${rev.est_monthly_revenue} avg`, source: se!.revenue!.primarySource })
   } else {
-    chips.push({ label: 'Revenue', value: 'No real data', source: '—' })
+    chips.push({ label: 'Revenue', value: 'No verified product revenue', source: '—' })
   }
 
   // RISK — real FDA recall check via News Intelligence. Absence of a
@@ -1817,12 +1819,26 @@ function RevenueEvidencePanel({ m }: { m: MemoData }) {
   const score = rev ? rev.score : null
   const level = rev ? (rev.score >= 7 ? 'Strong' as const : rev.score >= 4 ? 'Moderate' as const : 'Weak' as const) : null
 
+  // Keepa's bestseller sample existed (rev is populated — units sold,
+  // rating, fees) but none of the sampled products were relevant to this
+  // query (lib/signal-engine/providers/keepa.ts's checkKeywordRelevance
+  // gate), so the dollar-revenue fields specifically are undefined. Show
+  // that explicitly rather than the generic "No data available", which
+  // would look identical to Keepa having no bestseller data at all. Set as
+  // the row's `value` (not left undefined) specifically so EvidencePanel's
+  // provenance-badge filter (`row.value && row.provenance`) still surfaces
+  // the Unsupported badge instead of silently dropping it — same pattern as
+  // DemandEvidencePanel's searchVolValue.
+  const noRelevantRevenue = !!rev && !rev.top_seller_revenue && !rev.est_monthly_revenue
+  const estMonthlyRevenueValue = rev?.est_monthly_revenue
+    ?? (noRelevantRevenue ? 'No verified product revenue for this product — category-wide bestseller revenue was not credited.' : undefined)
+
   return (
     <EvidencePanel
       title="Revenue Evidence"
       metrics={[
         { label: 'Estimated Monthly Units Sold', value: rev?.est_monthly_units_sold, provenance: unitsP },
-        { label: 'Estimated Monthly Revenue',    value: rev?.est_monthly_revenue,    provenance: revP },
+        { label: 'Estimated Monthly Revenue',    value: estMonthlyRevenueValue,      provenance: revP },
         { label: 'Top Seller Revenue',           value: rev?.top_seller_revenue,     provenance: revP },
         { label: 'Average Seller Revenue',       value: rev?.avg_seller_revenue,     provenance: revP },
         { label: 'Category Avg Rating',          value: rev?.avg_rating ? `${rev.avg_rating}/5` : undefined, provenance: reviewP },
