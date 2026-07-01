@@ -67,51 +67,64 @@ export class ApifyReviewProvider implements ReviewProvider {
     const pages = Math.max(1, Math.min(10, Math.ceil(this.reviewsPerAsin / 10)))
     const sort  = options.sort_by === 'recent' ? 'recent' : 'helpful'
 
-    let res: Response
-    try {
-      res = await fetch(`${ACTOR_ENDPOINT}?token=${process.env.APIFY_API_TOKEN}`, {
-        method:  'POST',
-        signal:  AbortSignal.timeout(options.timeout_ms),
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          products:      [asin],
-          limit:         pages,
-          sort,
-          personal_data: false,
-        }),
-      })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      throw new RetryableError(`Apify reviews: fetch failed — ${msg}`)
+    // Amazon US has restricted scraping of text reviews (confirmed 2026-07-01:
+    // actor logs "NOTICE: Amazon US has restricted access to text reviews" and
+    // returns status_code:500 for all US-region requests). Try US first, then
+    // fall back to UK which still allows full text review scraping per actor docs.
+    const REGION_FALLBACK_ORDER = ['amazon.com', 'amazon.co.uk']
+
+    for (const region of REGION_FALLBACK_ORDER) {
+      let res: Response
+      try {
+        res = await fetch(`${ACTOR_ENDPOINT}?token=${process.env.APIFY_API_TOKEN}`, {
+          method:  'POST',
+          signal:  AbortSignal.timeout(options.timeout_ms),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            products:      [asin],
+            limit:         pages,
+            sort,
+            personal_data: false,
+            region,
+          }),
+        })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        throw new RetryableError(`Apify reviews: fetch failed — ${msg}`)
+      }
+
+      if (res.status === 429 || res.status >= 500) {
+        throw new RetryableError(`Apify reviews: HTTP ${res.status}`, res.status)
+      }
+      if (!res.ok) {
+        throw new NonRetryableError(`Apify reviews: HTTP ${res.status} for ASIN ${asin}`, res.status)
+      }
+
+      const items: WebWandererReview[] = await res.json()
+      const reviews: CollectedReview[] = items
+        .filter(r => r.reviewId && r.reviewText?.trim() && typeof r.rating === 'number')
+        .slice(0, this.reviewsPerAsin)
+        .map(r => ({
+          id:              r.reviewId!,
+          asin,
+          title:           r.reviewTitle ?? '',
+          body:            r.reviewText!,
+          rating:          r.rating!,
+          verified:        !!r.verifiedPurchase,
+          helpful_votes:   r.helpfulVoteCount ?? 0,
+          date:            parseDate(r.reviewDate),
+          source_provider: this.name,
+          collected_at:    new Date().toISOString(),
+        }))
+
+      console.log('[ApifyReviewProvider] fetched', { asin, region, requested_pages: pages, returned: items.length, usable: reviews.length })
+
+      if (reviews.length > 0) return { reviews, has_next: false, total_count: reviews.length }
+
+      console.warn('[ApifyReviewProvider] 0 reviews from region', region, '— trying next fallback', { asin })
     }
 
-    if (res.status === 429 || res.status >= 500) {
-      throw new RetryableError(`Apify reviews: HTTP ${res.status}`, res.status)
-    }
-    if (!res.ok) {
-      throw new NonRetryableError(`Apify reviews: HTTP ${res.status} for ASIN ${asin}`, res.status)
-    }
-
-    const items: WebWandererReview[] = await res.json()
-    const reviews: CollectedReview[] = items
-      .filter(r => r.reviewId && r.reviewText?.trim() && typeof r.rating === 'number')
-      .slice(0, this.reviewsPerAsin)
-      .map(r => ({
-        id:              r.reviewId!,
-        asin,
-        title:           r.reviewTitle ?? '',
-        body:            r.reviewText!,
-        rating:          r.rating!,
-        verified:        !!r.verifiedPurchase,
-        helpful_votes:   r.helpfulVoteCount ?? 0,
-        date:            parseDate(r.reviewDate),
-        source_provider: this.name,
-        collected_at:    new Date().toISOString(),
-      }))
-
-    console.log('[ApifyReviewProvider] fetched', { asin, requested_pages: pages, returned: items.length, usable: reviews.length })
-
-    return { reviews, has_next: false, total_count: reviews.length }
+    return { reviews: [], has_next: false, total_count: 0 }
   }
 }
 

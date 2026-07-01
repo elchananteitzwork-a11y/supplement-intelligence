@@ -110,10 +110,19 @@ function toHashtagCandidates(category: string): string[] {
   }
   candidates.push(stripped.join(''))
 
-  // 4. First meaningful word only — broadest possible fallback
-  //    "Collagen Peptide Gummies for Skin" → "collagen"
-  const firstWord = words.find(w => !PREPOSITION_BEFORE_CLAUSE.has(w) && !GENERIC_TAIL.has(w))
-  if (firstWord && firstWord.length >= 4) {
+  // 4a. First 2 meaningful words joined — catches multi-word subjects where
+  //     the first word is short ("dog anxiety" → "doganxiety" exists on TikTok;
+  //     "gut health" → "guthealth"; "eye cream" → "eyecream").
+  const meaningful = words.filter(w => !PREPOSITION_BEFORE_CLAUSE.has(w) && !GENERIC_TAIL.has(w))
+  if (meaningful.length >= 2) {
+    candidates.push(meaningful.slice(0, 2).join(''))
+  }
+
+  // 4b. First meaningful word only — broadest possible fallback
+  //     "Collagen Peptide Gummies for Skin" → "collagen"
+  //     Min length 3 (not 4) to include short words like "dog", "cat", "gut".
+  const firstWord = meaningful[0]
+  if (firstWord && firstWord.length >= 3) {
     candidates.push(firstWord)
   }
 
