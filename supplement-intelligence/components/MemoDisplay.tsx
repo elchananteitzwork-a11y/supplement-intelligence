@@ -13,8 +13,16 @@ import { checkConsistency } from '@/lib/consistency'
 import {
   IconTrendUp, IconTrendDown, IconBeaker, IconArrowRight, IconX, IconAlert,
 } from '@/components/icons'
-import { inferProductShape, ProductRenderHero } from '@/components/ProductGlyph'
+import { inferProductShape, ProductGlyphMini, ProductRenderHero } from '@/components/ProductGlyph'
 import { LifestyleScene } from '@/components/LifestyleScene'
+import { LabCard, LabEvidenceCard, LabCardInteractive, LabGlass, LabSkeletonLines, LabEmptyState, LabNoData } from '@/components/lab/Surfaces'
+import { EvidenceBadge, ProvenanceBadge, ProvenanceCaption, VerdictBadge, ConfidencePill, EvidenceMeter } from '@/components/lab/Badges'
+import { ScoreGauge } from '@/components/lab/ScoreGauge'
+import { SignalBars, PulseRings } from '@/components/lab/Indicators'
+import {
+  MomentumSparkline, VolumeTrendChart, SeasonalityChart, ForecastChart,
+  OpportunityHeatmap, ClusterDistributionChart,
+} from '@/components/lab/Charts'
 import {
   STATIC_PROVENANCE, demandProvenance, viralityProvenance, subscriptionProvenance,
   manufacturingScoreProvenance, marketSaturationProvenance,
@@ -146,190 +154,9 @@ function mapAccessibility(score: number) {
 // explanation for that exact field — hover for the full reasoning.
 // ═══════════════════════════════════════════════════════════════
 
-type EvidenceType = ProvenanceLevel
-
-// Three user-facing tiers, not four — 'estimated' and 'synthesized' are kept
-// as distinct internal ProvenanceLevel values (for nuance in code/tooltips)
-// but read identically to a user: both are the model's own judgment, not a
-// real external source. 'unknown' and 'unsupported' both surface as the
-// same alarming "needs verification" treatment.
-const EVIDENCE_CFG: Record<EvidenceType, { label: string; cls: string }> = {
-  verified:    { label: 'Verified Data',                    cls: 'text-emerald-400 bg-emerald-400/8 border-emerald-400/20' },
-  estimated:   { label: 'AI Interpretation',                cls: 'text-amber-400   bg-amber-400/8   border-amber-400/20'   },
-  synthesized: { label: 'AI Interpretation',                cls: 'text-amber-400   bg-amber-400/8   border-amber-400/20'   },
-  unknown:     { label: 'Unsupported / Needs Verification', cls: 'text-red-400     bg-red-400/8     border-red-400/25'     },
-  unsupported: { label: 'Unsupported / Needs Verification', cls: 'text-red-400     bg-red-400/8     border-red-400/25'     },
-}
-
-function EvidenceBadge({ type, detail, source }: { type: EvidenceType; detail?: string; source?: string }) {
-  const { label, cls } = EVIDENCE_CFG[type]
-  const title = detail ? (source ? `${source} — ${detail}` : detail) : undefined
-  return (
-    <span
-      className={`inline-flex items-center gap-1 text-[10px] font-semibold border rounded-full px-2 py-0.5 tracking-wide shrink-0 cursor-default ${cls}`}
-      title={title}
-    >
-      <span className="w-1 h-1 rounded-full bg-current opacity-70 shrink-0"/>
-      {label}
-    </span>
-  )
-}
-
-// Same badge, but the detail renders as visible text underneath instead of
-// a hover-only title — for first-read content (market thesis, score
-// breakdown, consistency flags) where "hover to find out if this is real"
-// is exactly the failure mode being fixed.
-function ProvenanceCaption({ p }: { p: Provenance }) {
-  const { label, cls } = EVIDENCE_CFG[p.level]
-  return (
-    <div className={`flex items-start gap-2 text-[11px] rounded-lg border px-2.5 py-2 ${cls}`}>
-      <span className="font-semibold shrink-0 whitespace-nowrap">{label}:</span>
-      <span className="opacity-90">{p.detail}</span>
-    </div>
-  )
-}
-
-// Convenience wrapper — render straight from a lib/provenance.ts Provenance
-// object instead of hand-assembling type/source/detail at every call site.
-function ProvenanceBadge({ p }: { p: Provenance }) {
-  return <EvidenceBadge type={p.level} source={p.source} detail={p.detail} />
-}
-
-// ═══════════════════════════════════════════════════════════════
-// PRIMITIVES
-// ═══════════════════════════════════════════════════════════════
-
-function useCountUp(target: number, durationMs = 900) {
-  const [val, setVal] = useState(0)
-  useEffect(() => {
-    let raf = 0
-    const t0 = performance.now()
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - t0) / durationMs)
-      const eased = 1 - Math.pow(1 - p, 3)
-      setVal(Math.round(target * eased))
-      if (p < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target])
-  return val
-}
-
-// instrument-dial score gauge — semi-circular arc with tick marks, in the
-// register of a precision meter rather than a generic donut/progress ring.
-function ScoreRing({ s, decision, size = 156 }: { s: number; decision: BuildDecision; size?: number }) {
-  const animated = useCountUp(s)
-  const w  = size
-  const h  = Math.round(size / 2) + 16
-  const m  = 16
-  const cx = w / 2
-  const cy = h - m
-  const r  = w / 2 - m
-  const c  = decision === 'BUILD_NOW' ? '#34d399' : decision === 'VALIDATE_FURTHER' ? '#fbbf24' : decision === 'CATEGORY_CREATION_CANDIDATE' ? '#38bdf8' : '#f87171'
-  const pathLen = Math.PI * r
-  const arcPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`
-  const ticks = [0, 20, 40, 60, 80, 100]
-
-  return (
-    <div className="relative shrink-0" style={{ width: w, height: h }}>
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-        {ticks.map(t => {
-          const theta = ((180 - (t / 100) * 180) * Math.PI) / 180
-          const x1 = cx + (r + 4) * Math.cos(theta)
-          const y1 = cy - (r + 4) * Math.sin(theta)
-          const x2 = cx + (r + 9) * Math.cos(theta)
-          const y2 = cy - (r + 9) * Math.sin(theta)
-          return <line key={t} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#3f3f46" strokeWidth={1.5} strokeLinecap="round" />
-        })}
-        <path d={arcPath} fill="none" stroke="#27272a" strokeWidth={6} strokeLinecap="round" />
-        <path d={arcPath} fill="none" stroke={c} strokeWidth={6} strokeLinecap="round"
-          strokeDasharray={pathLen}
-          strokeDashoffset={pathLen - (pathLen * s) / 100}
-          style={{ transition: 'stroke-dashoffset 1.1s var(--ease-premium, ease)' }} />
-      </svg>
-      <div className="absolute inset-x-0 flex flex-col items-center" style={{ top: cy - r * 0.62 }}>
-        <span className="font-serif font-medium leading-none" style={{ color: c, fontSize: w * 0.23 }}>{animated}</span>
-        <span className="text-zinc-600 text-[10px] mt-1 tracking-wide">/ 100</span>
-      </div>
-    </div>
-  )
-}
-
-function VerdictBadge({ d, insufficientEvidence }: { d: BuildDecision; insufficientEvidence?: boolean }) {
-  const cfg = insufficientEvidence
-    // "Pass" reads as a verdict on the idea's quality. When no real provider
-    // returned anything at all, the honest message is "we couldn't assess
-    // this," not "this is a bad idea" — same zero score, different meaning.
-    ? { label: 'Insufficient Data', cls: 'text-zinc-400  bg-zinc-400/10  border-zinc-400/25', dot: 'bg-zinc-400' }
-    : {
-        BUILD_NOW:        { label: 'Build Now',      cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/25', dot: 'bg-emerald-400' },
-        VALIDATE_FURTHER: { label: 'Validate First', cls: 'text-amber-400  bg-amber-400/10  border-amber-400/25',   dot: 'bg-amber-400'  },
-        SKIP:             { label: 'Pass',           cls: 'text-red-400    bg-red-400/10    border-red-400/25',     dot: 'bg-red-400'    },
-        // Real evidence shows the broader category is alive; none exists
-        // for this exact idea because it has no market footprint yet — a
-        // distinct finding, not a point on the Build/Validate/Pass spectrum.
-        CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation', cls: 'text-sky-400 bg-sky-400/10 border-sky-400/25', dot: 'bg-sky-400' },
-      }[d]
-  return (
-    <span className={`inline-flex items-center gap-2 font-semibold text-[11px] tracking-[0.16em] px-3 py-1.5 rounded-full border uppercase ${cfg.cls}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  )
-}
-
-function ConfidencePill({ level, note }: { level: 'High' | 'Medium' | 'Low'; note: string }) {
-  const cls = level === 'High'
-    ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5'
-    : level === 'Medium'
-      ? 'text-amber-400 border-amber-400/20 bg-amber-400/5'
-      : 'text-zinc-500 border-white/[0.1] bg-white/[0.04]'
-  const dot = level === 'High' ? 'bg-emerald-400' : level === 'Medium' ? 'bg-amber-400' : 'bg-zinc-500'
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-xs border rounded-full px-2.5 py-1 ${cls}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${dot}`}/>
-      {level} confidence · {note}
-    </span>
-  )
-}
-
-// signal-strength indicator — 3 ascending bars, filled by level
-function SignalBars({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
-  const filled = level === 'Strong' ? 3 : level === 'Moderate' ? 2 : 1
-  const color  = level === 'Strong' ? 'bg-emerald-400' : level === 'Moderate' ? 'bg-amber-400' : 'bg-zinc-600'
-  return (
-    <div className="flex items-end gap-0.5 h-3.5 shrink-0">
-      {[0,1,2].map(i => (
-        <span key={i}
-          className={`w-1 rounded-sm ${i < filled ? color : 'bg-white/[0.12]'}`}
-          style={{ height: `${40 + i * 30}%` }}
-        />
-      ))}
-    </div>
-  )
-}
-
-// ── Pulse Rings — a TikTok-flavored "engagement ping" in place of generic
-// bars, reserved for the virality row specifically (it's the one signal
-// that's genuinely social/platform-native rather than a market metric).
-function PulseRings({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
-  const color = level === 'Strong' ? '#34d399' : level === 'Moderate' ? '#fbbf24' : '#71717a'
-  const rings = level === 'Strong' ? 3 : level === 'Moderate' ? 2 : 1
-  return (
-    <div className="relative w-4 h-4 shrink-0 grid place-items-center">
-      {Array.from({ length: rings }).map((_, i) => (
-        <span key={i} className="absolute rounded-full border"
-          style={{
-            borderColor: color, width: '60%', height: '60%',
-            animation: 'tiktokPulse 2.2s ease-out infinite', animationDelay: `${i * 0.45}s`,
-          }} />
-      ))}
-      <span className="relative w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-    </div>
-  )
-}
+// EvidenceBadge/ProvenanceCaption/ProvenanceBadge/ScoreGauge/VerdictBadge/
+// ConfidencePill/SignalBars/PulseRings moved to components/lab/ — see
+// design/INTELLIGENCE_LAB_DESIGN_SYSTEM.md §10, §16. Imported above.
 
 function truncateLabel(s: string, n: number) {
   return s.length > n ? s.slice(0, n - 1) + '…' : s
@@ -347,13 +174,13 @@ function NumList({ items, collapseAt = 2 }: { items: string[]; collapseAt?: numb
     <ol className="space-y-3">
       {shown.map((item, i) => (
         <li key={i} className="flex gap-3 text-sm">
-          <span className="font-mono text-zinc-600 shrink-0 w-4 text-right mt-px">{i + 1}</span>
-          <span className="text-zinc-300 leading-relaxed">{item}</span>
+          <span className="lab-text-data text-lab-text-tertiary shrink-0 w-4 text-right mt-px">{i + 1}</span>
+          <span className="text-lab-text-secondary leading-relaxed">{item}</span>
         </li>
       ))}
       {hiddenCount > 0 && !expanded && (
         <li>
-          <button onClick={() => setExpanded(true)} className="text-[11px] text-amber-400/70 hover:text-amber-400 transition-colors ml-7">
+          <button onClick={() => setExpanded(true)} className="text-[11px] text-lab-photon/70 hover:text-lab-photon transition-colors ml-7">
             Show {hiddenCount} more →
           </button>
         </li>
@@ -363,9 +190,9 @@ function NumList({ items, collapseAt = 2 }: { items: string[]; collapseAt?: numb
 }
 
 
-// Market/Margin appear in three different always-visible spots (Ticker
-// Strip, Masthead, At-a-Glance rail) — same provenance caveat applies to all
-// three, so it's centralized here rather than repeated at each call site.
+// Market/Margin appear in three different always-visible spots (Hero,
+// Evidence & Confidence, At-a-Glance rail) — same provenance caveat applies
+// to all three, so it's centralized here rather than repeated at each call site.
 const FACT_TOOLTIP: Record<string, string> = {
   MARKET: STATIC_PROVENANCE.marketSize.detail,
   MARGIN: STATIC_PROVENANCE.financialProjections.detail,
@@ -380,17 +207,17 @@ const FACT_TOOLTIP: Record<string, string> = {
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
     <div className="text-center" title={FACT_TOOLTIP[label.toUpperCase()]}>
-      <p className="text-[10px] text-zinc-600 uppercase tracking-wider flex items-center justify-center gap-1">
-        <span className="w-1 h-1 rounded-full bg-amber-400/70 shrink-0" />
+      <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider flex items-center justify-center gap-1">
+        <span className="w-1 h-1 rounded-full bg-lab-amber/70 shrink-0" />
         {label}
       </p>
-      <p className="text-xs font-semibold text-amber-200/90 mt-0.5 font-mono">{value}</p>
+      <p className="lab-text-data text-xs font-semibold text-lab-amber/90 mt-0.5">{value}</p>
     </div>
   )
 }
 
 function SectionIntro({ text }: { text: string }) {
-  return <p className="text-xs text-zinc-500 italic mb-4 leading-relaxed">{text}</p>
+  return <p className="text-xs text-lab-text-tertiary italic mb-4 leading-relaxed">{text}</p>
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -412,15 +239,20 @@ const NAV_SECTIONS = [
 // mobile/tablet — horizontal sticky tab strip under the masthead
 function SectionNav({ active, onSelect }: { active: string; onSelect: (id: string) => void }) {
   return (
-    <div className="section-nav -mt-px lg:hidden">
+    <div className="sticky top-0 z-30 -mx-4 px-4 sm:-mx-0 sm:px-0 backdrop-blur-md bg-lab-void-0/85 border-b border-lab-border-soft -mt-px lg:hidden">
       <div className="flex items-center gap-1 overflow-x-auto py-2.5 no-scrollbar">
         {NAV_SECTIONS.map(s => (
           <button
             key={s.id}
             onClick={() => onSelect(s.id)}
-            className={`nav-pill ${active === s.id ? 'nav-pill-active' : ''}`}
+            className={`relative text-[12.5px] font-medium px-3 py-2.5 whitespace-nowrap transition-colors duration-lab-fast ${
+              active === s.id ? 'text-lab-text-primary' : 'text-lab-text-tertiary hover:text-lab-text-secondary'
+            }`}
           >
             {s.label}
+            {active === s.id && (
+              <span className="absolute left-2.5 right-2.5 bottom-0.5 h-[1.5px] rounded-full bg-lab-photon shadow-lab-glow-photon" />
+            )}
           </button>
         ))}
       </div>
@@ -433,15 +265,15 @@ function SectionNav({ active, onSelect }: { active: string; onSelect: (id: strin
 function RailNav({ active, onSelect }: { active: string; onSelect: (id: string) => void }) {
   return (
     <nav className="space-y-0.5">
-      <p className="label mb-2.5">Sections</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lab-photon mb-2.5">Sections</p>
       {NAV_SECTIONS.map(s => (
         <button
           key={s.id}
           onClick={() => onSelect(s.id)}
-          className={`w-full text-left text-[13px] py-1.5 pl-3 border-l-2 transition-colors ${
+          className={`w-full text-left text-[13px] py-1.5 pl-3 border-l-2 transition-colors duration-lab-fast ${
             active === s.id
-              ? 'border-brass text-zinc-50 font-medium'
-              : 'border-white/[0.08] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.2]'
+              ? 'border-lab-photon text-lab-text-primary font-medium'
+              : 'border-lab-border-soft text-lab-text-tertiary hover:text-lab-text-secondary hover:border-lab-border-default'
           }`}
         >
           {s.label}
@@ -581,32 +413,67 @@ function shortFactValue(v: string): string {
   return isUnverifiedText(v) ? 'Not verified' : v
 }
 
-function DecisionChipRow({ chip }: { chip: DecisionChip }) {
+// ═══════════════════════════════════════════════════════════════
+// HERO — the first 15 seconds. Merges the prior DecisionStrip (verdict +
+// score + 4 real-evidence chips + one sentence of attributed synthesis)
+// and Masthead (score gauge + title) into one cinematic glass instrument
+// panel — the flagship moment of the report. All data/logic below is
+// unchanged from the prior DecisionStrip/Masthead — deriveDecisionChips,
+// computeGroundedScore, deriveValidationSteps are the same pure functions,
+// only the rendering changed. See design/INTELLIGENCE_LAB_DESIGN_SYSTEM.md.
+// ═══════════════════════════════════════════════════════════════
+
+const DECISION_GLOW: Record<BuildDecision, 'verdant' | 'amber' | 'ember' | 'spectrum'> = {
+  BUILD_NOW: 'verdant', VALIDATE_FURTHER: 'amber', SKIP: 'ember', CATEGORY_CREATION_CANDIDATE: 'spectrum',
+}
+
+function HeroChip({ chip }: { chip: DecisionChip }) {
+  // Chips fall back to a literal '—' source when no real provider
+  // contributed (see deriveDecisionChips) — that's the same real/AI-judgment
+  // distinction §16 asks every claim to carry, so the chip's own accent bar
+  // reuses the provenance palette instead of inventing a separate scheme.
+  const hasReal = chip.source !== '—'
   return (
-    <div className="flex-1 min-w-[150px] max-w-[220px]">
-      <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">{chip.label}</p>
-      <p className="text-sm font-semibold text-zinc-100 font-mono flex items-center gap-1.5">
-        {chip.trend === 'up' && <IconTrendUp className="w-3 h-3 text-emerald-400 shrink-0" />}
-        {chip.trend === 'down' && <IconTrendDown className="w-3 h-3 text-red-400 shrink-0" />}
+    <LabEvidenceCard tier={hasReal ? 'verified' : 'unknown'} className="h-full px-4 py-3.5">
+      <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest mb-1.5">{chip.label}</p>
+      <p className="lab-text-data text-sm font-semibold text-lab-text-primary flex items-center gap-1.5">
+        {chip.trend === 'up' && <IconTrendUp className="w-3 h-3 text-lab-verdant shrink-0" />}
+        {chip.trend === 'down' && <IconTrendDown className="w-3 h-3 text-lab-ember shrink-0" />}
         <span className="truncate">{chip.value}</span>
       </p>
-      {chip.subValue && <p className="text-xs text-zinc-400 truncate mt-0.5">{chip.subValue}</p>}
-      <p className="text-[10px] text-zinc-600 mt-0.5">{chip.source}</p>
+      {chip.subValue && <p className="text-xs text-lab-text-secondary truncate mt-0.5">{chip.subValue}</p>}
+      <p className="text-[10px] text-lab-text-tertiary mt-1 lab-text-data">{chip.source}</p>
+    </LabEvidenceCard>
+  )
+}
+
+// Higgsfield integration point: a procedurally-inferred product silhouette
+// stands in for a real generated product render until Higgsfield imagery
+// is wired in. data-higgsfield-placeholder marks exactly what to replace —
+// swap for an <img>/<video> of the actual generated concept render, same
+// slot, same aspect treatment. Never implies a real photo (see
+// components/ProductGlyph.tsx's own disclosure).
+function HeroProductGlyph({ format, categoryName }: { format: string; categoryName: string }) {
+  const shape = inferProductShape(format)
+  return (
+    <div
+      data-higgsfield-placeholder="hero-product-render"
+      className="relative hidden md:flex items-center justify-center w-24 h-24 shrink-0 rounded-full"
+      style={{ background: 'radial-gradient(circle at 35% 30%, rgba(79,168,255,.16), transparent 70%)' }}
+      title={`Concept render placeholder for ${categoryName} (${format}) — not a real product photo`}
+    >
+      <div className="absolute inset-0 rounded-full border border-lab-border-soft" />
+      <ProductGlyphMini shape={shape} className="w-10 h-12 text-lab-photon/70" />
     </div>
   )
 }
 
-function DecisionStrip({
+function Hero({
   m, score, decision, generatedAt,
 }: {
   m: MemoData; score: number; decision: BuildDecision; generatedAt?: string
 }) {
-  const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : decision === 'CATEGORY_CREATION_CANDIDATE' ? 'text-sky-400' : 'text-red-400'
-  // 2026-06-26 redesign: groundedPct is now always 100 (at least one real
-  // dimension contributed to the score) or 0 (insufficientEvidence — no
-  // real dimension was found at all) — see lib/scoring.ts header comment.
   const { groundedPct, insufficientEvidence } = computeGroundedScore(m)
-  const groundedC = insufficientEvidence ? 'text-red-400' : 'text-emerald-400'
   const chips = deriveDecisionChips(m, generatedAt ?? new Date(0).toISOString())
   // VALIDATE_FURTHER's most decision-relevant sentence isn't "why this
   // might work" (the thesis already says that elsewhere) — it's "what to
@@ -620,49 +487,67 @@ function DecisionStrip({
   const synthesis = decision === 'VALIDATE_FURTHER' || decision === 'CATEGORY_CREATION_CANDIDATE'
     ? deriveValidationSteps(m, decision)[0] ?? firstSentence(m.market_thesis ?? m.executive_summary)
     : firstSentence(m.market_thesis ?? m.executive_summary)
-  // HYDRATION FIX (2026-06-29): explicit timeZone: 'UTC' on every
-  // toLocaleDateString call in this file (5 sites) — without it, the
-  // runtime's local timezone decides the calendar date, and the server
-  // (UTC) and a client browser (whatever local timezone) can render a
-  // different day for the exact same timestamp whenever it falls within
-  // a few hours of UTC midnight — a real, if narrow, cause of React's
-  // "text content does not match server-rendered HTML" hydration error.
   const dateLabel = generatedAt
     ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
     : null
+  const consumerIntelTimedOut = !m.consumer_intelligence && !!m.signal_metadata?.consumer_intelligence_attempted
+  const glow = insufficientEvidence ? undefined : DECISION_GLOW[decision]
 
   return (
-    <div className="card-premium p-6 sm:p-8">
-      <div className="flex items-start justify-between gap-3 mb-5">
-        <div className="min-w-0">
-          <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-1">{m.category_name}</p>
-          <div className="flex items-baseline gap-3">
-            <VerdictBadge d={decision} insufficientEvidence={insufficientEvidence} />
-            <span className={`font-serif font-medium text-2xl ${c}`}>{score}<span className="text-zinc-600 text-sm font-sans"> / 100</span></span>
-            <span className={`text-[11px] font-mono ${groundedC}`}>{groundedPct}% real data</span>
-          </div>
-        </div>
-        {dateLabel && <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-wider shrink-0">as of {dateLabel}</span>}
+    <LabGlass tier="heavy" glow={glow} className="p-6 sm:p-9 lab-animate-fade-up">
+      <div className="flex items-center justify-between mb-6 pb-5 border-b border-lab-border-soft">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lab-photon">Investment Dossier</span>
+        <span className="text-[10px] font-medium text-lab-text-tertiary lab-text-data uppercase tracking-wider">
+          {dateLabel ? `Prepared ${dateLabel}` : 'Confidential'}
+        </span>
       </div>
 
-      <div className="flex flex-wrap gap-x-6 gap-y-4 pt-4 border-t border-white/[0.06]">
-        {chips.map(chip => <DecisionChipRow key={chip.label} chip={chip} />)}
+      {consumerIntelTimedOut && (
+        <div className="mb-6 rounded-lab-sm border border-lab-amber/25 bg-lab-amber/5 px-3 py-2.5">
+          <p className="text-xs font-semibold text-lab-amber mb-0.5">Partial results available</p>
+          <p className="text-[11px] text-lab-text-secondary">Most real-data providers responded normally. The Consumer Intelligence review-data provider timed out for this run — see the Consumer tab for details. Everything else below reflects the providers that did respond.</p>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-7">
+        <ScoreGauge s={score} decision={decision} />
+        <div className="flex-1 min-w-0 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <VerdictBadge d={decision} insufficientEvidence={insufficientEvidence} withGlow />
+            <h1 className="font-display text-2xl sm:text-3xl font-semibold mt-4 mb-1.5 leading-[1.15] tracking-tight text-lab-text-primary">{m.category_name}</h1>
+            <div className="flex items-center gap-2.5">
+              <p className="text-xs text-lab-text-tertiary uppercase tracking-wider">Opportunity Rating</p>
+              <span className={`text-[11px] lab-text-data ${insufficientEvidence ? 'text-lab-ember' : 'text-lab-verdant'}`}>{groundedPct}% real data</span>
+            </div>
+          </div>
+          <HeroProductGlyph format={m.product_recommendation?.format ?? 'bottle'} categoryName={m.category_name} />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mt-7 pt-5 border-t border-lab-border-soft">
+        {chips.map((chip, i) => (
+          <div key={chip.label} className="flex-1 min-w-[150px] max-w-[240px] lab-animate-fade-up" style={{ animationDelay: `${i * 50}ms` }}>
+            <HeroChip chip={chip} />
+          </div>
+        ))}
       </div>
 
       {synthesis && (
-        <div className="mt-5 rounded-lg bg-amber-400/[0.04] border border-amber-400/15 px-3.5 py-3">
-          <p className="text-[9px] text-amber-400/80 uppercase tracking-widest font-semibold mb-1.5">
+        <div className="mt-5 rounded-lab-sm bg-lab-amber/[0.05] border border-lab-amber/20 px-4 py-3.5">
+          <p className="text-[9px] text-lab-amber/90 uppercase tracking-widest font-semibold mb-1.5">
             {decision === 'VALIDATE_FURTHER' || decision === 'CATEGORY_CREATION_CANDIDATE' ? 'What To Do First' : 'Analyst View'}
           </p>
-          <p className="text-sm text-zinc-300 leading-relaxed font-serif italic">{synthesis}</p>
+          <p className="text-sm text-lab-text-secondary leading-relaxed italic">{synthesis}</p>
         </div>
       )}
-    </div>
+    </LabGlass>
   )
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MASTHEAD — document header. Establishes "dossier", not "AI output".
+// EVIDENCE & CONFIDENCE — coverage, score breakdown, evidence breadth,
+// sources, and consistency checks. Split out from the old Masthead into
+// its own flagship section (was previously folded inside Masthead).
 // ═══════════════════════════════════════════════════════════════
 
 // Score Breakdown — every dimension behind the headline number, each
@@ -677,26 +562,21 @@ function DecisionStrip({
 // real data vs AI judgment for THIS specific generation. "No data
 // available" counts as not-grounded here, same as anything AI-only by
 // nature, since both mean less of this report is backed by real evidence.
-function EvidenceCoveragePanel({ m }: { m: MemoData }) {
+// EVIDENCE & CONFIDENCE — coverage, score breakdown, evidence breadth +
+// sources, and consistency checks, unified into one flagship section
+// (was previously split across EvidenceCoveragePanel/ScoreBreakdownPanel/
+// ConsistencyFlagsPanel, all nested inside Masthead). Every value below is
+// the same real computation as before — computeEvidenceCoverage,
+// computeGroundedScore, checkConsistency — only the rendering changed.
+// The Sources sub-panel is new presentation over an already-real field
+// (evidenceBreadth.contributingProviders) — no new data, no new logic.
+function EvidenceConfidenceSection({
+  m, decision, confidence,
+}: {
+  m: MemoData; decision: BuildDecision
+  confidence: { level: 'High' | 'Medium' | 'Low'; note: string }
+}) {
   const cov = computeEvidenceCoverage(m)
-  const color = cov.pct >= 50 ? 'text-emerald-400' : cov.pct >= 25 ? 'text-amber-400' : 'text-red-400'
-  return (
-    <div className="mt-7 pt-5 border-t border-white/[0.06]">
-      <div className="flex items-baseline justify-between gap-3 mb-2">
-        <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Evidence Coverage</p>
-        <span className={`text-lg font-serif font-medium ${color}`}>{cov.pct}%</span>
-      </div>
-      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden mb-2">
-        <div className={`h-full ${cov.pct >= 50 ? 'bg-emerald-400/60' : cov.pct >= 25 ? 'bg-amber-400/60' : 'bg-red-400/60'}`} style={{ width: `${cov.pct}%` }} />
-      </div>
-      <p className="text-[11px] text-zinc-500">
-        {cov.groundedCount} of {cov.totalCount} report fields are backed by real provider data ({cov.verifiedCount} verified, {cov.estimatedCount} estimated) — the rest ({cov.synthesizedCount + cov.unknownCount}) are AI judgment or unavailable for this query.
-      </p>
-    </div>
-  )
-}
-
-function ScoreBreakdownPanel({ m }: { m: MemoData }) {
   const { dimensions, groundedPct, insufficientEvidence, evidenceBreadth, categoryCreationContext } = computeGroundedScore(m)
   // weight > 0 dimensions are the only ones that ever fed the 0-100 score —
   // every one of them is real, by construction (lib/scoring.ts). Dimensions
@@ -706,176 +586,165 @@ function ScoreBreakdownPanel({ m }: { m: MemoData }) {
   const scored      = dimensions.filter(d => d.weight > 0)
   const qualitative = dimensions.filter(d => d.weight === 0)
   const contributedChannels = evidenceBreadth.channelBreakdown.filter(c => c.contributed)
+  // Live decision, not m.build_decision — so this panel can never
+  // contradict the Hero's decision on the same render.
+  const flags = checkConsistency(m, decision)
+  const facts = ([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
+    .filter(([, v]) => v && v !== 'N/A')
+  const coverageColor = cov.pct >= 50 ? 'text-lab-verdant' : cov.pct >= 25 ? 'text-lab-amber' : 'text-lab-ember'
+  const coverageBar    = cov.pct >= 50 ? 'bg-lab-verdant' : cov.pct >= 25 ? 'bg-lab-amber' : 'bg-lab-ember'
 
   return (
-    <div className="mt-7 pt-5 border-t border-white/[0.06]">
+    <LabCard className="p-6 sm:p-8 lab-animate-fade-up">
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lab-photon">Evidence &amp; Confidence</p>
+        <ConfidencePill level={confidence.level} note={confidence.note} />
+      </div>
+
+      {facts.length > 0 && (
+        <div className="flex gap-6 mb-6 pb-6 border-b border-lab-border-soft sm:hidden">
+          {facts.map(([l, v]) => <MetaChip key={l} label={l} value={shortFactValue(v)} />)}
+        </div>
+      )}
+
       {categoryCreationContext && (
-        <div className="mb-4 rounded-lg bg-sky-400/[0.04] border border-sky-400/15 px-3.5 py-3">
-          <p className="text-[9px] text-sky-400/80 uppercase tracking-widest font-semibold mb-1.5">Category Creation Candidate</p>
+        <div className="mb-5 rounded-lab-sm bg-lab-spectrum/[0.05] border border-lab-spectrum/20 px-3.5 py-3">
+          <p className="text-[9px] text-lab-spectrum/90 uppercase tracking-widest font-semibold mb-1.5">Category Creation Candidate</p>
           <ProvenanceCaption p={categoryCreationProvenance(categoryCreationContext.broadQuery)} />
         </div>
       )}
 
-      <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">
-        Score Breakdown {insufficientEvidence ? '— insufficient real evidence to score' : `— ${groundedPct}% grounded in real data`}
-      </p>
-      <ProvenanceCaption p={opportunityScoreProvenance(groundedPct, insufficientEvidence)} />
+      {/* Evidence Coverage */}
+      <div>
+        <div className="flex items-baseline justify-between gap-3 mb-2">
+          <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest">Evidence Coverage</p>
+          <span className={`lab-text-data text-lg font-bold ${coverageColor}`}>{cov.pct}%</span>
+        </div>
+        <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden mb-2">
+          <div className={`h-full ${coverageBar}/60`} style={{ width: `${cov.pct}%` }} />
+        </div>
+        <p className="text-[11px] text-lab-text-secondary">
+          {cov.groundedCount} of {cov.totalCount} report fields are backed by real provider data ({cov.verifiedCount} verified, {cov.estimatedCount} estimated) — the rest ({cov.synthesizedCount + cov.unknownCount}) are AI judgment or unavailable for this query.
+        </p>
+      </div>
 
-      {scored.length > 0 && (
-        <div className="mt-3 space-y-2.5">
-          {scored.map(d => (
-            <div key={d.key}>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-zinc-300 w-40 shrink-0 truncate">{d.label}</span>
-                <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                  <div className="h-full bg-emerald-400/60" style={{ width: `${(d.rawScore ?? 0) * 10}%` }} />
+      {/* Score Breakdown */}
+      <div className="mt-7 pt-6 border-t border-lab-border-soft">
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest mb-3">
+          Score Breakdown {insufficientEvidence ? '— insufficient real evidence to score' : `— ${groundedPct}% grounded in real data`}
+        </p>
+        <ProvenanceCaption p={opportunityScoreProvenance(groundedPct, insufficientEvidence)} />
+
+        {scored.length > 0 && (
+          <div className="mt-3 space-y-2.5">
+            {scored.map(d => (
+              <div key={d.key}>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-lab-text-secondary w-40 shrink-0 truncate">{d.label}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div className="h-full bg-lab-photon/60" style={{ width: `${(d.rawScore ?? 0) * 10}%` }} />
+                  </div>
+                  <span className="lab-text-data text-xs text-lab-text-secondary w-10 text-right shrink-0">{d.rawScore}/10</span>
+                  <EvidenceBadge type={d.source} source={d.sourceLabel} detail={`Weighted ${Math.round(d.weight * 100)}% of the final score.`} />
                 </div>
-                <span className="text-xs font-mono text-zinc-400 w-10 text-right shrink-0">{d.rawScore}/10</span>
-                <EvidenceBadge type={d.source} source={d.sourceLabel} detail={`Weighted ${Math.round(d.weight * 100)}% of the final score.`} />
+                {d.key === 'consumerPain' && (
+                  <p className="mt-1 text-[10px] text-lab-text-tertiary leading-relaxed pl-[172px]">{consumerPainLimitationNote()}</p>
+                )}
               </div>
-              {d.key === 'consumerPain' && (
-                <p className="mt-1 text-[10px] text-zinc-600 leading-relaxed pl-[172px]">{consumerPainLimitationNote()}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {qualitative.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-white/[0.05] space-y-2.5">
-          <p className="text-[9px] text-zinc-600 uppercase tracking-wider">Not Scored — AI Judgment Only, 0% Weight</p>
-          {qualitative.map(d => (
-            <div key={d.key} className="flex items-center gap-3">
-              <span className="text-xs text-zinc-400 w-40 shrink-0 truncate">{d.label}</span>
-              <span className="flex-1 text-xs text-zinc-500">{d.qualitativeLevel ?? 'Not assessed'}</span>
-              <EvidenceBadge type={d.source} source={d.sourceLabel} detail="Excluded from the 0-100 score entirely — shown for context only, never converted to a number." />
-            </div>
-          ))}
-        </div>
-      )}
+        {qualitative.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-lab-border-faint space-y-2.5">
+            <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider">Not Scored — AI Judgment Only, 0% Weight</p>
+            {qualitative.map(d => (
+              <div key={d.key} className="flex items-center gap-3">
+                <span className="text-xs text-lab-text-secondary w-40 shrink-0 truncate italic">{d.label}</span>
+                <span className="flex-1 text-xs text-lab-text-tertiary italic">{d.qualitativeLevel ?? 'Not assessed'}</span>
+                <EvidenceBadge type={d.source} source={d.sourceLabel} detail="Excluded from the 0-100 score entirely — shown for context only, never converted to a number." />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-      <div className="mt-5 pt-4 border-t border-white/[0.05]">
-        <div className="flex items-baseline justify-between gap-3 mb-1.5">
-          <p className="text-[9px] text-zinc-600 uppercase tracking-wider">Evidence Breadth</p>
-          <span className="text-xs font-mono text-zinc-400">{evidenceBreadth.contributingProviders.length} / {evidenceBreadth.totalScoreEligibleProviders} providers</span>
+      {/* Evidence Breadth + Sources */}
+      <div className="mt-7 pt-6 border-t border-lab-border-soft">
+        <div className="flex items-baseline justify-between gap-3 mb-2.5">
+          <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider">Evidence Breadth</p>
+          <span className="lab-text-data text-xs text-lab-text-secondary">{evidenceBreadth.contributingProviders.length} / {evidenceBreadth.totalScoreEligibleProviders} providers</span>
         </div>
-        <ProvenanceCaption p={evidenceBreadthProvenance()} />
+        <EvidenceMeter filled={evidenceBreadth.contributingProviders.length} total={evidenceBreadth.totalScoreEligibleProviders} />
+        <div className="mt-3">
+          <ProvenanceCaption p={evidenceBreadthProvenance()} />
+        </div>
 
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {evidenceBreadth.channelBreakdown.map(c => (
             <span
               key={c.channel}
               title={CHANNEL_COVERAGE_NOTES[c.channel]}
-              className={`text-[10px] px-2 py-1 rounded-full border ${c.contributed ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/25' : 'text-zinc-600 bg-white/[0.02] border-white/[0.06]'}`}
+              className={`text-[10px] px-2 py-1 rounded-full border ${c.contributed ? 'text-lab-verdant bg-lab-verdant/10 border-lab-verdant/25' : 'text-lab-text-tertiary bg-white/[0.02] border-lab-border-faint'}`}
             >
               {c.label}
             </span>
           ))}
         </div>
 
-        <p className="mt-2 text-[10px] text-zinc-600">
+        <p className="mt-2.5 text-[10px] text-lab-text-tertiary">
           {evidenceBreadth.crossChannelCorroborated
             ? `Corroborated across ${evidenceBreadth.distinctChannelTypes} distinct channel types.`
             : contributedChannels.length === 1
               ? `Backed by only one channel type (${contributedChannels[0].label}) — no independent corroboration from a different kind of source.`
               : 'No real channel contributed evidence to this score.'}
         </p>
-        <ProvenanceCaption p={channelConcentrationProvenance()} />
+        <div className="mt-2">
+          <ProvenanceCaption p={channelConcentrationProvenance()} />
+        </div>
+
+        {/* Sources — which real providers actually contributed, as lab sample tags. */}
+        {evidenceBreadth.contributingProviders.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-lab-border-faint">
+            <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider mb-2">Sources</p>
+            <div className="flex flex-wrap gap-1.5">
+              {evidenceBreadth.contributingProviders.map(p => (
+                <span key={p} className="lab-text-data text-[10px] text-lab-photon bg-lab-photon/10 border border-lab-photon/25 rounded px-2 py-1">
+                  {p}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {contributedChannels.length > 0 && (
-          <div className="mt-2 space-y-1">
+          <div className="mt-3 space-y-1">
             {contributedChannels.map(c => (
-              <p key={c.channel} className="text-[10px] text-zinc-600 leading-relaxed">
-                <span className="text-zinc-500">{c.label}:</span> {CHANNEL_COVERAGE_NOTES[c.channel]}
+              <p key={c.channel} className="text-[10px] text-lab-text-tertiary leading-relaxed">
+                <span className="text-lab-text-secondary">{c.label}:</span> {CHANNEL_COVERAGE_NOTES[c.channel]}
               </p>
             ))}
           </div>
         )}
-        <ProvenanceCaption p={coverageNoteProvenance()} />
-      </div>
-    </div>
-  )
-}
-
-// Consistency Flags — claims that were checked against real evidence
-// (lib/consistency.ts) and contradicted it, or had none to point to.
-// Rendered visibly, not suppressed — finding zero flags is reported too,
-// so absence of warnings isn't ambiguous with "wasn't checked."
-function ConsistencyFlagsPanel({ m, decision }: { m: MemoData; decision: BuildDecision }) {
-  // Live decision, not m.build_decision — same fix as deriveValidationSteps/
-  // deriveValidationBudget above, so this panel can never contradict the
-  // masthead's decision on the same render.
-  const flags = checkConsistency(m, decision)
-  return (
-    <div className="mt-6 pt-5 border-t border-white/[0.06]">
-      <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">Consistency Check</p>
-      {flags.length === 0 ? (
-        <ProvenanceCaption p={{ level: 'verified', source: 'Consistency check', detail: 'No contradictions found between this memo’s claims and the real evidence collected for it.' }} />
-      ) : (
-        <div className="space-y-2">
-          {flags.map((f, i) => <ProvenanceCaption key={i} p={consistencyFlagProvenance(f)} />)}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Masthead({
-  m, score, decision, confidence, generatedAt,
-}: {
-  m: MemoData; score: number; decision: BuildDecision;
-  confidence: { level: 'High' | 'Medium' | 'Low'; note: string }; generatedAt?: string
-}) {
-  const glow = decision === 'BUILD_NOW'
-    ? 'shadow-[0_0_60px_rgba(52,211,153,.08)]'
-    : decision === 'VALIDATE_FURTHER'
-      ? 'shadow-[0_0_60px_rgba(251,191,36,.06)]'
-      : ''
-  const dateLabel = generatedAt
-    ? new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-    : null
-
-  const consumerIntelTimedOut = !m.consumer_intelligence && !!m.signal_metadata?.consumer_intelligence_attempted
-  const { insufficientEvidence } = computeGroundedScore(m)
-
-  return (
-    <div className={`card-premium p-6 sm:p-9 ${glow}`}>
-      <div className="flex items-center justify-between mb-6 pb-5 border-b border-white/[0.06]">
-        <span className="eyebrow text-[13px]">Investment Dossier</span>
-        <span className="text-[10px] font-medium text-zinc-600 font-mono uppercase tracking-wider">
-          {dateLabel ? `Prepared ${dateLabel}` : 'Confidential'}
-        </span>
-      </div>
-
-      {consumerIntelTimedOut && (
-        <div className="mb-6 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2.5">
-          <p className="text-xs font-semibold text-amber-400 mb-0.5">Partial results available</p>
-          <p className="text-[11px] text-zinc-500">Most real-data providers responded normally. The Consumer Intelligence review-data provider timed out for this run — see the Consumer tab for details. Everything else below reflects the providers that did respond.</p>
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row sm:items-center gap-7">
-        <ScoreRing s={score} decision={decision} />
-        <div className="flex-1 min-w-0">
-          <VerdictBadge d={decision} insufficientEvidence={insufficientEvidence} />
-          <h1 className="font-serif text-2xl sm:text-[1.9rem] font-medium mt-4 mb-1.5 leading-[1.15] tracking-tight">{m.category_name}</h1>
-          <p className="text-xs text-zinc-500 uppercase tracking-wider">Opportunity Rating</p>
+        <div className="mt-2">
+          <ProvenanceCaption p={coverageNoteProvenance()} />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 mt-7 pt-5 border-t border-white/[0.06] lg:hidden">
-        <ConfidencePill level={confidence.level} note={confidence.note} />
-        <div className="flex gap-6">
-          {([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
-            .filter(([, v]) => v && v !== 'N/A')
-            .map(([l, v]) => <MetaChip key={l} label={l} value={shortFactValue(v)} />)}
-        </div>
+      {/* Consistency Check — claims checked against real evidence
+          (lib/consistency.ts) and contradicted, or had none to point to.
+          Rendered visibly, not suppressed — zero flags is reported too. */}
+      <div className="mt-7 pt-6 border-t border-lab-border-soft">
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest mb-3">Consistency Check</p>
+        {flags.length === 0 ? (
+          <ProvenanceCaption p={{ level: 'verified', source: 'Consistency check', detail: 'No contradictions found between this memo’s claims and the real evidence collected for it.' }} />
+        ) : (
+          <div className="space-y-2">
+            {flags.map((f, i) => <ProvenanceCaption key={i} p={consistencyFlagProvenance(f)} />)}
+          </div>
+        )}
       </div>
-
-      <EvidenceCoveragePanel m={m} />
-      <ScoreBreakdownPanel m={m} />
-      <ConsistencyFlagsPanel m={m} decision={decision} />
-    </div>
+    </LabCard>
   )
 }
 
@@ -891,33 +760,33 @@ function AtAGlanceRail({
   m: MemoData; score: number; decision: BuildDecision
   confidence: { level: 'High' | 'Medium' | 'Low'; note: string }
 }) {
-  const c = decision === 'BUILD_NOW' ? 'text-emerald-400' : decision === 'VALIDATE_FURTHER' ? 'text-amber-400' : decision === 'CATEGORY_CREATION_CANDIDATE' ? 'text-sky-400' : 'text-red-400'
+  const c = decision === 'BUILD_NOW' ? 'text-lab-verdant' : decision === 'VALIDATE_FURTHER' ? 'text-lab-amber' : decision === 'CATEGORY_CREATION_CANDIDATE' ? 'text-lab-spectrum' : 'text-lab-ember'
   const facts = ([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
     .filter(([, v]) => v && v !== 'N/A')
   const { insufficientEvidence } = computeGroundedScore(m)
 
   return (
-    <div className="card-premium p-5">
-      <p className="label mb-4">At a Glance</p>
+    <LabGlass tier="thin" className="p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lab-photon mb-4">At a Glance</p>
       <div className="flex items-baseline gap-2.5 mb-1">
-        <span className={`font-serif font-medium text-3xl ${c}`}>{score}</span>
-        <span className="text-zinc-600 text-xs">/ 100</span>
+        <span className={`lab-text-data font-bold text-3xl ${c}`}>{score}</span>
+        <span className="text-lab-text-tertiary text-xs">/ 100</span>
       </div>
       <VerdictBadge d={decision} insufficientEvidence={insufficientEvidence} />
-      <div className="mt-4 pt-4 border-t border-white/[0.06]">
+      <div className="mt-4 pt-4 border-t border-lab-border-soft">
         <ConfidencePill level={confidence.level} note={confidence.note} />
       </div>
       {facts.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-white/[0.06] space-y-2.5">
+        <div className="mt-4 pt-4 border-t border-lab-border-soft space-y-2.5">
           {facts.map(([l, v]) => (
             <div key={l} className="flex items-center justify-between gap-3" title={isUnverifiedText(v) ? v : FACT_TOOLTIP[l.toUpperCase()]}>
-              <span className="text-[10px] text-zinc-600 uppercase tracking-wider shrink-0">{l}</span>
-              <span className="text-xs font-semibold text-zinc-300 font-mono text-right">{shortFactValue(v)}</span>
+              <span className="text-[10px] text-lab-text-tertiary uppercase tracking-wider shrink-0">{l}</span>
+              <span className="lab-text-data text-xs font-semibold text-lab-text-secondary text-right">{shortFactValue(v)}</span>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </LabGlass>
   )
 }
 
@@ -932,20 +801,7 @@ function extractGrowthPct(text?: string | null): number | null {
   return match ? parseFloat(match[1]) : null
 }
 
-function MomentumSparkline({ positive, accent }: { positive: boolean; accent: string }) {
-  const points: [number, number][] = positive
-    ? [[2, 34], [26, 28], [50, 19], [74, 11], [98, 4]]
-    : [[2, 4], [26, 11], [50, 19], [74, 28], [98, 35]]
-  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ')
-  const [lx, ly] = points[points.length - 1]
-  return (
-    <svg viewBox="0 0 100 40" className="w-16 h-7 shrink-0">
-      <path d={d} fill="none" stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-        style={{ strokeDasharray: 130, animation: 'sparklineDraw 1s var(--ease-premium, ease) both' }} />
-      <circle cx={lx} cy={ly} r="3" fill={accent} />
-    </svg>
-  )
-}
+// MomentumSparkline moved to components/lab/Charts.tsx — imported above.
 
 const LEVEL_TO_SIGNAL: Record<'High' | 'Medium' | 'Low', 'Strong' | 'Moderate' | 'Weak'> = {
   High: 'Strong', Medium: 'Moderate', Low: 'Weak',
@@ -960,7 +816,7 @@ function MomentumBadge({ whyNow, demandNotes, demandLevel, legacyDemandScore }: 
 
   if (pct !== null) {
     const positive = pct >= 0
-    const color = positive ? '#34d399' : '#f87171'
+    const color = positive ? '#34d9a0' : '#ff6259'
     const Icon = positive ? IconTrendUp : IconTrendDown
     return (
       <div className="flex items-center gap-3 shrink-0" title="Synthesized — this figure is restated from the Why Now text above, which is itself model-written and not independently sourced.">
@@ -968,9 +824,9 @@ function MomentumBadge({ whyNow, demandNotes, demandLevel, legacyDemandScore }: 
         <div>
           <div className="flex items-center gap-1" style={{ color }}>
             <Icon className="w-3.5 h-3.5 shrink-0" />
-            <span className="font-serif font-medium text-xl leading-none">{positive ? '+' : ''}{pct}%</span>
+            <span className="lab-text-data font-bold text-xl leading-none">{positive ? '+' : ''}{pct}%</span>
           </div>
-          <p className="text-[9px] text-zinc-600 uppercase tracking-wider mt-1">Demand Momentum</p>
+          <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider mt-1">Demand Momentum</p>
         </div>
       </div>
     )
@@ -986,8 +842,8 @@ function MomentumBadge({ whyNow, demandNotes, demandLevel, legacyDemandScore }: 
       <div className="flex items-center gap-2.5 shrink-0" title="AI Interpretation — the model's own qualitative judgment, not a measured trend.">
         <SignalBars level={signal} />
         <div>
-          <p className="text-xs font-medium text-zinc-300">{signal}</p>
-          <p className="text-[9px] text-zinc-600 uppercase tracking-wider">Momentum</p>
+          <p className="text-xs font-medium text-lab-text-secondary">{signal}</p>
+          <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider">Momentum</p>
         </div>
       </div>
     )
@@ -1001,23 +857,27 @@ function legacyScoreToLevelDisplay(score: number | undefined): 'High' | 'Medium'
 }
 
 // ═══════════════════════════════════════════════════════════════
-// EXECUTIVE SUMMARY — thesis pull-quote + why-now, rendered ONCE.
-// (Previously duplicated across InvestmentDecision + standalone
-// InvestmentThesis/WhyNow cards — consolidated here.)
+// AI ANALYST — thesis pull-quote + why-now, rendered once. (Renamed from
+// ExecutiveSummary — same consolidation rationale as before: previously
+// duplicated across InvestmentDecision + standalone InvestmentThesis/
+// WhyNow cards.) Analyst-voice text gets its own visual register —
+// Space Grotesk display sizing for the pull-quote, never the small
+// italic-tertiary treatment §16 reserves for inline AI-judgment captions;
+// this is primary narrative content, disclosed via the caption beneath it.
 // ═══════════════════════════════════════════════════════════════
 
-function ExecutiveSummary({ m }: { m: MemoData }) {
+function AIAnalystSection({ m }: { m: MemoData }) {
   const thesis = m.market_thesis ?? m.executive_summary
   const whyNow = m.why_now ?? m.scores.demand?.notes ?? null
 
   return (
-    <div className="card-premium p-6 sm:p-8">
+    <LabGlass tier="regular" className="p-6 sm:p-8 lab-animate-fade-up">
       <div className="flex items-center justify-between gap-3 mb-5">
-        <p className="label">Executive Summary</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lab-spectrum">AI Analyst</p>
       </div>
 
-      <blockquote className="border-l-2 border-brass/40 pl-4 sm:pl-5">
-        <p className="font-serif italic text-xl sm:text-[1.5rem] text-zinc-50 leading-snug tracking-tight">
+      <blockquote className="border-l-2 border-lab-spectrum/40 pl-4 sm:pl-5">
+        <p className="font-display italic text-xl sm:text-2xl text-lab-text-primary leading-snug tracking-tight">
           {thesis}
         </p>
       </blockquote>
@@ -1026,10 +886,10 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
       </div>
 
       {whyNow && (
-        <div className="mt-6 pt-5 border-t border-white/[0.06] flex items-start justify-between gap-5">
+        <div className="mt-6 pt-5 border-t border-lab-border-soft flex items-start justify-between gap-5">
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-2">Why Now</p>
-            <p className="text-sm text-zinc-400 leading-relaxed">{whyNow}</p>
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest mb-2">Why Now</p>
+            <p className="text-sm text-lab-text-secondary leading-relaxed">{whyNow}</p>
             <div className="mt-3">
               <ProvenanceCaption p={STATIC_PROVENANCE.whyNow} />
             </div>
@@ -1037,7 +897,7 @@ function ExecutiveSummary({ m }: { m: MemoData }) {
           <MomentumBadge whyNow={whyNow} demandNotes={m.scores.demand?.notes} demandLevel={m.scores.demand?.level} legacyDemandScore={m.scores.demand?.score} />
         </div>
       )}
-    </div>
+    </LabGlass>
   )
 }
 
@@ -1292,9 +1152,9 @@ function deriveKillCriteria(m: MemoData): string[] {
 }
 
 const SEVERITY_CFG: Record<string, { cls: string; dot: string }> = {
-  High:   { cls: 'text-red-400/90   bg-red-400/5    border-red-400/20',   dot: 'bg-red-400'    },
-  Medium: { cls: 'text-amber-400/90 bg-amber-400/5  border-amber-400/20', dot: 'bg-amber-400'  },
-  Low:    { cls: 'text-zinc-400     bg-white/[0.05]   border-white/[0.1]',     dot: 'bg-zinc-500'   },
+  High:   { cls: 'text-lab-ember/90 bg-lab-ember/5  border-lab-ember/25', dot: 'bg-lab-ember' },
+  Medium: { cls: 'text-lab-amber/90 bg-lab-amber/5  border-lab-amber/25', dot: 'bg-lab-amber' },
+  Low:    { cls: 'text-lab-text-secondary bg-white/[0.05] border-lab-border-default', dot: 'bg-lab-text-tertiary' },
 }
 
 const TAG_LABEL: Record<string, string> = {
@@ -1303,10 +1163,10 @@ const TAG_LABEL: Record<string, string> = {
 }
 
 const BLOCK_CFG = [
-  { key: 'win'      as const, Icon: IconTrendUp,    title: 'Why this could win',      cls: 'border-emerald-400/20 bg-emerald-400/5', head: 'text-emerald-400' },
-  { key: 'fail'     as const, Icon: IconTrendDown,  title: 'Why this could fail',     cls: 'border-red-400/20    bg-red-400/5',     head: 'text-red-400'     },
-  { key: 'validate' as const, Icon: IconBeaker,     title: 'Validate first',          cls: 'border-amber-400/20  bg-amber-400/5',   head: 'text-amber-400'   },
-  { key: 'angle'    as const, Icon: IconArrowRight, title: 'Recommended entry angle', cls: 'border-brass/20      bg-brass/[0.05]',   head: 'text-brass'    },
+  { key: 'win'      as const, Icon: IconTrendUp,    title: 'Why this could win',      cls: 'border-lab-verdant/25 bg-lab-verdant/5',  head: 'text-lab-verdant'  },
+  { key: 'fail'     as const, Icon: IconTrendDown,  title: 'Why this could fail',     cls: 'border-lab-ember/25   bg-lab-ember/5',    head: 'text-lab-ember'    },
+  { key: 'validate' as const, Icon: IconBeaker,     title: 'Validate first',          cls: 'border-lab-amber/25   bg-lab-amber/5',    head: 'text-lab-amber'    },
+  { key: 'angle'    as const, Icon: IconArrowRight, title: 'Recommended entry angle', cls: 'border-lab-photon/25  bg-lab-photon/5',   head: 'text-lab-photon'   },
 ]
 
 function InvestmentThesisSection({ m, blocks, decision }: { m: MemoData; blocks: DecisionBlocksData; decision: BuildDecision }) {
@@ -1318,9 +1178,9 @@ function InvestmentThesisSection({ m, blocks, decision }: { m: MemoData; blocks:
   const kill     = deriveKillCriteria(m)
 
   return (
-    <div className="card-premium overflow-hidden">
-      <div className="px-6 py-5 border-b border-white/[0.05] flex items-center justify-between gap-3">
-        <p className="label">Investment Thesis</p>
+    <LabCard className="overflow-hidden">
+      <div className="px-6 py-5 border-b border-lab-border-soft flex items-center justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lab-spectrum">Investment Thesis</p>
         <EvidenceBadge
           type="synthesized"
           detail="This section re-ranks and restates the dimension scores and market fields shown elsewhere in this memo — it does not add independent evidence of its own. Check Market Intelligence for which specific inputs were signal-grounded."
@@ -1331,12 +1191,12 @@ function InvestmentThesisSection({ m, blocks, decision }: { m: MemoData; blocks:
         {/* Four quick-read blocks */}
         <div className="grid grid-cols-2 gap-3">
           {BLOCK_CFG.map(b => (
-            <div key={b.key} className={`rounded-xl border p-4 ${b.cls}`}>
+            <div key={b.key} className={`rounded-lab-md border p-4 ${b.cls}`}>
               <div className={`flex items-center gap-1.5 mb-2 ${b.head}`}>
                 <b.Icon className="w-3.5 h-3.5" />
                 <span className="text-[10px] font-bold uppercase tracking-widest">{b.title}</span>
               </div>
-              <p className="text-xs text-zinc-300 leading-relaxed">{blocks[b.key]}</p>
+              <p className="text-xs text-lab-text-secondary leading-relaxed">{blocks[b.key]}</p>
             </div>
           ))}
         </div>
@@ -1344,15 +1204,15 @@ function InvestmentThesisSection({ m, blocks, decision }: { m: MemoData; blocks:
         {/* Reasons + Risks */}
         <div className="grid sm:grid-cols-2 gap-5">
           <div>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2.5">Top 3 Reasons to Build</p>
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-2.5">Top 3 Reasons to Build</p>
             <ol className="space-y-2.5">
               {buildPts.map((pt, i) => (
-                <li key={i} className="flex gap-2.5 text-xs text-zinc-300 leading-relaxed">
-                  <span className="font-mono text-zinc-600 shrink-0 mt-px w-4 text-right">{i+1}</span>
+                <li key={i} className="flex gap-2.5 text-xs text-lab-text-secondary leading-relaxed">
+                  <span className="lab-text-data text-lab-text-tertiary shrink-0 mt-px w-4 text-right">{i+1}</span>
                   <span>
                     {pt.text}{' '}
-                    <span className="text-[10px] text-zinc-600 ml-1">[{TAG_LABEL[pt.tag] ?? pt.tag}]</span>
-                    <span className="block text-[10px] mt-1 font-mono" style={{ color: pt.evidence ? '#34d399' : '#52525b' }}>
+                    <span className="text-[10px] text-lab-text-tertiary ml-1">[{TAG_LABEL[pt.tag] ?? pt.tag}]</span>
+                    <span className={`block text-[10px] mt-1 lab-text-data ${pt.evidence ? 'text-lab-verdant' : 'text-lab-text-tertiary'}`}>
                       {pt.evidence ? `Evidence: ${pt.evidence}` : 'No real evidence available — model judgment only'}
                     </span>
                   </span>
@@ -1361,19 +1221,19 @@ function InvestmentThesisSection({ m, blocks, decision }: { m: MemoData; blocks:
             </ol>
           </div>
           <div>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2.5">Top 3 Risks</p>
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-2.5">Top 3 Risks</p>
             <ol className="space-y-2.5">
               {risks.map((r, i) => {
                 const cfg = SEVERITY_CFG[r.severity]
                 return (
-                  <li key={i} className="flex gap-2.5 text-xs text-zinc-300 leading-relaxed">
-                    <span className="font-mono text-zinc-600 shrink-0 mt-px w-4 text-right">{i+1}</span>
+                  <li key={i} className="flex gap-2.5 text-xs text-lab-text-secondary leading-relaxed">
+                    <span className="lab-text-data text-lab-text-tertiary shrink-0 mt-px w-4 text-right">{i+1}</span>
                     <span>
                       {r.text}{' '}
                       <span className={`inline-flex items-center gap-1 text-[10px] border rounded-full px-1.5 py-0.5 ml-1 ${cfg.cls}`}>
                         <span className={`w-1 h-1 rounded-full ${cfg.dot}`}/>{r.severity}
                       </span>
-                      <span className="block text-[10px] mt-1 font-mono" style={{ color: r.evidence ? '#34d399' : '#52525b' }}>
+                      <span className={`block text-[10px] mt-1 lab-text-data ${r.evidence ? 'text-lab-verdant' : 'text-lab-text-tertiary'}`}>
                         {r.evidence ? `Evidence: ${r.evidence}` : 'No real evidence available — model judgment only'}
                       </span>
                     </span>
@@ -1385,12 +1245,12 @@ function InvestmentThesisSection({ m, blocks, decision }: { m: MemoData; blocks:
         </div>
 
         {/* Validation plan */}
-        <div className="bg-white/[0.03] rounded-xl p-4">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2.5">First Validation Plan (30–60 days)</p>
+        <div className="bg-white/[0.03] rounded-lab-md p-4">
+          <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-2.5">First Validation Plan (30–60 days)</p>
           <ol className="space-y-1.5">
             {steps.map((s, i) => (
-              <li key={i} className="flex gap-2.5 text-xs text-zinc-300 leading-relaxed">
-                <span className="font-mono text-zinc-600 shrink-0 mt-px w-4 text-right">{i+1}</span>{s}
+              <li key={i} className="flex gap-2.5 text-xs text-lab-text-secondary leading-relaxed">
+                <span className="lab-text-data text-lab-text-tertiary shrink-0 mt-px w-4 text-right">{i+1}</span>{s}
               </li>
             ))}
           </ol>
@@ -1398,34 +1258,34 @@ function InvestmentThesisSection({ m, blocks, decision }: { m: MemoData; blocks:
 
         {/* Budget | Metrics | Kill */}
         <div className="grid sm:grid-cols-3 gap-3">
-          <div className="bg-white/[0.04] rounded-xl p-4">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Estimated Validation Budget</p>
-            <p className="font-mono font-bold text-lg text-zinc-100 mb-1">{budget.range}</p>
-            <p className="text-[11px] text-zinc-500 leading-snug">{budget.breakdown}</p>
+          <div className="bg-white/[0.04] rounded-lab-md p-4">
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-2">Estimated Validation Budget</p>
+            <p className="lab-text-data font-bold text-lg text-lab-text-primary mb-1">{budget.range}</p>
+            <p className="text-[11px] text-lab-text-tertiary leading-snug">{budget.breakdown}</p>
           </div>
-          <div className="bg-white/[0.04] rounded-xl p-4">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Success Metrics</p>
+          <div className="bg-white/[0.04] rounded-lab-md p-4">
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-2">Success Metrics</p>
             <ul className="space-y-1.5">
               {metrics.map((mt, i) => (
-                <li key={i} className="flex gap-2 text-xs text-zinc-300 leading-snug">
-                  <IconArrowRight className="w-3.5 h-3.5 text-brass shrink-0 mt-0.5" />{mt}
+                <li key={i} className="flex gap-2 text-xs text-lab-text-secondary leading-snug">
+                  <IconArrowRight className="w-3.5 h-3.5 text-lab-photon shrink-0 mt-0.5" />{mt}
                 </li>
               ))}
             </ul>
           </div>
-          <div className="bg-white/[0.04] rounded-xl p-4">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Kill Criteria</p>
+          <div className="bg-white/[0.04] rounded-lab-md p-4">
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-2">Kill Criteria</p>
             <ul className="space-y-1.5">
               {kill.map((k, i) => (
-                <li key={i} className="flex gap-2 text-xs text-zinc-300 leading-snug">
-                  <IconX className="w-3 h-3 text-red-400/70 shrink-0 mt-1" />{k}
+                <li key={i} className="flex gap-2 text-xs text-lab-text-secondary leading-snug">
+                  <IconX className="w-3 h-3 text-lab-ember/70 shrink-0 mt-1" />{k}
                 </li>
               ))}
             </ul>
           </div>
         </div>
       </div>
-    </div>
+    </LabCard>
   )
 }
 
@@ -1463,9 +1323,9 @@ function ConsumerArchetype({ m }: { m: MemoData }) {
   if (fields.length === 0) return null
 
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.03] to-transparent p-5 sm:p-6">
+    <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md bg-gradient-to-b from-white/[0.03] to-transparent p-5 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Customer Archetype</p>
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Customer Archetype</p>
         <ProvenanceBadge p={STATIC_PROVENANCE.customerLanguage} />
       </div>
       <div className="flex flex-col sm:flex-row gap-5">
@@ -1475,8 +1335,8 @@ function ConsumerArchetype({ m }: { m: MemoData }) {
         <dl className="flex-1 grid sm:grid-cols-2 gap-x-5 gap-y-3.5 min-w-0">
           {fields.map(([label, value]) => (
             <div key={label} className="min-w-0">
-              <dt className="text-[9px] text-zinc-500 uppercase tracking-wider mb-1">{label}</dt>
-              <dd className="text-[13px] text-zinc-200 leading-snug">{value}</dd>
+              <dt className="text-[9px] text-lab-text-tertiary uppercase tracking-wider mb-1">{label}</dt>
+              <dd className="text-[13px] text-lab-text-primary leading-snug">{value}</dd>
             </div>
           ))}
         </dl>
@@ -1505,27 +1365,27 @@ function ConsumerIntelligenceContent({ m }: { m: MemoData }) {
   const cards: { id: string; kind: Kind; node: React.ReactNode }[] = [
     ...cl.frustrations.map((q, i) => ({
       id: `fr-${i}`, kind: 'voice' as const,
-      node: <p className="font-serif italic text-[13px] text-zinc-300 leading-relaxed">&ldquo;{q}&rdquo;</p>,
+      node: <p className="italic text-[13px] text-lab-text-secondary leading-relaxed">&ldquo;{q}&rdquo;</p>,
     })),
     ...cl.ad_phrases.map((ap, i) => ({
       id: `ad-${i}`, kind: 'ad' as const,
       node: (
         <div className="space-y-2">
-          <p className="text-[11px] text-zinc-500 italic leading-relaxed">&ldquo;{ap.they_say}&rdquo;</p>
+          <p className="text-[11px] text-lab-text-tertiary italic leading-relaxed">&ldquo;{ap.they_say}&rdquo;</p>
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider" style={{ color: '#34d399' }}>
             <IconArrowRight className="w-3 h-3" />Use in copy
           </div>
-          <p className="text-[13px] text-zinc-100 font-medium leading-relaxed">{ap.use_in_copy}</p>
+          <p className="text-[13px] text-lab-text-primary font-medium leading-relaxed">{ap.use_in_copy}</p>
         </div>
       ),
     })),
     ...cl.desires.map((d, i) => ({
       id: `de-${i}`, kind: 'desire' as const,
-      node: <p className="text-[13px] text-zinc-200 leading-relaxed">{d}</p>,
+      node: <p className="text-[13px] text-lab-text-primary leading-relaxed">{d}</p>,
     })),
     ...cl.fears.map((f, i) => ({
       id: `fe-${i}`, kind: 'fear' as const,
-      node: <p className="text-[13px] text-zinc-200 leading-relaxed">{f}</p>,
+      node: <p className="text-[13px] text-lab-text-primary leading-relaxed">{f}</p>,
     })),
   ]
 
@@ -1568,15 +1428,15 @@ function ConsumerIntelligenceContent({ m }: { m: MemoData }) {
 // ═══════════════════════════════════════════════════════════════
 
 const CONCENTRATION_CFG: Record<string, { label: string; cls: string }> = {
-  'Low':       { label: 'Low Concentration',  cls: 'text-emerald-400 bg-emerald-400/10' },
-  'Moderate':  { label: 'Moderate',           cls: 'text-amber-400   bg-amber-400/10'   },
+  'Low':       { label: 'Low Concentration',  cls: 'text-lab-verdant bg-lab-verdant/10' },
+  'Moderate':  { label: 'Moderate',           cls: 'text-lab-amber   bg-lab-amber/10'   },
   'High':      { label: 'High Concentration', cls: 'text-orange-400  bg-orange-400/10'  },
-  'Very High': { label: 'Very High',          cls: 'text-red-400     bg-red-400/10'     },
+  'Very High': { label: 'Very High',          cls: 'text-lab-ember     bg-lab-ember/10'     },
 }
 const DIFFICULTY_CFG: Record<string, { cls: string }> = {
-  'Low':    { cls: 'text-emerald-400' },
-  'Medium': { cls: 'text-amber-400'   },
-  'High':   { cls: 'text-red-400'     },
+  'Low':    { cls: 'text-lab-verdant' },
+  'Medium': { cls: 'text-lab-amber'   },
+  'High':   { cls: 'text-lab-ember'     },
 }
 const DIM_LABELS: Record<string, string> = {
   demand: 'Demand', virality: 'Virality', subscription: 'Subscription',
@@ -1591,14 +1451,14 @@ function MarketSaturationBlock({ m }: { m: MemoData }) {
     const notes  = m.scores.competition?.notes
     const access = mapAccessibility(score)
     const [colorText, colorBg, label] =
-      score >= 7 ? ['text-emerald-400', 'bg-emerald-400', 'Open Market'   ] :
-      score >= 5 ? ['text-amber-400',   'bg-amber-400',   'Moderate Entry'] :
+      score >= 7 ? ['text-lab-verdant', 'bg-lab-verdant', 'Open Market'   ] :
+      score >= 5 ? ['text-lab-amber',   'bg-lab-amber',   'Moderate Entry'] :
       score >= 3 ? ['text-orange-400',  'bg-orange-400',  'Crowded'       ] :
-                   ['text-red-400',     'bg-red-400',     'Saturated'     ]
+                   ['text-lab-ember',     'bg-lab-ember',     'Saturated'     ]
     return (
       <div>
         <div className="flex items-center gap-2.5 mb-3">
-          <span className={`font-mono font-bold text-xl ${colorText}`}>{score}<span className="text-zinc-600 text-xs font-normal">/10</span></span>
+          <span className={`font-mono font-bold text-xl ${colorText}`}>{score}<span className="text-lab-text-tertiary text-xs font-normal">/10</span></span>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colorText} bg-white/[0.06]`}>{label}</span>
         </div>
         <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden mb-4">
@@ -1607,12 +1467,12 @@ function MarketSaturationBlock({ m }: { m: MemoData }) {
         <div className="ledger mb-4">
           {([['Seller Density', access.density],['Entry Barriers', access.barriers],['Revenue Concentration', access.revenue],['Whitespace', access.whitespace]] as [string,string][]).map(([l,v]) => (
             <div key={l} className="ledger-row justify-between gap-4">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider shrink-0">{l}</p>
-              <p className="text-xs text-zinc-300 leading-snug text-right">{v}</p>
+              <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider shrink-0">{l}</p>
+              <p className="text-xs text-lab-text-secondary leading-snug text-right">{v}</p>
             </div>
           ))}
         </div>
-        {notes && <p className="text-xs text-zinc-500 leading-relaxed">{notes}</p>}
+        {notes && <p className="text-xs text-lab-text-tertiary leading-relaxed">{notes}</p>}
       </div>
     )
   }
@@ -1623,12 +1483,12 @@ function MarketSaturationBlock({ m }: { m: MemoData }) {
   return (
     <div>
       <div className="flex flex-wrap gap-2 mb-4">
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/[0.06] text-zinc-300 border border-white/[0.1]">{sat.maturity ?? '—'}</span>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/[0.06] text-lab-text-secondary border border-white/[0.1]">{sat.maturity ?? '—'}</span>
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border border-transparent ${concCfg.cls}`}>{concCfg.label}</span>
         <span className={`text-xs font-semibold ${diffCfg.cls}`}>Entry: {sat.entry_difficulty}</span>
       </div>
       {sat.competitive_intensity && (
-        <p className="text-sm text-zinc-300 leading-relaxed">{sat.competitive_intensity}</p>
+        <p className="text-sm text-lab-text-secondary leading-relaxed">{sat.competitive_intensity}</p>
       )}
     </div>
   )
@@ -1648,42 +1508,42 @@ function TikTokSignalCard({
   const color = level === 'Strong' ? '#34d399' : level === 'Moderate' ? '#fbbf24' : level === 'Weak' ? '#71717a' : '#52525b'
   const hasRaw = virality?.video_count !== undefined && virality?.view_count !== undefined
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-[#0d0d10] p-4">
+    <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md bg-[#0d0d10] p-4">
       <div className="flex items-center gap-4">
         <div className="relative w-10 h-[58px] rounded-[11px] border-2 shrink-0 grid place-items-center" style={{ borderColor: `${color}55` }}>
           {level && <PulseRings level={level} />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs font-semibold text-zinc-200">TikTok Signal</span>
+            <span className="text-xs font-semibold text-lab-text-primary">TikTok Signal</span>
             <ProvenanceBadge p={provenance} />
           </div>
-          <p className="text-xs text-zinc-500 leading-snug line-clamp-2">{notes}</p>
+          <p className="text-xs text-lab-text-tertiary leading-snug line-clamp-2">{notes}</p>
         </div>
         <div className="text-right shrink-0">
           {score !== null ? (
-            <p className="font-serif font-medium text-2xl leading-none" style={{ color }}>
-              {score}<span className="text-zinc-600 text-[10px] font-sans">/10</span>
+            <p className="font-display font-semibold text-2xl leading-none" style={{ color }}>
+              {score}<span className="text-lab-text-tertiary text-[10px] font-sans">/10</span>
             </p>
           ) : (
-            <p className="font-serif font-medium text-base leading-none" style={{ color }}>{qualitativeLevel ?? '—'}</p>
+            <p className="font-display font-semibold text-base leading-none" style={{ color }}>{qualitativeLevel ?? '—'}</p>
           )}
-          {level && <p className="text-[9px] text-zinc-600 uppercase tracking-wider mt-1">{level}</p>}
+          {level && <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider mt-1">{level}</p>}
         </div>
       </div>
       {hasRaw && (
-        <div className="flex divide-x divide-white/[0.06] mt-3 pt-3 border-t border-white/[0.06]">
+        <div className="flex divide-x divide-white/[0.06] mt-3 pt-3 border-t border-lab-border-soft">
           <div className="flex-1 px-2 text-center">
-            <p className="text-[9px] text-zinc-600 uppercase tracking-wider">#{virality!.hashtag}</p>
-            <p className="text-xs text-zinc-500">real hashtag</p>
+            <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider">#{virality!.hashtag}</p>
+            <p className="text-xs text-lab-text-tertiary">real hashtag</p>
           </div>
           <div className="flex-1 px-2 text-center">
-            <p className="font-mono text-sm font-semibold text-zinc-200">{virality!.video_count!.toLocaleString()}</p>
-            <p className="text-[9px] text-zinc-600 uppercase tracking-wider">videos</p>
+            <p className="font-mono text-sm font-semibold text-lab-text-primary">{virality!.video_count!.toLocaleString()}</p>
+            <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider">videos</p>
           </div>
           <div className="flex-1 px-2 text-center">
-            <p className="font-mono text-sm font-semibold text-zinc-200">{virality!.view_count!.toLocaleString()}</p>
-            <p className="text-[9px] text-zinc-600 uppercase tracking-wider">views</p>
+            <p className="font-mono text-sm font-semibold text-lab-text-primary">{virality!.view_count!.toLocaleString()}</p>
+            <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider">views</p>
           </div>
         </div>
       )}
@@ -1711,12 +1571,12 @@ function EvidenceMetricRow({
   label, value,
 }: { label: string; value: string | undefined; provenance: Provenance | null }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2 border-b border-white/[0.05] last:border-b-0">
-      <span className="text-xs text-zinc-500">{label}</span>
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-lab-border-faint last:border-b-0">
+      <span className="text-xs text-lab-text-tertiary">{label}</span>
       {value ? (
-        <span className="text-sm font-mono font-semibold text-zinc-100 text-right">{value}</span>
+        <span className="lab-text-data text-sm font-semibold text-lab-text-primary text-right">{value}</span>
       ) : (
-        <span className="text-sm font-mono text-zinc-600 italic">No data available</span>
+        <LabNoData />
       )}
     </div>
   )
@@ -1724,6 +1584,11 @@ function EvidenceMetricRow({
 
 interface EvidenceRowSpec { label: string; value: string | undefined; provenance: Provenance | null }
 
+// The flagship Demand/Revenue/Competition cards all render through this one
+// component — its left accent bar takes the SAME provenance tier as the
+// dimension's own score provenance, so a glance at the bar tells you
+// whether the whole card's verdict is real or AI-judgment before reading
+// a single row (§16's evidence-card convention).
 function EvidencePanel({
   title, metrics, scoreLabel, scoreProvenance, score, scoreLevel,
 }: {
@@ -1734,7 +1599,8 @@ function EvidencePanel({
   score:           number | null
   scoreLevel:      'Strong' | 'Moderate' | 'Weak' | null
 }) {
-  const color = scoreLevel === 'Strong' ? '#34d399' : scoreLevel === 'Moderate' ? '#fbbf24' : '#71717a'
+  const color = scoreLevel === 'Strong' ? '#34d9a0' : scoreLevel === 'Moderate' ? '#f5b947' : '#686c78'
+  const tier  = scoreProvenance?.level ?? 'unknown'
 
   const uniqueProvenances = Array.from(
     new Map(
@@ -1745,34 +1611,34 @@ function EvidencePanel({
   )
 
   return (
-    <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
-      <p className="text-xs font-semibold text-zinc-200 mb-3">{title}</p>
+    <LabEvidenceCard tier={tier} className="p-4 sm:p-5">
+      <p className="text-xs font-semibold text-lab-text-primary mb-3">{title}</p>
 
       <div>
         {metrics.map(row => <EvidenceMetricRow key={row.label} {...row} />)}
       </div>
 
       {uniqueProvenances.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-white/[0.06]">
+        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-lab-border-soft">
           {uniqueProvenances.map((p, i) => <ProvenanceBadge key={i} p={p} />)}
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-white/[0.06]">
-        <span className="text-[10px] text-zinc-600 uppercase tracking-wider">{scoreLabel}</span>
+      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-lab-border-soft">
+        <span className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">{scoreLabel}</span>
         {score !== null && scoreLevel !== null && scoreProvenance ? (
           <div className="flex items-center gap-2">
             <ProvenanceBadge p={scoreProvenance} />
             <SignalBars level={scoreLevel} />
-            <span className="font-serif font-medium text-lg leading-none" style={{ color }}>
-              {score}<span className="text-zinc-600 text-[10px] font-sans">/10</span>
+            <span className="lab-text-data font-bold text-lg leading-none" style={{ color }}>
+              {score}<span className="text-lab-text-tertiary text-[10px] font-sans">/10</span>
             </span>
           </div>
         ) : (
-          <span className="text-sm font-mono text-zinc-600 italic">No data available</span>
+          <LabNoData />
         )}
       </div>
-    </div>
+    </LabEvidenceCard>
   )
 }
 
@@ -1884,13 +1750,13 @@ interface MeaningfulCompetitor {
 function CompetitorIngredientsRow({ label }: { label: string }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <tr className="border-t border-white/[0.05] bg-white/[0.01]">
+    <tr className="border-t border-lab-border-faint bg-white/[0.01]">
       <td colSpan={5} className="py-2 px-3">
-        <button onClick={() => setExpanded(e => !e)} className="text-[10px] text-emerald-400/70 hover:text-emerald-400 transition-colors">
+        <button onClick={() => setExpanded(e => !e)} className="text-[10px] text-lab-verdant/70 hover:text-lab-verdant transition-colors">
           {expanded ? 'Hide' : 'Show'} real ingredients label {expanded ? '↑' : '↓'}
         </button>
         {expanded && (
-          <p className="mt-2 text-[11px] text-zinc-500 leading-relaxed">{label}</p>
+          <p className="mt-2 text-[11px] text-lab-text-tertiary leading-relaxed">{label}</p>
         )}
       </td>
     </tr>
@@ -1900,14 +1766,14 @@ function CompetitorIngredientsRow({ label }: { label: string }) {
 function CompetitorBulletsRow({ bullets }: { bullets: string[] }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <tr className="border-t border-white/[0.05] bg-white/[0.01]">
+    <tr className="border-t border-lab-border-faint bg-white/[0.01]">
       <td colSpan={5} className="py-2 px-3">
-        <button onClick={() => setExpanded(e => !e)} className="text-[10px] text-amber-400/70 hover:text-amber-400 transition-colors">
+        <button onClick={() => setExpanded(e => !e)} className="text-[10px] text-lab-amber/70 hover:text-lab-amber transition-colors">
           {expanded ? 'Hide' : 'Show'} real listing copy ({bullets.length} bullets) {expanded ? '↑' : '↓'}
         </button>
         {expanded && (
           <ul className="mt-2 space-y-1.5">
-            {bullets.map((b, i) => <li key={i} className="text-[11px] text-zinc-500 leading-relaxed">• {b}</li>)}
+            {bullets.map((b, i) => <li key={i} className="text-[11px] text-lab-text-tertiary leading-relaxed">• {b}</li>)}
           </ul>
         )}
       </td>
@@ -1921,15 +1787,15 @@ function MeaningfulCompetitorsList({ competitors }: { competitors: MeaningfulCom
   // shown once as a caption rather than repeated on every row.
   const sharedBreadcrumb = competitors.find(c => c.breadcrumb)?.breadcrumb
   return (
-    <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+    <LabCard className="p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-1">
-        <p className="text-xs font-semibold text-zinc-200">Meaningful Competitors</p>
+        <p className="text-xs font-semibold text-lab-text-primary">Meaningful Competitors</p>
       </div>
-      {sharedBreadcrumb && <p className="text-[10px] text-zinc-600 mb-3">{sharedBreadcrumb}</p>}
-      <div className="overflow-x-auto rounded-lg border border-white/[0.06]">
+      {sharedBreadcrumb && <p className="text-[10px] text-lab-text-tertiary mb-3">{sharedBreadcrumb}</p>}
+      <div className="overflow-x-auto rounded-lab-sm border border-lab-border-soft">
         <table className="w-full text-sm min-w-[420px]">
           <thead>
-            <tr className="bg-white/[0.04] text-[10px] text-zinc-500 uppercase tracking-wider">
+            <tr className="bg-white/[0.04] text-[10px] text-lab-text-tertiary uppercase tracking-wider">
               <th className="text-left py-2 px-3 w-10">Rank</th>
               <th className="text-left py-2 px-3">Brand</th>
               <th className="text-right py-2 px-3">Reviews</th>
@@ -1940,12 +1806,12 @@ function MeaningfulCompetitorsList({ competitors }: { competitors: MeaningfulCom
           <tbody>
             {competitors.map((c, i) => (
               <Fragment key={i}>
-                <tr className="border-t border-white/[0.05]">
-                  <td className="py-2 px-3 font-mono text-zinc-500">{c.position ?? '—'}</td>
-                  <td className="py-2 px-3 font-medium text-zinc-200">{c.brand}</td>
-                  <td className="py-2 px-3 text-right font-mono text-zinc-300">{c.reviewCount.toLocaleString()}</td>
-                  <td className="py-2 px-3 text-right font-mono text-zinc-300">{c.rating.toFixed(1)}</td>
-                  <td className="py-2 px-3 text-right font-mono text-zinc-300">${c.price.toFixed(2)}</td>
+                <tr className="border-t border-lab-border-faint hover:bg-lab-void-3 transition-colors duration-lab-fast">
+                  <td className="py-2 px-3 lab-text-data text-lab-text-tertiary">{c.position ?? '—'}</td>
+                  <td className="py-2 px-3 font-medium text-lab-text-primary">{c.brand}</td>
+                  <td className="py-2 px-3 text-right lab-text-data text-lab-text-secondary">{c.reviewCount.toLocaleString()}</td>
+                  <td className="py-2 px-3 text-right lab-text-data text-lab-text-secondary">{c.rating.toFixed(1)}</td>
+                  <td className="py-2 px-3 text-right lab-text-data text-lab-text-secondary">${c.price.toFixed(2)}</td>
                 </tr>
                 {c.bullets && c.bullets.length > 0 && <CompetitorBulletsRow bullets={c.bullets} />}
                 {c.ingredients_label && <CompetitorIngredientsRow label={c.ingredients_label} />}
@@ -1954,7 +1820,7 @@ function MeaningfulCompetitorsList({ competitors }: { competitors: MeaningfulCom
           </tbody>
         </table>
       </div>
-    </div>
+    </LabCard>
   )
 }
 
@@ -2003,17 +1869,15 @@ function CompetitionEvidencePanel({ m }: { m: MemoData }) {
 // date have the original 4-bucket shape only and must keep rendering.
 // ═══════════════════════════════════════════════════════════════
 
-const KEYWORD_NAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
 function KeywordTable({ keywords }: { keywords: KeywordMetric[] }) {
   if (keywords.length === 0) {
-    return <p className="text-xs text-zinc-600 italic py-4 text-center">No keywords met this bucket&rsquo;s criteria for this query.</p>
+    return <LabNoData label="No keywords met this bucket's criteria for this query." />
   }
   return (
-    <div className="overflow-x-auto rounded-lg border border-white/[0.06]">
+    <div className="overflow-x-auto rounded-lab-sm border border-lab-border-soft">
       <table className="w-full text-sm min-w-[420px]">
         <thead>
-          <tr className="bg-white/[0.04] text-[10px] text-zinc-500 uppercase tracking-wider">
+          <tr className="bg-white/[0.04] text-[10px] text-lab-text-tertiary uppercase tracking-wider">
             <th className="text-left py-2.5 px-3">Keyword</th>
             <th className="text-right py-2.5 px-3">Monthly Searches</th>
             <th className="text-right py-2.5 px-3">Growth</th>
@@ -2022,13 +1886,13 @@ function KeywordTable({ keywords }: { keywords: KeywordMetric[] }) {
         </thead>
         <tbody>
           {keywords.map((k, i) => (
-            <tr key={i} className="border-t border-white/[0.05] hover:bg-white/[0.02]">
-              <td className="py-2.5 px-3 font-medium text-zinc-200">{k.keyword}</td>
-              <td className="py-2.5 px-3 text-right font-mono text-zinc-300">{k.monthly_searches.toLocaleString()}</td>
-              <td className={`py-2.5 px-3 text-right font-mono ${k.growth_pct === null ? 'text-zinc-600' : k.growth_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <tr key={i} className="border-t border-lab-border-faint hover:bg-lab-void-3 transition-colors duration-lab-fast">
+              <td className="py-2.5 px-3 font-medium text-lab-text-primary">{k.keyword}</td>
+              <td className="py-2.5 px-3 text-right lab-text-data text-lab-text-secondary">{k.monthly_searches.toLocaleString()}</td>
+              <td className={`py-2.5 px-3 text-right lab-text-data ${k.growth_pct === null ? 'text-lab-text-tertiary' : k.growth_pct >= 0 ? 'text-lab-verdant' : 'text-lab-ember'}`}>
                 {k.growth_pct === null ? '—' : `${k.growth_pct >= 0 ? '+' : ''}${k.growth_pct}%`}
               </td>
-              <td className="py-2.5 px-3 text-right font-mono text-zinc-500 hidden sm:table-cell">{k.difficulty ?? '—'}</td>
+              <td className="py-2.5 px-3 text-right lab-text-data text-lab-text-tertiary hidden sm:table-cell">{k.difficulty ?? '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -2045,7 +1909,7 @@ function ExpandableKeywordTable({ keywords, collapseAt = 5 }: { keywords: Keywor
     <div>
       <KeywordTable keywords={shown} />
       {hidden > 0 && !expanded && (
-        <button onClick={() => setExpanded(true)} className="text-[11px] text-amber-400/70 hover:text-amber-400 transition-colors mt-2">
+        <button onClick={() => setExpanded(true)} className="text-[11px] text-lab-photon/70 hover:text-lab-photon transition-colors mt-2">
           Show {hidden} more →
         </button>
       )}
@@ -2056,166 +1920,30 @@ function ExpandableKeywordTable({ keywords, collapseAt = 5 }: { keywords: Keywor
 function KeywordDataQualityBar({ ki }: { ki: KeywordIntelligence }) {
   const pct = ki.confidence !== undefined ? Math.round(ki.confidence * 100) : null
   return (
-    <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap text-[10px] text-zinc-500 bg-white/[0.02] border border-white/[0.06] rounded-lg px-3.5 py-2.5">
-      <span>Seed: <span className="text-zinc-300 font-mono">&ldquo;{ki.seed_keyword}&rdquo;</span></span>
-      <span>Source: <span className="text-zinc-300 font-mono">{ki.provider === 'dataforseo' ? 'DataForSEO' : ki.provider}</span></span>
-      {pct !== null && <span>Real-data completeness: <span className="text-zinc-300 font-mono">{pct}%</span></span>}
-      <span>Last updated: <span className="text-zinc-300 font-mono">{new Date(ki.fetched_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</span></span>
+    <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap text-[10px] text-lab-text-tertiary bg-white/[0.02] border border-lab-border-soft rounded-lab-sm px-3.5 py-2.5">
+      <span>Seed: <span className="lab-text-data text-lab-text-secondary">&ldquo;{ki.seed_keyword}&rdquo;</span></span>
+      <span>Source: <span className="lab-text-data text-lab-text-secondary">{ki.provider === 'dataforseo' ? 'DataForSEO' : ki.provider}</span></span>
+      {pct !== null && <span>Real-data completeness: <span className="lab-text-data text-lab-text-secondary">{pct}%</span></span>}
+      <span>Last updated: <span className="lab-text-data text-lab-text-secondary">{new Date(ki.fetched_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</span></span>
     </div>
   )
 }
 
 // Real 12-month volume bars + trend line — the actual DataForSEO history,
 // not a synthetic curve.
-function VolumeTrendChart({ history }: { history: { year: number; month: number; volume: number }[] }) {
-  if (history.length < 3) return null
-  const W = 600, H = 160, PAD = 22
-  const maxVol = Math.max(...history.map(h => h.volume), 1)
-  const barW = (W - PAD * 2) / history.length
-  const linePoints = history.map((h, i) => {
-    const x = PAD + i * barW + barW / 2
-    const y = H - PAD - (h.volume / maxVol) * (H - PAD * 2)
-    return `${x},${y}`
-  }).join(' ')
-
-  return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-        {history.map((h, i) => {
-          const x = PAD + i * barW
-          const barH = (h.volume / maxVol) * (H - PAD * 2)
-          return <rect key={i} x={x + 1} y={H - PAD - barH} width={Math.max(1, barW - 2)} height={barH} fill="rgba(200,164,99,0.22)" />
-        })}
-        <polyline points={linePoints} fill="none" stroke="#C8A463" strokeWidth="1.5" />
-        <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="rgba(255,255,255,0.08)" />
-      </svg>
-      <div className="flex justify-between text-[9px] text-zinc-600 mt-1">
-        <span>{history[0].year}-{String(history[0].month).padStart(2, '0')}</span>
-        <span>{history[history.length - 1].year}-{String(history[history.length - 1].month).padStart(2, '0')}</span>
-      </div>
-    </div>
-  )
-}
-
-// Real per-calendar-month average from the same monthly history — peak/low
-// coloring matches the already-computed seasonality.peak_months/low_months
-// (same coefficient-of-variation method as lib/stats.ts).
-function SeasonalityChart({ history, seasonality }: {
-  history: { year: number; month: number; volume: number }[]
-  seasonality: KeywordSeasonality
-}) {
-  const byMonth: Record<number, number[]> = {}
-  for (const h of history) {
-    const idx = h.month - 1
-    if (!byMonth[idx]) byMonth[idx] = []
-    byMonth[idx].push(h.volume)
-  }
-  const bars = KEYWORD_NAMES_SHORT.map((name, i) => {
-    const vals = byMonth[i] ?? []
-    const avgVol = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
-    return { name, avgVol, isPeak: seasonality.peak_months.includes(name), isLow: seasonality.low_months.includes(name) }
-  })
-  const maxVol = Math.max(...bars.map(b => b.avgVol), 1)
-  const W = 600, H = 120, PAD = 8
-  const barW = (W - PAD * 2) / 12
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
-      {bars.map((b, i) => {
-        const barH = (b.avgVol / maxVol) * (H - 24)
-        const x = PAD + i * barW
-        const color = b.isPeak ? '#34d399' : b.isLow ? '#f87171' : 'rgba(255,255,255,0.18)'
-        return (
-          <g key={b.name}>
-            <rect x={x + 1} y={H - 18 - barH} width={Math.max(1, barW - 2)} height={barH} fill={color} />
-            <text x={x + barW / 2} y={H - 4} fontSize="8" textAnchor="middle" fill="#71717a">{b.name}</text>
-          </g>
-        )
-      })}
-    </svg>
-  )
-}
-
-function ForecastChart({ forecast }: { forecast: KeywordForecastPoint[] }) {
-  const W = 600, H = 120, PAD = 20
-  const maxVol = Math.max(...forecast.map(f => f.projected_volume), 1)
-  const points = forecast.map((f, i) => {
-    const x = PAD + (forecast.length > 1 ? (i / (forecast.length - 1)) * (W - PAD * 2) : 0)
-    const y = H - PAD - (f.projected_volume / maxVol) * (H - PAD * 2)
-    return `${x},${y}`
-  }).join(' ')
-  return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
-        <polyline points={points} fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="4 3" />
-        <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="rgba(255,255,255,0.08)" />
-      </svg>
-      <div className="flex justify-between text-[9px] text-zinc-600 mt-1">
-        <span>{forecast[0]?.month}</span>
-        <span>{forecast[forecast.length - 1]?.month}</span>
-      </div>
-    </div>
-  )
-}
-
-// Scatter: x = real competition index, y = real volume (log scale), size/color
-// = computed opportunity score. Capped to the top 25 by volume for readability.
-function OpportunityHeatmap({ metrics }: { metrics: KeywordMetric[] }) {
-  const pts = [...metrics]
-    .filter(m => m.competition !== null && m.competition !== undefined)
-    .sort((a, b) => b.monthly_searches - a.monthly_searches)
-    .slice(0, 25)
-  if (!pts.length) return <p className="text-xs text-zinc-600 italic py-4 text-center">No competition-index data available for this query.</p>
-
-  const W = 600, H = 260, PAD = 30
-  const maxVol = Math.max(...pts.map(p => p.monthly_searches), 1)
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
-      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="rgba(255,255,255,0.1)" />
-      <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="rgba(255,255,255,0.1)" />
-      {pts.map((p, i) => {
-        const x = PAD + (p.competition ?? 0) * (W - PAD * 2)
-        const y = H - PAD - (Math.log10(p.monthly_searches + 1) / Math.log10(maxVol + 1)) * (H - PAD * 2)
-        const score = p.opportunity_score ?? 0
-        const r = 3 + (score / 100) * 8
-        const color = score >= 60 ? '#34d399' : score >= 35 ? '#fbbf24' : '#71717a'
-        return <circle key={p.keyword + i} cx={x} cy={y} r={r} fill={color} fillOpacity={0.5} stroke={color} strokeWidth={1} />
-      })}
-      <text x={PAD} y={H - 10} fontSize="8" fill="#71717a">Low competition</text>
-      <text x={W - PAD - 62} y={H - 10} fontSize="8" fill="#71717a">High competition</text>
-      <text x={PAD + 2} y={PAD - 8} fontSize="8" fill="#71717a">High volume ↑</text>
-    </svg>
-  )
-}
-
-function ClusterDistributionChart({ clusters }: { clusters: KeywordCluster[] }) {
-  const withCounts = clusters.map(c => ({ label: c.label, count: c.keywords.length }))
-  const maxCount = Math.max(...withCounts.map(c => c.count), 1)
-  return (
-    <div className="space-y-1.5">
-      {withCounts.map(c => (
-        <div key={c.label} className="flex items-center gap-2">
-          <span className="text-[10px] text-zinc-500 w-32 sm:w-36 shrink-0 truncate">{c.label}</span>
-          <div className="flex-1 h-3 bg-white/[0.04] rounded-sm overflow-hidden">
-            <div className="h-full bg-brass/40" style={{ width: `${(c.count / maxCount) * 100}%` }} />
-          </div>
-          <span className="text-[10px] font-mono text-zinc-400 w-6 text-right">{c.count}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
+// VolumeTrendChart/SeasonalityChart/ForecastChart/OpportunityHeatmap/
+// ClusterDistributionChart moved to components/lab/Charts.tsx — imported above.
 
 function KeywordClusterCard({ cluster }: { cluster: KeywordCluster }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] p-4">
+    <LabCard className="p-4">
       <div className="flex items-center justify-between gap-3 mb-1.5">
-        <p className="text-xs font-semibold text-zinc-200">{cluster.label}</p>
-        <span className="text-[10px] font-mono text-zinc-500">{cluster.keywords.length}</span>
+        <p className="text-xs font-semibold text-lab-text-primary">{cluster.label}</p>
+        <span className="lab-text-data text-[10px] text-lab-text-tertiary">{cluster.keywords.length}</span>
       </div>
-      <p className="text-[10px] text-zinc-600 mb-3">{cluster.basis}</p>
+      <p className="text-[10px] text-lab-text-tertiary mb-3">{cluster.basis}</p>
       <ExpandableKeywordTable keywords={cluster.keywords} collapseAt={5} />
-    </div>
+    </LabCard>
   )
 }
 
@@ -2230,20 +1958,20 @@ function KeywordOpportunityDiscoverySection({ opp }: { opp: KeywordOpportunitySi
     <div className="space-y-5">
       <div className="grid sm:grid-cols-2 gap-4">
         {groups.map(g => (
-          <div key={g.label} className="rounded-xl border border-white/[0.07] p-4">
-            <p className="text-xs font-semibold text-zinc-200 mb-1">{g.label}</p>
-            <p className="text-[10px] text-zinc-600 mb-3">{g.hint}</p>
+          <LabCard key={g.label} className="p-4">
+            <p className="text-xs font-semibold text-lab-text-primary mb-1">{g.label}</p>
+            <p className="text-[10px] text-lab-text-tertiary mb-3">{g.hint}</p>
             <ExpandableKeywordTable keywords={g.keywords} collapseAt={5} />
-          </div>
+          </LabCard>
         ))}
       </div>
       {opp.not_buildable.length > 0 && (
-        <div className="rounded-lg bg-white/[0.02] border border-white/[0.07] px-4 py-3">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Requested, Not Currently Buildable With Real Data</p>
+        <div className="rounded-lab-sm bg-white/[0.02] border border-lab-border-soft px-4 py-3">
+          <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-2">Requested, Not Currently Buildable With Real Data</p>
           <ul className="space-y-1.5">
             {opp.not_buildable.map(item => (
-              <li key={item.label} className="text-[11px] text-zinc-500">
-                <span className="text-zinc-400 font-medium">{item.label}:</span> {item.reason}
+              <li key={item.label} className="text-[11px] text-lab-text-tertiary">
+                <span className="text-lab-text-secondary font-medium">{item.label}:</span> {item.reason}
               </li>
             ))}
           </ul>
@@ -2255,9 +1983,9 @@ function KeywordOpportunityDiscoverySection({ opp }: { opp: KeywordOpportunitySi
 
 function ProductImpactStat({ label, value, provenance }: { label: string; value: string; provenance: Provenance | null }) {
   return (
-    <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2.5">
-      <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-sm font-mono font-semibold text-zinc-100">{value}</p>
+    <div className="rounded-lab-sm bg-white/[0.03] border border-lab-border-soft px-3 py-2.5">
+      <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider mb-1">{label}</p>
+      <p className="lab-text-data text-sm font-semibold text-lab-text-primary">{value}</p>
       {provenance && <div className="mt-1.5"><ProvenanceBadge p={provenance} /></div>}
     </div>
   )
@@ -2275,12 +2003,12 @@ function KeywordAIInsightsPanel({ insights }: { insights: KeywordAIInsights }) {
   ]
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-300 leading-relaxed font-serif italic">{insights.summary}</p>
+      <p className="text-sm text-lab-text-secondary leading-relaxed italic">{insights.summary}</p>
       <div className="grid sm:grid-cols-2 gap-4">
         {rows.filter(([, v]) => v).map(([label, text]) => (
-          <div key={label} className="rounded-lg border border-white/[0.06] p-3.5">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">{label}</p>
-            <p className="text-xs text-zinc-400 leading-relaxed">{text}</p>
+          <div key={label} className="rounded-lab-sm border border-lab-border-soft p-3.5">
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-1.5">{label}</p>
+            <p className="text-xs text-lab-text-secondary leading-relaxed">{text}</p>
           </div>
         ))}
       </div>
@@ -2296,7 +2024,7 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
     return (
       <div>
         <SectionIntro text="Real per-keyword search data — volume, growth, competition, difficulty, and CPC — pulled directly from DataForSEO. Clusters, opportunity scores, and AI strategy notes are computed from those real numbers, never invented." />
-        <p className="text-sm font-mono text-zinc-600 italic py-6 text-center">No data available</p>
+        <LabEmptyState icon={<IconBeaker className="w-5 h-5" />} title="No data available" description="DataForSEO returned nothing usable for this query." />
       </div>
     )
   }
@@ -2313,63 +2041,63 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
       <KeywordDataQualityBar ki={ki} />
 
       {hasHistory && topKeyword?.monthly_history && volProv && (
-        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+        <LabCard className="p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-zinc-200">Search Demand — &ldquo;{topKeyword.keyword}&rdquo;</p>
+            <p className="text-xs font-semibold text-lab-text-primary">Search Demand — &ldquo;{topKeyword.keyword}&rdquo;</p>
             <ProvenanceBadge p={volProv} />
           </div>
           <VolumeTrendChart history={topKeyword.monthly_history} />
-        </div>
+        </LabCard>
       )}
 
       {ki.seasonality && topKeyword?.monthly_history && (
-        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+        <LabCard className="p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-1">
-            <p className="text-xs font-semibold text-zinc-200">Seasonality</p>
+            <p className="text-xs font-semibold text-lab-text-primary">Seasonality</p>
             <ProvenanceBadge p={keywordSeasonalityProvenance(ki)!} />
           </div>
-          <p className="text-[11px] text-zinc-500 mb-3">
-            Pattern: <span className="text-zinc-300 font-medium">{ki.seasonality.pattern}</span>
-            {ki.seasonality.peak_months.length > 0 && <> · Peak: <span className="text-emerald-400">{ki.seasonality.peak_months.join(', ')}</span></>}
-            {ki.seasonality.low_months.length > 0  && <> · Low: <span className="text-red-400/80">{ki.seasonality.low_months.join(', ')}</span></>}
+          <p className="text-[11px] text-lab-text-tertiary mb-3">
+            Pattern: <span className="text-lab-text-secondary font-medium">{ki.seasonality.pattern}</span>
+            {ki.seasonality.peak_months.length > 0 && <> · Peak: <span className="text-lab-verdant">{ki.seasonality.peak_months.join(', ')}</span></>}
+            {ki.seasonality.low_months.length > 0  && <> · Low: <span className="text-lab-ember/80">{ki.seasonality.low_months.join(', ')}</span></>}
           </p>
           <SeasonalityChart history={topKeyword.monthly_history} seasonality={ki.seasonality} />
-        </div>
+        </LabCard>
       )}
 
       {ki.forecast_12mo && ki.forecast_12mo.length > 0 && (
-        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+        <LabCard className="p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-zinc-200">12-Month Forecast — &ldquo;{topKeyword?.keyword}&rdquo;</p>
+            <p className="text-xs font-semibold text-lab-text-primary">12-Month Forecast — &ldquo;{topKeyword?.keyword}&rdquo;</p>
             <ProvenanceBadge p={keywordForecastProvenance(ki)!} />
           </div>
           <ForecastChart forecast={ki.forecast_12mo} />
-        </div>
+        </LabCard>
       )}
 
       <div className="grid sm:grid-cols-2 gap-5">
-        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+        <LabCard className="p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-zinc-200">Opportunity Heatmap</p>
+            <p className="text-xs font-semibold text-lab-text-primary">Opportunity Heatmap</p>
             <ProvenanceBadge p={keywordOpportunityScoreProvenance()} />
           </div>
           <OpportunityHeatmap metrics={allMetrics} />
-          <p className="text-[10px] text-zinc-600 mt-2">X: real competition index · Y: real volume (log) · size/color: computed opportunity score</p>
-        </div>
+          <p className="text-[10px] text-lab-text-tertiary mt-2">X: real competition index · Y: real volume (log) · size/color: computed opportunity score</p>
+        </LabCard>
         {ki.clusters && ki.clusters.length > 0 && (
-          <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+          <LabCard className="p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3 mb-3">
-              <p className="text-xs font-semibold text-zinc-200">Keyword Distribution by Cluster</p>
+              <p className="text-xs font-semibold text-lab-text-primary">Keyword Distribution by Cluster</p>
               <ProvenanceBadge p={keywordClusterProvenance()} />
             </div>
             <ClusterDistributionChart clusters={ki.clusters} />
-          </div>
+          </LabCard>
         )}
       </div>
 
       {ki.clusters && ki.clusters.length > 0 ? (
         <div>
-          <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Keyword Clusters</p>
+          <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest mb-3">Keyword Clusters</p>
           <div className="grid sm:grid-cols-2 gap-4">
             {ki.clusters.map(c => <KeywordClusterCard key={c.label} cluster={c} />)}
           </div>
@@ -2377,14 +2105,14 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
       ) : (
         <div>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Keyword Buckets</p>
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest">Keyword Buckets</p>
             {kiProv && <ProvenanceBadge p={kiProv} />}
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
-            <div><p className="text-[10px] text-zinc-500 mb-2">Top Buying</p><ExpandableKeywordTable keywords={ki.top_buying} /></div>
-            <div><p className="text-[10px] text-zinc-500 mb-2">Opportunity</p><ExpandableKeywordTable keywords={ki.opportunity} /></div>
-            <div><p className="text-[10px] text-zinc-500 mb-2">Long-Tail</p><ExpandableKeywordTable keywords={ki.long_tail} /></div>
-            <div><p className="text-[10px] text-zinc-500 mb-2">Fast-Growing</p><ExpandableKeywordTable keywords={ki.fast_growing} /></div>
+            <div><p className="text-[10px] text-lab-text-secondary mb-2">Top Buying</p><ExpandableKeywordTable keywords={ki.top_buying} /></div>
+            <div><p className="text-[10px] text-lab-text-secondary mb-2">Opportunity</p><ExpandableKeywordTable keywords={ki.opportunity} /></div>
+            <div><p className="text-[10px] text-lab-text-secondary mb-2">Long-Tail</p><ExpandableKeywordTable keywords={ki.long_tail} /></div>
+            <div><p className="text-[10px] text-lab-text-secondary mb-2">Fast-Growing</p><ExpandableKeywordTable keywords={ki.fast_growing} /></div>
           </div>
         </div>
       )}
@@ -2392,7 +2120,7 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
       {ki.opportunities && (
         <div>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Opportunity Discovery</p>
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest">Opportunity Discovery</p>
             <ProvenanceBadge p={keywordOpportunityScoreProvenance()} />
           </div>
           <KeywordOpportunityDiscoverySection opp={ki.opportunities} />
@@ -2400,8 +2128,8 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
       )}
 
       {topKeyword && (topKeyword.amazon_ppc_estimate || topKeyword.click_potential !== undefined) && (
-        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
-          <p className="text-xs font-semibold text-zinc-200 mb-3">Product Impact — &ldquo;{topKeyword.keyword}&rdquo;</p>
+        <LabCard className="p-4 sm:p-5">
+          <p className="text-xs font-semibold text-lab-text-primary mb-3">Product Impact — &ldquo;{topKeyword.keyword}&rdquo;</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <ProductImpactStat
               label="Click Potential"
@@ -2425,22 +2153,22 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
             />
           </div>
           {topKeyword.search_intent && (
-            <p className="text-[10px] text-zinc-600 mt-3">
-              Search intent: <span className="text-zinc-300 font-medium capitalize">{topKeyword.search_intent}</span>
+            <p className="text-[10px] text-lab-text-tertiary mt-3">
+              Search intent: <span className="text-lab-text-secondary font-medium capitalize">{topKeyword.search_intent}</span>
               {keywordSearchIntentProvenance(topKeyword.search_intent_source) && (
                 <span className="ml-2"><ProvenanceBadge p={keywordSearchIntentProvenance(topKeyword.search_intent_source)!} /></span>
               )}
             </p>
           )}
-        </div>
+        </LabCard>
       )}
 
       {/* Real SERP/backlink/bid signal — same DataForSEO call already being
           made, surfaced for the first time (2026-06-27 provider audit). */}
       {topKeyword && (topKeyword.serp_features?.length || topKeyword.avg_referring_domains != null || topKeyword.top_of_page_bid_range || topKeyword.competition_level) && (
-        <div className="rounded-xl border border-white/[0.07] p-4 sm:p-5">
+        <LabCard className="p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-zinc-200">Search Visibility — &ldquo;{topKeyword.keyword}&rdquo;</p>
+            <p className="text-xs font-semibold text-lab-text-primary">Search Visibility — &ldquo;{topKeyword.keyword}&rdquo;</p>
             {kiProv && <ProvenanceBadge p={kiProv} />}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
@@ -2467,25 +2195,25 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
           </div>
           {topKeyword.serp_features && topKeyword.serp_features.length > 0 && (
             <div>
-              <p className="text-[10px] text-zinc-600 mb-1.5">SERP features currently shown for this query:</p>
+              <p className="text-[10px] text-lab-text-tertiary mb-1.5">SERP features currently shown for this query:</p>
               <div className="flex flex-wrap gap-1.5">
                 {topKeyword.serp_features.map(f => (
-                  <span key={f} className="text-[10px] text-zinc-400 bg-white/[0.04] border border-white/[0.08] rounded-full px-2 py-0.5">
+                  <span key={f} className="text-[10px] text-lab-text-secondary bg-white/[0.04] border border-lab-border-default rounded-full px-2 py-0.5">
                     {f.replace(/_/g, ' ')}
                   </span>
                 ))}
               </div>
             </div>
           )}
-        </div>
+        </LabCard>
       )}
 
       <div>
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">AI Insights</p>
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest mb-3">AI Insights</p>
         {ki.ai_insights ? (
           <KeywordAIInsightsPanel insights={ki.ai_insights} />
         ) : (
-          <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+          <LabNoData label="No data available" />
         )}
       </div>
     </div>
@@ -2505,7 +2233,7 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
 function ThemeList({ themes, limit, emptyLabel }: { themes: ThemeInsight[]; limit?: number; emptyLabel: string }) {
   const [expanded, setExpanded] = useState(false)
   if (!themes.length) {
-    return <p className="text-xs text-zinc-600 italic py-2">{emptyLabel}</p>
+    return <p className="text-xs text-lab-text-tertiary italic py-2">{emptyLabel}</p>
   }
   const shown = (!limit || expanded) ? themes : themes.slice(0, limit)
   const hiddenCount = limit ? Math.max(0, themes.length - limit) : 0
@@ -2514,15 +2242,15 @@ function ThemeList({ themes, limit, emptyLabel }: { themes: ThemeInsight[]; limi
       {shown.map((t, i) => (
         <li key={i} className="text-sm">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-zinc-200 font-medium">&ldquo;{t.label}&rdquo;</span>
-            <span className="text-[11px] font-mono text-zinc-500 shrink-0">{t.mentionedBy}/{t.outOf} reviews</span>
+            <span className="text-lab-text-primary font-medium">&ldquo;{t.label}&rdquo;</span>
+            <span className="text-[11px] font-mono text-lab-text-tertiary shrink-0">{t.mentionedBy}/{t.outOf} reviews</span>
           </div>
-          <p className="text-[11px] text-zinc-600 italic mt-0.5 truncate">&ldquo;{t.exampleQuote}&rdquo;</p>
+          <p className="text-[11px] text-lab-text-tertiary italic mt-0.5 truncate">&ldquo;{t.exampleQuote}&rdquo;</p>
         </li>
       ))}
       {hiddenCount > 0 && (
         <li>
-          <button onClick={() => setExpanded(true)} className="text-[11px] text-amber-400/70 hover:text-amber-400 transition-colors">
+          <button onClick={() => setExpanded(true)} className="text-[11px] text-lab-amber/70 hover:text-lab-amber transition-colors">
             Show {hiddenCount} more →
           </button>
         </li>
@@ -2538,11 +2266,11 @@ function SentimentBars({ m }: { m: MemoData }) {
     <div className="space-y-1.5">
       {sb.distribution.slice().reverse().map(d => (
         <div key={d.star} className="flex items-center gap-2 text-[11px]">
-          <span className="text-zinc-500 w-10 shrink-0">{d.star}★</span>
+          <span className="text-lab-text-tertiary w-10 shrink-0">{d.star}★</span>
           <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-            <div className="h-full bg-brass/50" style={{ width: `${d.pct}%` }} />
+            <div className="h-full bg-lab-amber/50" style={{ width: `${d.pct}%` }} />
           </div>
-          <span className="text-zinc-500 font-mono w-10 text-right shrink-0">{d.pct}%</span>
+          <span className="text-lab-text-tertiary font-mono w-10 text-right shrink-0">{d.pct}%</span>
         </div>
       ))}
     </div>
@@ -2568,19 +2296,19 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-1">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Consumer Intelligence</p>
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest">Consumer Intelligence</p>
         {provenance && <ProvenanceBadge p={provenance} />}
       </div>
 
       {redditPainExamples && redditPainExamples.length > 0 && (
-        <div className="mt-3 rounded-xl border border-white/[0.07] p-4">
+        <div className="mt-3 bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-zinc-200">Real Reddit Discussion</p>
+            <p className="text-xs font-semibold text-lab-text-primary">Real Reddit Discussion</p>
             <ProvenanceBadge p={{ level: 'verified', source: 'Reddit', detail: `Real verbatim post titles/snippets from r/Supplements and related subreddits that matched problem-language patterns (title or self-post body text) — ${m.signal_evidence?.review_velocity?.value.monthly_reviews ?? 'unknown volume'}, ${m.signal_evidence?.review_velocity?.value.sentiment ?? 'unscored'} sentiment.` }} />
           </div>
           <ul className="space-y-2">
             {redditPainExamples.map((ex, i) => (
-              <li key={i} className="text-sm text-zinc-300 leading-relaxed">&ldquo;{ex}&rdquo;</li>
+              <li key={i} className="text-sm text-lab-text-secondary leading-relaxed">&ldquo;{ex}&rdquo;</li>
             ))}
           </ul>
         </div>
@@ -2588,48 +2316,48 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
 
       {!ci ? (
         attemptedButFailed ? (
-          <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2.5">
-            <p className="text-xs font-semibold text-amber-400 mb-1">Some providers timed out</p>
-            <p className="text-[11px] text-zinc-500">Real competitor products were found, but the review-data provider didn&rsquo;t return in time. This section is empty rather than estimated — re-running the analysis may succeed if the provider was just slow this once.</p>
+          <div className="mt-3 rounded-lg border border-lab-amber/20 bg-lab-amber/5 px-3 py-2.5">
+            <p className="text-xs font-semibold text-lab-amber mb-1">Some providers timed out</p>
+            <p className="text-[11px] text-lab-text-tertiary">Real competitor products were found, but the review-data provider didn&rsquo;t return in time. This section is empty rather than estimated — re-running the analysis may succeed if the provider was just slow this once.</p>
           </div>
         ) : (
-          <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+          <p className="text-sm font-mono text-lab-text-tertiary italic py-3">No data available</p>
         )
       ) : (
         <div className="space-y-5 mt-3">
-          <p className="text-[11px] text-zinc-600">
+          <p className="text-[11px] text-lab-text-tertiary">
             Source: {ci.totalReviewsCollected} real reviews
             {(ci.productsAnalyzed ?? []).length > 0 && <> across {(ci.productsAnalyzed ?? []).map(p => p.brand).join(', ')}</>}
             {' '}({ci.confidence >= 0.7 ? 'high' : ci.confidence >= 0.4 ? 'moderate' : 'low'} confidence)
           </p>
 
           <div className="grid sm:grid-cols-2 gap-5">
-            <div className="rounded-xl border border-white/[0.07] p-4">
-              <p className="text-xs font-semibold text-zinc-200 mb-3">Sentiment Breakdown</p>
-              <p className="text-[11px] text-zinc-500 mb-2">
-                Avg rating <span className="font-mono text-zinc-300">{ci.sentimentBreakdown.avgRating}/5</span> across {ci.sentimentBreakdown.totalReviews} reviews
+            <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-4">
+              <p className="text-xs font-semibold text-lab-text-primary mb-3">Sentiment Breakdown</p>
+              <p className="text-[11px] text-lab-text-tertiary mb-2">
+                Avg rating <span className="font-mono text-lab-text-secondary">{ci.sentimentBreakdown.avgRating}/5</span> across {ci.sentimentBreakdown.totalReviews} reviews
                 {' '}— {ci.sentimentBreakdown.positivePct}% positive, {ci.sentimentBreakdown.neutralPct}% neutral, {ci.sentimentBreakdown.negativePct}% negative
               </p>
               <SentimentBars m={m} />
             </div>
 
-            <div className="rounded-xl border border-white/[0.07] p-4">
-              <p className="text-xs font-semibold text-zinc-200 mb-3">Top Complaints</p>
+            <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-4">
+              <p className="text-xs font-semibold text-lab-text-primary mb-3">Top Complaints</p>
               <ThemeList themes={ci.negativeThemes} limit={5} emptyLabel="No recurring complaints met the minimum review-count threshold." />
             </div>
 
-            <div className="rounded-xl border border-white/[0.07] p-4">
-              <p className="text-xs font-semibold text-zinc-200 mb-3">What Customers Love</p>
+            <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-4">
+              <p className="text-xs font-semibold text-lab-text-primary mb-3">What Customers Love</p>
               <ThemeList themes={ci.positiveThemes} limit={5} emptyLabel="No recurring praise met the minimum review-count threshold." />
             </div>
 
-            <div className="rounded-xl border border-white/[0.07] p-4">
-              <p className="text-xs font-semibold text-zinc-200 mb-3">Most Mentioned Problems <span className="text-[10px] text-zinc-600 font-normal">(any rating)</span></p>
+            <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-4">
+              <p className="text-xs font-semibold text-lab-text-primary mb-3">Most Mentioned Problems <span className="text-[10px] text-lab-text-tertiary font-normal">(any rating)</span></p>
               <ThemeList themes={ci.mostMentionedProblems} limit={5} emptyLabel="No problems mentioned widely enough across all ratings." />
             </div>
 
-            <div className="rounded-xl border border-white/[0.07] p-4">
-              <p className="text-xs font-semibold text-zinc-200 mb-3">Feature Requests</p>
+            <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-4">
+              <p className="text-xs font-semibold text-lab-text-primary mb-3">Feature Requests</p>
               <ThemeList themes={ci.featureRequests} limit={5} emptyLabel="No recurring feature requests found in this review sample." />
             </div>
 
@@ -2648,22 +2376,22 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
 // ═══════════════════════════════════════════════════════════════
 
 const NEWS_CATEGORY_CLS: Record<string, string> = {
-  'FDA Recall':              'text-red-400 bg-red-400/10 border-red-400/20',
+  'FDA Recall':              'text-lab-ember bg-lab-ember/10 border-lab-ember/20',
   'Adverse Event Signal':    'text-orange-400 bg-orange-400/10 border-orange-400/20',
-  'Regulatory Change':       'text-amber-400 bg-amber-400/10 border-amber-400/20',
+  'Regulatory Change':       'text-lab-amber bg-lab-amber/10 border-lab-amber/20',
   'Acquisition':             'text-violet-400 bg-violet-400/10 border-violet-400/20',
-  'Funding Round':           'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-  'Competitor Announcement': 'text-sky-400 bg-sky-400/10 border-sky-400/20',
-  'Product Launch':          'text-sky-400 bg-sky-400/10 border-sky-400/20',
-  'Scientific Study':        'text-zinc-300 bg-white/[0.06] border-white/[0.12]',
-  'Industry News':           'text-zinc-400 bg-white/[0.04] border-white/[0.1]',
+  'Funding Round':           'text-lab-verdant bg-lab-verdant/10 border-lab-verdant/20',
+  'Competitor Announcement': 'text-lab-spectrum bg-lab-spectrum/10 border-sky-400/20',
+  'Product Launch':          'text-lab-spectrum bg-lab-spectrum/10 border-sky-400/20',
+  'Scientific Study':        'text-lab-text-secondary bg-white/[0.06] border-white/[0.12]',
+  'Industry News':           'text-lab-text-secondary bg-white/[0.04] border-white/[0.1]',
 }
 
 const TRAJECTORY_CLS: Record<string, string> = {
-  Accelerating: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-  Stable:       'text-zinc-300 bg-white/[0.06] border-white/[0.12]',
-  Slowing:      'text-amber-400 bg-amber-400/10 border-amber-400/20',
-  Unknown:      'text-zinc-500 bg-white/[0.03] border-white/[0.08]',
+  Accelerating: 'text-lab-verdant bg-lab-verdant/10 border-lab-verdant/20',
+  Stable:       'text-lab-text-secondary bg-white/[0.06] border-white/[0.12]',
+  Slowing:      'text-lab-amber bg-lab-amber/10 border-lab-amber/20',
+  Unknown:      'text-lab-text-tertiary bg-white/[0.03] border-white/[0.08]',
 }
 
 function NewsItemCard({ item }: { item: NewsItem }) {
@@ -2673,27 +2401,27 @@ function NewsItemCard({ item }: { item: NewsItem }) {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block rounded-xl border border-white/[0.07] p-4 hover:border-white/[0.16] hover:bg-white/[0.02] transition-colors"
+      className="block bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-4 hover:border-white/[0.16] hover:bg-white/[0.02] transition-colors"
     >
       <div className="flex items-center justify-between gap-2 mb-2">
         <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${NEWS_CATEGORY_CLS[item.category] ?? NEWS_CATEGORY_CLS['Industry News']}`}>
           {item.category}
         </span>
-        <span className="text-[10px] text-zinc-600 font-mono shrink-0">{dateStr}</span>
+        <span className="text-[10px] text-lab-text-tertiary font-mono shrink-0">{dateStr}</span>
       </div>
-      <p className="text-sm text-zinc-200 leading-snug mb-1.5">{item.headline}</p>
+      <p className="text-sm text-lab-text-primary leading-snug mb-1.5">{item.headline}</p>
       {(item.recall_classification || item.recall_status) && (
         <p className="text-[11px] mb-1.5 flex items-center gap-2 flex-wrap">
           {item.recall_classification && (
             <span className={`font-semibold ${
-              item.recall_classification === 'Class I'  ? 'text-red-400' :
-              item.recall_classification === 'Class II' ? 'text-amber-400' :
-              item.recall_classification === 'Class III' ? 'text-zinc-400' : 'text-zinc-500'
+              item.recall_classification === 'Class I'  ? 'text-lab-ember' :
+              item.recall_classification === 'Class II' ? 'text-lab-amber' :
+              item.recall_classification === 'Class III' ? 'text-lab-text-secondary' : 'text-lab-text-tertiary'
             }`}>
               {item.recall_classification}
             </span>
           )}
-          {item.recall_status && <span className="text-zinc-500">{item.recall_status}</span>}
+          {item.recall_status && <span className="text-lab-text-tertiary">{item.recall_status}</span>}
         </p>
       )}
       {/* Real NLM study-design type (PubMed esummary pubtype[]) — replaces
@@ -2701,19 +2429,19 @@ function NewsItemCard({ item }: { item: NewsItem }) {
           any study this provider actually surfaces. */}
       {item.study_type && (
         <p className="text-[11px] mb-1.5">
-          <span className="font-semibold text-brass">{item.study_type}</span>
+          <span className="font-semibold text-lab-amber">{item.study_type}</span>
         </p>
       )}
       {/* Real openFDA CAERS adverse-event reactions — a consumer-reported
           signal, distinct from a recall (no regulatory action implied). */}
       {item.adverse_event_reactions && item.adverse_event_reactions.length > 0 && (
-        <p className="text-[11px] text-amber-400/90 mb-1.5">
+        <p className="text-[11px] text-lab-amber/90 mb-1.5">
           Reported reactions: {item.adverse_event_reactions.slice(0, 4).join(', ')}
         </p>
       )}
-      <p className="text-[11px] text-zinc-600 mb-2">{item.source} · {Math.round(item.confidence * 100)}% relevance match</p>
+      <p className="text-[11px] text-lab-text-tertiary mb-2">{item.source} · {Math.round(item.confidence * 100)}% relevance match</p>
       {item.why_it_matters && (
-        <p className="text-[11px] text-zinc-500 leading-relaxed border-t border-white/[0.06] pt-2 mt-2">{item.why_it_matters}</p>
+        <p className="text-[11px] text-lab-text-tertiary leading-relaxed border-t border-lab-border-soft pt-2 mt-2">{item.why_it_matters}</p>
       )}
     </a>
   )
@@ -2726,57 +2454,57 @@ function NewsIntelligenceSection({ m }: { m: MemoData }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-1">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Recent Market Intelligence</p>
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest">Recent Market Intelligence</p>
         {provenance && <ProvenanceBadge p={provenance} />}
       </div>
 
       {!ni ? (
-        <p className="text-sm font-mono text-zinc-600 italic py-3">No data available</p>
+        <p className="text-sm font-mono text-lab-text-tertiary italic py-3">No data available</p>
       ) : (
         <div className="space-y-6 mt-3">
-          <p className="text-[11px] text-zinc-600">
+          <p className="text-[11px] text-lab-text-tertiary">
             Window: last {ni.windowDays} days · Sources: {ni.providersUsed.length ? ni.providersUsed.join(', ') : 'none returned results'}
           </p>
 
           {ni.sentiment && (
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.02] border border-white/[0.06] px-3.5 py-2.5">
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.02] border border-lab-border-soft px-3.5 py-2.5">
               <div className="flex items-baseline gap-2">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Real News Sentiment</span>
+                <span className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Real News Sentiment</span>
                 <span className={`text-sm font-mono font-semibold ${
-                  ni.sentiment.avg_tone <= -3 ? 'text-red-400' : ni.sentiment.avg_tone >= 1 ? 'text-emerald-400' : 'text-zinc-300'
+                  ni.sentiment.avg_tone <= -3 ? 'text-lab-ember' : ni.sentiment.avg_tone >= 1 ? 'text-lab-verdant' : 'text-lab-text-secondary'
                 }`}>
                   {ni.sentiment.avg_tone > 0 ? '+' : ''}{ni.sentiment.avg_tone}
                 </span>
-                <span className="text-[11px] text-zinc-600">across {ni.sentiment.sample_size} real articles</span>
+                <span className="text-[11px] text-lab-text-tertiary">across {ni.sentiment.sample_size} real articles</span>
               </div>
               <ProvenanceBadge p={newsSentimentProvenance(ni)!} />
             </div>
           )}
 
-          <div className="rounded-xl border border-white/[0.07] p-4 space-y-3">
+          <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold text-zinc-200">What Changed</p>
+              <p className="text-xs font-semibold text-lab-text-primary">What Changed</p>
               <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${TRAJECTORY_CLS[ni.summary.trajectory]}`}>
                 {ni.summary.trajectory}
               </span>
             </div>
-            <p className="text-[12px] text-zinc-400 leading-relaxed">{ni.summary.what_changed}</p>
+            <p className="text-[12px] text-lab-text-secondary leading-relaxed">{ni.summary.what_changed}</p>
 
             {(ni.summary.new_risks.length > 0 || ni.summary.new_opportunities.length > 0) && (
               <div className="grid sm:grid-cols-2 gap-4 pt-2">
                 {ni.summary.new_risks.length > 0 && (
                   <div>
-                    <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">New Risks</p>
+                    <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wide mb-1.5">New Risks</p>
                     <ul className="space-y-1">
-                      {ni.summary.new_risks.map((r, i) => <li key={i} className="text-[11px] text-zinc-500">• {r}</li>)}
+                      {ni.summary.new_risks.map((r, i) => <li key={i} className="text-[11px] text-lab-text-tertiary">• {r}</li>)}
                     </ul>
                   </div>
                 )}
                 {ni.summary.new_opportunities.length > 0 && (
                   <div>
-                    <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1.5">New Opportunities</p>
+                    <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wide mb-1.5">New Opportunities</p>
                     <ul className="space-y-1">
-                      {ni.summary.new_opportunities.map((o, i) => <li key={i} className="text-[11px] text-zinc-500">• {o}</li>)}
+                      {ni.summary.new_opportunities.map((o, i) => <li key={i} className="text-[11px] text-lab-text-tertiary">• {o}</li>)}
                     </ul>
                   </div>
                 )}
@@ -2810,7 +2538,7 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
           when no real data source was available, instead of quietly
           falling back to a number that looks the same as a real one. */}
       <div>
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Evidence</p>
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest mb-3">Evidence</p>
         <div className="grid sm:grid-cols-1 gap-3">
           <DemandEvidencePanel m={m} />
           <RevenueEvidencePanel m={m} />
@@ -2820,9 +2548,9 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
 
       {/* Market structure — qualitative narrative, distinct from the
           quantitative Competition evidence panel above */}
-      <div className="pt-5 border-t border-white/[0.06]">
+      <div className="pt-5 border-t border-lab-border-soft">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Market Structure (Narrative)</p>
+          <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest">Market Structure (Narrative)</p>
           <ProvenanceBadge p={m.market_saturation ? marketSaturationProvenance(sig) : legacyCompetitionProvenance()} />
         </div>
         <MarketSaturationBlock m={m} />
@@ -2831,15 +2559,15 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
       {/* Subscription — no real data source exists for this dimension;
           virality gets its own platform-native card with raw evidence
           (see TikTokSignalCard) */}
-      <div className="pt-5 border-t border-white/[0.06] space-y-3">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-3">Other Signals</p>
+      <div className="pt-5 border-t border-lab-border-soft space-y-3">
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest mb-3">Other Signals</p>
         <div className="ledger">
           {subscriptionLevel && (
             <div className="ledger-row">
-              <span className="text-xs font-semibold text-zinc-300 w-28 shrink-0">Subscription</span>
-              <span className="font-serif font-medium text-base text-zinc-100 w-16 shrink-0">{subscriptionLevel}</span>
+              <span className="text-xs font-semibold text-lab-text-secondary w-28 shrink-0">Subscription</span>
+              <span className="font-display font-semibold text-base text-lab-text-primary w-16 shrink-0">{subscriptionLevel}</span>
               <SignalBars level={LEVEL_TO_SIGNAL[subscriptionLevel]} />
-              <span className="flex-1 text-xs text-zinc-500 truncate hidden md:inline">{subscription?.notes}</span>
+              <span className="flex-1 text-xs text-lab-text-tertiary truncate hidden md:inline">{subscription?.notes}</span>
               <span className="ml-auto shrink-0 flex items-center gap-2">
                 <ProvenanceBadge p={subscriptionProvenance()} />
               </span>
@@ -2856,9 +2584,9 @@ function MarketIntelligenceContent({ m }: { m: MemoData }) {
       </div>
 
       {/* Market gaps */}
-      <div className="pt-5 border-t border-white/[0.06]">
+      <div className="pt-5 border-t border-lab-border-soft">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Market Gaps (AI-Identified)</p>
+          <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest">Market Gaps (AI-Identified)</p>
           <ProvenanceBadge p={STATIC_PROVENANCE.marketGaps} />
         </div>
         <NumList items={m.market_gaps} />
@@ -2903,10 +2631,10 @@ function CompetitivePositionMap({ m }: { m: MemoData }) {
   const [incX, incPy] = toPx(Math.max(6, x - 6), incumbentY)
 
   return (
-    <div className="rounded-xl border border-white/[0.07] p-5 sm:p-7">
+    <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-5 sm:p-7">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Competitive Position Map</p>
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wider hidden sm:inline">Concentration vs. whitespace</p>
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Competitive Position Map</p>
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider hidden sm:inline">Concentration vs. whitespace</p>
       </div>
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-[360px] mx-auto mt-3">
         <line x1={cx} y1="24" x2={cx} y2={h - 24} stroke="#ffffff" strokeOpacity="0.08" />
@@ -2931,7 +2659,7 @@ function CompetitivePositionMap({ m }: { m: MemoData }) {
         <text x={usX} y={usPy - 18} textAnchor="middle" style={{ fill: '#e4e4e7', fontSize: 11, fontWeight: 600 }}>Your Entry Point</text>
         <text x={usX} y={usPy - 5} textAnchor="middle" style={{ fill: '#71717a', fontSize: 9.5 }}>{truncateLabel(m.brand_opportunities?.[0] ?? 'Documented gap', 30)}</text>
       </svg>
-      <div className="flex justify-between mt-1 text-[10px] text-zinc-600 uppercase tracking-wider">
+      <div className="flex justify-between mt-1 text-[10px] text-lab-text-tertiary uppercase tracking-wider">
         <span>← Less concentrated</span>
         <span>More concentrated →</span>
       </div>
@@ -2960,21 +2688,21 @@ function CompetitiveLandscapeContent({ m }: { m: MemoData }) {
       <CompetitivePositionMap m={m} />
 
       {hasComp && (
-        <div className="rounded-xl border border-white/[0.06] overflow-hidden">
-          <div className="grid grid-cols-3 bg-white/[0.04] px-4 py-2.5 text-[10px] text-zinc-500 uppercase tracking-wider">
+        <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md overflow-hidden">
+          <div className="grid grid-cols-3 bg-white/[0.04] px-4 py-2.5 text-[10px] text-lab-text-tertiary uppercase tracking-wider">
             <span>Brand</span><span>Est. Revenue</span><span>Their Gap</span>
           </div>
           <div className="grid grid-cols-3 px-4 py-3.5 text-sm">
-            <span className="font-semibold text-zinc-100">{comp.name}</span>
-            <span className="font-mono text-zinc-300">{comp.revenue}</span>
-            <span className="text-zinc-400 text-xs leading-relaxed col-span-1">{comp.gap}</span>
+            <span className="font-semibold text-lab-text-primary">{comp.name}</span>
+            <span className="font-mono text-lab-text-secondary">{comp.revenue}</span>
+            <span className="text-lab-text-secondary text-xs leading-relaxed col-span-1">{comp.gap}</span>
           </div>
         </div>
       )}
 
       <div>
         <div className="flex items-center justify-between gap-3 mb-3">
-          <p className="text-xs text-zinc-500 uppercase tracking-widest">Unclaimed Positioning Angles</p>
+          <p className="text-xs text-lab-text-tertiary uppercase tracking-widest">Unclaimed Positioning Angles</p>
           <ProvenanceBadge p={STATIC_PROVENANCE.brandOpportunities} />
         </div>
         <NumList items={m.brand_opportunities} />
@@ -3007,9 +2735,9 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
     : ms)
 
   return (
-    <div className="rounded-xl border border-white/[0.07] p-5 sm:p-7">
+    <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-5 sm:p-7">
       <div className="flex items-center justify-between gap-3 mb-7">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Revenue Trajectory</p>
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Revenue Trajectory</p>
         <ProvenanceBadge p={{ level: 'synthesized', source: 'Claude (AI synthesis)', detail: 'Legacy field from a memo generated before 2026-06-26 — these probability percentages were generated to look like forecasting-tool output, with no statistical base-rate model behind them. Memos generated after this date use a qualitative traction band instead — see below.' }} />
       </div>
       <div className="relative flex justify-between items-start">
@@ -3020,7 +2748,7 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
               className="rounded-full border-2 bg-[#0a0a0c] relative z-10"
               style={{ width: ms.size, height: ms.size, borderColor: ms.color }}
             />
-            <span className="mt-3 text-sm font-semibold text-zinc-100 text-center">{ms.label}</span>
+            <span className="mt-3 text-sm font-semibold text-lab-text-primary text-center">{ms.label}</span>
             <span className="text-xs font-mono mt-0.5" style={{ color: ms.value ? ms.color : '#71717a' }} title={ms.value ? 'Rounded to a 10-point band — the model\'s exact percentage implies more precision than an ungrounded estimate can support.' : undefined}>
               {ms.value ? toConfidenceBand(ms.value) : ms.sub}
             </span>
@@ -3036,16 +2764,16 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
 // computeTractionBand). No invented probability, no number at all — a
 // disclosed three-way qualitative read.
 function TractionBandCard({ band }: { band: string }) {
-  const cls = band === 'Strong comparable traction' ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/[0.04]'
-    : band === 'Some comparable traction' ? 'text-amber-400 border-amber-400/20 bg-amber-400/[0.04]'
-    : 'text-zinc-400 border-white/[0.08] bg-white/[0.02]'
+  const cls = band === 'Strong comparable traction' ? 'text-lab-verdant border-lab-verdant/20 bg-lab-verdant/[0.04]'
+    : band === 'Some comparable traction' ? 'text-lab-amber border-lab-amber/20 bg-lab-amber/[0.04]'
+    : 'text-lab-text-secondary border-white/[0.08] bg-white/[0.02]'
   return (
     <div className={`rounded-xl border p-5 sm:p-7 ${cls}`}>
       <div className="flex items-center justify-between gap-3 mb-3">
         <p className="text-[10px] uppercase tracking-wider opacity-80">Traction Read</p>
         <ProvenanceBadge p={{ level: 'estimated', source: 'Server-side formula', detail: 'Computed deterministically from the real signal data available for this query (which real dimensions were found, and how strong the real revenue/demand score is) — not a probability, not AI-invented. Replaces the old ten_k/hundred_k/one_m probability fields, which had no real base-rate model behind them.' }} />
       </div>
-      <p className="font-serif text-xl font-medium">{band}</p>
+      <p className="font-display text-xl font-medium">{band}</p>
     </div>
   )
 }
@@ -3065,29 +2793,29 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
         <ProvenanceBadge p={STATIC_PROVENANCE.financialProjections} />
       </div>
       {marketSizeIsUnverified && (
-        <div className="flex items-start gap-2.5 text-xs text-amber-400/80 bg-amber-400/5 border border-amber-400/15 rounded-lg px-3 py-2.5">
+        <div className="flex items-start gap-2.5 text-xs text-lab-amber/80 bg-lab-amber/5 border border-lab-amber/20 rounded-lg px-3 py-2.5">
           <IconAlert className="w-3.5 h-3.5 shrink-0 mt-px" />
           <span>Market size not independently verified. Figures shown are AI estimates — consult industry reports before citing.</span>
         </div>
       )}
       {hasRealFeeData && (
-        <div className="rounded-lg bg-emerald-400/5 border border-emerald-400/15 px-3.5 py-2.5">
+        <div className="rounded-lg bg-lab-verdant/5 border border-emerald-400/15 px-3.5 py-2.5">
           <div className="flex items-center justify-between gap-3 mb-1.5">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Real Amazon Fee Cross-Check</span>
+            <span className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Real Amazon Fee Cross-Check</span>
             <ProvenanceBadge p={realFeeDataProvenance(m.signal_evidence)!} />
           </div>
-          <p className="text-xs text-zinc-400 leading-relaxed">
+          <p className="text-xs text-lab-text-secondary leading-relaxed">
             Gross/net margin above is the model&rsquo;s own guess. Amazon&rsquo;s real published fee schedule for this category:
-            {rev?.avg_referral_fee_pct !== undefined && <> referral fee <span className="text-zinc-200 font-mono">{rev.avg_referral_fee_pct}%</span></>}
+            {rev?.avg_referral_fee_pct !== undefined && <> referral fee <span className="text-lab-text-primary font-mono">{rev.avg_referral_fee_pct}%</span></>}
             {rev?.avg_referral_fee_pct !== undefined && rev?.avg_fba_pick_pack_fee !== undefined && ', '}
-            {rev?.avg_fba_pick_pack_fee !== undefined && <>FBA pick &amp; pack <span className="text-zinc-200 font-mono">{rev.avg_fba_pick_pack_fee}</span></>}
+            {rev?.avg_fba_pick_pack_fee !== undefined && <>FBA pick &amp; pack <span className="text-lab-text-primary font-mono">{rev.avg_fba_pick_pack_fee}</span></>}
             {' '}— use this to sanity-check the margin estimate, not as the full cost structure.
           </p>
         </div>
       )}
       <TrajectoryTimeline fp={fp} />
       {fp.traction_band && <TractionBandCard band={fp.traction_band} />}
-      <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
+      <div className="flex divide-x divide-white/[0.06] bg-lab-void-2 border border-lab-border-soft rounded-lab-md overflow-hidden">
         {([
           ['Gross Margin',     fp.gross_margin],
           ['Net at Scale',     fp.net_margin_at_scale],
@@ -3095,8 +2823,8 @@ function FinancialOutlookContent({ m }: { m: MemoData }) {
           const unverified = !v || v.toLowerCase().includes('not independently verified')
           return (
             <div key={l} className="flex-1 px-3 py-3.5 text-center" title={unverified ? v ?? STATIC_PROVENANCE.financialProjections.detail : STATIC_PROVENANCE.financialProjections.detail}>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">{l}</p>
-              <p className={unverified ? 'text-xs text-zinc-500 italic' : 'font-serif font-medium text-base'}>
+              <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-1.5">{l}</p>
+              <p className={unverified ? 'text-xs text-lab-text-tertiary italic' : 'font-display font-semibold text-base'}>
                 {unverified ? 'Not verified' : v}
               </p>
             </div>
@@ -3121,16 +2849,16 @@ function ProductConceptVisual({ format, categoryName }: { format: string; catego
   const shape = inferProductShape(format)
 
   return (
-    <div className="relative rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.03] to-transparent p-6 sm:p-8 overflow-hidden">
+    <div className="relative bg-lab-void-2 border border-lab-border-soft rounded-lab-md bg-gradient-to-b from-white/[0.03] to-transparent p-6 sm:p-8 overflow-hidden">
       <div className="flex items-center justify-between mb-1 relative z-10">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Product Concept</p>
-        <p className="text-[10px] text-zinc-600 italic">Generated concept render — not a product photo</p>
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Product Concept</p>
+        <p className="text-[10px] text-lab-text-tertiary italic">Generated concept render — not a product photo</p>
       </div>
       <div className="flex items-center justify-center py-4 relative z-10" style={{ animation: 'heroRenderIn .8s var(--ease-premium, ease) both' }}>
         <ProductRenderHero shape={shape} />
       </div>
-      <p className="text-center text-sm font-medium text-zinc-300 relative z-10">{categoryName}</p>
-      <p className="text-center text-xs text-zinc-600 mt-0.5 relative z-10">{format}</p>
+      <p className="text-center text-sm font-medium text-lab-text-secondary relative z-10">{categoryName}</p>
+      <p className="text-center text-xs text-lab-text-tertiary mt-0.5 relative z-10">{format}</p>
     </div>
   )
 }
@@ -3148,7 +2876,7 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
       <ProductConceptVisual format={rec.format} categoryName={m.category_name} />
       <LifestyleScene format={rec.format} dosing={rec.dosing} />
 
-      <div className="flex flex-wrap sm:flex-nowrap divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
+      <div className="flex flex-wrap sm:flex-nowrap divide-x divide-white/[0.06] bg-lab-void-2 border border-lab-border-soft rounded-lab-md overflow-hidden">
         {([
           ['Format', rec.format],
           ['Usage',  rec.dosing],
@@ -3156,21 +2884,21 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
           ['Retail', rec.retail_price],
         ] as [string, string][]).map(([l, v]) => (
           <div key={l} className="flex-1 min-w-[100px] px-3 py-3" title={(l === 'COGS' || l === 'Retail') ? STATIC_PROVENANCE.productEconomics.detail : undefined}>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{l}</p>
-            <p className="text-xs text-zinc-300 leading-snug font-mono">{v ?? '—'}</p>
+            <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-1">{l}</p>
+            <p className="text-xs text-lab-text-secondary leading-snug font-mono">{v ?? '—'}</p>
           </div>
         ))}
       </div>
 
       <div>
         <div className="flex items-center justify-between gap-3 mb-3">
-          <p className="text-xs text-zinc-500 uppercase tracking-widest">Key Ingredients / Components</p>
+          <p className="text-xs text-lab-text-tertiary uppercase tracking-widest">Key Ingredients / Components</p>
           <ProvenanceBadge p={STATIC_PROVENANCE.productFormula} />
         </div>
-        <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
+        <div className="overflow-x-auto bg-lab-void-2 border border-lab-border-soft rounded-lab-md">
           <table className="w-full text-sm min-w-[480px]">
             <thead>
-              <tr className="bg-white/[0.04] text-[10px] text-zinc-500 uppercase tracking-wider">
+              <tr className="bg-white/[0.04] text-[10px] text-lab-text-tertiary uppercase tracking-wider">
                 <th className="text-left py-2.5 px-3 w-[30%]">Ingredient</th>
                 <th className="text-left py-2.5 px-3 w-[14%]">Dose</th>
                 <th className="text-left py-2.5 px-3">Role</th>
@@ -3179,10 +2907,10 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
             </thead>
             <tbody>
               {rec.formula.map((row, i) => (
-                <tr key={i} className="border-t border-white/[0.05] hover:bg-white/[0.02]">
+                <tr key={i} className="border-t border-lab-border-faint hover:bg-white/[0.02]">
                   <td className="py-3 px-3 font-medium text-sm">{row.ingredient}</td>
-                  <td className="py-3 px-3 font-mono text-brass text-xs">{row.dose}</td>
-                  <td className="py-3 px-3 text-zinc-400 text-xs leading-relaxed">{row.role}</td>
+                  <td className="py-3 px-3 font-mono text-lab-amber text-xs">{row.dose}</td>
+                  <td className="py-3 px-3 text-lab-text-secondary text-xs leading-relaxed">{row.role}</td>
                   <td className="py-3 px-3 text-center text-sm">{row.evidence}</td>
                 </tr>
               ))}
@@ -3193,11 +2921,11 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
 
       {rec.avoid?.length > 0 && (
         <div>
-          <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2.5">Avoid</p>
+          <p className="text-xs text-lab-text-tertiary uppercase tracking-widest mb-2.5">Avoid</p>
           <ul className="space-y-1.5">
             {rec.avoid.map((a, i) => (
-              <li key={i} className="flex gap-2 text-sm text-zinc-300">
-                <IconX className="w-3 h-3 text-red-400/70 shrink-0 mt-1" />{a}
+              <li key={i} className="flex gap-2 text-sm text-lab-text-secondary">
+                <IconX className="w-3 h-3 text-lab-ember/70 shrink-0 mt-1" />{a}
               </li>
             ))}
           </ul>
@@ -3206,8 +2934,8 @@ function LaunchStrategyContent({ m }: { m: MemoData }) {
 
       {fp.path_to_10m && (
         <div className="bg-white/[0.04] rounded-lg p-4">
-          <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Path to $10M ARR</p>
-          <p className="text-sm text-zinc-300 leading-relaxed">{fp.path_to_10m}</p>
+          <p className="text-xs text-lab-text-tertiary uppercase tracking-widest mb-2">Path to $10M ARR</p>
+          <p className="text-sm text-lab-text-secondary leading-relaxed">{fp.path_to_10m}</p>
         </div>
       )}
 
@@ -3253,54 +2981,56 @@ function RiskAssessmentContent({ m }: { m: MemoData }) {
   const sentimentIsNegative = sentiment !== undefined && sentiment !== null && sentiment.avg_tone <= -3
 
   if (weak.length === 0 && !recall && !sentimentIsNegative) return (
-    <p className="text-sm text-zinc-400">No dimension scored below 6. Overall risk profile is moderate — primary risk is execution, not market structure.</p>
+    <LabEmptyState
+      icon={<IconAlert className="w-5 h-5" />}
+      title="No dimension scored below 6"
+      description="Overall risk profile is moderate — primary risk is execution, not market structure."
+    />
   )
 
   return (
     <div className="space-y-3">
       <SectionIntro text="Dimensions where market structure works against you — each is a thesis-breaking risk if not addressed at launch." />
       {sentimentIsNegative && sentiment && (
-        <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3.5">
+        <LabEvidenceCard tier="unsupported" className="px-4 py-3.5">
           <div className="flex items-center justify-between gap-3 mb-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Real Negative News Sentiment</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-lab-amber">Real Negative News Sentiment</p>
             <ProvenanceBadge p={newsSentimentProvenance(m.news_intelligence)!} />
           </div>
-          <p className="text-sm text-zinc-300 leading-relaxed">
-            Real GDELT coverage of this category skews negative (avg tone <span className="font-mono">{sentiment.avg_tone}</span> across {sentiment.sample_size} real articles) — worth reading the actual headlines in the News tab before committing capital.
+          <p className="text-sm text-lab-text-secondary leading-relaxed">
+            Real GDELT coverage of this category skews negative (avg tone <span className="lab-text-data">{sentiment.avg_tone}</span> across {sentiment.sample_size} real articles) — worth reading the actual headlines in the News tab before committing capital.
           </p>
-        </div>
+        </LabEvidenceCard>
       )}
       {recall && (
-        <div className={`rounded-xl border px-4 py-3.5 ${
-          recall.recall_classification === 'Class I' ? 'bg-red-400/[0.06] border-red-400/25' : 'bg-amber-400/[0.04] border-amber-400/20'
-        }`}>
+        <LabEvidenceCard tier={recall.recall_classification === 'Class I' ? 'unsupported' : 'estimated'} className="px-4 py-3.5">
           <div className="flex items-center justify-between gap-3 mb-1.5">
-            <p className={`text-[10px] font-semibold uppercase tracking-wider ${recall.recall_classification === 'Class I' ? 'text-red-400' : 'text-amber-400'}`}>
+            <p className={`text-[10px] font-semibold uppercase tracking-wider ${recall.recall_classification === 'Class I' ? 'text-lab-ember' : 'text-lab-amber'}`}>
               Real FDA Recall{recall.recall_classification && recall.recall_classification !== 'Not Yet Classified' ? ` — ${recall.recall_classification}` : ''}
             </p>
             <ProvenanceBadge p={newsIntelligenceProvenance(m.news_intelligence)!} />
           </div>
-          <p className="text-sm text-zinc-300 leading-relaxed">{recall.headline}</p>
-          {recall.recall_status && <p className="text-[11px] text-zinc-500 mt-1">Status: {recall.recall_status}</p>}
-        </div>
+          <p className="text-sm text-lab-text-secondary leading-relaxed">{recall.headline}</p>
+          {recall.recall_status && <p className="text-[11px] text-lab-text-tertiary mt-1">Status: {recall.recall_status}</p>}
+        </LabEvidenceCard>
       )}
       {weak.length > 0 && (
-      <div className="rounded-xl border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
+      <LabCard className="divide-y divide-lab-border-faint overflow-hidden">
         {weak.map(d => (
-          <div key={d.key} className={`flex gap-3 px-4 py-3.5 ${d.severity === 'High' ? 'bg-red-400/[0.04]' : 'bg-amber-400/[0.03]'}`}>
-            <span className={`font-serif font-medium text-base shrink-0 w-10 ${d.severity === 'High' ? 'text-red-400' : 'text-amber-400'}`}>{d.display}</span>
+          <div key={d.key} className={`flex gap-3 px-4 py-3.5 ${d.severity === 'High' ? 'bg-lab-ember/[0.04]' : 'bg-lab-amber/[0.03]'}`}>
+            <span className={`lab-text-data font-bold text-base shrink-0 w-10 ${d.severity === 'High' ? 'text-lab-ember' : 'text-lab-amber'}`}>{d.display}</span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2 mb-1">
-                <p className={`text-[10px] font-semibold uppercase tracking-wider ${d.severity === 'High' ? 'text-red-400' : 'text-amber-400'}`}>
+                <p className={`text-[10px] font-semibold uppercase tracking-wider ${d.severity === 'High' ? 'text-lab-ember' : 'text-lab-amber'}`}>
                   {DIM_LABELS[d.key] ?? d.key}
                 </p>
                 <ProvenanceBadge p={d.provenance} />
               </div>
-              <p className="text-sm text-zinc-300 leading-relaxed">{d.notes}</p>
+              <p className="text-sm text-lab-text-secondary leading-relaxed">{d.notes}</p>
             </div>
           </div>
         ))}
-      </div>
+      </LabCard>
       )}
     </div>
   )
@@ -3324,18 +3054,18 @@ function inferManufacturingCategory(format: string): string {
 function PipelineStage({ label, value, sub }: { label: string; value: string; sub?: string; active?: boolean }) {
   return (
     <div className="flex-1 min-w-[110px] px-3 py-3">
-      <p className="text-[9px] text-zinc-500 uppercase tracking-wider mb-1.5">{label}</p>
-      <p className="text-sm font-semibold text-zinc-200 font-mono leading-snug">{value}</p>
-      {sub && <p className="text-[10px] text-zinc-500 mt-0.5">{sub}</p>}
+      <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider mb-1.5">{label}</p>
+      <p className="text-sm font-semibold text-lab-text-primary font-mono leading-snug">{value}</p>
+      {sub && <p className="text-[10px] text-lab-text-tertiary mt-0.5">{sub}</p>}
     </div>
   )
 }
 
 function MfgConfidencePill({ label }: { label: 'High' | 'Medium' | 'Low' }) {
   const cfg = {
-    High:   { cls: 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5', dot: 'bg-emerald-400' },
-    Medium: { cls: 'text-amber-400   border-amber-400/20   bg-amber-400/5',   dot: 'bg-amber-400'   },
-    Low:    { cls: 'text-zinc-500    border-white/[0.1]        bg-white/[0.04]',   dot: 'bg-zinc-500'    },
+    High:   { cls: 'text-lab-verdant border-lab-verdant/20 bg-lab-verdant/5', dot: 'bg-lab-verdant' },
+    Medium: { cls: 'text-lab-amber   border-lab-amber/20   bg-lab-amber/5',   dot: 'bg-lab-amber'   },
+    Low:    { cls: 'text-lab-text-tertiary    border-white/[0.1]        bg-white/[0.04]',   dot: 'bg-zinc-500'    },
   }[label]
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs border rounded-full px-2.5 py-1 ${cfg.cls}`}>
@@ -3361,10 +3091,10 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
   const rating    = est.top_supplier_rating != null ? `${est.top_supplier_rating}/5` : '—'
 
   const complexityColor =
-    est.complexity === 'Low'    ? 'text-emerald-400' :
-    est.complexity === 'Medium' ? 'text-amber-400'   :
+    est.complexity === 'Low'    ? 'text-lab-verdant' :
+    est.complexity === 'Medium' ? 'text-lab-amber'   :
     est.complexity === 'High'   ? 'text-orange-400'  :
-                                   'text-red-400'
+                                   'text-lab-ember'
 
   const introText = isVerified
     ? `Live supplier data from ${est.data_source.replace(/_/g, ' ')}. Prices reflect per-unit cost at high-volume tier (USD).`
@@ -3372,33 +3102,33 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-zinc-500 italic leading-relaxed">{introText}</p>
+      <p className="text-xs text-lab-text-tertiary italic leading-relaxed">{introText}</p>
 
       {/* Headline number — omitted entirely (not shown as "Insufficient
           Verified Data" in giant serif type) when no real cost data exists,
           rather than giving a non-number the same visual weight as a price. */}
       {unitCostRange ? (
         <div className="flex items-end gap-2">
-          <span className="font-serif font-medium text-3xl text-zinc-50 tracking-tight">{unitCostRange}</span>
-          <span className="text-xs text-zinc-500 mb-1">per unit, landed</span>
+          <span className="font-display font-semibold text-3xl text-lab-text-primary tracking-tight">{unitCostRange}</span>
+          <span className="text-xs text-lab-text-tertiary mb-1">per unit, landed</span>
         </div>
       ) : (
-        <p className="text-sm text-zinc-500 italic">{NO_DATA} — no live supplier quote for this query.</p>
+        <p className="text-sm text-lab-text-tertiary italic">{NO_DATA} — no live supplier quote for this query.</p>
       )}
 
       {/* Pipeline strip — Sourcing → Production → QA → Shipping */}
-      <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-x-auto">
+      <div className="flex divide-x divide-white/[0.06] bg-lab-void-2 border border-lab-border-soft rounded-lab-md overflow-x-auto">
         <PipelineStage label="Sourcing"   value={suppliers}        sub={est.supplier_count ? `${est.supplier_count.confidence} confidence` : undefined} />
         <PipelineStage label="Production" value={moq}              sub="MOQ" />
         <PipelineStage label="QA"         value={rating}           sub="avg. supplier rating" />
         <PipelineStage label="Shipping"   value={leadTime}         sub="lead time" />
       </div>
 
-      <div className="flex divide-x divide-white/[0.06] rounded-xl border border-white/[0.07] overflow-hidden">
+      <div className="flex divide-x divide-white/[0.06] bg-lab-void-2 border border-lab-border-soft rounded-lab-md overflow-hidden">
         <div className="flex-1 px-3 py-3">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Manufacturing Difficulty</p>
+          <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-1">Manufacturing Difficulty</p>
           <p className={`text-sm font-semibold leading-snug ${complexityColor}`}>{est.complexity}</p>
-          <p className="text-[11px] text-zinc-500 mt-0.5">AI ease judgment: {mfgLevel}</p>
+          <p className="text-[11px] text-lab-text-tertiary mt-0.5">AI ease judgment: {mfgLevel}</p>
         </div>
         <div className="flex-1 px-3 py-3 flex items-center justify-between">
           <MfgConfidencePill label={est.confidence_label} />
@@ -3406,9 +3136,9 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
       </div>
 
       {est.top_suppliers && est.top_suppliers.length > 0 && (
-        <div className="rounded-xl border border-white/[0.07] p-4">
+        <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-zinc-200">Real Named Suppliers</p>
+            <p className="text-xs font-semibold text-lab-text-primary">Real Named Suppliers</p>
             {/* Deterministic count of real country_code values above — not an
                 AI estimate, just an arithmetic tally of the suppliers already
                 listed below. */}
@@ -3419,7 +3149,7 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
               for (const s of withCountry) counts.set(s.country_code!, (counts.get(s.country_code!) ?? 0) + 1)
               const [topCountry, topCount] = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]
               return (
-                <span className="text-[10px] text-zinc-500 font-mono">
+                <span className="text-[10px] text-lab-text-tertiary font-mono">
                   {topCount}/{withCountry.length} based in {topCountry}
                 </span>
               )
@@ -3428,29 +3158,29 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
           <ul className="space-y-2">
             {est.top_suppliers.map((s, i) => (
               <li key={i} className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-zinc-300 font-medium truncate">{s.name}</span>
-                <span className="flex items-center gap-2 text-[11px] text-zinc-500 shrink-0">
-                  {s.country_code && <span className="font-mono text-zinc-600">{s.country_code}</span>}
-                  {s.rating != null && <span className="font-mono text-zinc-400">{s.rating.toFixed(1)}/5</span>}
-                  {s.customizable && <span className="text-sky-400">OEM/Customizable</span>}
-                  {s.trade_assurance && <span className="text-emerald-400">Trade Assurance</span>}
+                <span className="text-lab-text-secondary font-medium truncate">{s.name}</span>
+                <span className="flex items-center gap-2 text-[11px] text-lab-text-tertiary shrink-0">
+                  {s.country_code && <span className="font-mono text-lab-text-tertiary">{s.country_code}</span>}
+                  {s.rating != null && <span className="font-mono text-lab-text-secondary">{s.rating.toFixed(1)}/5</span>}
+                  {s.customizable && <span className="text-lab-spectrum">OEM/Customizable</span>}
+                  {s.trade_assurance && <span className="text-lab-verdant">Trade Assurance</span>}
                   {s.gold_supplier_years && <span>{s.gold_supplier_years} gold supplier</span>}
                 </span>
               </li>
             ))}
           </ul>
-          <p className="text-[10px] text-zinc-600 mt-3">Real Alibaba.com supplier names for this exact search — verify independently before committing capital; this is not an endorsement.</p>
+          <p className="text-[10px] text-lab-text-tertiary mt-3">Real Alibaba.com supplier names for this exact search — verify independently before committing capital; this is not an endorsement.</p>
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/[0.06]">
-        <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-lab-border-soft">
+        <div className="flex items-center gap-1.5 text-[11px] text-lab-text-tertiary">
           <span>Source:</span><ProvenanceBadge p={sourceProvenance} />
         </div>
       </div>
 
       {est.notes && isVerified && (
-        <p className="text-xs text-zinc-500 leading-relaxed">{est.notes}</p>
+        <p className="text-xs text-lab-text-tertiary leading-relaxed">{est.notes}</p>
       )}
     </div>
   )
@@ -3493,18 +3223,18 @@ function ManufacturingIntelligenceContent({ m, isActive }: { m: MemoData; isActi
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-white/[0.07]">
-        <h2 className="font-serif text-xl font-medium">Manufacturing Intelligence</h2>
+      <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-lab-border-soft">
+        <h2 className="font-display text-xl font-medium">Manufacturing Intelligence</h2>
         {status === 'done' && <ProvenanceBadge p={manufacturingTabProvenance(estimate?.data_source)} />}
       </div>
       {status === 'loading' && (
-        <div className="flex items-center gap-2.5 text-sm text-zinc-500 py-6 justify-center">
+        <div className="flex items-center gap-2.5 text-sm text-lab-text-tertiary py-6 justify-center">
           <div className="w-4 h-4 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin shrink-0" />
           Estimating manufacturing parameters…
         </div>
       )}
       {status === 'error' && (
-        <div className="flex items-start gap-2 text-xs text-red-400/80 bg-red-400/5 border border-red-400/15 rounded-lg px-3 py-2.5">
+        <div className="flex items-start gap-2 text-xs text-lab-ember/80 bg-lab-ember/5 border border-red-400/15 rounded-lg px-3 py-2.5">
           <IconX className="w-3.5 h-3.5 shrink-0 mt-px" />
           Manufacturing estimate unavailable — please try again later.
         </div>
@@ -3525,25 +3255,25 @@ function FinalRecommendation({ m, decision }: { m: MemoData; decision: BuildDeci
   const budget = deriveValidationBudget(m, decision)
   const kill   = deriveKillCriteria(m)
   const cfg = {
-    BUILD_NOW:        { label: 'Build Now',      cls: 'text-emerald-400', bg: 'bg-emerald-400/5 border-emerald-400/15' },
-    VALIDATE_FURTHER: { label: 'Validate First', cls: 'text-amber-400',   bg: 'bg-amber-400/5 border-amber-400/15'   },
-    SKIP:             { label: 'Pass',           cls: 'text-red-400',     bg: 'bg-red-400/5 border-red-400/15'       },
-    CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation Candidate', cls: 'text-sky-400', bg: 'bg-sky-400/5 border-sky-400/15' },
+    BUILD_NOW:        { label: 'Build Now',      cls: 'text-lab-verdant', glow: 'verdant' as const },
+    VALIDATE_FURTHER: { label: 'Validate First', cls: 'text-lab-amber',   glow: 'amber' as const   },
+    SKIP:             { label: 'Pass',           cls: 'text-lab-ember',   glow: 'ember' as const    },
+    CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation Candidate', cls: 'text-lab-spectrum', glow: 'spectrum' as const },
   }[decision]
 
   return (
-    <div className={`card-premium p-6 sm:p-9 border ${cfg.bg}`}>
-      <p className="label mb-5">Final Recommendation</p>
+    <LabGlass tier="regular" glow={cfg.glow} className="p-6 sm:p-9 lab-animate-fade-up">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lab-photon mb-5">Final Recommendation</p>
       <div className="flex items-baseline gap-3 mb-4">
-        <span className={`font-serif text-3xl font-medium tracking-tight ${cfg.cls}`}>{cfg.label}</span>
-        <span className="text-sm text-zinc-500">at {budget.range} initial validation spend</span>
+        <span className={`font-display text-3xl font-semibold tracking-tight ${cfg.cls}`}>{cfg.label}</span>
+        <span className="text-sm text-lab-text-tertiary">at {budget.range} initial validation spend</span>
       </div>
-      <p className="text-sm text-zinc-300 leading-relaxed mb-6">{m.build_explanation}</p>
-      <div className="pt-5 border-t border-white/[0.06]">
-        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Watch for</p>
-        <p className="text-xs text-zinc-400 leading-relaxed">{kill[0]}</p>
+      <p className="text-sm text-lab-text-secondary leading-relaxed mb-6">{m.build_explanation}</p>
+      <div className="pt-5 border-t border-lab-border-soft">
+        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-2">Watch for</p>
+        <p className="text-xs text-lab-text-secondary leading-relaxed">{kill[0]}</p>
       </div>
-    </div>
+    </LabGlass>
   )
 }
 
@@ -3560,8 +3290,8 @@ function DeepDiveSection({
 }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-white/[0.07]">
-        <h2 className="font-serif text-xl font-medium">{title}</h2>
+      <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-lab-border-soft">
+        <h2 className="font-display text-xl font-semibold text-lab-text-primary">{title}</h2>
       </div>
       {children}
     </div>
@@ -3588,10 +3318,10 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
       <div className="space-y-5 min-w-0">
 
         {/* ── Always visible: the first 15 seconds, then supporting detail ── */}
-        <div className="space-y-5 animate-in">
-          <DecisionStrip m={m} score={score} decision={decision} generatedAt={generatedAt} />
-          <Masthead m={m} score={score} decision={decision} confidence={confidence} generatedAt={generatedAt} />
-          <ExecutiveSummary m={m} />
+        <div className="space-y-5">
+          <Hero m={m} score={score} decision={decision} generatedAt={generatedAt} />
+          <EvidenceConfidenceSection m={m} decision={decision} confidence={confidence} />
+          <AIAnalystSection m={m} />
           <InvestmentThesisSection m={m} blocks={blocks} decision={decision} />
         </div>
 
@@ -3599,7 +3329,7 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
         <SectionNav active={activeTab} onSelect={jumpToTab} />
 
         {/* ── Deep-dive sections — true tabs: one pane visible at a time ── */}
-        <div ref={tabPanelRef} className="card-premium p-6 sm:p-8 min-h-[420px] scroll-mt-6">
+        <div ref={tabPanelRef} className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md shadow-lab-xs p-6 sm:p-8 min-h-[420px] scroll-mt-6">
           <div className={activeTab === 'market-intelligence' ? '' : 'hidden'}>
             <DeepDiveSection title="Market Intelligence">
               <MarketIntelligenceContent m={m} />
@@ -3627,9 +3357,9 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
                     personas with no real source. */}
                 <ConsumerIntelligenceSection m={m} />
 
-                <div className="pt-6 border-t border-white/[0.06]">
+                <div className="pt-6 border-t border-lab-border-soft">
                   <div className="flex items-center justify-between gap-3 mb-3">
-                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest">AI-Generated Customer Personas</p>
+                    <p className="text-[10px] text-lab-text-tertiary uppercase tracking-widest">AI-Generated Customer Personas</p>
                   </div>
                   <ProvenanceCaption p={{ level: 'synthesized', source: 'Claude (AI synthesis)', detail: 'Everything below is invented by the model to read like real customer quotes. It is not pulled from the real reviews shown above — treat it as a creative starting point for messaging, not as research.' }} />
                   <div className="mt-4">
@@ -3676,7 +3406,7 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
       {/* ── Persistent inspector rail (desktop only) ────────────────── */}
       <aside className="hidden lg:block lg:sticky lg:top-6 space-y-4">
         <AtAGlanceRail m={m} score={score} decision={decision} confidence={confidence} />
-        <div className="card-premium p-5">
+        <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-5">
           <RailNav active={activeTab} onSelect={jumpToTab} />
         </div>
       </aside>
