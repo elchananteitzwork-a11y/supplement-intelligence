@@ -1,4 +1,5 @@
 import type { SignalProvider, SignalContext, ProviderSignals, ReviewVelocitySignal } from '../types'
+import { cacheGet, cacheSet } from '../../provider-cache'
 
 // ── Apify `junglee/amazon-crawler` — real Amazon search results for the
 // user's EXACT query, not a category-wide average. ──
@@ -27,6 +28,7 @@ import type { SignalProvider, SignalContext, ProviderSignals, ReviewVelocitySign
 
 const ACTOR_ENDPOINT = 'https://api.apify.com/v2/acts/junglee~amazon-crawler/run-sync-get-dataset-items'
 const MAX_ITEMS = 20
+const SERP_CACHE_TTL_MS = 48 * 60 * 60 * 1000  // 48 hours — SERP rankings shift faster than reviews
 
 // A listing needs at least this many reviews to count as a real, established
 // competitor rather than a throwaway/new listing with no track record.
@@ -93,6 +95,14 @@ export class CompetitionSignalProvider implements SignalProvider {
     const category = ctx.query
     if (!category.trim()) return null
 
+    // ── SERP cache (48h TTL, saves $0.06/hit) ────────────────────────────
+    const cacheKey = `serp:v1:${category.toLowerCase().trim()}`
+    const cached = await cacheGet<ProviderSignals>(cacheKey)
+    if (cached) {
+      console.log('[Competition] SERP cache HIT', { category })
+      return cached
+    }
+
     try {
       // timeout=90 is the actor's OWN max runtime on Apify's side; the
       // AbortSignal below is our client-side ceiling, kept just above the
@@ -121,7 +131,9 @@ export class CompetitionSignalProvider implements SignalProvider {
         return null
       }
 
-      return this.computeSignals(items)
+      const result = this.computeSignals(items)
+      cacheSet(cacheKey, 'junglee-crawler', result, SERP_CACHE_TTL_MS).catch(() => {})
+      return result
     } catch (e: unknown) {
       console.error('Apify amazon-crawler provider error', { category, error: e instanceof Error ? e.message : e })
       return null

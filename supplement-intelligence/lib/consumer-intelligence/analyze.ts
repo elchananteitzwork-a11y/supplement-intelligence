@@ -8,6 +8,7 @@ import { collectTikTokComments, PURCHASE_INTENT_CUES } from './tiktok-comments'
 import type {
   ConsumerIntelligenceReport, ThemeInsight, SentimentBreakdown, SourceProduct,
 } from './types'
+import { cacheGet, cacheSet } from '../provider-cache'
 
 // ── Consumer Intelligence orchestrator ──────────────────────────────────────
 //
@@ -19,15 +20,23 @@ import type {
 //
 // Source chain (2026-07-01):
 //   Tier 1: Amazon reviews via ApifyReviewProvider (junglee~amazon-reviews-scraper)
-//             — $0.50 minimum/run, 2 ASINs/analysis = $1.00/analysis
+//             — $0.50 minimum/run × MAX_SOURCE_PRODUCTS ASINs/analysis
+//   Tier 1a: provider_cache (Supabase, 14-day TTL) — free on cache hit,
+//             eliminating the Apify call for previously-seen ASINs entirely
 //   Tier 2: AmazonScraperProvider (HTML scraper, no API key, always-on fallback)
 //             — included automatically via getDefaultProviders() registry
 //   Tier 3: TikTok comments (clockworks~free-tiktok-scraper)
 //             — runs in PARALLEL with Tier 1+2, used when Amazon reviews < 5
+//
+// Cost model (2026-07-01):
+//   Cold cache (first analysis using an ASIN):  $0.50/ASIN via Apify
+//   Warm cache (any repeat of that ASIN):       $0.00
+//   Expected average after cache warm-up:       ~$0.05–0.15/analysis
 
-const TOTAL_REVIEW_BUDGET  = 100
-const MAX_SOURCE_PRODUCTS  = 2   // 50 reviews each ≈ 100 total
-const COLLECTOR_TIMEOUT_MS = 70_000
+const TOTAL_REVIEW_BUDGET   = 100
+const MAX_SOURCE_PRODUCTS   = 2    // up to 2 ASINs; cache makes each free after first fetch
+const REVIEW_CACHE_TTL_MS   = 14 * 24 * 60 * 60 * 1000  // 14 days
+const COLLECTOR_TIMEOUT_MS  = 70_000
 const COLLECTOR_MAX_RETRIES = 1
 // Hard ceiling on the whole consumer intelligence stage
 const TOTAL_TIMEOUT_MS = 90_000
@@ -85,6 +94,19 @@ export async function analyzeConsumerIntelligence(
   // The collector tries providers in priority order and falls back automatically.
 
   const fetchAmazonReviews = async (target: { productId: string; brand: string }) => {
+    const cacheKey = `reviews:v1:${target.productId}`
+
+    // ── Tier 1a: review cache (free on hit, eliminates Apify call) ────────
+    const cached = await cacheGet<CollectedReview[]>(cacheKey)
+    if (cached && cached.length >= AMAZON_SUCCESS_THRESHOLD) {
+      console.log('[ConsumerIntelligence] review cache HIT', {
+        productId: target.productId,
+        cached:    cached.length,
+      })
+      return { target, reviews: cached }
+    }
+
+    // ── Tier 1: live fetch from provider registry ─────────────────────────
     try {
       const collector = new ReviewCollector(getDefaultProviders(), {
         max_reviews:  reviewsPerProduct,
@@ -92,6 +114,12 @@ export async function analyzeConsumerIntelligence(
         max_retries:  COLLECTOR_MAX_RETRIES,
       })
       const result = await collector.collect(target.productId)
+
+      // Write to cache — fire-and-forget, never blocks analysis
+      if (result.reviews.length >= AMAZON_SUCCESS_THRESHOLD) {
+        cacheSet(cacheKey, 'amazon-reviews', result.reviews, REVIEW_CACHE_TTL_MS).catch(() => {})
+      }
+
       return { target, reviews: result.reviews }
     } catch (e: unknown) {
       console.error('[ConsumerIntelligence] Amazon collection failed', {

@@ -1,5 +1,6 @@
 import type { KeywordProvider, KeywordIntelligence, KeywordMetric } from './types'
 import { checkKeywordRelevance } from './relevance-guard'
+import { cacheGet, cacheSet } from '../provider-cache'
 
 // ── DataForSEO Labs — Related Keywords (live) ──────────────────────────────
 //
@@ -231,6 +232,8 @@ function toMetric(data: DfsKeywordData): KeywordMetric | null {
   }
 }
 
+const KEYWORD_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000  // 7 days — keyword volumes stable week-to-week
+
 export class DataForSeoKeywordProvider implements KeywordProvider {
   readonly name    = 'dataforseo'
   readonly enabled = !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD)
@@ -239,6 +242,14 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
     if (!this.enabled) return null
     const keyword = seedKeyword.trim()
     if (!keyword) return null
+
+    // ── Keyword cache (7-day TTL, eliminates ~$0.011/hit) ────────────────
+    const cacheKey = `keywords:v1:${keyword.toLowerCase()}`
+    const cached = await cacheGet<KeywordIntelligence>(cacheKey)
+    if (cached) {
+      console.log('[DataForSEO] keyword cache HIT', { seedKeyword })
+      return cached
+    }
 
     // Try the exact phrase first; only broaden (and spend a second real call)
     // if it genuinely came back empty. Most queries will resolve on the first
@@ -272,7 +283,9 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
       const relevant = byVolumeDesc.find(m => checkKeywordRelevance(keyword, m.keyword).allowed)
 
       if (relevant) {
-        return this.bucket(candidate, metrics, relevant)
+        const result = this.bucket(candidate, metrics, relevant)
+        cacheSet(cacheKey, 'dataforseo', result, KEYWORD_CACHE_TTL_MS).catch(() => {})
+        return result
       }
 
       const top = byVolumeDesc[0]
