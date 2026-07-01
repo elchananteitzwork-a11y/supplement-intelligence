@@ -496,9 +496,12 @@ export async function POST(req: Request) {
   // rather than invent a different one, not to freely restate it as its
   // own discovery. The underlying counts/quotes the UI shows still come
   // straight from memo.consumer_intelligence, untouched by the model.
-  const topCompetitors = signals?.review_velocity?.value.top_competitors
-  const consumerIntelligencePromise = topCompetitors?.length
-    ? analyzeConsumerIntelligence(topCompetitors, input.trim()).catch((e: unknown) => {
+  const topCompetitors  = signals?.review_velocity?.value.top_competitors
+  // Pass TikTok hashtag so TikTok comments can serve as fallback when Amazon
+  // review scraping returns < 5 reviews (blocked by Amazon or ASIN not found).
+  const tiktokHashtag   = signals?.virality?.value?.hashtag as string | undefined
+  const consumerIntelligencePromise = (topCompetitors?.length || tiktokHashtag)
+    ? analyzeConsumerIntelligence(topCompetitors ?? [], input.trim(), tiktokHashtag).catch((e: unknown) => {
         console.error('Consumer Intelligence failed', { error: e instanceof Error ? e.message : e })
         return null
       })

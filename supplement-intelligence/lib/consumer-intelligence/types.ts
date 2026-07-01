@@ -50,12 +50,21 @@ export interface ConsumerIntelligenceReport {
   positiveThemes:        ThemeInsight[]   // ranked full list, 4-5★ pool — backs What Customers Love / Positive Themes
 
   // Real, deterministic pattern-match over the same review text already
-  // collected for the themes above (2026-06-28 Decision Engine redesign —
-  // gives the Subscription/Retention composite its first real-data path;
-  // no new provider, no new fetch, same corpus). mentionedBy = distinct
-  // reviews containing repurchase language ("reorder", "ran out",
-  // "subscribe", "every month", etc.); outOf = total reviews analyzed.
+  // collected for the themes above. mentionedBy = distinct reviews containing
+  // repurchase language ("reorder", "ran out", "every month", etc.);
+  // outOf = Amazon-review pool only (TikTok comments excluded because "subscribe"
+  // in a comment context means YouTube subscribe, not product subscription).
   repurchaseLanguage: { mentionedBy: number; outOf: number }
+
+  // TikTok-specific: distinct comments expressing purchase intent
+  // ("ordering this", "just bought", "where can I buy", etc.).
+  // Only present when tiktokComments source was used.
+  tiktokPurchaseIntent?: { mentionedBy: number; outOf: number; hashtag: string }
+
+  // Which source(s) provided data for this report.
+  // 'amazon-reviews' = only Amazon. 'tiktok-comments' = only TikTok.
+  // 'mixed' = both sources contributed reviews to the analysis pool.
+  dataSource: 'amazon-reviews' | 'tiktok-comments' | 'mixed'
 
   confidence:  number   // 0-1, driven by review volume — see analyze.ts
   generatedAt: string

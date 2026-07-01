@@ -1,9 +1,10 @@
-import { ReviewCollector }    from '../review-collector/collector'
-import { ApifyReviewProvider } from '../review-collector/providers/apify'
-import type { CollectedReview } from '../review-collector/types'
+import { ReviewCollector }        from '../review-collector/collector'
+import { getDefaultProviders }    from '../review-collector/providers/registry'
+import type { CollectedReview }   from '../review-collector/types'
 import { cleanReviewText, splitSentences } from './clean-text'
-import { clusterPhrases } from './cluster'
-import type { SentenceRef } from './cluster'
+import { clusterPhrases }         from './cluster'
+import type { SentenceRef }       from './cluster'
+import { collectTikTokComments, PURCHASE_INTENT_CUES } from './tiktok-comments'
 import type {
   ConsumerIntelligenceReport, ThemeInsight, SentimentBreakdown, SourceProduct,
 } from './types'
@@ -16,58 +17,36 @@ import type {
 //   - max 100 reviews unless evidence suggests fewer are sufficient
 //   - dedupe, split positive/negative, cluster (not free-form), show counts
 //
-// Source: the top competitor ASINs already found by Competition Intelligence
-// (lib/signal-engine/providers/competition.ts top_competitors) — reused, not
-// re-searched, to avoid a second discovery cost.
+// Source chain (2026-07-01):
+//   Tier 1: Amazon reviews via ApifyReviewProvider (junglee~amazon-reviews-scraper)
+//             — $0.50 minimum/run, 2 ASINs/analysis = $1.00/analysis
+//   Tier 2: AmazonScraperProvider (HTML scraper, no API key, always-on fallback)
+//             — included automatically via getDefaultProviders() registry
+//   Tier 3: TikTok comments (clockworks~free-tiktok-scraper)
+//             — runs in PARALLEL with Tier 1+2, used when Amazon reviews < 5
 
 const TOTAL_REVIEW_BUDGET  = 100
-const MAX_SOURCE_PRODUCTS  = 2   // 50 reviews each ≈ 100 total at the same per-review cost as 1 call
-
-// ROOT CAUSE (found 2026-06-24, "Load failed" search-stability bug):
-// ReviewCollector's DEFAULT_CONFIG.timeout_ms is 15_000 — sized for the raw
-// HTML scraper and Rainforest's fast per-page API calls, both sub-second to
-// a few seconds normally. The Apify review-scraping actor used here is a
-// run-sync call that, like the Apify search actor used by Competition
-// Intelligence, genuinely needs up to ~70s (confirmed live this session for
-// the closely related search actor: 30-73s real range). At the 15s default,
-// every real run was being aborted and RETRIED (max_retries: 3) — wasting
-// up to ~48s per ASIN on retries that were never going to finish in time,
-// before giving up. Sequential across 2 ASINs, that's up to ~96s of pure
-// waste stacked on top of signal-engine + Claude generation time, which is
-// what was pushing total request time past the platform's connection
-// tolerance and surfacing as a dropped connection ("Load failed") on the
-// client even though the server (and Apify, which bills regardless) kept
-// working — explaining why results sometimes appeared later via cache.
+const MAX_SOURCE_PRODUCTS  = 2   // 50 reviews each ≈ 100 total
 const COLLECTOR_TIMEOUT_MS = 70_000
-const COLLECTOR_MAX_RETRIES = 1   // a slow-but-working call should NOT be retried — retrying just repeats the same wait for the same likely outcome
-// Hard ceiling on the whole multi-ASIN fetch (run in parallel below, not
-// sequentially) so Consumer Intelligence as a stage can never blow past its
-// allotted slice of the overall request budget — see app/api/generate/route.ts.
-const TOTAL_TIMEOUT_MS = 85_000
+const COLLECTOR_MAX_RETRIES = 1
+// Hard ceiling on the whole consumer intelligence stage
+const TOTAL_TIMEOUT_MS = 90_000
+// TikTok timeout: shorter since it's a fallback/parallel path
+const TIKTOK_TIMEOUT_MS = 75_000
+// Minimum reviews before we declare Amazon success (skip TikTok fallback)
+const AMAZON_SUCCESS_THRESHOLD = 5
 
-// NOTE (negation fix): bare doesn't/don't/didn't were previously their own
-// standalone alternatives here — removed. A negation contraction's mere
-// presence was never itself evidence of a problem ("doesn't taste bad" was
-// matching as a complaint purely because it contains "doesn't"), and it gave
-// the now-added negation check below nothing useful to do for this specific
-// alternative (the cue WAS the negation). Genuinely negated complaints like
-// "doesn't work" are no longer caught by this list alone — an accepted
-// recall trade-off for removing a worse false-positive source.
+// ── Sentiment detection ───────────────────────────────────────────────────────
+
 const PROBLEM_CUES  = /\b(but|however|unfortunately|issue|problem|too (?:big|small|large|strong|expensive|hard|tiny|bitter)|disappoint|hard to|difficult to|hate|complain|wish it|stopped working|broke|defective|smell|taste(?:s)? bad)\b/i
 const REQUEST_CUES  = /\b(wish|want(?:ed)?|would be nice|should (?:have|add|include|make)|need(?:s)? to|hope they|please add|if only|i'?d love|would love)\b/i
-// Real, deterministic repurchase-behavior language — same pattern-matching
-// technique already used for PROBLEM_CUES/REQUEST_CUES above, not a new
-// category of analysis. Feeds the Subscription/Retention composite (see
-// lib/scoring.ts) — never AI-judged, a literal phrase match over real text.
+
+// Repurchase language: only applied to Amazon reviews.
+// TikTok comments are excluded to avoid "subscribe" (meaning YouTube subscribe)
+// falsely counting as product subscription repurchase intent.
 const REPURCHASE_CUES = /\b(re-?order(?:ed|ing)?|re-?purchas(?:e|ed|ing)|re-?buy(?:ing)?|subscribe|subscription|auto-?ship|ran out|run(?:s)? out|out of (?:it|this|these)|order(?:ed|ing)? again|bought again|buy(?:ing)? again|every month|each month|monthly|repeat (?:customer|buyer|purchase)|been using (?:it|this) for (?:months|years)|stocked up|buying more)\b/i
 
-// Negation guard: a cue word/phrase immediately preceded by a negation token
-// means the opposite of what the bare cue implies ("won't reorder", "don't
-// want this", "doesn't taste bad") — matching it as-is silently inverted the
-// signal. Checks only the few words directly before each match (English
-// negation overwhelmingly precedes what it negates), not a full parse —
-// same deterministic-regex tier as the cues above, not a new analysis method.
-const NEGATION_TOKENS = /\b(not|never|no|none|nothing|without|cannot|can'?t|won'?t|wouldn'?t|shouldn'?t|doesn'?t|don'?t|didn'?t|isn'?t|wasn'?t|aren'?t|weren'?t)\b/i
+const NEGATION_TOKENS      = /\b(not|never|no|none|nothing|without|cannot|can'?t|won'?t|wouldn'?t|shouldn'?t|doesn'?t|don'?t|didn'?t|isn'?t|wasn'?t|aren'?t|weren'?t)\b/i
 const NEGATION_WINDOW_WORDS = 4
 
 function hasUnnegatedMatch(text: string, cueRegex: RegExp): boolean {
@@ -80,16 +59,16 @@ function hasUnnegatedMatch(text: string, cueRegex: RegExp): boolean {
   })
 }
 
+// ── Main export ───────────────────────────────────────────────────────────────
+
 export async function analyzeConsumerIntelligence(
-  competitors: { productId: string; brand: string }[],
-  query?: string,
+  competitors:     { productId: string; brand: string }[],
+  query?:          string,
+  tiktokHashtag?:  string,   // from signal_evidence.virality.value.hashtag
 ): Promise<ConsumerIntelligenceReport | null> {
   const targets = competitors.slice(0, MAX_SOURCE_PRODUCTS)
-  if (!targets.length) return null
+  if (!targets.length && !tiktokHashtag) return null
 
-  // Product/brand/query words aren't customer sentiment — exclude them so
-  // "magnesium glycinate" or "pure encapsulations" don't surface as "themes"
-  // just because the product is mentioned by name.
   const excludeWords = Array.from(new Set(
     [query ?? '', ...targets.map(t => t.brand)]
       .join(' ')
@@ -98,28 +77,27 @@ export async function analyzeConsumerIntelligence(
       .filter(w => w.length > 1),
   ))
 
-  const reviewsPerProduct = Math.floor(TOTAL_REVIEW_BUDGET / targets.length)
-  const provider = new ApifyReviewProvider(reviewsPerProduct)
-  if (!provider.enabled) return null
+  const reviewsPerProduct = Math.floor(TOTAL_REVIEW_BUDGET / Math.max(1, targets.length))
 
-  // Parallel, not sequential — two independent Apify runs don't need to wait
-  // on each other, and running them concurrently halves this stage's
-  // worst-case wall-clock contribution to the overall request.
-  const fetchOne = async (target: { productId: string; brand: string }) => {
+  // ── Tier 1 + 2: Amazon reviews (parallel across competitors) ──────────────
+  // Uses getDefaultProviders() which includes junglee (priority 0) →
+  // web_wanderer (currently broken, priority 0.5) → AmazonScraper (priority 2).
+  // The collector tries providers in priority order and falls back automatically.
+
+  const fetchAmazonReviews = async (target: { productId: string; brand: string }) => {
     try {
-      const collector = new ReviewCollector([provider], {
+      const collector = new ReviewCollector(getDefaultProviders(), {
         max_reviews:  reviewsPerProduct,
         timeout_ms:   COLLECTOR_TIMEOUT_MS,
         max_retries:  COLLECTOR_MAX_RETRIES,
       })
-      // ReviewCollector.collect takes an Amazon ASIN today (it's a
-      // provider-layer concern — every current ReviewProvider is Amazon-
-      // only) — target.productId is that same value under its generic
-      // core-model name.
       const result = await collector.collect(target.productId)
       return { target, reviews: result.reviews }
     } catch (e: unknown) {
-      console.error('[ConsumerIntelligence] collection failed', { productId: target.productId, error: e instanceof Error ? e.message : e })
+      console.error('[ConsumerIntelligence] Amazon collection failed', {
+        productId: target.productId,
+        error:     e instanceof Error ? e.message : e,
+      })
       return { target, reviews: [] as CollectedReview[] }
     }
   }
@@ -127,30 +105,81 @@ export async function analyzeConsumerIntelligence(
   const withTimeout = <T,>(p: Promise<T>, ms: number, fallback: T): Promise<T> =>
     Promise.race([p, new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms))])
 
-  const settled = await withTimeout(
-    Promise.all(targets.map(fetchOne)),
+  // Run Amazon and TikTok in parallel — TikTok starts immediately so it doesn't
+  // add serial latency even when Amazon succeeds. TikTok result is only merged
+  // into the analysis when Amazon reviews fall below the success threshold.
+  const [amazonSettled, tiktokResult] = await withTimeout(
+    Promise.all([
+      Promise.all(targets.map(fetchAmazonReviews)),
+      tiktokHashtag
+        ? collectTikTokComments(tiktokHashtag, TIKTOK_TIMEOUT_MS).catch((e: unknown) => {
+            console.error('[ConsumerIntelligence] TikTok collection failed', e instanceof Error ? e.message : e)
+            return null
+          })
+        : Promise.resolve(null),
+    ]),
     TOTAL_TIMEOUT_MS,
-    targets.map(target => ({ target, reviews: [] as CollectedReview[] })),
+    [
+      targets.map(target => ({ target, reviews: [] as CollectedReview[] })),
+      null,
+    ],
   )
 
+  // ── Merge Amazon reviews ───────────────────────────────────────────────────
   const productsAnalyzed: SourceProduct[] = []
-  const seen: Set<string> = new Set()
-  const allReviews: CollectedReview[] = []
+  const seenIds = new Set<string>()
+  const amazonReviews: CollectedReview[] = []
 
-  for (const { target, reviews } of settled) {
-    const fresh = reviews.filter(r => !seen.has(r.id))
-    fresh.forEach(r => seen.add(r.id))
-    allReviews.push(...fresh)
-    productsAnalyzed.push({ productId: target.productId, brand: target.brand, reviewsCollected: fresh.length })
+  for (const { target, reviews } of amazonSettled) {
+    const fresh = reviews.filter(r => !seenIds.has(r.id))
+    fresh.forEach(r => seenIds.add(r.id))
+    amazonReviews.push(...fresh)
+    if (targets.find(t => t.productId === target.productId)) {
+      productsAnalyzed.push({
+        productId:        target.productId,
+        brand:            target.brand,
+        reviewsCollected: fresh.length,
+      })
+    }
   }
 
-  if (allReviews.length < 5) {
-    console.log('[ConsumerIntelligence] too few reviews collected', { total: allReviews.length })
+  // ── Decide whether to add TikTok comments ─────────────────────────────────
+  const useTikTok = amazonReviews.length < AMAZON_SUCCESS_THRESHOLD && tiktokResult !== null && (tiktokResult?.reviews?.length ?? 0) > 0
+  const tiktokReviews  = useTikTok ? (tiktokResult?.reviews ?? []) : []
+
+  // Determine dataSource for provenance tracking
+  const dataSource: ConsumerIntelligenceReport['dataSource'] =
+    amazonReviews.length > 0 && tiktokReviews.length > 0 ? 'mixed'
+    : tiktokReviews.length > 0                            ? 'tiktok-comments'
+    : 'amazon-reviews'
+
+  const allReviews = [
+    ...amazonReviews,
+    // TikTok comments: dedupe by id (already prefixed with 'tiktok-')
+    ...tiktokReviews.filter(r => !seenIds.has(r.id)),
+  ]
+
+  if (allReviews.length < AMAZON_SUCCESS_THRESHOLD) {
+    console.log('[ConsumerIntelligence] too few reviews/comments collected', {
+      amazon:  amazonReviews.length,
+      tiktok:  tiktokReviews.length,
+      total:   allReviews.length,
+    })
     return null
   }
 
+  console.log('[ConsumerIntelligence] collection complete', {
+    amazon:     amazonReviews.length,
+    tiktok:     tiktokReviews.length,
+    total:      allReviews.length,
+    dataSource,
+  })
+
+  // ── Text analysis ──────────────────────────────────────────────────────────
   const cleaned = allReviews.map(r => ({ ...r, body: cleanReviewText(r.body) }))
 
+  // Star-rating pools: only Amazon reviews have meaningful ratings.
+  // TikTok comments are all rating=3 (neutral) so they fall out of both pools.
   const positive = cleaned.filter(r => r.rating >= 4)
   const negative = cleaned.filter(r => r.rating <= 2)
 
@@ -159,7 +188,7 @@ export async function analyzeConsumerIntelligence(
 
   const negativeSentences = toSentences(negative)
   const positiveSentences = toSentences(positive)
-  const allSentences      = toSentences(cleaned)
+  const allSentences      = toSentences(cleaned)   // includes TikTok comments
   const problemSentences  = allSentences.filter(s => hasUnnegatedMatch(s.text, PROBLEM_CUES))
   const requestSentences  = allSentences.filter(s => hasUnnegatedMatch(s.text, REQUEST_CUES))
 
@@ -183,12 +212,22 @@ export async function analyzeConsumerIntelligence(
   )
 
   const sentimentBreakdown = computeSentimentBreakdown(cleaned)
-  const confidence = computeConfidence(cleaned.length, productsAnalyzed.length)
+  const confidence = computeConfidence(cleaned.length, productsAnalyzed.length + (useTikTok ? 1 : 0))
 
-  // Distinct reviews (not sentences) whose body matches repurchase-behavior
-  // language — counted across all ratings, same scope as mostMentionedProblems,
-  // since repurchase behavior is a fact about usage, not sentiment.
-  const repurchaseReviewCount = cleaned.filter(r => hasUnnegatedMatch(r.body, REPURCHASE_CUES)).length
+  // ── Repurchase language: Amazon reviews ONLY ──────────────────────────────
+  // TikTok comments excluded — "subscribe" means YouTube channel subscription,
+  // not product subscription. Avoids false positives in the Subscription composite.
+  const amazonCleaned = cleaned.filter(r => r.source_provider !== 'tiktok-comments')
+  const repurchaseReviewCount = amazonCleaned.filter(r => hasUnnegatedMatch(r.body, REPURCHASE_CUES)).length
+
+  // ── TikTok purchase intent (separate from repurchase) ─────────────────────
+  const tiktokPurchaseIntent = useTikTok && tiktokResult
+    ? {
+        mentionedBy: tiktokResult.purchaseIntentCount,
+        outOf:       tiktokReviews.length,
+        hashtag:     tiktokResult.hashtag,
+      }
+    : undefined
 
   return {
     productsAnalyzed,
@@ -200,11 +239,15 @@ export async function analyzeConsumerIntelligence(
     mostMentionedProblems,
     featureRequests,
     positiveThemes,
-    repurchaseLanguage: { mentionedBy: repurchaseReviewCount, outOf: cleaned.length },
+    repurchaseLanguage: { mentionedBy: repurchaseReviewCount, outOf: amazonCleaned.length },
+    tiktokPurchaseIntent,
+    dataSource,
     confidence,
     generatedAt: new Date().toISOString(),
   }
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function computeSentimentBreakdown(reviews: CollectedReview[]): SentimentBreakdown {
   const total = reviews.length
@@ -218,27 +261,23 @@ function computeSentimentBreakdown(reviews: CollectedReview[]): SentimentBreakdo
   const distribution = ([1, 2, 3, 4, 5] as const).map(star => ({
     star,
     count: counts[star],
-    pct:   total > 0 ? Math.round((counts[star] / total) * 1000) / 10 : 0,
+    pct:   total > 0 ? Math.round((counts[star] / total) * 100) : 0,
   }))
-
+  const positivePct = total > 0 ? Math.round(((counts[4] + counts[5]) / total) * 100) : 0
+  const neutralPct  = total > 0 ? Math.round((counts[3]               / total) * 100) : 0
+  const negativePct = total > 0 ? Math.round(((counts[1] + counts[2]) / total) * 100) : 0
   return {
     avgRating:    total > 0 ? Math.round((sum / total) * 10) / 10 : 0,
     totalReviews: total,
     distribution,
-    positivePct: total > 0 ? Math.round(((counts[4] + counts[5]) / total) * 1000) / 10 : 0,
-    neutralPct:  total > 0 ? Math.round((counts[3] / total) * 1000) / 10 : 0,
-    negativePct: total > 0 ? Math.round(((counts[1] + counts[2]) / total) * 1000) / 10 : 0,
+    positivePct,
+    neutralPct,
+    negativePct,
   }
 }
 
-// Volume-based confidence, no LLM-derived component (there is no LLM in this
-// pipeline) — more real reviews collected = more representative clusters.
-function computeConfidence(reviewCount: number, productCount: number): number {
-  const volumeFactor =
-    reviewCount >= 90 ? 1.00 :
-    reviewCount >= 60 ? 0.80 :
-    reviewCount >= 30 ? 0.60 :
-    reviewCount >= 15 ? 0.40 : 0.25
-  const sourceFactor = productCount >= 2 ? 1.0 : 0.85   // single-product sample is slightly less representative
-  return Math.round(volumeFactor * sourceFactor * 100) / 100
+function computeConfidence(reviewCount: number, sourceCount: number): number {
+  const volumeScore = reviewCount >= 50 ? 0.55 : reviewCount >= 20 ? 0.40 : reviewCount >= 10 ? 0.30 : reviewCount >= 5 ? 0.20 : 0
+  const sourceScore = sourceCount >= 2 ? 0.25 : sourceCount >= 1 ? 0.15 : 0
+  return Math.min(0.80, volumeScore + sourceScore)
 }
