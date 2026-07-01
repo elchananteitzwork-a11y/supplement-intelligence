@@ -2,20 +2,21 @@ import type { ReviewProvider, ProviderPage, ProviderFetchOptions } from './types
 import type { CollectedReview } from '../types'
 import { RetryableError, NonRetryableError } from '../retry'
 
-// ── Apify `junglee/amazon-reviews-scraper` — real review TEXT ─────────────
+// ── Apify `junglee/amazon-reviews-scraper` — FALLBACK provider (priority 1)
 //
-// Replaced `web_wanderer/amazon-reviews-extractor` on 2026-07-01:
-//   - web_wanderer is permanently blocked by Amazon across all regions
-//     (actor logs "Amazon US has restricted access to text reviews", returns
-//     status_code:500 on US/CA, 404 on UK/IN — confirmed exhaustively).
-//   - junglee/amazon-reviews-scraper: 712K total runs, 96.7% 30-day success
-//     rate, returns full reviewDescription text, last run today.
+// Demoted from primary to fallback on 2026-07-01 in favour of axesso (axesso.ts),
+// which is identical in review quality at 11x lower cost ($0.045 vs $0.50/50 reviews).
+//
+// Kept as fallback because it is the only other provider with a confirmed
+// live test against May 2026 Amazon changes. If axesso returns 0 reviews for
+// an ASIN (e.g. statusCode 404, temporary block), the collector falls through
+// to this provider automatically.
 //
 // Pricing (BRONZE plan, pay-per-event):
 //   actor-start: $0.005 per run
 //   review:      $0.005 per review
 //   minimum:     $0.50 per run (enforced by Apify even if reviews < 100)
-//   2 ASINs/analysis = 2 runs = ~$1.00/analysis
+//   Only incurred on axesso miss — expected to be rare.
 //
 // Input format:
 //   productUrls: [{ url: "https://www.amazon.com/dp/{ASIN}" }]
@@ -43,7 +44,7 @@ interface JungleeReview {
 export class ApifyReviewProvider implements ReviewProvider {
   readonly name     = 'apify-amazon-reviews'
   readonly enabled  = !!process.env.APIFY_API_TOKEN
-  readonly priority = 0
+  readonly priority = 1
 
   constructor(private reviewsPerAsin: number = 50) {}
 

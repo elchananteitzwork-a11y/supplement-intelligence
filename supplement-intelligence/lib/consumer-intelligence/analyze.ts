@@ -19,19 +19,20 @@ import { cacheGet, cacheSet } from '../provider-cache'
 //   - dedupe, split positive/negative, cluster (not free-form), show counts
 //
 // Source chain (2026-07-01):
-//   Tier 1: Amazon reviews via ApifyReviewProvider (junglee~amazon-reviews-scraper)
-//             — $0.50 minimum/run × MAX_SOURCE_PRODUCTS ASINs/analysis
+//   Tier 1: Amazon reviews via AxessoReviewProvider (axesso_data~amazon-reviews-scraper)
+//             — $0.0009/review, no per-run minimum
+//             junglee~amazon-reviews-scraper at priority 1 as automatic fallback
 //   Tier 1a: provider_cache (Supabase, 14-day TTL) — free on cache hit,
 //             eliminating the Apify call for previously-seen ASINs entirely
-//   Tier 2: AmazonScraperProvider (HTML scraper, no API key, always-on fallback)
-//             — included automatically via getDefaultProviders() registry
+//   Tier 2: AmazonScraperProvider (HTML scraper, broken since May 2026)
 //   Tier 3: TikTok comments (clockworks~free-tiktok-scraper)
-//             — runs in PARALLEL with Tier 1+2, used when Amazon reviews < 5
+//             — runs in PARALLEL with Tier 1, used when Amazon reviews < 5
 //
-// Cost model (2026-07-01):
-//   Cold cache (first analysis using an ASIN):  $0.50/ASIN via Apify
+// Cost model (2026-07-01, post-axesso migration):
+//   Cold cache (first analysis using an ASIN):  $0.045/ASIN via axesso (50 reviews)
 //   Warm cache (any repeat of that ASIN):       $0.00
-//   Expected average after cache warm-up:       ~$0.05–0.15/analysis
+//   2 ASINs/analysis cold:                      $0.09  (was $1.00 with junglee)
+//   Expected average after cache warm-up:       ~$0.01–0.05/analysis
 
 const TOTAL_REVIEW_BUDGET   = 100
 const MAX_SOURCE_PRODUCTS   = 2    // up to 2 ASINs; cache makes each free after first fetch
