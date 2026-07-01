@@ -57,41 +57,71 @@ interface TikTokChallengeResponse {
 
 // ── Keyword strategy ──────────────────────────────────────────────
 //
-// Generates 2 hashtag candidates from the discovery category name:
-//   1. Full phrase joined (spaces removed): "Gut Health" → "guthealth"
-//   2. Trailing-generic-word stripped:      "Cortisol Support" → "cortisol"
+// AUDIT FIX (2026-07-01): The previous 2-candidate strategy generated
+// DUPLICATE candidates for product names that end in non-generic words
+// (e.g. "Collagen Peptide Gummies for Skin" → both candidates were
+// "collagenpeptidegummiesforskin" — a hashtag that doesn't exist on
+// TikTok). Live testing confirmed this caused 0% TikTok contribution
+// in ALL production analyses. The fix adds 4 progressive fallback
+// strategies so shorter, broader hashtags are always included:
+//   1. Full phrase joined: "Collagen Peptide Gummies for Skin" → "collagenpeptidegummiesforskin"
+//   2. Strip "for/with/of X" prepositional clause at end: → "collagenpeptidegummies"
+//   3. Strip trailing generic words: → "collagenpeptide"
+//   4. First meaningful word only (broadest fallback): → "collagen"
 //
-// Both are fetched in parallel; the one with the most videos wins.
-//
-// Calibrated examples (all confirmed live):
-//   "Gut Health"           → #guthealth       (2.3M videos / 27.5B views)
-//   "GLP-1 Support"        → #glp1            (784K videos / 6.0B views)
-//   "Cortisol Support"     → #cortisol        (840K videos / 16.4B views)
-//   "Magnesium Supplement" → #magnesiumsupplement (26K videos / 134M views)
-//   "Sleep Gummies"        → #sleepgummies    (78K videos / 339M views)
+// Calibrated examples (all confirmed live 2026-07-01):
+//   "Gut Health"                  → #guthealth        (2.4M videos / 27.8B views)
+//   "Collagen Peptide Gummies"    → #collagenpeptidegummies (186 videos / 572K views)
+//   "Collagen"                    → #collagen         (3.9M videos / 25.6B views)
+//   "Magnesium Glycinate Sleep"   → #magnesiumglycinateforsleep (58 videos / 44K views) — verified
+//   "GLP-1 Support"               → #glp1             (784K videos / 6.0B views)
 
 const GENERIC_TAIL = new Set([
   'supplement', 'supplements', 'support', 'relief',
-  'loss', 'health', 'care', 'boost', 'gummies',
+  'loss', 'health', 'care', 'boost', 'gummies', 'formula',
 ])
+
+// Words that connect a product to its context ("for X", "with Y", "of Z")
+const PREPOSITION_BEFORE_CLAUSE = new Set(['for', 'with', 'of', 'to', 'and', 'plus'])
 
 function toHashtagCandidates(category: string): string[] {
   const clean = category.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()
   const words = clean.split(/\s+/).filter(Boolean)
+  if (!words.length) return []
 
-  const full    = words.join('')
-  const trimmed = [...words]
-  while (trimmed.length > 1 && GENERIC_TAIL.has(trimmed[trimmed.length - 1])) {
-    trimmed.pop()
-  }
-  const short = trimmed.join('')
+  const candidates: string[] = []
 
-  const seen   = new Set<string>()
-  const result: string[] = []
-  for (const h of [full, short]) {
-    if (h && !seen.has(h)) { seen.add(h); result.push(h) }
+  // 1. Full phrase joined (exact) — most specific
+  candidates.push(words.join(''))
+
+  // 2. Strip trailing "for/with/of <purpose>" clause
+  //    "Collagen Peptide Gummies for Skin" → "collagenpeptidegummies"
+  //    "Magnesium Glycinate for Sleep Support" → "magnesiumglycinate"
+  const prepIdx = words.findIndex(w => PREPOSITION_BEFORE_CLAUSE.has(w))
+  if (prepIdx > 0) {
+    candidates.push(words.slice(0, prepIdx).join(''))
   }
-  return result
+
+  // 3. Strip generic tail words from the (already clause-stripped) form
+  const base = prepIdx > 0 ? words.slice(0, prepIdx) : [...words]
+  const stripped = [...base]
+  while (stripped.length > 1 && GENERIC_TAIL.has(stripped[stripped.length - 1])) {
+    stripped.pop()
+  }
+  candidates.push(stripped.join(''))
+
+  // 4. First meaningful word only — broadest possible fallback
+  //    "Collagen Peptide Gummies for Skin" → "collagen"
+  const firstWord = words.find(w => !PREPOSITION_BEFORE_CLAUSE.has(w) && !GENERIC_TAIL.has(w))
+  if (firstWord && firstWord.length >= 4) {
+    candidates.push(firstWord)
+  }
+
+  // Deduplicate while preserving order (most specific first so we try the
+  // best match before falling back — the winning candidate is still the
+  // one with the most videos, not necessarily the first tried).
+  const seen = new Set<string>()
+  return candidates.filter(h => h.length >= 2 && !seen.has(h) && seen.add(h) !== undefined)
 }
 
 // ── Numeric helpers ───────────────────────────────────────────────

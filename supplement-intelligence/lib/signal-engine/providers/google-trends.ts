@@ -50,14 +50,56 @@ interface RegionPoint {
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-// Strip "supplement(s)" so "Gut Health Supplement" → "gut health" for
-// broader search signal. Specific medical terms (PCOS, GLP-1, etc.) are kept.
+// AUDIT FIX (2026-07-01): The old single-keyword strategy failed for
+// specific product names ("Collagen Peptide Gummies for Skin" → < 8 data
+// points → returns null). Google Trends works at the ingredient/benefit
+// level, not the SKU level. Now generates progressive fallbacks so the
+// provider finds signal even for long, specific queries.
+//
+// Broadening strategy (same principle as DataForSEO already uses):
+//   1. Exact query with "supplement(s)" stripped
+//   2. Strip "for/with/of X" clause at end
+//   3. Keep only the first 2 meaningful words
+//   4. Keep only the first meaningful word (key ingredient)
 function toSearchKeyword(category: string): string {
   return category
     .toLowerCase()
     .replace(/\bsupplements?\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+const GT_PREP_WORDS  = new Set(['for', 'with', 'of', 'to', 'and', 'plus', 'by'])
+const GT_STOP_WORDS  = new Set(['supplement', 'supplements', 'support', 'relief', 'formula',
+  'complex', 'blend', 'mix', 'care', 'health', 'boost', 'aid'])
+
+function broadenGoogleTrendsQuery(original: string): string[] {
+  const base = toSearchKeyword(original) // strips "supplement(s)"
+  if (!base) return []
+
+  const candidates: string[] = [base]
+  const words = base.split(/\s+/).filter(Boolean)
+
+  // Strip "for/with/of X" clause at the end
+  const prepIdx = words.findIndex(w => GT_PREP_WORDS.has(w))
+  if (prepIdx > 0) {
+    candidates.push(words.slice(0, prepIdx).join(' '))
+  }
+
+  // First 2 meaningful words
+  const meaningful = words.filter(w => !GT_PREP_WORDS.has(w) && !GT_STOP_WORDS.has(w))
+  if (meaningful.length >= 2) {
+    candidates.push(meaningful.slice(0, 2).join(' '))
+  }
+
+  // First meaningful word only (broadest — key ingredient/benefit)
+  if (meaningful.length >= 1 && meaningful[0].length >= 4) {
+    candidates.push(meaningful[0])
+  }
+
+  // Deduplicate preserving order, keep non-empty
+  const seen = new Set<string>()
+  return candidates.filter(c => c.length >= 3 && !seen.has(c) && seen.add(c) !== undefined)
 }
 
 // Demand score from relative interest (0–100 scale → 0–10)
@@ -142,41 +184,52 @@ export class GoogleTrendsProvider implements SignalProvider {
 
   async fetch(ctx: SignalContext): Promise<ProviderSignals | null> {
     const category = ctx.query
-    const keyword = toSearchKeyword(category)
-    if (!keyword) return null
+    const candidates = broadenGoogleTrendsQuery(category)
+    if (!candidates.length) return null
 
-    try {
-      const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-      const [raw, topRegions] = await Promise.all([
-        googleTrends.interestOverTime({ keyword, startTime: oneYearAgo, geo: 'US' }),
-        this.fetchTopRegions(keyword),
-      ])
+    const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
 
-      const parsed: { default: { timelineData: TimelinePoint[] } } = JSON.parse(raw)
-      const all    = parsed.default.timelineData ?? []
-      // Exclude partial (current week) and zero-data points
-      const valid  = all.filter(pt => pt.hasData?.[0] && pt.value[0] > 0 && !pt.isPartial)
+    // Try each candidate in order (most specific → broadest) until one
+    // returns ≥8 data points. Sequential to avoid rate-limiting GT.
+    for (const keyword of candidates) {
+      try {
+        const [raw, topRegions] = await Promise.all([
+          googleTrends.interestOverTime({ keyword, startTime: oneYearAgo, geo: 'US' }),
+          this.fetchTopRegions(keyword),
+        ])
 
-      if (valid.length < 8) {
-        console.log('Google Trends: insufficient data', { category, keyword, pts: valid.length })
-        return null
-      }
+        const parsed: { default: { timelineData: TimelinePoint[] } } = JSON.parse(raw)
+        const all   = parsed.default.timelineData ?? []
+        // Exclude partial (current week) and zero-data points
+        const valid = all.filter(pt => pt.hasData?.[0] && pt.value[0] > 0 && !pt.isPartial)
 
-      return this.computeSignals(category, keyword, valid, topRegions)
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      // Google Trends returns a 302→/sorry page when rate-limited.
-      // The provider returns null so the engine falls back to Keepa-only.
-      // In production (Vercel serverless), each invocation has a different IP
-      // so rate limits from local testing sessions do not affect live calls.
-      const isRateLimit = msg.includes('302') || msg.includes('sorry') || msg.includes('429')
-      if (isRateLimit) {
-        console.warn('Google Trends rate-limited — falling back to Keepa-only', { category, keyword })
-      } else {
+        if (valid.length < 8) {
+          console.log('Google Trends: insufficient data', { category, keyword, pts: valid.length })
+          continue // try broader candidate
+        }
+
+        if (keyword !== candidates[0]) {
+          console.log('Google Trends: broadened query succeeded', { category, original: candidates[0], usedKeyword: keyword })
+        }
+        return this.computeSignals(category, keyword, valid, topRegions)
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e)
+        // Google Trends returns a 302→/sorry page when rate-limited.
+        // The provider returns null so the engine falls back to Keepa-only.
+        // In production (Vercel serverless), each invocation has a different IP
+        // so rate limits from local testing sessions do not affect live calls.
+        const isRateLimit = msg.includes('302') || msg.includes('sorry') || msg.includes('429')
+        if (isRateLimit) {
+          console.warn('Google Trends rate-limited — falling back to Keepa-only', { category, keyword })
+          return null  // rate-limited: stop trying, don't burn more requests
+        }
         console.error('Google Trends provider error', { category, keyword, error: msg.slice(0, 120) })
+        continue
       }
-      return null
     }
+
+    console.log('Google Trends: all candidates insufficient', { category, candidates })
+    return null
   }
 
   private computeSignals(

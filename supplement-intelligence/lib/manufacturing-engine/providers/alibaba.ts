@@ -84,15 +84,19 @@ function buildQuery(req: ManufacturingRequest): string {
 
 // ── Parsers ──────────────────────────────────────────────────────────────────
 
-function parseMOQ(moq?: string, moqUnit?: string): { low: number; high: number; unit: string } {
+function parseMOQ(moq?: string, moqUnit?: string): { low: number; high: number; unit: string } | undefined {
   // Normalise unit label
   const rawUnit   = (moqUnit ?? 'Piece').toLowerCase().replace(/s$/, '')
   const unitLabel = ({ piece: 'units', set: 'sets', bag: 'bags', box: 'boxes', kg: 'kg', kilogram: 'kg' }[rawUnit] ?? 'units')
 
-  if (!moq) return { low: 500, high: 2000, unit: unitLabel }
+  // AUDIT FIX (2026-07-01): previously returned {low:500, high:2000} as a
+  // hardcoded guess when no real MOQ data was present — a clear violation of
+  // the "real data or null" rule. Now returns undefined instead. Callers
+  // already handle undefined gracefully (show "No data available").
+  if (!moq) return undefined
 
   const nums = moq.match(/\d[\d,]*/g)?.map(n => parseInt(n.replace(/,/g, ''), 10)).filter(n => n > 0) ?? []
-  if (!nums.length) return { low: 500, high: 2000, unit: unitLabel }
+  if (!nums.length) return undefined
 
   const low  = Math.min(...nums)
   // If only one number found, estimate the upper bound
@@ -265,7 +269,7 @@ export class AlibabaProvider implements ManufacturingProvider {
       totalCount,
       priced,
       priceRange,
-      moq:          `${moq.low}–${moq.high} ${moq.unit}`,
+      moq:          moq ? `${moq.low}–${moq.high} ${moq.unit}` : 'N/A',
       leadTime:     `${leadTime.low}–${leadTime.high} days`,
       confidence:   `${Math.round(confidence * 100)}%`,
     })
