@@ -1,7 +1,7 @@
 function scoreColor(s: number) {
-  if (s >= 8) return 'text-emerald-400'
-  if (s >= 6) return 'text-amber-400'
-  return 'text-red-400'
+  if (s >= 8) return 'text-lab-verdant'
+  if (s >= 6) return 'text-lab-amber'
+  return 'text-lab-ember'
 }
 
 function scoreBg(s: number) {
@@ -54,7 +54,7 @@ export default function ScoreCard({
 
 export function OpportunityScore({ score }: { score: number }) {
   const color =
-    score >= 65 ? 'text-emerald-400' : score >= 50 ? 'text-amber-400' : 'text-red-400'
+    score >= 65 ? 'text-lab-verdant' : score >= 50 ? 'text-lab-amber' : 'text-lab-ember'
   const ring =
     score >= 65 ? 'stroke-emerald-400' : score >= 50 ? 'stroke-amber-400' : 'stroke-red-400'
   const circumference = 2 * Math.PI * 48

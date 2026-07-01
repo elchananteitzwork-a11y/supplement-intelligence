@@ -1,12 +1,10 @@
 import type { BuildDecision } from '@/types/index'
 
 const DECISION_COLOR: Record<BuildDecision, string> = {
-  BUILD_NOW: '#34d399', VALIDATE_FURTHER: '#fbbf24', SKIP: '#f87171',
-  // Distinct from all three above — this isn't "real data, mediocre result,"
-  // it's "no real data for this exact idea, but the surrounding category is
-  // real" — a different kind of finding, not a point on the same good-to-bad
-  // spectrum the other three colors represent.
-  CATEGORY_CREATION_CANDIDATE: '#38bdf8',
+  BUILD_NOW:        '#34d9a0',
+  VALIDATE_FURTHER: '#f5b947',
+  SKIP:             '#ff6259',
+  CATEGORY_CREATION_CANDIDATE: '#8b7cff',
 }
 
 // Compact full-circle progress ring — a mini instrument reading for card
@@ -28,10 +26,10 @@ export function ScoreDial({ score, decision, size = 52 }: { score: number; decis
           cx={cx} cy={cy} r={r} fill="none" stroke={c} strokeWidth={strokeW} strokeLinecap="round"
           strokeDasharray={circumference} strokeDashoffset={offset}
           transform={`rotate(-90 ${cx} ${cy})`}
-          style={{ transition: 'stroke-dashoffset .8s var(--ease-premium, ease)' }}
+          style={{ transition: 'stroke-dashoffset .8s var(--lab-ease-enter, ease)', filter: `drop-shadow(0 0 3px ${c}66)` }}
         />
       </svg>
-      <span className="absolute inset-0 grid place-items-center font-serif font-medium leading-none" style={{ color: c, fontSize: size * 0.34 }}>
+      <span className="absolute inset-0 grid place-items-center lab-text-data font-bold leading-none" style={{ color: c, fontSize: size * 0.3 }}>
         {Math.round(score)}
       </span>
     </div>

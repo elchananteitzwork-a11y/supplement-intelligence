@@ -17,23 +17,18 @@ export default function LoginPage() {
   const [awaitingConfirm, setAwaitingConfirm] = useState(false)
   const [resetSent, setResetSent] = useState(false)
 
-  function switchMode(next: Mode) {
-    setMode(next)
-    setError('')
-  }
+  function switchMode(next: Mode) { setMode(next); setError('') }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     const sb = createClient()
 
     if (mode === 'forgot') {
-      const { error } = await sb.auth.resetPasswordForEmail(
-        email.trim().toLowerCase(),
-        { redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password` },
-      )
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+      })
       setLoading(false)
       if (error) setError(error.message)
       else setResetSent(true)
@@ -43,159 +38,124 @@ export default function LoginPage() {
     if (!email.trim() || !password) { setLoading(false); return }
 
     if (mode === 'signin') {
-      const { error } = await sb.auth.signInWithPassword({
-        email:    email.trim().toLowerCase(),
-        password,
-      })
+      const { error } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
       setLoading(false)
-      if (error) {
-        setError(error.message)
-      } else {
-        router.push('/dashboard')
-        router.refresh()
-      }
+      if (error) setError(error.message)
+      else { router.push('/dashboard'); router.refresh() }
     } else {
-      const { data, error } = await sb.auth.signUp({
-        email:    email.trim().toLowerCase(),
-        password,
-      })
+      const { data, error } = await sb.auth.signUp({ email: email.trim().toLowerCase(), password })
       setLoading(false)
-      if (error) {
-        setError(error.message)
-      } else if (data.session) {
-        // Email confirmation disabled — signed in immediately
-        router.push('/dashboard')
-        router.refresh()
-      } else {
-        // Supabase sent a confirmation email
-        setAwaitingConfirm(true)
-      }
+      if (error) setError(error.message)
+      else if (data.session) { router.push('/dashboard'); router.refresh() }
+      else setAwaitingConfirm(true)
     }
   }
 
-  if (resetSent) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4">
-        <div className="w-full max-w-sm space-y-6">
-          <div className="text-center">
-            <Link href="/" className="font-serif text-lg">
-              Supplement <span className="italic text-brass">Intelligence</span>
-            </Link>
-          </div>
-          <div className="card p-8 text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-brass/10 border border-brass/20 grid place-items-center mx-auto">
-              <svg className="w-5 h-5 text-brass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-serif text-lg">Check your email</p>
-              <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
-                Password reset link sent to <span className="text-white">{email}</span>.
-                <br />Click it to choose a new password.
-              </p>
-            </div>
-            <button
-              onClick={() => { setResetSent(false); switchMode('signin') }}
-              className="btn-ghost text-xs"
-            >
-              Back to sign in
-            </button>
-          </div>
-          <p className="text-center">
-            <Link href="/" className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors">← Back to home</Link>
-          </p>
-        </div>
-      </div>
-    )
-  }
+  const inputCls = "w-full bg-white/[0.04] border border-lab-border-default rounded-lab-sm px-4 py-3 text-sm text-lab-text-primary placeholder-lab-text-tertiary focus:outline-none focus:border-lab-photon/60 focus:ring-1 focus:ring-lab-photon/20 transition-all"
 
-  if (awaitingConfirm) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4">
-        <div className="w-full max-w-sm space-y-6">
-          <div className="text-center">
-            <Link href="/" className="font-serif text-lg">
-              Supplement <span className="italic text-brass">Intelligence</span>
-            </Link>
-          </div>
-          <div className="card p-8 text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-brass/10 border border-brass/20 grid place-items-center mx-auto">
-              <svg className="w-5 h-5 text-brass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-serif text-lg">Confirm your email</p>
-              <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
-                We sent a confirmation link to <span className="text-white">{email}</span>.
-                <br />Click it to activate your account.
-              </p>
-            </div>
-            <button
-              onClick={() => { setAwaitingConfirm(false); switchMode('signin') }}
-              className="btn-ghost text-xs"
-            >
-              Back to sign in
-            </button>
-          </div>
-          <p className="text-center">
-            <Link href="/" className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors">← Back to home</Link>
-          </p>
+  const EmailConfirm = ({ title, body }: { title: string; body: React.ReactNode }) => (
+    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: '#050507' }}>
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center mb-2">
+          <Link href="/" className="font-display text-sm font-semibold">
+            Intelligence <span className="text-lab-photon">Lab</span>
+          </Link>
         </div>
+        <div
+          className="rounded-lab-lg border border-lab-border-soft p-8 text-center space-y-5"
+          style={{ background: 'rgba(255,255,255,0.03)' }}
+        >
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center mx-auto"
+            style={{ background: 'rgba(79,168,255,0.08)', border: '1px solid rgba(79,168,255,0.2)' }}
+          >
+            <svg className="w-5 h-5 text-lab-photon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-display font-semibold text-lab-text-primary text-lg">{title}</p>
+            <p className="text-sm text-lab-text-tertiary mt-1.5 leading-relaxed">{body}</p>
+          </div>
+          <button
+            onClick={() => { setResetSent(false); setAwaitingConfirm(false); switchMode('signin') }}
+            className="text-xs text-lab-text-secondary hover:text-lab-text-primary transition-colors"
+          >
+            ← Back to sign in
+          </button>
+        </div>
+        <p className="text-center">
+          <Link href="/" className="text-xs text-lab-text-tertiary hover:text-lab-text-secondary transition-colors">← Back to home</Link>
+        </p>
       </div>
-    )
-  }
+    </div>
+  )
+
+  if (resetSent) return (
+    <EmailConfirm
+      title="Check your email"
+      body={<>Reset link sent to <span className="text-lab-text-primary">{email}</span>. Click it to choose a new password.</>}
+    />
+  )
+
+  if (awaitingConfirm) return (
+    <EmailConfirm
+      title="Confirm your email"
+      body={<>Confirmation link sent to <span className="text-lab-text-primary">{email}</span>. Click it to activate your account.</>}
+    />
+  )
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: '#050507' }}>
+      {/* Background glow */}
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse, rgba(79,168,255,0.05) 0%, transparent 70%)' }}
+        aria-hidden
+      />
 
+      <div className="relative w-full max-w-sm space-y-6">
+        {/* Brand */}
         <div className="text-center">
-          <Link href="/" className="font-serif text-lg">
-            Supplement <span className="italic text-brass">Intelligence</span>
+          <Link href="/" className="inline-flex items-center gap-2 group">
+            <span className="w-1 h-4 rounded-full bg-lab-photon" />
+            <span className="font-display text-sm font-semibold">
+              Intelligence <span className="text-lab-photon">Lab</span>
+            </span>
           </Link>
         </div>
 
-        <div className="card p-8">
+        {/* Card */}
+        <div
+          className="rounded-lab-lg border border-lab-border-soft p-8"
+          style={{ background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(20px)' }}
+        >
           <form onSubmit={submit} className="space-y-5">
             <div>
-              <p className="font-serif text-lg font-medium mb-1">
+              <p className="font-display font-semibold text-lg text-lab-text-primary mb-1">
                 {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Reset password'}
               </p>
-              <p className="text-sm text-zinc-400">
-                {mode === 'signin'
-                  ? 'Enter your credentials to continue.'
-                  : mode === 'signup'
-                  ? 'Sign up for beta access.'
-                  : 'Enter your email and we\'ll send a reset link.'}
+              <p className="text-sm text-lab-text-tertiary">
+                {mode === 'signin' ? 'Enter your credentials to continue.' : mode === 'signup' ? 'Sign up for beta access.' : "Enter your email and we'll send a reset link."}
               </p>
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm text-zinc-400 mb-1.5">
-                Email address
-              </label>
+              <label htmlFor="email" className="block text-xs text-lab-text-tertiary mb-1.5 uppercase tracking-wider">Email address</label>
               <input
                 id="email" type="email" required autoFocus autoComplete="email"
                 value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="field"
+                className={inputCls}
               />
             </div>
 
             {mode !== 'forgot' && (
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="password" className="block text-sm text-zinc-400">
-                    Password
-                  </label>
+                  <label htmlFor="password" className="block text-xs text-lab-text-tertiary uppercase tracking-wider">Password</label>
                   {mode === 'signin' && (
-                    <button
-                      type="button"
-                      onClick={() => switchMode('forgot')}
-                      className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-                    >
+                    <button type="button" onClick={() => switchMode('forgot')} className="text-xs text-lab-text-tertiary hover:text-lab-text-secondary transition-colors">
                       Forgot password?
                     </button>
                   )}
@@ -206,21 +166,21 @@ export default function LoginPage() {
                   minLength={6}
                   value={password} onChange={e => setPassword(e.target.value)}
                   placeholder={mode === 'signin' ? '••••••••' : 'Min. 6 characters'}
-                  className="field"
+                  className={inputCls}
                 />
               </div>
             )}
 
             {error && (
-              <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+              <div className="text-sm text-lab-ember bg-lab-ember/8 border border-lab-ember/25 rounded-lab-sm px-3 py-2.5">
                 {error}
-              </p>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading || !email.trim() || (mode !== 'forgot' && password.length < 6)}
-              className="btn-white w-full py-3"
+              className="w-full py-3 text-sm font-semibold text-[#050507] bg-lab-photon hover:bg-lab-photon-bright rounded-lab-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -233,49 +193,21 @@ export default function LoginPage() {
               ) : mode === 'signin' ? 'Sign in →' : mode === 'signup' ? 'Create account →' : 'Send reset link →'}
             </button>
 
-            <p className="text-xs text-zinc-500 text-center">
+            <p className="text-xs text-lab-text-tertiary text-center">
               {mode === 'forgot' ? (
-                <>
-                  Remember your password?{' '}
-                  <button
-                    type="button"
-                    onClick={() => switchMode('signin')}
-                    className="text-zinc-300 hover:text-white transition-colors underline"
-                  >
-                    Sign in
-                  </button>
-                </>
+                <>Remember your password?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-lab-photon hover:underline">Sign in</button></>
               ) : mode === 'signin' ? (
-                <>
-                  Don&apos;t have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => switchMode('signup')}
-                    className="text-zinc-300 hover:text-white transition-colors underline"
-                  >
-                    Sign up
-                  </button>
-                </>
+                <>Don&apos;t have an account?{' '}<button type="button" onClick={() => switchMode('signup')} className="text-lab-photon hover:underline">Sign up</button></>
               ) : (
-                <>
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => switchMode('signin')}
-                    className="text-zinc-300 hover:text-white transition-colors underline"
-                  >
-                    Sign in
-                  </button>
-                </>
+                <>Already have an account?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-lab-photon hover:underline">Sign in</button></>
               )}
             </p>
           </form>
         </div>
 
         <p className="text-center">
-          <Link href="/" className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors">← Back to home</Link>
+          <Link href="/" className="text-xs text-lab-text-tertiary hover:text-lab-text-secondary transition-colors">← Back to home</Link>
         </p>
-
       </div>
     </div>
   )

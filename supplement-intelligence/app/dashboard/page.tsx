@@ -2,16 +2,16 @@ import Link          from 'next/link'
 import { redirect }  from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Analysis, Profile } from '@/types/index'
-import { IconTarget } from '@/components/icons'
 import AppSidebar     from '@/components/AppSidebar'
 import OpportunityCard from '@/components/OpportunityCard'
+import { IconTarget } from '@/components/icons'
 
 function timeAgo(d: string) {
   const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
-  if (diff < 60)   return 'just now'
-  if (diff < 3600) return `${Math.floor(diff/60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`
-  return `${Math.floor(diff/86400)}d ago`
+  if (diff < 60)    return 'just now'
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
 }
 
 export default async function Dashboard() {
@@ -41,86 +41,78 @@ export default async function Dashboard() {
     <div className="min-h-screen lg:flex">
       <AppSidebar active="dashboard" used={used} limit={limit} canAnalyze={canAnalyze} />
 
-      <main className="flex-1 px-4 py-8 lg:px-12 lg:py-10">
+      <main className="flex-1 px-4 py-8 lg:px-10 lg:py-10 min-w-0">
         <div className="max-w-6xl">
 
-          {/* ── mobile-only top bar (sidebar is desktop-only) ── */}
+          {/* ── Mobile top bar ── */}
           <div className="flex items-center justify-between mb-8 gap-4 lg:hidden">
             <div>
-              <div className="flex items-center gap-3 mb-1.5">
-                <span className="font-serif text-lg tracking-tight">Supplement <span className="italic text-brass">Intelligence</span></span>
-                <nav className="hidden sm:flex items-center gap-1 ml-2">
-                  <Link href="/dashboard"   className="btn-ghost text-xs">Analyses</Link>
-                  <Link href="/leaderboard" className="btn-ghost text-xs">Leaderboard</Link>
-                </nav>
-              </div>
-              <p className="text-xs text-zinc-500">
+              <p className="font-display text-base font-semibold text-lab-text-primary">
+                Intelligence <span className="text-lab-photon">Lab</span>
+              </p>
+              <p className="text-xs text-lab-text-tertiary mt-0.5">
                 {used} of {limit} analyses used
-                {!devUnlimited && left > 0 && <span className="text-zinc-600"> · {left} remaining</span>}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {canAnalyze
-                ? <Link href="/analyze" className="btn-white text-sm py-2 px-5">+ New Analysis</Link>
-                : <span className="text-xs text-zinc-600 bg-white/[0.04] border border-white/[0.07] rounded-lg px-3 py-2">No analyses left</span>
-              }
+                ? <Link href="/analyze" className="text-sm font-semibold text-[#050507] bg-lab-photon px-4 py-2 rounded-lab-sm">+ New</Link>
+                : null}
               <form action="/auth/signout" method="post">
-                <button className="btn-ghost text-xs text-zinc-500">Sign out</button>
+                <button className="text-xs text-lab-text-tertiary px-2 py-1">Sign out</button>
               </form>
             </div>
           </div>
 
-          <div className="lg:hidden card p-5 mb-8 flex items-center gap-5">
-            <div className="flex-1">
-              <div className="flex justify-between text-xs mb-2.5">
-                <span className="text-zinc-500 uppercase tracking-wider text-[11px]">Beta usage</span>
-                <span className="text-zinc-400 font-mono">{used}/{limit}</span>
-              </div>
-              <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                <div className="h-full bg-brass rounded-full transition-all" style={{ width: `${Math.round((used/limit)*100)}%` }} />
-              </div>
-            </div>
-            <div className="flex gap-1.5 shrink-0">
-              {Array.from({ length: limit }).map((_, i) => (
-                <div key={i} className={`w-7 h-7 rounded-md grid place-items-center text-xs font-mono
-                  ${i < used ? 'bg-brass/15 text-brass' : 'bg-white/[0.04] text-zinc-600'}`}>
-                  {i + 1}
-                </div>
-              ))}
-            </div>
+          {/* ── Page header ── */}
+          <div className="hidden lg:flex items-baseline justify-between mb-8">
+            <h1 className="font-display text-xl font-semibold text-lab-text-primary">Analyses</h1>
+            <p className="text-xs text-lab-text-tertiary lab-text-data">{total} total</p>
           </div>
 
-          {/* ── desktop page heading ── */}
-          <div className="hidden lg:flex items-baseline justify-between mb-6">
-            <h1 className="font-serif text-2xl font-medium">Analyses</h1>
-          </div>
-
-          {/* ── instrument readouts — the command-center "vitals," not stat cards ── */}
+          {/* ── Instrument readouts ── */}
           {total > 0 && (
-            <div className="flex flex-wrap divide-x divide-white/[0.08] border-y border-white/[0.08] mb-8 -mx-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
               {([
-                ['Total Analyses', String(total), 'text-zinc-100'],
-                ['Build Rate',     `${buildRate}%`, buildRate >= 50 ? 'text-emerald-400' : 'text-zinc-100'],
-                ['Avg Score',      String(avgScore), avgScore >= 65 ? 'text-emerald-400' : avgScore >= 50 ? 'text-amber-400' : 'text-red-400'],
-                ['Last Run',       timeAgo(list[0].created_at), 'text-zinc-100'],
-              ] as [string, string, string][]).map(([l, v, c]) => (
-                <div key={l} className="flex-1 min-w-[130px] py-5 px-4 first:pl-1">
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">{l}</p>
-                  <p className={`font-serif text-3xl font-medium ${c}`}>{v}</p>
+                { label: 'Total Runs',   value: String(total),      color: '#f2f3f5', mono: true  },
+                { label: 'Build Rate',   value: `${buildRate}%`,    color: buildRate >= 50 ? '#34d9a0' : '#f2f3f5', mono: true },
+                { label: 'Avg Score',    value: String(avgScore),   color: avgScore >= 65 ? '#34d9a0' : avgScore >= 50 ? '#f5b947' : '#ff6259', mono: true },
+                { label: 'Last Run',     value: timeAgo(list[0].created_at), color: '#9b9fac', mono: false },
+              ] as { label: string; value: string; color: string; mono: boolean }[]).map(s => (
+                <div key={s.label} className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md px-4 py-4">
+                  <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-2">{s.label}</p>
+                  <p
+                    className={`text-2xl font-bold leading-none ${s.mono ? 'lab-text-data' : 'font-display'}`}
+                    style={{ color: s.color }}
+                  >
+                    {s.value}
+                  </p>
                 </div>
               ))}
             </div>
           )}
 
-          {/* ── opportunity grid — visual tiles, not a blotter row you read column by column ── */}
+          {/* ── Empty state ── */}
           {list.length === 0 ? (
-            <div className="card-premium p-20 text-center">
-              <IconTarget className="w-8 h-8 text-brass/70 mx-auto mb-5" />
-              <h2 className="font-serif text-xl mb-2">Run your first analysis</h2>
-              <p className="text-sm text-zinc-500 mb-7 max-w-xs mx-auto">
-                Type any supplement idea. Get a complete investment memo in 60 seconds.
+            <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-lg py-24 px-6 text-center">
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-5"
+                style={{ background: 'rgba(79,168,255,0.08)', border: '1px solid rgba(79,168,255,0.2)' }}
+              >
+                <IconTarget className="w-5 h-5 text-lab-photon" />
+              </div>
+              <h2 className="font-display text-lg font-semibold text-lab-text-primary mb-2">Run your first analysis</h2>
+              <p className="text-sm text-lab-text-tertiary mb-8 max-w-xs mx-auto leading-relaxed">
+                Type any product idea. Get a complete intelligence memo in 60 seconds.
               </p>
-              {canAnalyze && <Link href="/analyze" className="btn-white">Start analyzing →</Link>}
+              {canAnalyze && (
+                <Link
+                  href="/analyze"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#050507] bg-lab-photon hover:bg-lab-photon-bright px-6 py-2.5 rounded-lab-sm transition-colors"
+                >
+                  Start analyzing →
+                </Link>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

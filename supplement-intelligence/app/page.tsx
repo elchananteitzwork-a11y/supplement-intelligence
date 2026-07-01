@@ -1,191 +1,169 @@
 import Link from 'next/link'
-import {
-  IconTarget, IconGrid, IconBeaker, IconChart, IconGauge, IconBubbles, IconArrowRight,
-} from '@/components/icons'
 
-const FEATURES = [
-  { Icon: IconTarget,  title: 'Market Gaps',          body: '10 specific gaps competitors are missing in any category — not generic observations.' },
-  { Icon: IconGrid,    title: 'Validated Scoring',    body: '5-dimension framework calibrated against 13 real brands including Nutrafol, Arrae, and Seed.' },
-  { Icon: IconBeaker,  title: 'Formula + Dosages',    body: 'Exact ingredients, doses, evidence tiers, COGS estimate, and a list of ingredients to avoid.' },
-  { Icon: IconChart,   title: 'Financial Model',       body: '$10k / $100k / $1M/month probability estimates with gross margin and path to $10M.' },
-  { Icon: IconGauge,   title: 'BUILD / SKIP Verdict', body: 'One clear decision backed by five scored dimensions. No ambiguity.' },
-  { Icon: IconBubbles, title: 'Customer Language',    body: 'Real frustrations, fears, and ad-ready phrases pulled from documented consumer complaints.' },
+const METRICS = [
+  { value: '60s',  label: 'Time to insight' },
+  { value: '7',    label: 'Real data providers' },
+  { value: '100',  label: 'Point score ceiling' },
 ]
 
-const PROOF = [
-  ['Nutrafol', '$3.5B valuation'],
-  ['Arrae',    '$100M revenue'],
-  ['Seed',     '~$100M ARR'],
-  ['Bloom',    '$1B+ consolidated'],
-  ['Ritual',   '$100M+ acquired'],
+const CATEGORIES_PREVIEW = [
+  { name: 'Bloating + Fatigue Relief',  score: 80, d: 'BUILD_NOW'        },
+  { name: 'Hormonal Acne + Gut Link',   score: 77, d: 'BUILD_NOW'        },
+  { name: 'Perimenopause Transition',   score: 74, d: 'BUILD_NOW'        },
+  { name: 'Sleep Optimization Stack',   score: 63, d: 'VALIDATE_FURTHER' },
+  { name: 'Mood + Cortisol Support',    score: 55, d: 'VALIDATE_FURTHER' },
+  { name: 'Generic Vitamin D3',         score: 31, d: 'SKIP'             },
 ]
 
-const PREVIEW_SCORES = [
-  { l: 'Demand',       s: 9  },
-  { l: 'Competition',  s: 6  },
-  { l: 'Virality',     s: 9  },
-  { l: 'Subscription', s: 9  },
-  { l: 'Mfg',         s: 8  },
-  { l: 'Defense',      s: 7  },
-]
-
-const LEADERBOARD_PREVIEW = [
-  { name: 'Bloating + Fatigue',     score: 80, d: 'BUILD_NOW'        },
-  { name: 'Hormonal Acne + Gut',    score: 77, d: 'BUILD_NOW'        },
-  { name: 'Perimenopause Support',  score: 75, d: 'BUILD_NOW'        },
-  { name: 'Sleep Optimization',     score: 63, d: 'VALIDATE_FURTHER' },
-  { name: 'Mood Support',           score: 55, d: 'SKIP'             },
-]
-
-function Dot({ d }: { d: string }) {
-  const c = d === 'BUILD_NOW' ? 'bg-emerald-400' : d === 'VALIDATE_FURTHER' ? 'bg-amber-400' : 'bg-red-400'
-  return <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c}`} />
+const VERDICT_COLOR: Record<string, string> = {
+  BUILD_NOW: '#34d9a0', VALIDATE_FURTHER: '#f5b947', SKIP: '#ff6259',
 }
-
-function ScoreNum({ s }: { s: number }) {
-  const c = s >= 65 ? 'text-emerald-400' : s >= 50 ? 'text-amber-400' : 'text-red-400'
-  return <span className={`font-mono font-bold ${c}`}>{s}</span>
+const VERDICT_LABEL: Record<string, string> = {
+  BUILD_NOW: 'Build Now', VALIDATE_FURTHER: 'Validate', SKIP: 'Pass',
 }
 
 export default function Landing() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ background: '#050507' }}>
 
       {/* ── NAV ── */}
-      <nav className="border-b border-white/[0.06] px-6 h-16 flex items-center justify-between sticky top-0 z-50 bg-[#0a0a0c]/85 backdrop-blur-md">
+      <nav className="border-b border-lab-border-soft px-6 h-14 flex items-center justify-between sticky top-0 z-50 bg-[#050507]/90 backdrop-blur-md">
         <Link href="/" className="flex items-center gap-2.5">
-          <span className="w-1.5 h-5 rounded-full bg-brass" />
-          <span className="font-serif text-lg tracking-tight">
-            Supplement <span className="italic text-brass">Intelligence</span>
+          <span className="w-1 h-4 rounded-full bg-lab-photon" />
+          <span className="font-display text-sm font-semibold tracking-tight">
+            Intelligence <span className="text-lab-photon">Lab</span>
           </span>
         </Link>
-        <Link href="/login" className="btn-dark text-xs py-2 px-4">Sign in</Link>
+        <Link
+          href="/login"
+          className="text-xs font-medium text-lab-text-secondary hover:text-lab-text-primary px-4 py-2 rounded-lab-sm border border-lab-border-default hover:border-lab-border-strong transition-colors"
+        >
+          Sign in
+        </Link>
       </nav>
 
       {/* ── HERO ── */}
-      <section className="max-w-4xl mx-auto px-6 pt-28 pb-20">
-        <div className="flex flex-col items-start">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brass/25 bg-brass/[0.06] text-brass text-[11px] font-semibold uppercase tracking-[0.14em] mb-9">
-            <span className="w-1.5 h-1.5 rounded-full bg-brass animate-pulse" />
-            Beta — limited spots
+      <section className="relative max-w-5xl mx-auto px-6 pt-24 pb-20 overflow-hidden">
+        {/* Background radial */}
+        <div
+          className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[400px] pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at center, rgba(79,168,255,0.08) 0%, transparent 70%)' }}
+          aria-hidden
+        />
+
+        <div className="relative z-10 max-w-3xl">
+          {/* Eyebrow */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-lab-photon/25 bg-lab-photon/8 text-lab-photon text-[11px] font-semibold uppercase tracking-[0.14em] mb-9">
+            <span className="w-1.5 h-1.5 rounded-full bg-lab-photon animate-pulse" />
+            Beta — limited access
           </div>
 
-          <h1 className="font-serif text-[2.75rem] sm:text-6xl font-medium leading-[1.06] tracking-tight mb-7 max-w-2xl">
-            Know if your supplement idea is{' '}
-            <span className="italic text-gradient-brass">worth building.</span>
+          <h1 className="font-display text-5xl sm:text-6xl font-bold leading-[1.05] tracking-tight mb-6 text-lab-text-primary">
+            Know if your idea<br />
+            is <span style={{ color: '#4fa8ff' }}>worth building</span><br />
+            in 60 seconds.
           </h1>
 
-          <p className="text-lg text-zinc-400 max-w-lg mb-11 leading-relaxed">
-            Type any supplement category. Get a complete investor-grade analysis — market gaps, formula, financial projections, and a BUILD / SKIP verdict — in 60 seconds.
+          <p className="text-lg text-lab-text-secondary max-w-xl mb-10 leading-relaxed">
+            Type any product category. Get investor-grade intelligence — real Amazon data, competitive landscape, demand signals, and a grounded BUILD / SKIP verdict.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            <Link href="/login" className="btn-white text-base py-3 px-8">Get Early Access →</Link>
-            <span className="text-zinc-600 text-sm">Free during beta · No credit card</span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 text-base font-semibold text-[#050507] bg-lab-photon hover:bg-lab-photon-bright px-8 py-3.5 rounded-lab-sm transition-colors duration-lab-fast"
+            >
+              Get Early Access →
+            </Link>
+            <span className="text-sm text-lab-text-tertiary">Free during beta · No credit card</span>
           </div>
         </div>
       </section>
 
-      {/* ── MOCK OUTPUT ── */}
-      <section className="max-w-2xl mx-auto px-6 pb-24">
-        <div className="card-premium glow-brass p-1">
-          <div className="rounded-[14px] bg-[#0a0a0c] p-6 sm:p-7 space-y-6">
-            {/* header */}
-            <div className="flex items-start justify-between pb-5 border-b border-white/[0.06]">
-              <div>
-                <p className="label mb-1.5">Category</p>
-                <p className="font-serif text-xl">Bloating + Fatigue</p>
-              </div>
-              <div className="text-right">
-                <p className="label mb-1.5">Score</p>
-                <div className="flex items-center gap-3">
-                  <span className="font-serif text-4xl font-medium text-emerald-400">80</span>
-                  <span className="chip-build">Build Now</span>
-                </div>
-              </div>
-            </div>
-            {/* dim scores */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {PREVIEW_SCORES.map(d => (
-                <div key={d.l} className="bg-white/[0.03] border border-white/[0.05] rounded-lg p-2.5 text-center">
-                  <p className="text-[10px] text-zinc-500 mb-1">{d.l}</p>
-                  <span className={`font-mono font-bold text-sm ${d.s >= 8 ? 'text-emerald-400' : d.s >= 6 ? 'text-amber-400' : 'text-red-400'}`}>{d.s}</span>
-                </div>
-              ))}
-            </div>
-            {/* insight */}
-            <p className="font-serif italic text-base text-zinc-300 leading-relaxed border-t border-white/[0.06] pt-5">
-              &ldquo;Arrae built $100M on bloating alone — never claiming the energy benefit. The gut-energy link is the most documented unowned mechanism in the $14.4B category. That gap is yours.&rdquo;
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── SOCIAL PROOF ── */}
-      <section className="border-y border-white/[0.06] py-7 px-6 mb-24">
-        <div className="max-w-3xl mx-auto">
-          <p className="label text-center mb-5">
-            Scoring system validated against brands that built
-          </p>
-          <div className="flex flex-wrap justify-center gap-x-10 gap-y-3">
-            {PROOF.map(([b, r]) => (
-              <div key={b} className="text-center">
-                <span className="font-serif text-base text-white">{b}</span>
-                <span className="text-zinc-600 text-xs ml-2">{r}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FEATURES ── */}
-      <section className="max-w-5xl mx-auto px-6 pb-28">
-        <p className="label text-center mb-3">What you get</p>
-        <h2 className="font-serif text-3xl sm:text-[2.25rem] text-center mb-16">Everything in one memo.</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]">
-          {FEATURES.map(f => (
-            <div key={f.title} className="bg-[#0a0a0c] p-7">
-              <f.Icon className="w-5 h-5 text-brass mb-5" />
-              <h3 className="font-medium mb-2 text-[15px]">{f.title}</h3>
-              <p className="text-sm text-zinc-500 leading-relaxed">{f.body}</p>
+      {/* ── SIGNAL METRICS ── */}
+      <section className="border-y border-lab-border-soft py-8 px-6 mb-20">
+        <div className="max-w-3xl mx-auto flex justify-center gap-16 flex-wrap">
+          {METRICS.map(m => (
+            <div key={m.label} className="text-center">
+              <p className="font-display text-3xl font-bold text-lab-photon mb-1">{m.value}</p>
+              <p className="text-xs text-lab-text-tertiary uppercase tracking-wider">{m.label}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── LEADERBOARD PREVIEW ── */}
-      <section className="max-w-2xl mx-auto px-6 pb-28">
-        <p className="label mb-5">Leaderboard preview</p>
-        <div className="ledger">
-          {LEADERBOARD_PREVIEW.map((e, i) => (
-            <div key={e.name} className="ledger-row justify-between">
-              <div className="flex items-center gap-3.5">
-                <span className="text-zinc-600 font-mono text-xs w-4 text-right">{i + 1}</span>
-                <Dot d={e.d} />
-                <span className="text-sm text-zinc-300">{e.name}</span>
+      {/* ── LIVE LEADERBOARD PREVIEW ── */}
+      <section className="max-w-2xl mx-auto px-6 mb-24">
+        <div className="mb-6">
+          <p className="text-[11px] text-lab-text-tertiary uppercase tracking-wider mb-1">Live intelligence board</p>
+          <h2 className="font-display text-2xl font-semibold text-lab-text-primary">28 categories. Ranked by real data.</h2>
+        </div>
+
+        <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-lg overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-lab-border-faint bg-white/[0.02]">
+            <span className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Category</span>
+            <span className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Score</span>
+          </div>
+          {CATEGORIES_PREVIEW.map((row, i) => (
+            <div
+              key={row.name}
+              className="flex items-center justify-between px-5 py-3.5 border-b border-lab-border-faint last:border-b-0 hover:bg-white/[0.02] transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="lab-text-data text-[10px] text-lab-text-tertiary w-4 text-right shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ background: VERDICT_COLOR[row.d] }}
+                />
+                <span className="text-sm text-lab-text-secondary truncate">{row.name}</span>
               </div>
-              <ScoreNum s={e.score} />
+              <div className="flex items-center gap-3 shrink-0">
+                <span
+                  className="text-[11px] font-medium hidden sm:block"
+                  style={{ color: VERDICT_COLOR[row.d] }}
+                >
+                  {VERDICT_LABEL[row.d]}
+                </span>
+                <span
+                  className="lab-text-data text-sm font-bold tabular-nums"
+                  style={{ color: VERDICT_COLOR[row.d] }}
+                >
+                  {row.score}
+                </span>
+              </div>
             </div>
           ))}
+          <div className="px-5 py-3 bg-white/[0.01]">
+            <p className="text-xs text-lab-text-tertiary">Your analyses added automatically. Scores computed from real provider data.</p>
+          </div>
         </div>
-        <p className="text-xs text-zinc-600 mt-4">28 categories pre-loaded. Your analyses added automatically.</p>
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section className="max-w-2xl mx-auto px-6 pb-28">
-        <p className="label text-center mb-3">How it works</p>
-        <h2 className="font-serif text-3xl text-center mb-12">Three steps.</h2>
-        <div className="space-y-px">
+      <section className="max-w-3xl mx-auto px-6 pb-24">
+        <p className="text-[11px] text-lab-text-tertiary uppercase tracking-wider mb-2">How it works</p>
+        <h2 className="font-display text-2xl font-semibold text-lab-text-primary mb-10">Three steps to clarity.</h2>
+
+        <div className="space-y-0">
           {[
-            { n: '01', t: 'Type your idea',     b: "Enter any supplement concept — as broad as 'stress supplement for women' or as specific as 'cortisol support for women 35–50 with hair loss'." },
-            { n: '02', t: 'Wait 60 seconds',    b: 'The engine scores demand, competition, virality, retention, and manufacturing — then builds a complete memo.' },
-            { n: '03', t: 'Get your answer',    b: 'Market gaps. Formula. Financials. Customer language. BUILD / SKIP. Ready to use in a pitch or product brief.' },
-          ].map(s => (
-            <div key={s.n} className="flex gap-6 py-6 border-t border-white/[0.06] first:border-t-0">
-              <span className="font-serif italic text-3xl text-brass/70 shrink-0">{s.n}</span>
+            { n: '01', t: 'Type your idea', b: "Enter any product concept — as broad as 'stress supplement for women' or as specific as 'cortisol support for women 35–50 with hair loss.'" },
+            { n: '02', t: 'Real data runs in background', b: 'The engine queries Amazon sales data, search demand, TikTok virality, competitor reviews, and FDA safety signals — all in parallel.' },
+            { n: '03', t: 'Get a grounded verdict', b: 'Market gaps. Formula. Financials. Customer language. Evidence breadth. A BUILD / SKIP verdict backed by real sources, not AI guesses.' },
+          ].map((s, i) => (
+            <div
+              key={s.n}
+              className="flex gap-8 py-7 border-t border-lab-border-soft first:border-t-0"
+            >
+              <span
+                className="font-display text-2xl font-bold shrink-0 mt-0.5"
+                style={{ color: '#4fa8ff33' }}
+              >
+                {s.n}
+              </span>
               <div>
-                <p className="font-medium mb-1.5">{s.t}</p>
-                <p className="text-sm text-zinc-500 leading-relaxed">{s.b}</p>
+                <p className="font-semibold text-lab-text-primary mb-1.5">{s.t}</p>
+                <p className="text-sm text-lab-text-tertiary leading-relaxed">{s.b}</p>
               </div>
             </div>
           ))}
@@ -193,19 +171,24 @@ export default function Landing() {
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section className="max-w-xl mx-auto px-6 pb-32 text-center">
-        <div className="card-premium glow-brass p-10 sm:p-14">
-          <h2 className="font-serif text-3xl mb-3">Get access this week.</h2>
-          <p className="text-zinc-500 mb-9">3 free analyses during beta. No credit card.</p>
-          <Link href="/login" className="btn-white text-base py-3 px-10 inline-flex items-center gap-2">
-            Request Beta Access <IconArrowRight className="w-4 h-4" />
+      <section className="max-w-lg mx-auto px-6 pb-32 text-center">
+        <div
+          className="rounded-lab-xl border border-lab-photon/20 p-12"
+          style={{ background: 'rgba(79,168,255,0.04)', boxShadow: '0 0 80px rgba(79,168,255,0.08)' }}
+        >
+          <h2 className="font-display text-2xl font-bold text-lab-text-primary mb-2">Start this week.</h2>
+          <p className="text-lab-text-tertiary mb-8 text-sm">3 free analyses during beta. No credit card.</p>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 text-base font-semibold text-[#050507] bg-lab-photon hover:bg-lab-photon-bright px-10 py-3.5 rounded-lab-sm transition-colors"
+          >
+            Request Beta Access →
           </Link>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-white/[0.06] py-10 text-center">
-        <p className="text-zinc-600 text-sm">Supplement Intelligence · Beta v0.1</p>
+      <footer className="border-t border-lab-border-soft py-8 text-center">
+        <p className="text-sm text-lab-text-tertiary">Intelligence Lab · Beta v0.2</p>
       </footer>
     </div>
   )
