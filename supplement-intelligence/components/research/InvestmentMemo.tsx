@@ -2,6 +2,7 @@
 
 import type { MarketVerdict, FounderVerdict } from '@/lib/stage4/verdict'
 import type { MemoSections } from '@/lib/stage4/memo-generator'
+import type { FullUnitEconomics } from '@/lib/stage4/unit-economics'
 
 interface MemoRow {
   id: string
@@ -12,6 +13,7 @@ interface MemoRow {
   freshness_notice: string
   ai_model_version: string
   created_at: string
+  unit_economics?: FullUnitEconomics | null
 }
 
 interface Props { memo: MemoRow }
@@ -37,7 +39,7 @@ const SECTION_TITLES: Record<keyof MemoSections, string> = {
   product_strategy:         '4. Product Strategy',
   customer_thesis:          '5. Customer Thesis',
   risk_analysis:            '6. Risk Analysis',
-  unit_economics_narrative: '7. Unit Economics',
+  unit_economics_narrative: '7. Unit Economics — Analysis',
   go_to_market:             '8. Go-to-Market',
   key_milestones:           '9. Key Milestones',
   final_considerations:     '10. Final Considerations',
@@ -48,6 +50,173 @@ const SECTION_ORDER: (keyof MemoSections)[] = [
   'product_strategy', 'customer_thesis', 'risk_analysis',
   'unit_economics_narrative', 'go_to_market', 'key_milestones', 'final_considerations',
 ]
+
+function fmt(n: number) { return n.toLocaleString() }
+function fmtK(n: number) { return n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n}` }
+function fmtUsd(n: number) { return `$${n.toFixed(2)}` }
+
+function UnitEconomicsPanel({ econ }: { econ: FullUnitEconomics }) {
+  const base = econ.sensitivity.base_case
+  const opt  = econ.sensitivity.optimistic
+  const pes  = econ.sensitivity.pessimistic
+  const rev  = econ.revenue_envelope
+  const gmt  = econ.sensitivity.gm_thresholds
+
+  return (
+    <section className="space-y-4">
+      <h2 className="text-sm font-semibold text-gray-300 tracking-tight border-b border-gray-800 pb-2">
+        7. Unit Economics — Numbers
+      </h2>
+
+      <p className="text-xs text-gray-500">{econ.sensitivity.cogs_sensitivity_note}</p>
+
+      {/* Breakeven COGS grid — 3 price scenarios */}
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+          Breakeven COGS at Target 50% GM — 3 Price Scenarios
+        </p>
+        <div className="rounded-lg border border-gray-800 overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-gray-800 bg-gray-900/60">
+                <th className="px-3 py-2 text-left text-gray-400 font-medium">Scenario</th>
+                <th className="px-3 py-2 text-right text-gray-400 font-medium">Price</th>
+                <th className="px-3 py-2 text-right text-gray-400 font-medium">Net Revenue</th>
+                <th className="px-3 py-2 text-right text-gray-400 font-medium">Max COGS</th>
+                <th className="px-3 py-2 text-right text-gray-400 font-medium">FBA Fee</th>
+                <th className="px-3 py-2 text-right text-gray-400 font-medium">Referral</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: 'Pessimistic (−20%)', row: pes },
+                { label: 'Base case (median)', row: base },
+                { label: 'Optimistic (+20%)',  row: opt },
+              ].map(({ label, row }) => (
+                <tr key={label} className="border-b border-gray-900 hover:bg-gray-900/30">
+                  <td className="px-3 py-2 text-gray-300">{label}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-200">{fmtUsd(row.price)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-200">{fmtUsd(row.net_revenue)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-100 font-semibold">{fmtUsd(row.breakeven_cogs)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-500">{fmtUsd(row.fba_fee)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-500">{row.referral_pct}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* GM threshold sensitivity */}
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+          Max COGS at Different GM Targets — Base Price {fmtUsd(base.price)}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {gmt.map(({ gm_pct, breakeven_cogs }) => {
+            const isTarget = gm_pct === base.target_gm_pct
+            return (
+              <div
+                key={gm_pct}
+                className={`rounded border px-3 py-2 text-center min-w-[72px] ${
+                  isTarget
+                    ? 'border-indigo-700 bg-indigo-950/30'
+                    : 'border-gray-800 bg-gray-900/40'
+                }`}
+              >
+                <p className={`text-[10px] font-mono ${isTarget ? 'text-indigo-300' : 'text-gray-500'}`}>
+                  {gm_pct}% GM
+                </p>
+                <p className={`text-sm font-mono font-semibold ${breakeven_cogs <= 0 ? 'text-red-400' : 'text-gray-100'}`}>
+                  {breakeven_cogs <= 0 ? 'N/A' : fmtUsd(breakeven_cogs)}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Founder's actual numbers (if provided) */}
+      {(econ.founder_target_gm_pct !== undefined || econ.founder_breakeven_units_mo !== undefined) && (
+        <div className="rounded-lg border border-indigo-800 bg-indigo-950/20 p-4 space-y-2">
+          <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">
+            Your Numbers
+          </p>
+          <div className="flex flex-wrap gap-6 text-xs">
+            {econ.founder_target_gm_pct !== undefined && (
+              <div>
+                <p className="text-gray-500">Actual GM at your COGS</p>
+                <p className={`text-lg font-mono font-semibold ${econ.founder_target_gm_pct >= 40 ? 'text-green-400' : econ.founder_target_gm_pct >= 30 ? 'text-yellow-400' : 'text-red-400'}`}>
+                  {econ.founder_target_gm_pct.toFixed(1)}%
+                </p>
+              </div>
+            )}
+            {econ.founder_breakeven_units_mo !== undefined && (
+              <div>
+                <p className="text-gray-500">Units/mo to cover ad spend</p>
+                <p className="text-lg font-mono font-semibold text-gray-100">
+                  {fmt(econ.founder_breakeven_units_mo)}
+                </p>
+              </div>
+            )}
+            {econ.founder_inputs?.actual_cogs_per_unit !== undefined && (
+              <div>
+                <p className="text-gray-500">Your COGS/unit</p>
+                <p className="text-lg font-mono font-semibold text-gray-100">
+                  {fmtUsd(econ.founder_inputs.actual_cogs_per_unit)}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Revenue envelope */}
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+          Revenue Envelope — New Entrant Scenarios
+        </p>
+        <div className="rounded-lg border border-gray-800 overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-gray-800 bg-gray-900/60">
+                <th className="px-3 py-2 text-left text-gray-400 font-medium">Scenario</th>
+                <th className="px-3 py-2 text-right text-gray-400 font-medium">Market Share</th>
+                <th className="px-3 py-2 text-right text-gray-400 font-medium">Monthly Rev</th>
+                <th className="px-3 py-2 text-right text-gray-400 font-medium">Year 1 (ramped)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-gray-900">
+                <td className="px-3 py-2 text-gray-400">Conservative</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-500">{rev.market_share_pct.conservative}%</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtK(rev.conservative_monthly)}/mo</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtK(rev.year1_conservative)}</td>
+              </tr>
+              <tr className="border-b border-gray-900 bg-gray-900/20">
+                <td className="px-3 py-2 text-gray-200 font-medium">Base</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-400">{rev.market_share_pct.base}%</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-100 font-semibold">{fmtK(rev.base_monthly)}/mo</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-100 font-semibold">{fmtK(rev.year1_base)}</td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 text-gray-400">Optimistic</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-500">{rev.market_share_pct.optimistic}%</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtK(rev.optimistic_monthly)}/mo</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtK(rev.year1_optimistic)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="px-1 pt-1 space-y-0.5">
+          {rev.assumptions.map((a, i) => (
+            <p key={i} className="text-[10px] text-gray-600">· {a}</p>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
 
 function VerdictBadge({ code, type }: { code: string; type: 'market' | 'founder' }) {
   const colorMap = type === 'market' ? MARKET_VERDICT_COLORS : {}
@@ -163,8 +332,30 @@ export function InvestmentMemo({ memo }: Props) {
         <p className="text-xs text-gray-500">{memo.freshness_notice}</p>
       </div>
 
-      {/* 10 sections */}
+      {/* 10 prose sections — unit_economics section (7) is split: numbers first, then narrative */}
       {SECTION_ORDER.map(key => {
+        if (key === 'unit_economics_narrative') {
+          return (
+            <div key={key} className="space-y-6">
+              {/* Deterministic numbers panel */}
+              {memo.unit_economics && <UnitEconomicsPanel econ={memo.unit_economics} />}
+              {/* AI-written narrative */}
+              {memo.sections[key] && (
+                <section className="space-y-3">
+                  <h2 className="text-sm font-semibold text-gray-300 tracking-tight border-b border-gray-800 pb-2">
+                    {SECTION_TITLES[key]}
+                  </h2>
+                  <div className="text-sm text-gray-300 leading-relaxed space-y-3">
+                    {memo.sections[key].split('\n\n').filter(Boolean).map((para, i) => (
+                      <p key={i}>{para}</p>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          )
+        }
+
         const text = memo.sections[key]
         if (!text) return null
         return (

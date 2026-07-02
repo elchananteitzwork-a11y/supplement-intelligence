@@ -4,11 +4,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { InvestmentMemo } from '@/components/research/InvestmentMemo'
-import type { Stage4FounderInputs } from '@/lib/stage4/unit-economics'
+import type { Stage4FounderInputs, FullUnitEconomics } from '@/lib/stage4/unit-economics'
 import type { InvestmentThesis } from '@/lib/stage2/types'
 
 interface StoredThesis extends InvestmentThesis { id: string }
-interface StoredMemo { id: string; [key: string]: unknown }
+interface StoredMemo { id: string; unit_economics?: FullUnitEconomics | null; [key: string]: unknown }
 
 type Stage = 'idle' | 'generating' | 'done' | 'error'
 
@@ -101,7 +101,7 @@ export default function MemoPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Memo generation failed'); setStage('error'); return }
-      setMemo(data.memo)
+      setMemo({ ...data.memo, unit_economics: data.unit_economics ?? null })
       setFromCache(data.from_cache)
       setStage('done')
     } catch {

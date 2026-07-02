@@ -59,41 +59,34 @@ export async function POST(req: NextRequest) {
       .single()
     if (thesisError || !thesis) return NextResponse.json({ error: 'Thesis not found' }, { status: 404 })
 
-    // Fetch signal
-    const { data: signal, error: signalError } = await supabase
-      .from('market_signals')
-      .select('*')
-      .eq('id', thesis.market_signal_id)
-      .eq('user_id', user.id)
-      .single()
-    if (signalError || !signal) return NextResponse.json({ error: 'Market signal not found' }, { status: 404 })
+    // Fetch signal, debate, profile in parallel
+    const [
+      { data: signal, error: signalError },
+      { data: debate, error: debateError },
+      { data: profile },
+      { data: fitAnnotation },
+    ] = await Promise.all([
+      supabase.from('market_signals').select('*').eq('id', thesis.market_signal_id).eq('user_id', user.id).single(),
+      supabase.from('adversarial_debates').select('*').eq('thesis_id', thesisId).eq('user_id', user.id).limit(1).maybeSingle(),
+      supabase.from('founder_profiles').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('founder_fit_annotations').select('*').eq('thesis_id', thesisId).eq('user_id', user.id).maybeSingle(),
+    ])
 
-    // Fetch adversarial debate
-    const { data: debate, error: debateError } = await supabase
-      .from('adversarial_debates')
-      .select('*')
-      .eq('thesis_id', thesisId)
-      .eq('user_id', user.id)
-      .limit(1)
-      .maybeSingle()
+    if (signalError || !signal) return NextResponse.json({ error: 'Market signal not found' }, { status: 404 })
     if (debateError || !debate) return NextResponse.json({ error: 'Adversarial debate not found — run Stage 3 first' }, { status: 422 })
 
-    // Fetch founder profile (optional)
-    const { data: profile } = await supabase
-      .from('founder_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    // ── Deterministic computation ────────────────────────────────────────────
+    // Computed before the cache check so unit_economics is always available.
+    const evidence   = signal.signal_data as Stage1Evidence
+    const thesisData = thesis as unknown as InvestmentThesis
 
-    // Fetch founder fit annotation (optional)
-    const { data: fitAnnotation } = await supabase
-      .from('founder_fit_annotations')
-      .select('*')
-      .eq('thesis_id', thesisId)
-      .eq('user_id', user.id)
-      .maybeSingle()
+    const thresholds  = assessLaunchThresholds(evidence)
+    const economics   = computeFullUnitEconomics(
+      evidence,
+      thesisData,
+      profile as FounderProfile ?? undefined,
+      founderInputs
+    )
 
     // Check for existing memo (idempotent — same thesis_id returns cached)
     const { data: existing } = await supabase
@@ -105,20 +98,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (existing && !founderInputs) {
-      return NextResponse.json({ memo: existing, from_cache: true })
+      return NextResponse.json({ memo: existing, from_cache: true, unit_economics: economics })
     }
 
-    // ── Deterministic computation (no AI) ──────────────────────────────────
-
-    const evidence   = signal.signal_data as Stage1Evidence
-    const thesisData = thesis as unknown as InvestmentThesis
-
-    const thresholds  = assessLaunchThresholds(evidence)
-    const economics   = computeFullUnitEconomics(evidence, thesisData, profile as FounderProfile ?? undefined, founderInputs)
-
-    // Reconstruct kill switch evaluation from the stored KillSwitchResult[] array.
-    // This preserves the AI-derived KS1/KS2 flags (patent, FDA) that were captured
-    // during the adversarial debate without needing to re-run any AI calls.
+    // Reconstruct kill switch evaluation from stored results
     const storedKSResults = (debate.kill_switches ?? []) as KillSwitchResult[]
     const killSwitches = reconstructKillSwitchEvaluation(storedKSResults)
 
@@ -128,7 +111,6 @@ export async function POST(req: NextRequest) {
       : null
 
     // ── AI call for prose sections ─────────────────────────────────────────
-
     const memo = await generateInvestmentMemo(
       thesisData,
       evidence,
@@ -140,8 +122,6 @@ export async function POST(req: NextRequest) {
     )
 
     // ── Persist ────────────────────────────────────────────────────────────
-
-    // Delete existing memo if regenerating with new founder_inputs
     if (existing) {
       await supabase.from('investment_memos').delete().eq('id', existing.id)
     }
@@ -169,7 +149,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to save memo' }, { status: 500 })
     }
 
-    return NextResponse.json({ memo: inserted, from_cache: false })
+    return NextResponse.json({ memo: inserted, from_cache: false, unit_economics: economics })
   } catch (err) {
     console.error('memo POST error', err)
     return NextResponse.json(
@@ -180,6 +160,9 @@ export async function POST(req: NextRequest) {
 }
 
 // GET /api/research/memo?thesis_id=xxx
+// Returns the stored memo augmented with freshly-computed unit economics.
+// Unit economics are deterministic (pure arithmetic from Stage 1 data) so
+// recomputing them here guarantees refresh-safe values without a schema migration.
 export async function GET(req: NextRequest) {
   try {
     const { data: { user }, error: authError } = await supabaseAuthClient().auth.getUser()
@@ -202,7 +185,43 @@ export async function GET(req: NextRequest) {
       .maybeSingle()
 
     if (error) return NextResponse.json({ error: 'Failed to fetch memo' }, { status: 500 })
-    return NextResponse.json(data ?? null)
+    if (!data) return NextResponse.json(null)
+
+    // Recompute unit economics from the stored source data
+    // (thesis + signal + profile + the saved founder_stage4_inputs)
+    const [{ data: thesis }, { data: profile }] = await Promise.all([
+      supabase.from('investment_theses').select('*').eq('id', thesisId).eq('user_id', user.id).single(),
+      supabase.from('founder_profiles').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    ])
+
+    let unit_economics = null
+    if (thesis) {
+      const { data: signal } = await supabase
+        .from('market_signals')
+        .select('signal_data')
+        .eq('id', thesis.market_signal_id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (signal) {
+        const evidence     = signal.signal_data as Stage1Evidence
+        const thesisData   = thesis as unknown as InvestmentThesis
+        const savedInputs  = data.founder_stage4_inputs
+        const founderInputs: Stage4FounderInputs | undefined =
+          savedInputs && typeof savedInputs === 'object' && Object.keys(savedInputs).length
+            ? savedInputs as Stage4FounderInputs
+            : undefined
+
+        unit_economics = computeFullUnitEconomics(
+          evidence,
+          thesisData,
+          profile as FounderProfile ?? undefined,
+          founderInputs
+        )
+      }
+    }
+
+    return NextResponse.json({ ...data, unit_economics })
   } catch (err) {
     console.error('memo GET error', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
