@@ -78,7 +78,7 @@ export function computeSensitivityAnalysis(
   const pessimistic = buildRow(price * 0.80, refPct, fbaFee, targetGM, actualCOGS)
 
   const gmThresholds = [0.35, 0.40, 0.45, 0.50, 0.55, 0.60].map(gm => ({
-    gm_pct:         gm * 100,
+    gm_pct:         Math.round(gm * 100),
     breakeven_cogs: Math.round(computeBreakevenCOGS(price, refPct, fbaFee, gm) * 100) / 100,
   }))
 
