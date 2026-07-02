@@ -138,10 +138,12 @@ function growthToScore(pct: number): number {
   return 2
 }
 
-// YoY trend label
+// Trend label: compares first 12 weeks to last 12 weeks of the available
+// Google Trends window (~52 weeks) — recent momentum, not calendar-year YoY.
+// Labeled "trend" rather than "YoY" to avoid implying two separate calendar years.
 function growthToTrendStr(pct: number): string {
   if (Math.abs(pct) <= 5) return 'Stable'
-  return pct > 0 ? `+${Math.round(pct)}% YoY` : `${Math.round(pct)}% YoY`
+  return pct > 0 ? `+${Math.round(pct)}% (recent trend)` : `${Math.round(pct)}% (recent trend)`
 }
 
 // Detect peak months by grouping weekly data points into calendar months

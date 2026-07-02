@@ -1,5 +1,7 @@
 import { NextResponse }           from 'next/server'
+import { createClient }          from '@/lib/supabase/server'
 import { CompetitiveReviewEngine } from '@/lib/competitive-review-engine'
+import { checkRateLimit, REVIEWS_COMPETITIVE_LIMIT } from '@/lib/rate-limit'
 import type { CompetitiveEngineOptions } from '@/lib/competitive-review-engine'
 
 // Long-running: 10 products × 100 reviews × analysis + AI calls
@@ -122,6 +124,12 @@ function validate(raw: unknown): ValidationResult {
 // ── Route handler ──────────────────────────────────────────────────────────
 
 export async function POST(req: Request): Promise<NextResponse> {
+  const { data: { user } } = await createClient().auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!checkRateLimit(user.id, REVIEWS_COMPETITIVE_LIMIT)) {
+    return NextResponse.json({ error: 'Too many requests — please wait a moment' }, { status: 429 })
+  }
+
   let raw: unknown
   try {
     raw = await req.json()

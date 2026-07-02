@@ -149,16 +149,18 @@ export function clusterPhrases(
   candidates.sort((a, b) => b.canonicalKey.length - a.canonicalKey.length || b.reviewCount - a.reviewCount)
   const kept: Candidate[] = []
   const keptWordSets: Set<string>[] = []
+  const keptReviewSets: Set<string>[] = []
   for (const c of candidates) {
     const cWords = wordSet(c.canonicalKey)
-    const dominated = kept.some((k, idx) => {
+    const dominated = kept.some((_k, idx) => {
       if (!isSubset(cWords, keptWordSets[idx])) return false
-      const overlap = c.reviewIds.filter(id => k.reviewIds.includes(id)).length
+      const overlap = c.reviewIds.filter(id => keptReviewSets[idx].has(id)).length
       return overlap / c.reviewIds.length >= 0.7
     })
     if (!dominated) {
       kept.push(c)
       keptWordSets.push(cWords)
+      keptReviewSets.push(new Set(c.reviewIds))
     }
   }
 

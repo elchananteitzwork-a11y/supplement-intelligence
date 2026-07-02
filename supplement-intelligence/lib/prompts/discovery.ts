@@ -125,7 +125,6 @@ export function buildSignalContext(
     lines.push('REVENUE (verified, derived from real Keepa price × units-sold data):')
     if (rv.est_monthly_revenue)    lines.push(`  - Estimated monthly revenue (category average): ${rv.est_monthly_revenue}`)
     if (rv.top_seller_revenue)     lines.push(`  - Top seller monthly revenue: ${rv.top_seller_revenue}`)
-    if (rv.avg_seller_revenue)     lines.push(`  - Average seller monthly revenue: ${rv.avg_seller_revenue}`)
     if (rv.est_monthly_units_sold) lines.push(`  - Estimated monthly units sold (category average): ${rv.est_monthly_units_sold}`)
     lines.push(`  - Confidence: ${Math.round(signals.revenue.confidence * 100)}%`)
     lines.push('')

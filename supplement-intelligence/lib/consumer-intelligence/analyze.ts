@@ -4,7 +4,8 @@ import type { CollectedReview }   from '../review-collector/types'
 import { cleanReviewText, splitSentences } from './clean-text'
 import { clusterPhrases }         from './cluster'
 import type { SentenceRef }       from './cluster'
-import { collectTikTokComments, PURCHASE_INTENT_CUES } from './tiktok-comments'
+import { detectSymptomSignals }   from './symptoms'
+import { collectTikTokComments } from './tiktok-comments'
 import type {
   ConsumerIntelligenceReport, ThemeInsight, SentimentBreakdown, SourceProduct,
 } from './types'
@@ -57,7 +58,7 @@ const REQUEST_CUES  = /\b(wish|want(?:ed)?|would be nice|should (?:have|add|incl
 const REPURCHASE_CUES = /\b(re-?order(?:ed|ing)?|re-?purchas(?:e|ed|ing)|re-?buy(?:ing)?|subscribe|subscription|auto-?ship|ran out|run(?:s)? out|out of (?:it|this|these)|order(?:ed|ing)? again|bought again|buy(?:ing)? again|every month|each month|monthly|repeat (?:customer|buyer|purchase)|been using (?:it|this) for (?:months|years)|stocked up|buying more)\b/i
 
 const NEGATION_TOKENS      = /\b(not|never|no|none|nothing|without|cannot|can'?t|won'?t|wouldn'?t|shouldn'?t|doesn'?t|don'?t|didn'?t|isn'?t|wasn'?t|aren'?t|weren'?t)\b/i
-const NEGATION_WINDOW_WORDS = 4
+const NEGATION_WINDOW_WORDS = 7
 
 function hasUnnegatedMatch(text: string, cueRegex: RegExp): boolean {
   const flags   = cueRegex.flags.includes('g') ? cueRegex.flags : cueRegex.flags + 'g'
@@ -240,13 +241,19 @@ export async function analyzeConsumerIntelligence(
     cleaned.length,
   )
 
-  const sentimentBreakdown = computeSentimentBreakdown(cleaned)
+  // ── Amazon-only pool ─────────────────────────────────────────────────────
+  // Defined before sentiment so the same filtered set drives sentiment,
+  // repurchase detection, and symptom detection.
+  const amazonCleaned = cleaned.filter(r => r.source_provider !== 'tiktok-comments')
+
+  // TikTok comments carry rating=3 (neutral) by construction — including them
+  // deflates avgRating and inflates neutralPct. Use Amazon-only when available.
+  const sentimentBreakdown = computeSentimentBreakdown(amazonReviews.length > 0 ? amazonCleaned : cleaned)
   const confidence = computeConfidence(cleaned.length, productsAnalyzed.length + (useTikTok ? 1 : 0))
 
   // ── Repurchase language: Amazon reviews ONLY ──────────────────────────────
   // TikTok comments excluded — "subscribe" means YouTube channel subscription,
   // not product subscription. Avoids false positives in the Subscription composite.
-  const amazonCleaned = cleaned.filter(r => r.source_provider !== 'tiktok-comments')
   const repurchaseReviewCount = amazonCleaned.filter(r => hasUnnegatedMatch(r.body, REPURCHASE_CUES)).length
 
   // ── TikTok purchase intent (separate from repurchase) ─────────────────────
@@ -256,6 +263,13 @@ export async function analyzeConsumerIntelligence(
         outOf:       tiktokReviews.length,
         hashtag:     tiktokResult.hashtag,
       }
+    : undefined
+
+  // ── Symptom / adverse-effect detection (Amazon reviews only) ─────────────
+  // Runs over the Amazon-only pool (not TikTok) — single-word signals that the
+  // n-gram clustering cannot surface. Only emitted when Amazon reviews exist.
+  const symptomSignals = amazonReviews.length >= AMAZON_SUCCESS_THRESHOLD
+    ? detectSymptomSignals(amazonCleaned)
     : undefined
 
   return {
@@ -270,6 +284,7 @@ export async function analyzeConsumerIntelligence(
     positiveThemes,
     repurchaseLanguage: { mentionedBy: repurchaseReviewCount, outOf: amazonCleaned.length },
     tiktokPurchaseIntent,
+    symptomSignals,
     dataSource,
     confidence,
     generatedAt: new Date().toISOString(),
@@ -293,8 +308,8 @@ function computeSentimentBreakdown(reviews: CollectedReview[]): SentimentBreakdo
     pct:   total > 0 ? Math.round((counts[star] / total) * 100) : 0,
   }))
   const positivePct = total > 0 ? Math.round(((counts[4] + counts[5]) / total) * 100) : 0
-  const neutralPct  = total > 0 ? Math.round((counts[3]               / total) * 100) : 0
   const negativePct = total > 0 ? Math.round(((counts[1] + counts[2]) / total) * 100) : 0
+  const neutralPct  = total > 0 ? 100 - positivePct - negativePct : 0
   return {
     avgRating:    total > 0 ? Math.round((sum / total) * 10) / 10 : 0,
     totalReviews: total,

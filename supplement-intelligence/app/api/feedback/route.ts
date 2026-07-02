@@ -10,7 +10,9 @@ function sb() {
     {
       cookies: {
         getAll:  () => jar.getAll(),
-      },setAll: (items: any[]) => items.forEach(({ name, value, options }) => jar.set(name, value, options)),
+        setAll: (items: { name: string; value: string; options: Record<string, unknown> }[]) =>
+          items.forEach(({ name, value, options }) => jar.set(name, value, options)),
+      },
     }
   )
 }
@@ -24,6 +26,14 @@ export async function POST(req: Request) {
   if (!body?.analysis_id || !body?.rating || !body?.category) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
+
+  const { data: owned } = await client
+    .from('analyses')
+    .select('id')
+    .eq('id', body.analysis_id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!owned) return NextResponse.json({ error: 'Analysis not found' }, { status: 404 })
 
   const { error } = await client.from('feedback').insert({
     user_id:     user.id,

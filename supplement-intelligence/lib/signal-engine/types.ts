@@ -15,9 +15,13 @@ export interface DemandSignal extends SignalScore {
   // an absolute search-volume count). Real "Monthly Search Volume" comes only
   // from m.keyword_intelligence (DataForSEO). Kept here for a future provider
   // that can actually measure it; do not backfill with a bucketed guess.
-  search_volume?: string
-  trend?:         string                    // e.g. "+21% YoY" | "Stable" — real period-over-period computation, not a guess
-  signal?:        'Strong' | 'Moderate' | 'Weak'
+  search_volume?:  string
+  trend?:          string                    // e.g. "+21% YoY" | "Stable" — real period-over-period computation, not a guess
+  signal?:         'Strong' | 'Moderate' | 'Weak'
+  // Which Keepa sub-signal drove the score — 'monthlySold' when Keepa's real
+  // monthly units figure was available; 'bsr' when the score was BSR-derived.
+  // Used in scoring.ts to build a more informative sourceLabel.
+  primary_signal?: 'monthlySold' | 'bsr'
   // Real Google Trends interestByRegion data (CONFIRMED VIA LIVE CALL
   // 2026-06-27) — same free, unofficial provider already in use, a second
   // real endpoint it exposes beyond interestOverTime. US states ranked by
@@ -35,7 +39,6 @@ export interface CompetitionSignal extends SignalScore {
 export interface RevenueSignal extends SignalScore {
   est_monthly_revenue?:     string   // avg price × avg monthly units sold, across top sellers
   top_seller_revenue?:      string   // single highest-performing product: its own price × its own units sold
-  avg_seller_revenue?:      string   // same basis as est_monthly_revenue — explicit alias for the top-seller/average split shown in the UI
   est_monthly_units_sold?:  string   // Keepa's own monthlySold field, averaged across top sellers — real units-sold data, distinct from (and never substituted for) search volume
   // Real rating/review-count, averaged across the same category bestsellers
   // as the fields above — directly observed Amazon facts Keepa mirrors
@@ -51,6 +54,19 @@ export interface RevenueSignal extends SignalScore {
   // memo (currently AI-guessed) in a real fee number.
   avg_fba_pick_pack_fee?:   string   // e.g. "$4.35", averaged across top sellers
   avg_referral_fee_pct?:    number   // e.g. 15, averaged across top sellers
+  // How many bestsellers passed the relevance gate and contributed to
+  // est_monthly_revenue / top_seller_revenue. Undefined when productRevenues
+  // is empty (no relevant bestseller found). Used by provenance tooltips and
+  // the RevenueEvidencePanel sample-size note.
+  revenue_sample_count?:    number
+
+  // Price compression signal (12-month proxy for Kill Switch #4).
+  // Negative = prices falling (compression); positive = prices rising.
+  // avg90 vs avg365 is a 90-day-vs-12-month comparison — labeled accordingly
+  // in the UI. True 24-month compression requires stats=730 (future work).
+  price_compression_pct?:   number   // e.g. -8.3 means prices dropped 8.3% vs. 12mo ago
+  price_avg_90d?:           number   // avg price over last 90 days (dollars)
+  price_avg_365d?:          number   // avg price over last 365 days (dollars)
 }
 
 export interface GrowthSignal extends SignalScore {

@@ -61,6 +61,12 @@ export interface ConsumerIntelligenceReport {
   // Only present when tiktokComments source was used.
   tiktokPurchaseIntent?: { mentionedBy: number; outOf: number; hashtag: string }
 
+  // Curated single-word adverse effect / symptom detection, running in parallel
+  // with phrase clustering. Only Amazon reviews are scanned (TikTok excluded).
+  // Optional: absent when no Amazon reviews were collected.
+  // See lib/consumer-intelligence/symptoms.ts for vocabulary and methodology.
+  symptomSignals?: import('./symptoms').SymptomSignal[]
+
   // Which source(s) provided data for this report.
   // 'amazon-reviews' = only Amazon. 'tiktok-comments' = only TikTok.
   // 'mixed' = both sources contributed reviews to the analysis pool.

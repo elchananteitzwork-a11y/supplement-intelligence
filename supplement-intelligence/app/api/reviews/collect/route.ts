@@ -1,5 +1,7 @@
 import { NextResponse }    from 'next/server'
+import { createClient }  from '@/lib/supabase/server'
 import { ReviewCollector } from '@/lib/review-collector'
+import { checkRateLimit, REVIEWS_COLLECT_LIMIT } from '@/lib/rate-limit'
 import type { CollectorConfig } from '@/lib/review-collector'
 
 // Collection can be slow for large ASINs; give it 5 minutes.
@@ -101,6 +103,12 @@ function validate(raw: unknown): ValidationResult {
 // ── Route handlers ─────────────────────────────────────────────────────────
 
 export async function POST(req: Request): Promise<NextResponse> {
+  const { data: { user } } = await createClient().auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!checkRateLimit(user.id, REVIEWS_COLLECT_LIMIT)) {
+    return NextResponse.json({ error: 'Too many requests — please wait a moment' }, { status: 429 })
+  }
+
   let raw: unknown
   try {
     raw = await req.json()

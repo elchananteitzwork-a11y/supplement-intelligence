@@ -20,7 +20,7 @@ import { EvidenceBadge, ProvenanceBadge, ProvenanceCaption, VerdictBadge, Confid
 import { ScoreGauge } from '@/components/lab/ScoreGauge'
 import { SignalBars, PulseRings } from '@/components/lab/Indicators'
 import {
-  MomentumSparkline, VolumeTrendChart, SeasonalityChart, ForecastChart,
+  VolumeTrendChart, SeasonalityChart, ForecastChart,
   OpportunityHeatmap, ClusterDistributionChart,
 } from '@/components/lab/Charts'
 import {
@@ -362,11 +362,11 @@ function deriveDecisionChips(m: MemoData, generatedAt: string): DecisionChip[] {
   // this on checkKeywordRelevance) — never a category-wide guess.
   const rev = se?.revenue?.value
   if (rev?.top_seller_revenue) {
-    chips.push({ label: 'Revenue', value: `${rev.top_seller_revenue} top seller`, source: se!.revenue!.primarySource })
+    chips.push({ label: 'Bestseller Rev', value: `${rev.top_seller_revenue} top seller`, source: se!.revenue!.primarySource })
   } else if (rev?.est_monthly_revenue) {
-    chips.push({ label: 'Revenue', value: `${rev.est_monthly_revenue} avg`, source: se!.revenue!.primarySource })
+    chips.push({ label: 'Bestseller Rev', value: `${rev.est_monthly_revenue} avg`, source: se!.revenue!.primarySource })
   } else {
-    chips.push({ label: 'Revenue', value: 'No verified product revenue', source: '—' })
+    chips.push({ label: 'Bestseller Rev', value: 'No verified product revenue', source: '—' })
   }
 
   // RISK — real FDA recall check via News Intelligence. Absence of a
@@ -589,8 +589,10 @@ function EvidenceConfidenceSection({
   // Live decision, not m.build_decision — so this panel can never
   // contradict the Hero's decision on the same render.
   const flags = checkConsistency(m, decision)
-  const facts = ([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
-    .filter(([, v]) => v && v !== 'N/A')
+  const facts = ([
+    ['Market', m.market_size ? 'Not independently verified — AI estimate only' : undefined],
+    ['Margin', m.gross_margin],
+  ] as [string, string | undefined][]).filter((p): p is [string, string] => !!p[1] && p[1] !== 'N/A')
   const coverageColor = cov.pct >= 50 ? 'text-lab-verdant' : cov.pct >= 25 ? 'text-lab-amber' : 'text-lab-ember'
   const coverageBar    = cov.pct >= 50 ? 'bg-lab-verdant' : cov.pct >= 25 ? 'bg-lab-amber' : 'bg-lab-ember'
 
@@ -761,8 +763,10 @@ function AtAGlanceRail({
   confidence: { level: 'High' | 'Medium' | 'Low'; note: string }
 }) {
   const c = decision === 'BUILD_NOW' ? 'text-lab-verdant' : decision === 'VALIDATE_FURTHER' ? 'text-lab-amber' : decision === 'CATEGORY_CREATION_CANDIDATE' ? 'text-lab-spectrum' : 'text-lab-ember'
-  const facts = ([['Market', m.market_size], ['Margin', m.gross_margin]] as [string, string][])
-    .filter(([, v]) => v && v !== 'N/A')
+  const facts = ([
+    ['Market', m.market_size ? 'Not independently verified — AI estimate only' : undefined],
+    ['Margin', m.gross_margin],
+  ] as [string, string | undefined][]).filter((p): p is [string, string] => !!p[1] && p[1] !== 'N/A')
   const { insufficientEvidence } = computeGroundedScore(m)
 
   return (
@@ -793,48 +797,14 @@ function AtAGlanceRail({
 // ── Momentum — turns the "Why Now" claim into a visual instead of pure
 // prose. If the text quantifies its own growth claim (e.g. "+34% YoY"),
 // that exact figure drives an animated trend sparkline. If it doesn't,
-// momentum falls back to the existing demand score via the same SignalBars
-// glyph used in the Signal Terminal — never a number that isn't in the data.
-function extractGrowthPct(text?: string | null): number | null {
-  if (!text) return null
-  const match = text.match(/([+-]?\d+(?:\.\d+)?)\s*%/)
-  return match ? parseFloat(match[1]) : null
-}
-
-// MomentumSparkline moved to components/lab/Charts.tsx — imported above.
-
 const LEVEL_TO_SIGNAL: Record<'High' | 'Medium' | 'Low', 'Strong' | 'Moderate' | 'Weak'> = {
   High: 'Strong', Medium: 'Moderate', Low: 'Weak',
 }
 
-function MomentumBadge({ whyNow, demandNotes, demandLevel, legacyDemandScore }: {
-  whyNow: string | null; demandNotes?: string
+function MomentumBadge({ demandLevel, legacyDemandScore }: {
   demandLevel?: 'High' | 'Medium' | 'Low'
   legacyDemandScore?: number   // old stored memos only — see lib/scoring.ts legacyScoreToLevel
 }) {
-  const pct = extractGrowthPct(whyNow) ?? extractGrowthPct(demandNotes)
-
-  if (pct !== null) {
-    const positive = pct >= 0
-    const color = positive ? '#34d9a0' : '#ff6259'
-    const Icon = positive ? IconTrendUp : IconTrendDown
-    return (
-      <div className="flex items-center gap-3 shrink-0" title="Synthesized — this figure is restated from the Why Now text above, which is itself model-written and not independently sourced.">
-        <MomentumSparkline positive={positive} accent={color} />
-        <div>
-          <div className="flex items-center gap-1" style={{ color }}>
-            <Icon className="w-3.5 h-3.5 shrink-0" />
-            <span className="lab-text-data font-bold text-xl leading-none">{positive ? '+' : ''}{pct}%</span>
-          </div>
-          <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider mt-1">Demand Momentum</p>
-        </div>
-      </div>
-    )
-  }
-
-  // No real-language growth figure to restate — fall back to the AI's own
-  // qualitative judgment (never a number; legacyDemandScore only exists on
-  // memos generated before the 2026-06-26 redesign).
   const level = demandLevel ?? legacyScoreToLevelDisplay(legacyDemandScore)
   if (level) {
     const signal = LEVEL_TO_SIGNAL[level]
@@ -894,7 +864,7 @@ function AIAnalystSection({ m }: { m: MemoData }) {
               <ProvenanceCaption p={STATIC_PROVENANCE.whyNow} />
             </div>
           </div>
-          <MomentumBadge whyNow={whyNow} demandNotes={m.scores.demand?.notes} demandLevel={m.scores.demand?.level} legacyDemandScore={m.scores.demand?.score} />
+          <MomentumBadge demandLevel={m.scores.demand?.level} legacyDemandScore={m.scores.demand?.score} />
         </div>
       )}
     </LabGlass>
@@ -944,8 +914,8 @@ function evidenceCitation(tag: string, m: MemoData): string | null {
 
   if (tag === 'revenue') {
     const rev = ev.revenue?.value
-    if (!rev?.avg_seller_revenue) return null
-    return `Avg seller ${rev.avg_seller_revenue}, top seller ${rev.top_seller_revenue ?? '—'} (${ev.revenue!.primarySource})`
+    if (!rev?.est_monthly_revenue && !rev?.top_seller_revenue) return null
+    return `Avg bestseller ${rev.est_monthly_revenue ?? '—'}, top bestseller ${rev.top_seller_revenue ?? '—'} (${ev.revenue!.primarySource})`
   }
 
   return null
@@ -1590,7 +1560,7 @@ interface EvidenceRowSpec { label: string; value: string | undefined; provenance
 // whether the whole card's verdict is real or AI-judgment before reading
 // a single row (§16's evidence-card convention).
 function EvidencePanel({
-  title, metrics, scoreLabel, scoreProvenance, score, scoreLevel,
+  title, metrics, scoreLabel, scoreProvenance, score, scoreLevel, footer,
 }: {
   title:           string
   metrics:         EvidenceRowSpec[]
@@ -1598,6 +1568,7 @@ function EvidencePanel({
   scoreProvenance: Provenance | null
   score:           number | null
   scoreLevel:      'Strong' | 'Moderate' | 'Weak' | null
+  footer?:         string
 }) {
   const color = scoreLevel === 'Strong' ? '#34d9a0' : scoreLevel === 'Moderate' ? '#f5b947' : '#686c78'
   const tier  = scoreProvenance?.level ?? 'unknown'
@@ -1638,6 +1609,9 @@ function EvidencePanel({
           <LabNoData />
         )}
       </div>
+      {footer && (
+        <p className="mt-2 text-[10px] text-lab-text-tertiary italic leading-relaxed">{footer}</p>
+      )}
     </LabEvidenceCard>
   )
 }
@@ -1715,23 +1689,27 @@ function RevenueEvidencePanel({ m }: { m: MemoData }) {
   const estMonthlyRevenueValue = rev?.est_monthly_revenue
     ?? (noRelevantRevenue ? 'No verified product revenue for this product — category-wide bestseller revenue was not credited.' : undefined)
 
+  const sampleCount = rev?.revenue_sample_count
   return (
     <EvidencePanel
       title="Revenue Evidence"
       metrics={[
-        { label: 'Estimated Monthly Units Sold', value: rev?.est_monthly_units_sold, provenance: unitsP },
-        { label: 'Estimated Monthly Revenue',    value: estMonthlyRevenueValue,      provenance: revP },
-        { label: 'Top Seller Revenue',           value: rev?.top_seller_revenue,     provenance: revP },
-        { label: 'Average Seller Revenue',       value: rev?.avg_seller_revenue,     provenance: revP },
-        { label: 'Category Avg Rating',          value: rev?.avg_rating ? `${rev.avg_rating}/5` : undefined, provenance: reviewP },
-        { label: 'Category Avg Review Count',    value: rev?.avg_review_count !== undefined ? rev.avg_review_count.toLocaleString() : undefined, provenance: reviewP },
-        { label: 'Amazon Referral Fee',          value: rev?.avg_referral_fee_pct !== undefined ? `${rev.avg_referral_fee_pct}%` : undefined, provenance: realFeeDataProvenance(ev) },
-        { label: 'FBA Pick & Pack Fee',          value: rev?.avg_fba_pick_pack_fee, provenance: realFeeDataProvenance(ev) },
+        { label: 'Bestseller Avg Units/Mo',    value: rev?.est_monthly_units_sold, provenance: unitsP },
+        { label: 'Bestseller Avg Revenue/Mo',  value: estMonthlyRevenueValue,      provenance: revP },
+        { label: 'Top Seller Revenue/Mo',      value: rev?.top_seller_revenue,     provenance: revP },
+        { label: 'Bestseller Avg Rating',      value: rev?.avg_rating ? `${rev.avg_rating}/5` : undefined, provenance: reviewP },
+        { label: 'Bestseller Avg Reviews',     value: rev?.avg_review_count !== undefined ? rev.avg_review_count.toLocaleString() : undefined, provenance: reviewP },
+        { label: 'Amazon Referral Fee',        value: rev?.avg_referral_fee_pct !== undefined ? `${rev.avg_referral_fee_pct}%` : undefined, provenance: realFeeDataProvenance(ev) },
+        { label: 'FBA Pick & Pack Fee',        value: rev?.avg_fba_pick_pack_fee, provenance: realFeeDataProvenance(ev) },
       ]}
       scoreLabel="Revenue Score"
       scoreProvenance={revP}
       score={score}
       scoreLevel={level}
+      footer={sampleCount !== undefined
+        ? `Based on ${sampleCount} relevant bestseller${sampleCount === 1 ? '' : 's'} in category (not total market)`
+        : 'Bestseller sample only — not total market revenue'
+      }
     />
   )
 }
@@ -2132,12 +2110,12 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
           <p className="text-xs font-semibold text-lab-text-primary mb-3">Product Impact — &ldquo;{topKeyword.keyword}&rdquo;</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <ProductImpactStat
-              label="Click Potential"
+              label="Est. Monthly Clicks"
               value={topKeyword.click_potential != null ? `${topKeyword.click_potential.toLocaleString()}/mo` : '—'}
               provenance={keywordClickConversionProvenance()}
             />
             <ProductImpactStat
-              label="Conversion Potential"
+              label="Est. Monthly Conversions"
               value={topKeyword.conversion_potential != null ? `${topKeyword.conversion_potential.toLocaleString()}/mo` : '—'}
               provenance={keywordClickConversionProvenance()}
             />
@@ -2360,6 +2338,29 @@ function ConsumerIntelligenceSection({ m }: { m: MemoData }) {
               <p className="text-xs font-semibold text-lab-text-primary mb-3">Feature Requests</p>
               <ThemeList themes={ci.featureRequests} limit={5} emptyLabel="No recurring feature requests found in this review sample." />
             </div>
+
+            {ci.symptomSignals && ci.symptomSignals.length > 0 && (
+              <div className="bg-lab-void-2 border border-lab-ember/25 rounded-lab-md p-4 sm:col-span-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <p className="text-xs font-semibold text-lab-text-primary">Adverse Effect Signals</p>
+                  <span className="text-[10px] text-lab-ember bg-lab-ember/10 border border-lab-ember/20 rounded px-1.5 py-0.5">Amazon reviews only</span>
+                </div>
+                <p className="text-[11px] text-lab-text-tertiary mb-3">
+                  Single-word adverse effects detected by exact-match scan — complement to phrase clustering above. Each count is distinct reviews containing the term (unnegated).
+                </p>
+                <ul className="space-y-2">
+                  {ci.symptomSignals.slice(0, 8).map((s, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <span className="flex-shrink-0 min-w-[90px] text-xs font-mono font-semibold text-lab-text-primary">{s.symptom}</span>
+                      <span className="text-[11px] text-lab-text-tertiary">
+                        {s.mentionedBy}/{s.outOf} reviews ({Math.round((s.mentionedBy / s.outOf) * 100)}%)
+                        {s.exampleQuote && <> — &ldquo;{s.exampleQuote.slice(0, 120)}{s.exampleQuote.length > 120 ? '…' : ''}&rdquo;</>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
           </div>
         </div>

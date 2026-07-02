@@ -62,7 +62,11 @@ export interface EvidenceBreadth {
 // changes, so old and new scores are never silently compared as if
 // equivalent (see app/api/generate/route.ts leaderboard upsert and
 // app/leaderboard/page.tsx for the two places this is checked).
-export const SCORING_ENGINE_VERSION = '2.0.0'
+// 2.1.0 (2026-07-01): Consumer Pain + Subscription confidence dampening now
+// gated at < 50 reviews (THIN_SAMPLE_THRESHOLD); above threshold, raw score
+// is used without dampening. Demand Breadth Boost (+0 to +2) added for
+// keyword portfolio coverage. Leaderboard seed data removed via migration 011.
+export const SCORING_ENGINE_VERSION = '2.1.0'
 
 export interface GroundedScore {
   score:       number   // 0-100
@@ -224,19 +228,48 @@ function searchVolumeToScore(volume: number): number {
   return 1
 }
 
+// ── Demand Breadth Boost ──────────────────────────────────────────────────────
+// Lightweight portfolio-breadth signal layered on top of the top-keyword base
+// score. Does NOT replace the base score — it adds at most +2 points when the
+// keyword portfolio demonstrates real breadth. Modular: set to false to disable
+// without touching any other logic, and replace with a full portfolio-volume
+// model once real DataForSEO distribution data is available for calibration.
+//
+// Thresholds (judgment-call, to be calibrated against real DataForSEO output):
+//   +1 if ≥ 3 keywords have ≥ 2,000 monthly searches (substantial secondary terms)
+//   +1 if ≥ 5 keywords have ≥ 500 monthly searches (broad long-tail coverage)
+// Maximum boost: +2, caps at 10.
+
+const DEMAND_BREADTH_BOOST_ENABLED = true
+
+function computeDemandBreadthBoost(keywords: { monthly_searches?: number | null }[]): number {
+  if (!DEMAND_BREADTH_BOOST_ENABLED || keywords.length <= 1) return 0
+  const secondary = keywords.slice(1)   // exclude the top keyword (already scored)
+  const tier1 = secondary.filter(kw => (kw.monthly_searches ?? 0) >= 2_000).length
+  const tier2 = secondary.filter(kw => (kw.monthly_searches ?? 0) >= 500).length
+  return Math.min(2, (tier1 >= 3 ? 1 : 0) + (tier2 >= 5 ? 1 : 0))
+}
+
 interface RealResult { rawScore: number | null; sourceLabel: string }
 
 export function computeDemand(m: MemoData): RealResult {
   const topKeyword = m.keyword_intelligence?.top_buying?.[0]
+  const allKeywords = m.keyword_intelligence?.top_buying ?? []
   const se = m.signal_evidence
 
   if (topKeyword?.monthly_searches) {
     let score = searchVolumeToScore(topKeyword.monthly_searches)
     if (typeof topKeyword.growth_pct === 'number' && topKeyword.growth_pct > 20) score = Math.min(10, score + 1)
     if (typeof topKeyword.growth_pct === 'number' && topKeyword.growth_pct < -20) score = Math.max(0, score - 1)
-    return { rawScore: score, sourceLabel: 'dataforseo' }
+    const breadthBoost = computeDemandBreadthBoost(allKeywords)
+    score = Math.min(10, score + breadthBoost)
+    const sourceNote = breadthBoost > 0 ? ` (+${breadthBoost} breadth boost, ${allKeywords.length} keywords)` : ''
+    return { rawScore: score, sourceLabel: `dataforseo${sourceNote}` }
   }
-  if (se?.demand) return { rawScore: se.demand.value.score, sourceLabel: se.demand.primarySource }
+  if (se?.demand) {
+    const sub = se.demand.value.primary_signal
+    return { rawScore: se.demand.value.score, sourceLabel: sub ? `${se.demand.primarySource} (${sub})` : se.demand.primarySource }
+  }
   if (se?.growth) return { rawScore: se.growth.value.score, sourceLabel: se.growth.primarySource }
   return { rawScore: null, sourceLabel: '' }
 }
@@ -308,7 +341,13 @@ function computeMarketAccessibility(m: MemoData): GatedResult {
 function p25(nums: number[]): number | null {
   if (!nums.length) return null
   const sorted = [...nums].sort((a, b) => a - b)
-  return sorted[Math.floor(sorted.length * 0.25)]
+  // For arrays < 4 elements, floor(n * 0.25) always returns index 0 (the min),
+  // not a true 25th percentile. Use linear interpolation for small arrays.
+  if (sorted.length < 4) return sorted[0]
+  const pos = sorted.length * 0.25
+  const lo  = Math.floor(pos)
+  const frac = pos - lo
+  return frac === 0 ? sorted[lo] : sorted[lo] + frac * (sorted[lo + 1] - sorted[lo])
 }
 
 function realisticPrice(m: MemoData): number | null {
@@ -324,8 +363,15 @@ function parseDollarString(s: string | undefined): number | null {
   return isNaN(n) ? null : n
 }
 
+// Denominator = 45%: the realistic ceiling where Amazon fees consume nearly
+// half of revenue and the category is functionally unprofitable for a new
+// entrant. The prior value of 30% mapped a completely normal supplement fee
+// structure (referral ~15% + FBA ~12-17% = 27-32%) to a score of 0-1/10,
+// making Fee Burden systematically report "terrible" for every normal product.
+// 45% is the disclosed judgment-call threshold; calibrate against real
+// outcomes data once available.
 function feeBurdenToScore(feePctOfPrice: number): number {
-  return Math.max(0, Math.min(10, Math.round((1 - feePctOfPrice / 30) * 10)))
+  return Math.max(0, Math.min(10, Math.round((1 - feePctOfPrice / 45) * 10)))
 }
 function marginToScore(marginPct: number): number {
   return Math.max(0, Math.min(10, Math.round((marginPct / 50) * 10)))
@@ -385,6 +431,17 @@ function computeProfitability(m: MemoData): RealResult {
 // computeMarketPain. The confidence multiplier at the end is a SEPARATE,
 // still-needed correction (small samples are unreliable, independent of
 // whether they're correctly normalized) — not redundant with the fix above.
+//
+// CONFIDENCE DAMPENING POLICY (2026-07-01): applied only when the sample is
+// genuinely thin (< THIN_SAMPLE_THRESHOLD reviews). Above the threshold the
+// signal is well-evidenced and the raw score is the finding — pre-deflating
+// it without disclosure would systematically understate real pain. Below the
+// threshold, the multiplier is retained as a disclosed hedge against sampling
+// noise. Threshold chosen to match the volumeScore plateau in
+// lib/consumer-intelligence/analyze.ts computeConfidence (50+ reviews = max
+// volume contribution there too).
+
+const THIN_SAMPLE_THRESHOLD = 50
 
 function consumerPainScore(m: MemoData): number | null {
   const ci = m.consumer_intelligence
@@ -397,7 +454,10 @@ function consumerPainScore(m: MemoData): number | null {
   const richness = Math.min(10, density * (10 / 3))
   const severity = Math.min(10, (ci.sentimentBreakdown.negativePct / 30) * 10)
   const raw = richness * 0.6 + severity * 0.4
-  return Math.round(Math.min(10, raw) * ci.confidence)
+  const capped = Math.min(10, raw)
+  return ci.totalReviewsCollected < THIN_SAMPLE_THRESHOLD
+    ? Math.round(capped * ci.confidence)
+    : Math.round(capped)
 }
 
 // KNOWN, DOCUMENTED LIMITATION (architecture review, 2026-06-28): this
@@ -424,12 +484,12 @@ function subscriptionScore(m: MemoData): number | null {
   if (!ci || !rl || rl.outOf < MIN_REVIEWS_FOR_REPURCHASE_SIGNAL) return null
   const rate = rl.mentionedBy / rl.outOf
   const raw  = Math.max(0, Math.min(10, rate * 40))
-  // HARDENING FIX (2026-06-28): Customer Pain already dampens by the same
-  // ci.confidence (volume/source-based) before rounding — Subscription drew
-  // from the identical consumer_intelligence object but skipped this,
-  // letting a thin, low-confidence sample report with the same visual
-  // certainty as a well-supported one. Same treatment now, for consistency.
-  return Math.round(raw * ci.confidence)
+  // Same THIN_SAMPLE_THRESHOLD policy as consumerPainScore: apply confidence
+  // dampening only for thin samples; above the threshold the repurchase rate
+  // is well-evidenced and should be reported undampened.
+  return rl.outOf < THIN_SAMPLE_THRESHOLD
+    ? Math.round(raw * ci.confidence)
+    : Math.round(raw)
 }
 
 // ── Manufacturing Feasibility — real, but blocked on fetch timing ─────────
@@ -496,7 +556,7 @@ const DECISION_RANK: Record<BuildDecision, number> = {
 
 function mostConservative(decisions: (BuildDecision | null)[]): BuildDecision {
   const real = decisions.filter((d): d is BuildDecision => d !== null)
-  return real.reduce((a, b) => (DECISION_RANK[a] <= DECISION_RANK[b] ? a : b))
+  return real.reduce((a, b) => (DECISION_RANK[a] <= DECISION_RANK[b] ? a : b), 'SKIP' as BuildDecision)
 }
 
 // ── Backward compat / qualitative fallback (unchanged from prior redesign) ─
@@ -542,7 +602,9 @@ function assembleDimensions(m: MemoData): { candidates: ScoreDimension[]; gateTi
 
   const painScore = consumerPainScore(m)
   if (painScore !== null) {
-    candidates.push({ key: 'consumerPain', label: 'Customer Pain / Unmet Need', weight: BASE_WEIGHTS.consumerPain, rawScore: painScore, source: 'verified', sourceLabel: `Apify — ${m.consumer_intelligence!.totalReviewsCollected} real competitor reviews` })
+    const ci = m.consumer_intelligence!
+    const dampened = ci.totalReviewsCollected < THIN_SAMPLE_THRESHOLD
+    candidates.push({ key: 'consumerPain', label: 'Customer Pain / Unmet Need', weight: BASE_WEIGHTS.consumerPain, rawScore: painScore, source: 'verified', sourceLabel: `Apify — ${ci.totalReviewsCollected} real competitor reviews${dampened ? ' (confidence-adjusted, thin sample)' : ''}` })
   }
 
   if (m.signal_evidence?.virality) {
@@ -563,7 +625,10 @@ function assembleDimensions(m: MemoData): { candidates: ScoreDimension[]; gateTi
   if (manufacturing.rawScore !== null) {
     candidates.push({ key: 'manufacturing', label: 'Manufacturing Feasibility', weight: BASE_WEIGHTS.manufacturing, rawScore: manufacturing.rawScore, source: 'verified', sourceLabel: manufacturing.sourceLabel })
   } else {
-    candidates.push(qualitative('manufacturing', 'Manufacturing Feasibility', m.scores.manufacturing?.level ?? legacyScoreToLevel(m.scores.manufacturing?.score), 'AI judgment — manufacturing data is fetched on-demand from the Manufacturing tab, not yet available at score time'))
+    // Weight deliberately set to 0 (qualitative) — this dimension's 5% share is
+    // redistributed to the remaining real dimensions. Disclosed explicitly in the
+    // source label so the UI can surface this fact without reading scoring internals.
+    candidates.push(qualitative('manufacturing', 'Manufacturing Feasibility', m.scores.manufacturing?.level ?? legacyScoreToLevel(m.scores.manufacturing?.score), 'Not yet analyzed — fetch from Manufacturing tab to include in score (5% weight currently excluded)'))
   }
 
   return { candidates, gateTiers }
@@ -577,7 +642,14 @@ function scoreFromCandidates(candidates: ScoreDimension[]): { score: number; wei
   const dimensions = candidates.map(c => ({ ...c, weight: c.weight / totalWeight }))
   const weightedAvg = dimensions.reduce((s, d) => s + (d.rawScore ?? 0) * d.weight, 0)
   const score = Math.max(0, Math.min(100, Math.round(weightedAvg * 10)))
-  const weightedDecision: BuildDecision = score >= 65 ? 'BUILD_NOW' : score >= 50 ? 'VALIDATE_FURTHER' : 'SKIP'
+  const rawDecision: BuildDecision = score >= 65 ? 'BUILD_NOW' : score >= 50 ? 'VALIDATE_FURTHER' : 'SKIP'
+  // Weight re-normalization inflates a single strong dimension to score ≥ 65.
+  // A single verified signal (e.g. search volume alone) is insufficient basis
+  // for a BUILD_NOW recommendation when 6 of 7 composites are missing.
+  // Require at least 2 independent verified dimensions before BUILD_NOW fires.
+  const verifiedCount = candidates.filter(c => c.source === 'verified').length
+  const weightedDecision: BuildDecision =
+    rawDecision === 'BUILD_NOW' && verifiedCount < 2 ? 'VALIDATE_FURTHER' : rawDecision
   return { score, weightedDecision, dimensions }
 }
 
@@ -628,9 +700,18 @@ export function computeGroundedScore(m: MemoData): GroundedScore {
     const safetyTier = computeSafetyGateTier(m)
     const gatedDecision = mostConservative([weightedDecision, ...gateTiers, safetyTier])
 
+    // A VALIDATE_FURTHER gate (e.g. Class II recall, adverse events) must
+    // remain visible even for category creation candidates — safety validation
+    // requirements do not dissolve because this is a white-space opportunity.
+    // Only SKIP overrides the CCC label entirely; VALIDATE_FURTHER is preserved.
+    const finalDecision: BuildDecision =
+      gatedDecision === 'SKIP'             ? 'SKIP' :
+      gatedDecision === 'VALIDATE_FURTHER' ? 'VALIDATE_FURTHER' :
+      'CATEGORY_CREATION_CANDIDATE'
+
     return {
       score,
-      decision: gatedDecision === 'SKIP' ? 'SKIP' : 'CATEGORY_CREATION_CANDIDATE',
+      decision: finalDecision,
       dimensions,
       groundedPct: 100,
       insufficientEvidence: false,

@@ -1,10 +1,12 @@
 import { NextResponse }         from 'next/server'
 import { cookies }              from 'next/headers'
 import { createServerClient }   from '@supabase/ssr'
+import { createClient }         from '@supabase/supabase-js'
 import Anthropic                from '@anthropic-ai/sdk'
 import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }         from '@/lib/signal-engine'
 import { handleProviderError }  from '@/lib/provider-errors'
+import { checkRateLimit, DISCOVER_LIMIT } from '@/lib/rate-limit'
 import type { OpportunityCard, OpportunityMeta, CacheStatus } from '@/types/index'
 
 export const maxDuration = 300
@@ -25,6 +27,16 @@ function supabaseFromCookies() {
           items.forEach(({ name, value, options }) => jar.set(name, value, options)),
       },
     }
+  )
+}
+
+// Service-role client for cache writes — bypasses RLS so discovery_cache
+// can restrict direct user writes while still allowing server-side updates.
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
   )
 }
 
@@ -169,7 +181,8 @@ function isValidCard(o: unknown): o is OpportunityCard {
 export async function POST(req: Request) {
   const sb = supabaseFromCookies()
   const { data: { user } } = await sb.auth.getUser()
-  // Discovery is public — no auth required. user may be null for anonymous visitors.
+  if (!user) return err('Unauthorized', 401)
+  if (!checkRateLimit(user.id, DISCOVER_LIMIT)) return err('Too many requests — please wait a moment', 429)
 
   let body: { input?: string; categoryId?: string }
   try { body = await req.json() } catch { return err('Invalid JSON body') }
@@ -365,7 +378,9 @@ export async function POST(req: Request) {
   const enriched    = enrichWithMeta(opportunities, cacheWeek, prevCacheWeek, previousOpps)
   const generatedAt = new Date().toISOString()
 
-  const { error: cacheWriteErr } = await sb
+  // Use admin (service-role) client so cache writes succeed even after
+  // discovery_cache INSERT/UPDATE policies were locked down to service_role only.
+  const { error: cacheWriteErr } = await adminClient()
     .from('discovery_cache')
     .upsert(
       { normalized_query: cacheKey, cache_week: cacheWeek, opportunities: enriched, generated_at: generatedAt },

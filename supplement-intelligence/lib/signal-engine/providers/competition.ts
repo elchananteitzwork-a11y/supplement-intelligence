@@ -75,9 +75,10 @@ function avg(arr: number[]): number | null {
 // harder to break into than one with the same competitor count spread evenly.
 function accessibilityScore(meaningfulCount: number, top3Concentration: number | null): number {
   let score = 10
-  if (meaningfulCount > 15)     score -= 4
-  else if (meaningfulCount > 8) score -= 2
-  else if (meaningfulCount > 4) score -= 1
+  if (meaningfulCount > 30)      score -= 5
+  else if (meaningfulCount > 15) score -= 3
+  else if (meaningfulCount > 8)  score -= 2
+  else if (meaningfulCount > 4)  score -= 1
 
   if (top3Concentration !== null) {
     if (top3Concentration > 0.7)      score -= 3

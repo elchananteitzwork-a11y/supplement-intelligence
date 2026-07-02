@@ -2,6 +2,7 @@ import { NextResponse }         from 'next/server'
 import { cookies }              from 'next/headers'
 import { createServerClient }   from '@supabase/ssr'
 import { fetchManufacturingEstimate } from '@/lib/manufacturing-engine'
+import { checkRateLimit, MANUFACTURING_LIMIT } from '@/lib/rate-limit'
 
 export const maxDuration = 30
 
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
   const sb = supabaseFromCookies()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return err('Unauthorized', 401)
+  if (!checkRateLimit(user.id, MANUFACTURING_LIMIT)) return err('Too many requests — please wait a moment', 429)
 
   let body: { product?: string; category?: string; complexity?: string }
   try { body = await req.json() } catch { return err('Invalid JSON body') }

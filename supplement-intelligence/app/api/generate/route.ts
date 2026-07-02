@@ -12,6 +12,7 @@ import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/r
 import { buildNewsIntelligence } from '@/lib/news-engine'
 import { shouldConsumeSlot } from '@/lib/analysis-slot-policy'
 import { handleProviderError } from '@/lib/provider-errors'
+import { checkRateLimit, GENERATE_LIMIT } from '@/lib/rate-limit'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
 // CONFIRMED VIA LOAD TEST (2026-06-24, 17 real generations): single-attempt
@@ -324,6 +325,7 @@ export async function POST(req: Request) {
   const sb = supabaseFromCookies()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return err('Unauthorized', 401)
+  if (!checkRateLimit(user.id, GENERATE_LIMIT)) return err('Too many requests — please wait a moment', 429)
 
   let body: {
     input?:          string
@@ -372,37 +374,14 @@ export async function POST(req: Request) {
     )
   }
 
-  // ── Start signal + keyword fetch immediately (overlaps with DB round-trips below) ──
-  // Firing this before the cache/profile checks hides most of its latency.
-  // 75_000 (not the old 8_000): the Apify competition provider's real
-  // synchronous latency measured 30-73s across 7 live runs — anything
-  // shorter silently dropped a result that had already succeeded and been
-  // billed. Matches that provider's own internal AbortSignal.timeout(80_000).
-  const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 75_000).catch(() => null)
-  // ROOT CAUSE FIX (2026-06-28, "Monthly Search Volume often shows no data"
-  // investigation): this outer race ceiling (8s) was SHORTER than
-  // lib/keyword-engine/dataforseo.ts's own internal per-attempt
-  // AbortSignal.timeout(12_000) — a real, in-flight DataForSEO call that
-  // was about to succeed could be discarded by this outer timeout before
-  // it ever got the chance to. Now also has to cover up to 3 sequential
-  // retry candidates (exact phrase, "for X" clause stripped, generic-tail
-  // stripped) after today's broadening fix, not just one. 25s comfortably
-  // covers that and costs nothing on the overall request's critical path —
-  // this runs concurrently with the 75s signalPromise above, not after it.
-  const keywordPromise = keywordEngine.fetch(input.trim(), 25_000).catch(() => null)
-  // News Intelligence: independent of signals/competitors, so it fires here
-  // rather than waiting on topCompetitors below. Includes its own Haiku
-  // "why it matters" pass internally — never touches the main Sonnet prompt
-  // or schema (see lib/news-engine/build.ts) — so this adds no tokens to the
-  // expensive call and, since Haiku is far faster than the ~48-68s Sonnet
-  // generation it runs alongside, no meaningful latency either.
-  const newsPromise = buildNewsIntelligence(input.trim(), module.id, module.name, 18_000)
-
-  // ── Full-report cache ─────────────────────────────────────────
+  // ── Full-report cache (before any expensive provider calls) ─────────────
+  // Cache check costs ~5ms. Previously providers fired before this check,
+  // billing Apify/DataForSEO/Keepa on every cache hit. On a miss, the ~5ms
+  // overhead is negligible against 30-75s provider latency.
   const { data: cachedReport } = await sb
     .from('analyses')
     .select('id, created_at')
-    .ilike('raw_input', input.trim())
+    .ilike('raw_input', input.trim().replace(/\s+/g, ' '))
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -434,6 +413,32 @@ export async function POST(req: Request) {
       return err('Analysis limit reached for beta access.', 429)
     }
   }
+
+  // ── Start signal + keyword fetch (cache miss confirmed) ──────────────────
+  // Only fires after cache and slot checks pass — no wasted provider calls.
+  // 75_000 (not the old 8_000): the Apify competition provider's real
+  // synchronous latency measured 30-73s across 7 live runs — anything
+  // shorter silently dropped a result that had already succeeded and been
+  // billed. Matches that provider's own internal AbortSignal.timeout(80_000).
+  const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 75_000).catch(() => null)
+  // ROOT CAUSE FIX (2026-06-28, "Monthly Search Volume often shows no data"
+  // investigation): this outer race ceiling (8s) was SHORTER than
+  // lib/keyword-engine/dataforseo.ts's own internal per-attempt
+  // AbortSignal.timeout(12_000) — a real, in-flight DataForSEO call that
+  // was about to succeed could be discarded by this outer timeout before
+  // it ever got the chance to. Now also has to cover up to 3 sequential
+  // retry candidates (exact phrase, "for X" clause stripped, generic-tail
+  // stripped) after today's broadening fix, not just one. 25s comfortably
+  // covers that and costs nothing on the overall request's critical path —
+  // this runs concurrently with the 75s signalPromise above, not after it.
+  const keywordPromise = keywordEngine.fetch(input.trim(), 25_000).catch(() => null)
+  // News Intelligence: independent of signals/competitors, so it fires here
+  // rather than waiting on topCompetitors below. Includes its own Haiku
+  // "why it matters" pass internally — never touches the main Sonnet prompt
+  // or schema (see lib/news-engine/build.ts) — so this adds no tokens to the
+  // expensive call and, since Haiku is far faster than the ~48-68s Sonnet
+  // generation it runs alongside, no meaningful latency either.
+  const newsPromise = buildNewsIntelligence(input.trim(), module.id, module.name, 18_000)
 
   // Build user message
   const lines = [`${module.name} idea: "${input.trim()}"`]
@@ -784,7 +789,7 @@ export async function POST(req: Request) {
     .from('analyses')
     .insert({
       user_id:             user.id,
-      raw_input:           input.trim(),
+      raw_input:           input.trim().replace(/\s+/g, ' '),
       category_name:       memo.category_name,
       target_audience:     targetAudience?.trim() ?? null,
       price_point:         pricePoint?.trim()     ?? null,

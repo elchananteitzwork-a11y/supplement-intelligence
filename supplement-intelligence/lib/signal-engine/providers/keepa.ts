@@ -351,6 +351,9 @@ export class KeepaProvider implements SignalProvider {
     // referralFeePercentage comment above.
     const fbaPickPackFees:  number[] = []
     const referralFeePcts:  number[] = []
+    // 12-month price proxy for Kill Switch #4 (COMMODITY_PRICE_COMPRESSION).
+    // avg90 vs avg365 comparison — not a full 24-month window, labeled as such.
+    const prices365:        number[] = []
 
     for (const p of products) {
       const s = p.stats
@@ -379,6 +382,11 @@ export class KeepaProvider implements SignalProvider {
       const priceBuyBox = keepaPrice(statVal(s, 'avg90', CSV.BUYBOX_PRICE) ?? undefined)
       const price = priceAmazon ?? priceBuyBox
       if (price !== null && price > 0) prices.push(price)
+
+      const price365Amazon = keepaPrice(statVal(s, 'avg365', CSV.AMAZON_PRICE) ?? undefined)
+      const price365BuyBox = keepaPrice(statVal(s, 'avg365', CSV.BUYBOX_PRICE) ?? undefined)
+      const price365 = price365Amazon ?? price365BuyBox
+      if (price365 !== null && price365 > 0) prices365.push(price365)
 
       // monthlySold is a top-level field (not in stats array).
       // Confirmed: 70k–100k for top-10 Vitamins & Supplements products.
@@ -431,6 +439,7 @@ export class KeepaProvider implements SignalProvider {
     const avgBsr365      = avg(bsrs365)
     const avgOffers      = avg(offers)
     const avgPrice       = avg(prices)
+    const avgPrice365    = avg(prices365)
     const avgMonthlySold = avg(monthlySolds)
     // Rounded at the source — confirmed live (2026-06-26): an unrounded
     // float here ("-74.11111111111111%") reached the UI verbatim.
@@ -451,12 +460,13 @@ export class KeepaProvider implements SignalProvider {
     if (avgBsr90 !== null) {
       const sc = bsrToDemandScore(avgBsr90)
       demand = {
-        score:         avgMonthlySold !== null && avgMonthlySold > 50_000 ? 9
-                     : avgMonthlySold !== null && avgMonthlySold > 10_000 ? 7
-                     : sc,
-        confidence:    bsrs90.length >= 5 ? 0.82 : 0.65,
-        trend:         bsrDeltaYoY(avgBsr90, avgBsr365) ?? 'Stable',
-        signal:        sc >= 7 ? 'Strong' : sc >= 5 ? 'Moderate' : 'Weak',
+        score:          avgMonthlySold !== null && avgMonthlySold > 50_000 ? 9
+                      : avgMonthlySold !== null && avgMonthlySold > 10_000 ? 7
+                      : sc,
+        confidence:     bsrs90.length >= 5 ? 0.82 : 0.65,
+        trend:          bsrDeltaYoY(avgBsr90, avgBsr365) ?? 'Stable',
+        signal:         sc >= 7 ? 'Strong' : sc >= 5 ? 'Moderate' : 'Weak',
+        primary_signal: avgMonthlySold !== null ? 'monthlySold' : 'bsr',
       }
     }
 
@@ -546,12 +556,19 @@ export class KeepaProvider implements SignalProvider {
         confidence:             productRevenues.length >= 5 ? 0.7 : 0.5,
         est_monthly_revenue:    avgRevenue !== null ? fmt(avgRevenue) : undefined,
         top_seller_revenue:     topRevenue !== null ? fmt(topRevenue) : undefined,
-        avg_seller_revenue:     avgRevenue !== null ? fmt(avgRevenue) : undefined,
         est_monthly_units_sold: avgMonthlySold !== null ? `${Math.round(avgMonthlySold).toLocaleString()} units/mo` : undefined,
         avg_rating:             avgRating !== null ? avgRating.toFixed(1) : undefined,
         avg_review_count:       avgReviewCount !== null ? Math.round(avgReviewCount) : undefined,
         avg_fba_pick_pack_fee:  avgFbaFee !== null ? `$${avgFbaFee.toFixed(2)}` : undefined,
         avg_referral_fee_pct:   avgReferralFee !== null ? Math.round(avgReferralFee * 10) / 10 : undefined,
+        revenue_sample_count:   productRevenues.length > 0 ? productRevenues.length : undefined,
+        // Price compression: avg90 vs avg365 — 90-day vs. 12-month price proxy.
+        // Negative = prices fell (compression); capped at meaningful sample sizes.
+        ...(avgPrice !== null && avgPrice365 !== null && prices.length >= 3 && prices365.length >= 3 && {
+          price_avg_90d:          Math.round(avgPrice * 100) / 100,
+          price_avg_365d:         Math.round(avgPrice365 * 100) / 100,
+          price_compression_pct:  Math.round(((avgPrice - avgPrice365) / avgPrice365) * 100 * 10) / 10,
+        }),
       }
     }
 
@@ -575,6 +592,11 @@ export class KeepaProvider implements SignalProvider {
       avgMomentum90d:  avgMomentum90d !== null ? `${avgMomentum90d}%` : null,
       avgFbaFee:       avgFbaFee !== null ? `$${avgFbaFee.toFixed(2)}` : null,
       avgReferralFee:  avgReferralFee !== null ? `${avgReferralFee}%` : null,
+      avgPrice90d:     avgPrice !== null ? `$${Math.round(avgPrice)}` : null,
+      avgPrice365d:    avgPrice365 !== null ? `$${Math.round(avgPrice365)}` : null,
+      priceCompression: avgPrice !== null && avgPrice365 !== null
+        ? `${Math.round(((avgPrice - avgPrice365) / avgPrice365) * 100 * 10) / 10}%`
+        : null,
       confidence:      Math.round(overallConf * 100) + '%',
     })
 

@@ -32,7 +32,7 @@ export function classifySearchIntent(keyword: string): SearchIntent {
 // Missing competition/difficulty defaults to a neutral 0.5/50 rather than
 // being treated as 0 (no real basis to assume "best possible" OR "worst
 // possible" when DataForSEO simply has no data point for this keyword).
-const VOLUME_CEILING_FOR_NORM = 50_000
+const VOLUME_CEILING_FOR_NORM = 500_000
 
 export function computeOpportunityScore(m: KeywordMetric): number | null {
   if (m.monthly_searches <= 0) return null

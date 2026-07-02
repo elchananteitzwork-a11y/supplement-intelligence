@@ -73,7 +73,7 @@ export function computeSeasonality(points: MonthlyPoint[]): SeasonalityStats {
   const values = points.map(p => p.value)
   const cv      = coefficientOfVariation(values)
   const pattern = cvToPattern(cv)
-  const { peakMonths, lowMonths } = pattern !== 'Perennial' ? detectPeakAndLowMonths(points) : { peakMonths: [], lowMonths: [] }
+  const { peakMonths, lowMonths } = detectPeakAndLowMonths(points)
 
   return { cv, pattern, peakMonths, lowMonths, stability: cvToStability(cv) }
 }

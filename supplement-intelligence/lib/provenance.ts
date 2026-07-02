@@ -258,10 +258,10 @@ export function realFeeDataProvenance(signals?: AggregatedSignals | null): Prove
   return verified('Keepa', "Amazon's own published referral-fee percentage and FBA pick-and-pack fee for this product's category/size tier, mirrored directly by Keepa — not a Keepa-side model and not the model's own margin guess.")
 }
 
-// "Estimated Monthly Units Sold" — real via Keepa's own monthlySold field.
+// "Bestseller Avg Units/Mo" — real via Keepa's own monthlySold field.
 export function unitsSoldProvenance(signals?: AggregatedSignals | null): Provenance | null {
   if (!signals?.revenue?.value.est_monthly_units_sold) return null
-  return estimated('Keepa', "Keepa's own monthlySold estimate for the category's top bestsellers — a real platform-side estimate, not a guess made up for this product.")
+  return estimated('Keepa', "Formula: avg(monthlySold) across the top ~10 category bestsellers. Source: Keepa's own monthlySold estimate — a real platform-side figure, not invented for this product. Scope: bestseller sample-level, not a market total. Not the same as search volume.")
 }
 
 // "Estimated Monthly Revenue" / "Top Seller Revenue" / "Average Seller Revenue"
@@ -281,9 +281,11 @@ export function revenueEvidenceProvenance(signals?: AggregatedSignals | null): P
   if (!signals.revenue.value.top_seller_revenue && !signals.revenue.value.est_monthly_revenue) {
     return unsupported('No verified product revenue. Keepa found no bestseller relevant to this specific product — category-wide revenue was not credited.')
   }
+  const n = signals?.revenue?.value.revenue_sample_count
+  const sampleNote = n ? ` (n=${n} relevant bestsellers)` : ' (bestseller sample)'
   return estimated(
     'Keepa',
-    "Real price × Keepa's own estimated units-sold, for the category's top bestsellers overall — not your specific product idea. monthlySold is itself Keepa's modeled estimate, not a measured fact, so this number carries that uncertainty forward."
+    `Formula: avg(price × monthlySold) across relevant category bestsellers${sampleNote}. Scope: bestseller sample only — this is NOT total market revenue. monthlySold is Keepa's own modeled estimate, not a measured Amazon fact, so this number carries that uncertainty forward.`
   )
 }
 
