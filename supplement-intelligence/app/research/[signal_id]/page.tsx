@@ -38,16 +38,26 @@ export default async function SignalBriefingPage({ params }: Props) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
-  const { data: signal, error } = await supabase
-    .from('market_signals')
-    .select('*')
-    .eq('id', signal_id)
-    .eq('user_id', user.id)
-    .single()
+  const [{ data: signal, error }, { data: existingTheses }] = await Promise.all([
+    supabase
+      .from('market_signals')
+      .select('*')
+      .eq('id', signal_id)
+      .eq('user_id', user.id)
+      .single(),
+    supabase
+      .from('investment_theses')
+      .select('id')
+      .eq('market_signal_id', signal_id)
+      .eq('user_id', user.id)
+      .limit(1),
+  ])
 
   if (error || !signal) {
     notFound()
   }
+
+  const hasTheses = (existingTheses?.length ?? 0) > 0
 
   return (
     <main className="max-w-3xl mx-auto px-6 py-12">
@@ -56,7 +66,7 @@ export default async function SignalBriefingPage({ params }: Props) {
           href="/research"
           className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
         >
-          ← New analysis
+          ← Research
         </Link>
         <span className="text-gray-700">/</span>
         <span className="text-xs text-gray-500 font-mono">{signal_id.slice(0, 8)}…</span>
@@ -70,13 +80,15 @@ export default async function SignalBriefingPage({ params }: Props) {
             Stage 2 — Opportunity Map
           </p>
           <p className="text-xs text-indigo-400/70 mb-3">
-            Data quality gate passed. Generate investment theses from this market data.
+            {hasTheses
+              ? 'Theses already generated for this signal. View or regenerate.'
+              : 'Data quality gate passed. Generate investment theses from this market data.'}
           </p>
           <Link
             href={`/research/${signal_id}/opportunity`}
             className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
           >
-            Generate Opportunity Map →
+            {hasTheses ? 'View Opportunity Map →' : 'Generate Opportunity Map →'}
           </Link>
         </div>
       )}
