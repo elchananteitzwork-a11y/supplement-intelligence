@@ -22,25 +22,44 @@ export default function MemoPage() {
   const [memo, setMemo]           = useState<StoredMemo | null>(null)
   const [fromCache, setFromCache] = useState(false)
   const [query, setQuery]         = useState('')
+  // Which thesis IDs have a completed Stage 3 debate
+  const [debateReady, setDebateReady] = useState<Set<string>>(new Set())
 
   // Founder inputs (Stage 4 optional form)
-  const [showInputs, setShowInputs]         = useState(false)
-  const [actualCOGS, setActualCOGS]         = useState('')
-  const [targetPrice, setTargetPrice]       = useState('')
-  const [adBudget, setAdBudget]             = useState('')
+  const [showInputs, setShowInputs]   = useState(false)
+  const [actualCOGS, setActualCOGS]   = useState('')
+  const [targetPrice, setTargetPrice] = useState('')
+  const [adBudget, setAdBudget]       = useState('')
 
-  // Fetch theses
+  // Fetch theses — then check which have debates, default to first debate-ready one
   useEffect(() => {
     fetch(`/api/research/thesis?signal_id=${signal_id}`)
       .then(r => r.json())
-      .then((data: { theses: StoredThesis[] }) => {
+      .then(async (data: { theses: StoredThesis[] }) => {
         const list = data?.theses ?? []
-        if (list.length) { setTheses(list); setSelected(list[0].id) }
+        if (!list.length) return
+        setTheses(list)
+
+        // Parallel: check which theses already have a debate
+        const debateChecks = await Promise.all(
+          list.map(t =>
+            fetch(`/api/research/adversarial?thesis_id=${t.id}`)
+              .then(r => r.json())
+              .then(d => (d ? t.id : null))
+              .catch(() => null)
+          )
+        )
+        const ready = new Set(debateChecks.filter((id): id is string => id !== null))
+        setDebateReady(ready)
+
+        // Default to first debate-ready thesis, else first thesis
+        const defaultId = debateChecks.find(id => id !== null) ?? list[0].id
+        setSelected(defaultId)
       })
       .catch(() => {})
   }, [signal_id])
 
-  // Fetch signal query
+  // Fetch signal query for breadcrumb
   useEffect(() => {
     fetch(`/api/research/market-signal?id=${signal_id}`)
       .then(r => r.json())
@@ -67,9 +86,9 @@ export default function MemoPage() {
     setError(null)
 
     const founderInputs: Stage4FounderInputs = {}
-    if (actualCOGS)   founderInputs.actual_cogs_per_unit  = parseFloat(actualCOGS)
-    if (targetPrice)  founderInputs.target_launch_price   = parseFloat(targetPrice)
-    if (adBudget)     founderInputs.planned_ad_budget_mo  = parseFloat(adBudget)
+    if (actualCOGS)  founderInputs.actual_cogs_per_unit  = parseFloat(actualCOGS)
+    if (targetPrice) founderInputs.target_launch_price   = parseFloat(targetPrice)
+    if (adBudget)    founderInputs.planned_ad_budget_mo  = parseFloat(adBudget)
 
     try {
       const res = await fetch('/api/research/memo', {
@@ -90,6 +109,8 @@ export default function MemoPage() {
       setStage('error')
     }
   }, [selected, actualCOGS, targetPrice, adBudget])
+
+  const selectedNotReady = selected !== null && !debateReady.has(selected) && debateReady.size > 0
 
   return (
     <main className="max-w-3xl mx-auto px-6 py-12 space-y-8">
@@ -120,21 +141,52 @@ export default function MemoPage() {
       {theses.length > 1 && (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Thesis</p>
-          <div className="flex flex-wrap gap-2">
-            {theses.map((t, i) => (
-              <button
-                key={t.id}
-                onClick={() => setSelected(t.id)}
-                className={`text-xs rounded-lg border px-3 py-1.5 transition-colors ${
-                  selected === t.id
-                    ? 'border-indigo-600 bg-indigo-950/30 text-indigo-300'
-                    : 'border-gray-700 text-gray-400 hover:border-gray-600'
-                }`}
-              >
-                #{i + 1} — {t.product_angle.slice(0, 40)}…
-              </button>
-            ))}
+          <div className="flex flex-col gap-2">
+            {theses.map((t, i) => {
+              const ready = debateReady.has(t.id)
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setSelected(t.id)}
+                  className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${
+                    selected === t.id
+                      ? 'border-indigo-600 bg-indigo-950/30'
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-mono text-gray-500">#{i + 1}</span>
+                    {ready ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-green-800 text-green-400 bg-green-950/20">
+                        Stage 3 done
+                      </span>
+                    ) : debateReady.size > 0 ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-gray-700 text-gray-500">
+                        needs Stage 3
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className={`text-xs mt-1 ${selected === t.id ? 'text-indigo-200' : 'text-gray-300'}`}>
+                    {t.product_angle}
+                  </p>
+                </button>
+              )
+            })}
           </div>
+        </div>
+      )}
+
+      {/* Warning if selected thesis has no debate */}
+      {selectedNotReady && (
+        <div className="rounded-lg border border-yellow-800 bg-yellow-950/20 px-4 py-3 text-xs text-yellow-300 space-y-1">
+          <p className="font-medium">Stage 3 not completed for this thesis</p>
+          <p>Run the adversarial evaluation first before generating an investment memo.</p>
+          <Link
+            href={`/research/${signal_id}/evaluate`}
+            className="inline-block mt-1 text-yellow-400 underline hover:text-yellow-200"
+          >
+            Go to Stage 3 →
+          </Link>
         </div>
       )}
 
@@ -183,7 +235,7 @@ export default function MemoPage() {
       {stage !== 'done' && (
         <button
           onClick={generateMemo}
-          disabled={!selected || stage === 'generating'}
+          disabled={!selected || stage === 'generating' || selectedNotReady}
           className="w-full rounded-lg bg-indigo-600 py-3 text-sm font-medium hover:bg-indigo-500 disabled:opacity-40 transition-colors"
         >
           {stage === 'generating' ? 'Generating memo…' : 'Generate Investment Memo'}

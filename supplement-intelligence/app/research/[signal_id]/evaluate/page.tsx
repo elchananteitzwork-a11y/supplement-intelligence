@@ -59,16 +59,30 @@ export default function EvaluatePage() {
       .catch(() => {})
   }, [signal_id])
 
-  // Fetch existing debates for all theses
+  // Fetch existing debates for all theses; switch selection to first debated thesis
   useEffect(() => {
     if (!theses.length) return
-    theses.forEach(t => {
-      fetch(`/api/research/adversarial?thesis_id=${t.id}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data) setDebates(prev => ({ ...prev, [t.id]: data }))
-        })
-        .catch(() => {})
+    Promise.all(
+      theses.map(t =>
+        fetch(`/api/research/adversarial?thesis_id=${t.id}`)
+          .then(r => r.json())
+          .then(data => ({ thesisId: t.id, debate: data as StoredDebate | null }))
+          .catch(() => ({ thesisId: t.id, debate: null }))
+      )
+    ).then(results => {
+      const map: Record<string, StoredDebate> = {}
+      let firstDebatedId: string | null = null
+      for (const { thesisId, debate } of results) {
+        if (debate) {
+          map[thesisId] = debate
+          if (!firstDebatedId) firstDebatedId = thesisId
+        }
+      }
+      if (Object.keys(map).length) {
+        setDebates(map)
+        // Default selection to the first thesis that already has a debate
+        if (firstDebatedId) setSelected(firstDebatedId)
+      }
     })
   }, [theses])
 
