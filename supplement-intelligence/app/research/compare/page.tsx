@@ -424,7 +424,13 @@ function CompareContent() {
                                 {item.stage === 'stage4' ? 'Complete' : item.stage === 'stage3' ? 'Stage 3' : 'Stage 2'}
                               </span>
                               <Link
-                                href={`/research/${item.signal_id}/memo`}
+                                href={
+                                  item.stage === 'stage4'
+                                    ? `/research/${item.signal_id}/memo`
+                                    : item.stage === 'stage3'
+                                    ? `/research/${item.signal_id}/evaluate`
+                                    : `/research/${item.signal_id}`
+                                }
                                 className="text-[10px] text-indigo-500 hover:text-indigo-300"
                               >
                                 Open →
