@@ -193,12 +193,20 @@ export default function HistoryPage() {
             {loading ? 'Loading…' : `${items.length} ${items.length === 1 ? 'analysis' : 'analyses'}`}
           </p>
         </div>
-        <Link
-          href="/research"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors shrink-0"
-        >
-          + New Analysis
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/research/compare"
+            className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors"
+          >
+            Compare →
+          </Link>
+          <Link
+            href="/research"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
+          >
+            + New Analysis
+          </Link>
+        </div>
       </div>
 
       {/* Search + Sort + Filter bar */}

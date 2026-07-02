@@ -93,12 +93,20 @@ export default function ResearchPage() {
               interpretation occurs.
             </p>
           </div>
-          <Link
-            href="/research/history"
-            className="shrink-0 rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors"
-          >
-            History →
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/research/compare"
+              className="shrink-0 rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors"
+            >
+              Compare →
+            </Link>
+            <Link
+              href="/research/history"
+              className="shrink-0 rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors"
+            >
+              History →
+            </Link>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
