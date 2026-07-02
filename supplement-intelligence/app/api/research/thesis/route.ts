@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     // Check for existing theses (idempotent — return existing rather than re-running)
     const { data: existing } = await supabase
       .from('investment_theses')
-      .select('id, thesis_index, product_angle, target_customer, differentiation, quick_economics_check, created_at')
+      .select('*')
       .eq('market_signal_id', signalId)
       .eq('user_id', user.id)
       .order('thesis_index')
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     const { data: inserted, error: insertError } = await supabase
       .from('investment_theses')
       .insert(rows)
-      .select('id, thesis_index, product_angle, target_customer, differentiation, quick_economics_check, created_at')
+      .select('*')
 
     if (insertError) {
       console.error('investment_theses insert error', insertError)
