@@ -131,15 +131,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const id = req.nextUrl.searchParams.get('id')
-    if (!id) {
-      return NextResponse.json({ error: 'id param required' }, { status: 400 })
-    }
-
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
+
+    const id = req.nextUrl.searchParams.get('id')
+
+    // No id → return list of recent signals for the user
+    if (!id) {
+      const { data, error } = await supabase
+        .from('market_signals')
+        .select('id, query, quality_grade, pipeline_blocked, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      if (error) return NextResponse.json({ error: 'Failed to list signals' }, { status: 500 })
+      return NextResponse.json(data ?? [])
+    }
 
     const { data, error } = await supabase
       .from('market_signals')

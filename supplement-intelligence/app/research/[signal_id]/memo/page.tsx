@@ -33,8 +33,9 @@ export default function MemoPage() {
   useEffect(() => {
     fetch(`/api/research/thesis?signal_id=${signal_id}`)
       .then(r => r.json())
-      .then((data: StoredThesis[]) => {
-        if (data?.length) { setTheses(data); setSelected(data[0].id) }
+      .then((data: { theses: StoredThesis[] }) => {
+        const list = data?.theses ?? []
+        if (list.length) { setTheses(list); setSelected(list[0].id) }
       })
       .catch(() => {})
   }, [signal_id])
@@ -214,6 +215,22 @@ export default function MemoPage() {
             </div>
           )}
           <InvestmentMemo memo={memo as unknown as Parameters<typeof InvestmentMemo>[0]['memo']} />
+
+          {/* Completion CTA */}
+          <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <Link
+              href="/research"
+              className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium hover:bg-indigo-500 transition-colors"
+            >
+              Analyze another product →
+            </Link>
+            <Link
+              href="/research"
+              className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              Back to research
+            </Link>
+          </div>
         </div>
       )}
     </main>

@@ -1,13 +1,41 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+
+interface PastSignal {
+  id: string
+  query: string
+  quality_grade: 'sufficient' | 'thin' | 'insufficient'
+  pipeline_blocked: boolean
+  created_at: string
+}
+
+const QUALITY_LABEL: Record<string, string> = {
+  sufficient:   'SUFFICIENT',
+  thin:         'THIN',
+  insufficient: 'BLOCKED',
+}
+const QUALITY_COLOR: Record<string, string> = {
+  sufficient:   'text-green-400',
+  thin:         'text-yellow-400',
+  insufficient: 'text-red-400',
+}
 
 export default function ResearchPage() {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [past, setPast] = useState<PastSignal[]>([])
+
+  useEffect(() => {
+    fetch('/api/research/market-signal')
+      .then(r => r.json())
+      .then((data: PastSignal[]) => { if (Array.isArray(data)) setPast(data) })
+      .catch(() => {})
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -108,6 +136,31 @@ export default function ResearchPage() {
             No AI synthesis in Stage 1. Data Quality Gate runs before Stage 2.
           </p>
         </div>
+
+        {past.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Past analyses</p>
+            <div className="rounded-lg border border-gray-800 divide-y divide-gray-800">
+              {past.map(s => (
+                <Link
+                  key={s.id}
+                  href={`/research/${s.id}`}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-gray-800/40 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-sm text-gray-200 truncate">{s.query}</span>
+                    <span className={`text-[10px] font-mono shrink-0 ${QUALITY_COLOR[s.quality_grade]}`}>
+                      {QUALITY_LABEL[s.quality_grade]}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-600 shrink-0 ml-4">
+                    {new Date(s.created_at).toLocaleDateString()}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   )

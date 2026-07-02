@@ -86,11 +86,22 @@ export function InvestmentMemo({ memo }: Props) {
         {/* Rationale */}
         {mv.rationale.length > 0 && (
           <div className="space-y-1">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Market rationale</p>
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+              {mv.code === 'PURSUE' || mv.code === 'PURSUE_WITH_CAUTION'
+                ? 'Market rationale'
+                : 'What passed despite the blockers'}
+            </p>
             <ul className="space-y-1">
               {mv.rationale.map((r, i) => (
                 <li key={i} className="text-xs text-gray-300 flex gap-2">
-                  <span className="text-green-600 shrink-0">✓</span>{r}
+                  <span className={`shrink-0 ${
+                    mv.code === 'PURSUE' || mv.code === 'PURSUE_WITH_CAUTION'
+                      ? 'text-green-600'
+                      : 'text-gray-600'
+                  }`}>
+                    {mv.code === 'PURSUE' || mv.code === 'PURSUE_WITH_CAUTION' ? '✓' : '·'}
+                  </span>
+                  {r}
                 </li>
               ))}
             </ul>

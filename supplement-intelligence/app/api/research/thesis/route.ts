@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/research/thesis?signal_id=xxx — fetch existing theses
+// GET /api/research/thesis?signal_id=xxx — fetch existing theses + launch thresholds
 export async function GET(req: NextRequest) {
   try {
     const { data: { user }, error: authError } = await supabaseAuthClient().auth.getUser()
@@ -136,16 +136,28 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    const { data, error } = await supabase
-      .from('investment_theses')
-      .select('*')
-      .eq('market_signal_id', signalId)
-      .eq('user_id', user.id)
-      .order('thesis_index')
+    const [{ data, error }, { data: signal }] = await Promise.all([
+      supabase
+        .from('investment_theses')
+        .select('*')
+        .eq('market_signal_id', signalId)
+        .eq('user_id', user.id)
+        .order('thesis_index'),
+      supabase
+        .from('market_signals')
+        .select('signal_data')
+        .eq('id', signalId)
+        .eq('user_id', user.id)
+        .single(),
+    ])
 
     if (error) return NextResponse.json({ error: 'Failed to fetch theses' }, { status: 500 })
 
-    return NextResponse.json(data ?? [])
+    const launch_thresholds = signal
+      ? assessLaunchThresholds(signal.signal_data as Stage1Evidence)
+      : null
+
+    return NextResponse.json({ theses: data ?? [], launch_thresholds })
   } catch (err) {
     console.error('thesis GET error', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

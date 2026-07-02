@@ -41,10 +41,11 @@ export default function EvaluatePage() {
   useEffect(() => {
     fetch(`/api/research/thesis?signal_id=${signal_id}`)
       .then(r => r.json())
-      .then((data: StoredThesis[]) => {
-        if (data?.length) {
-          setTheses(data)
-          setSelected(data[0].id)
+      .then((data: { theses: StoredThesis[] }) => {
+        const list = data?.theses ?? []
+        if (list.length) {
+          setTheses(list)
+          setSelected(list[0].id)
         }
       })
       .catch(() => {})

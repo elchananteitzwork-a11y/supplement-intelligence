@@ -47,9 +47,10 @@ export default function OpportunityMapPage() {
   useEffect(() => {
     fetch(`/api/research/thesis?signal_id=${signal_id}`)
       .then(r => r.json())
-      .then(async (data: StoredThesis[]) => {
-        if (data?.length) {
-          setTheses(data)
+      .then(async (data: { theses: StoredThesis[]; launch_thresholds: LaunchThresholdAssessment | null }) => {
+        if (data?.theses?.length) {
+          setTheses(data.theses)
+          setThresholds(data.launch_thresholds ?? null)
           setFromCache(true)
           setStage('done')
         }
