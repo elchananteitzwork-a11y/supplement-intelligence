@@ -84,7 +84,7 @@ function EvidenceRow({
         </div>
       </div>
       <div className="text-sm font-mono text-gray-100 whitespace-nowrap">
-        {typeof value === 'number' ? value.toLocaleString() : String(value)}
+        {typeof value === 'number' ? value.toLocaleString('en-US') : String(value)}
       </div>
     </div>
   )
@@ -117,7 +117,7 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
           </span>
         </div>
         <p className="text-xs text-gray-500">
-          Stage 1 · {new Date(signal.created_at).toLocaleString()} ·{' '}
+          Stage 1 · {new Date(signal.created_at).toLocaleString('en-US')} ·{' '}
           {meta.duration_ms ? `${(meta.duration_ms / 1000).toFixed(1)}s` : '—'} ·{' '}
           Confidence {Math.round(meta.overall_confidence * 100)}%
         </p>
@@ -299,7 +299,7 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
                   <tr key={c.productId} className="border-b border-gray-900 hover:bg-gray-900/50">
                     <td className="px-3 py-2 text-gray-500">{c.position ?? i + 1}</td>
                     <td className="px-3 py-2 text-gray-200 max-w-[160px] truncate">{c.brand}</td>
-                    <td className="px-3 py-2 text-right text-gray-300">{c.reviewCount.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-right text-gray-300">{c.reviewCount.toLocaleString('en-US')}</td>
                     <td className="px-3 py-2 text-right text-gray-300">{c.rating.toFixed(1)}</td>
                     <td className="px-3 py-2 text-right text-gray-300">${c.price.toFixed(0)}</td>
                   </tr>
@@ -364,7 +364,7 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
         </div>
         <p className="text-xs text-gray-500">
           Overall confidence: {Math.round(meta.overall_confidence * 100)}% ·{' '}
-          Fetched at: {meta.fetched_at ? new Date(meta.fetched_at).toLocaleString() : '—'}
+          Fetched at: {meta.fetched_at ? new Date(meta.fetched_at).toLocaleString('en-US') : '—'}
         </p>
       </section>
     </div>
