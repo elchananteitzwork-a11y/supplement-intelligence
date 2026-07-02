@@ -3,7 +3,9 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { MarketBriefing } from '@/components/research/MarketBriefing'
+import { FounderProfileBanner } from '@/components/research/FounderProfileBanner'
 import Link from 'next/link'
+import type { FounderProfile } from '@/lib/stage25/fit-layer'
 
 interface Props {
   params: Promise<{ signal_id: string }>
@@ -38,7 +40,7 @@ export default async function SignalBriefingPage({ params }: Props) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
-  const [{ data: signal, error }, { data: existingTheses }] = await Promise.all([
+  const [{ data: signal, error }, { data: existingTheses }, { data: founderProfile }] = await Promise.all([
     supabase
       .from('market_signals')
       .select('*')
@@ -51,13 +53,21 @@ export default async function SignalBriefingPage({ params }: Props) {
       .eq('market_signal_id', signal_id)
       .eq('user_id', user.id)
       .limit(1),
+    supabase
+      .from('founder_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   if (error || !signal) {
     notFound()
   }
 
-  const hasTheses = (existingTheses?.length ?? 0) > 0
+  const hasTheses   = (existingTheses?.length ?? 0) > 0
+  const profile     = (founderProfile ?? null) as FounderProfile | null
 
   return (
     <main className="max-w-3xl mx-auto px-6 py-12">
@@ -73,6 +83,15 @@ export default async function SignalBriefingPage({ params }: Props) {
       </div>
 
       <MarketBriefing signal={signal} />
+
+      {/* Founder profile status — shown below market briefing */}
+      <div className="mt-6">
+        <FounderProfileBanner
+          profile={profile}
+          returnTo={`/research/${signal_id}`}
+          compact={!!profile}
+        />
+      </div>
 
       {!signal.pipeline_blocked && (
         <div className="mt-12 rounded-lg border border-indigo-800 bg-indigo-950/20 px-5 py-4">

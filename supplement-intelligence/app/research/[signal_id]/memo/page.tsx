@@ -4,11 +4,20 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { InvestmentMemo } from '@/components/research/InvestmentMemo'
+import { FounderFitPanel } from '@/components/research/FounderFitPanel'
+import { FounderProfileBanner } from '@/components/research/FounderProfileBanner'
 import type { Stage4FounderInputs, FullUnitEconomics } from '@/lib/stage4/unit-economics'
-import type { InvestmentThesis } from '@/lib/stage2/types'
+import type { InvestmentThesis, FounderFitAnnotation } from '@/lib/stage2/types'
+import type { FounderProfile } from '@/lib/stage25/fit-layer'
 
 interface StoredThesis extends InvestmentThesis { id: string }
-interface StoredMemo { id: string; unit_economics?: FullUnitEconomics | null; [key: string]: unknown }
+interface StoredMemo {
+  id: string
+  unit_economics?: FullUnitEconomics | null
+  fit_annotation?: FounderFitAnnotation | null
+  founder_profile?: FounderProfile | null
+  [key: string]: unknown
+}
 
 type Stage = 'idle' | 'generating' | 'done' | 'error'
 
@@ -75,7 +84,11 @@ export default function MemoPage() {
     fetch(`/api/research/memo?thesis_id=${selected}`)
       .then(r => r.json())
       .then(data => {
-        if (data) { setMemo(data); setFromCache(true); setStage('done') }
+        if (data) {
+          setMemo(data)  // GET already includes unit_economics, fit_annotation, founder_profile
+          setFromCache(true)
+          setStage('done')
+        }
       })
       .catch(() => {})
   }, [selected])
@@ -101,7 +114,12 @@ export default function MemoPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Memo generation failed'); setStage('error'); return }
-      setMemo({ ...data.memo, unit_economics: data.unit_economics ?? null })
+      setMemo({
+        ...data.memo,
+        unit_economics:   data.unit_economics ?? null,
+        fit_annotation:   data.fit_annotation ?? null,
+        founder_profile:  data.founder_profile ?? null,
+      })
       setFromCache(data.from_cache)
       setStage('done')
     } catch {
@@ -254,7 +272,7 @@ export default function MemoPage() {
 
       {/* Memo */}
       {memo && stage === 'done' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {fromCache && (
             <div className="flex items-center justify-between text-xs text-gray-600">
               <span>From cache.</span>
@@ -266,7 +284,22 @@ export default function MemoPage() {
               </button>
             </div>
           )}
+
+          {/* Founder profile context — always shown at top of memo */}
+          <FounderProfileBanner
+            profile={memo.founder_profile ?? null}
+            returnTo={`/research/${signal_id}/memo`}
+            compact
+          />
+
           <InvestmentMemo memo={memo as unknown as Parameters<typeof InvestmentMemo>[0]['memo']} />
+
+          {/* Founder fit breakdown — shown after the market memo */}
+          {memo.fit_annotation && (
+            <div className="rounded-xl border border-gray-800 bg-gray-950 p-6">
+              <FounderFitPanel annotation={memo.fit_annotation} />
+            </div>
+          )}
 
           {/* Completion CTA */}
           <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">

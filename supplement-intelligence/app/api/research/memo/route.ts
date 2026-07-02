@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { assessLaunchThresholds } from '@/lib/stage25/launch-threshold'
 import { computeFullUnitEconomics } from '@/lib/stage4/unit-economics'
+import { scoreFit } from '@/lib/stage25/fit-layer'
 import { determineMarketVerdict, determineFounderVerdict } from '@/lib/stage4/verdict'
 import { generateInvestmentMemo } from '@/lib/stage4/memo-generator'
 import { reconstructKillSwitchEvaluation } from '@/lib/stage3/kill-switches'
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
       { data: signal, error: signalError },
       { data: debate, error: debateError },
       { data: profile },
-      { data: fitAnnotation },
+      { data: storedFitAnnotation },
     ] = await Promise.all([
       supabase.from('market_signals').select('*').eq('id', thesis.market_signal_id).eq('user_id', user.id).single(),
       supabase.from('adversarial_debates').select('*').eq('thesis_id', thesisId).eq('user_id', user.id).limit(1).maybeSingle(),
@@ -97,8 +98,24 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .maybeSingle()
 
+    // Compute fit annotation (deterministic from profile + thesis, no extra DB call needed)
+    const fitAnnotation: FounderFitAnnotation | null = profile
+      ? scoreFit(
+          profile as FounderProfile,
+          thesisData,
+          thesisId,
+          (profile as FounderProfile & { id: string }).id
+        )
+      : null
+
     if (existing && !founderInputs) {
-      return NextResponse.json({ memo: existing, from_cache: true, unit_economics: economics })
+      return NextResponse.json({
+        memo: existing,
+        from_cache: true,
+        unit_economics: economics,
+        fit_annotation: fitAnnotation,
+        founder_profile: profile ?? null,
+      })
     }
 
     // Reconstruct kill switch evaluation from stored results
@@ -149,7 +166,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to save memo' }, { status: 500 })
     }
 
-    return NextResponse.json({ memo: inserted, from_cache: false, unit_economics: economics })
+    return NextResponse.json({
+      memo: inserted,
+      from_cache: false,
+      unit_economics: economics,
+      fit_annotation: fitAnnotation,
+      founder_profile: profile ?? null,
+    })
   } catch (err) {
     console.error('memo POST error', err)
     return NextResponse.json(
@@ -195,6 +218,8 @@ export async function GET(req: NextRequest) {
     ])
 
     let unit_economics = null
+    let fit_annotation: FounderFitAnnotation | null = null
+
     if (thesis) {
       const { data: signal } = await supabase
         .from('market_signals')
@@ -218,10 +243,21 @@ export async function GET(req: NextRequest) {
           profile as FounderProfile ?? undefined,
           founderInputs
         )
+
+        // Recompute fit annotation deterministically from stored profile + thesis.
+        // scoreFit is pure arithmetic — no DB query needed.
+        if (profile) {
+          fit_annotation = scoreFit(
+            profile as FounderProfile,
+            thesisData,
+            thesisId,
+            profile.id as string
+          )
+        }
       }
     }
 
-    return NextResponse.json({ ...data, unit_economics })
+    return NextResponse.json({ ...data, unit_economics, fit_annotation })
   } catch (err) {
     console.error('memo GET error', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

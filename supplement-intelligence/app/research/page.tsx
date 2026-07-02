@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { FounderProfileBanner } from '@/components/research/FounderProfileBanner'
+import type { FounderProfile } from '@/lib/stage25/fit-layer'
 
 interface PastSignal {
   id: string
@@ -24,6 +26,7 @@ export default function ResearchPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [past, setPast] = useState<PastSignal[]>([])
+  const [profile, setProfile] = useState<FounderProfile | null | undefined>(undefined) // undefined = not yet loaded
 
   // Pre-fill query from ?q= param (used by Duplicate action in history page)
   useEffect(() => {
@@ -37,6 +40,13 @@ export default function ResearchPage() {
       .then(r => r.json())
       .then((data: PastSignal[]) => { if (Array.isArray(data)) setPast(data) })
       .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/research/founder-profile')
+      .then(r => r.json())
+      .then((data: FounderProfile | null) => setProfile(data ?? null))
+      .catch(() => setProfile(null))
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -131,6 +141,11 @@ export default function ResearchPage() {
             </p>
           )}
         </form>
+
+        {/* Founder profile status — only shown once loaded */}
+        {profile !== undefined && (
+          <FounderProfileBanner profile={profile} returnTo="/research" />
+        )}
 
         <div className="border border-gray-800 rounded-lg p-4 text-xs text-gray-500 space-y-1">
           <p className="font-medium text-gray-400">What Stage 1 collects:</p>
