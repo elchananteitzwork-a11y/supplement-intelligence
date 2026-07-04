@@ -52,6 +52,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Thesis not found' }, { status: 404 })
     }
 
+    // Validate required thesis fields before passing to the AI engine
+    const t = thesis as Record<string, unknown>
+    if (!t.product_angle || !t.target_customer || !t.differentiation) {
+      return NextResponse.json({ error: 'Thesis is missing required fields (product_angle / target_customer / differentiation)' }, { status: 422 })
+    }
+
     // Fetch the linked Stage 1 signal data
     const { data: signal, error: signalError } = await supabase
       .from('market_signals')
@@ -82,6 +88,19 @@ export async function POST(req: NextRequest) {
       thesis as unknown as InvestmentThesis,
       signal.signal_data as Stage1Evidence
     )
+
+    // Re-check for a debate that may have been inserted by a concurrent request
+    // while the AI call was running (60–90s window).
+    const { data: raceCheck } = await supabase
+      .from('adversarial_debates')
+      .select('*')
+      .eq('thesis_id', thesisId)
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle()
+    if (raceCheck) {
+      return NextResponse.json({ debate: raceCheck, from_cache: true })
+    }
 
     // Persist
     const { data: inserted, error: insertError } = await supabase

@@ -26,10 +26,11 @@ export function checkRateLimit(
   windowMs: number = 60_000,
 ): boolean {
   const now = Date.now()
-  const timestamps = (_store.get(key) ?? []).filter(t => now - t < windowMs)
-  if (timestamps.length >= limit) return false
-  timestamps.push(now)
-  _store.set(key, timestamps)
+  const pruned = (_store.get(key) ?? []).filter(t => now - t < windowMs)
+  if (pruned.length === 0) _store.delete(key)  // evict cold entries to prevent unbounded growth
+  if (pruned.length >= limit) return false
+  pruned.push(now)
+  _store.set(key, pruned)
   return true
 }
 

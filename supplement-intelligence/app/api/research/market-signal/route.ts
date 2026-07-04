@@ -5,6 +5,11 @@ import { adaptAggregatedSignals } from '@/lib/evidence/adapter'
 import { assessDataQuality } from '@/lib/quality-gate/gate'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { keywordEngine } from '@/lib/keyword-engine'
+import { toEvidencePoint } from '@/lib/evidence/types'
+import { computeRankingDifficulty } from '@/lib/stage1/ranking-difficulty'
+import { computePpcEconomics } from '@/lib/stage1/ppc-economics'
+import { fetchRegulatoryIntelligence } from '@/lib/regulatory-engine'
 
 export const maxDuration = 120
 
@@ -23,6 +28,15 @@ function supabaseAuthClient() {
   )
 }
 
+function sanitizeQuery(q: string): string {
+  return q
+    .replace(/[\x00-\x1F\x7F]/g, ' ')
+    .replace(/(-{3,}|={3,}|#{3,})/g, '')
+    .replace(/\b(SYSTEM|INSTRUCTION|OVERRIDE|IGNORE PREVIOUS)\b/gi, '')
+    .trim()
+    .slice(0, 200)
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { data: { user }, error: authError } = await supabaseAuthClient().auth.getUser()
@@ -31,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const query: string = (body?.query ?? '').trim()
+    const query: string = sanitizeQuery((body?.query ?? '').trim())
     // Default to 'supplements' — this platform is supplement-focused.
     // Callers may override via category_id to trigger other Keepa nodes.
     const categoryId: string = body?.category_id ?? 'supplements'
@@ -45,9 +59,20 @@ export async function POST(req: NextRequest) {
 
     const startMs = Date.now()
 
-    // Allow up to 100s for providers — Apify's actor needs up to 90s.
-    // Route maxDuration is 120s so this fits safely.
-    const signals = await signalEngine.fetch({ query, categoryId }, 100_000)
+    // Run signal engine, keyword engine, and regulatory engine in parallel.
+    // Keyword engine (DataForSEO) has a 20s budget; regulatory engine (OpenFDA)
+    // has an 8s internal timeout — both well within the 100s signal window.
+    const [signals, keywordIntelligence, regulatoryIntelligence] = await Promise.all([
+      signalEngine.fetch({ query, categoryId }, 100_000),
+      keywordEngine.fetch(query, 20_000).catch((err: unknown) => {
+        console.warn('keyword engine failed (non-fatal)', err instanceof Error ? err.message : err)
+        return null
+      }),
+      fetchRegulatoryIntelligence(query).catch((err: unknown) => {
+        console.warn('regulatory engine failed (non-fatal)', err instanceof Error ? err.message : err)
+        return null
+      }),
+    ])
 
     if (!signals) {
       return NextResponse.json(
@@ -60,6 +85,76 @@ export async function POST(req: NextRequest) {
 
     const evidence = adaptAggregatedSignals(signals, fetchedAt)
 
+    // Populate monthly_search_volume from DataForSEO when available.
+    // Use the highest-volume keyword across all buying/opportunity buckets —
+    // this is the best proxy for total addressable search demand in the category.
+    if (keywordIntelligence) {
+      const allMetrics = [
+        ...keywordIntelligence.top_buying,
+        ...keywordIntelligence.opportunity,
+        ...keywordIntelligence.long_tail,
+        ...keywordIntelligence.fast_growing,
+      ]
+      const topVolume = allMetrics.reduce<number | null>((max, m) =>
+        m.monthly_searches > (max ?? 0) ? m.monthly_searches : max, null)
+
+      if (topVolume !== null && topVolume > 0) {
+        const topKeyword = allMetrics.find(m => m.monthly_searches === topVolume)
+        evidence.monthly_search_volume = toEvidencePoint(
+          topVolume,
+          'dataforseo',
+          'primary_measurement',
+          {
+            freshness_date: fetchedAt.slice(0, 10),
+            scope_note:     `US Google monthly searches for "${topKeyword?.keyword ?? query}" — highest-volume keyword in category`,
+            sample_size:    allMetrics.length,
+          }
+        )
+      }
+    }
+
+    // Ranking difficulty — deterministic from top_competitors review counts
+    const competitorData = evidence.top_competitors?.value
+    if (competitorData?.length) {
+      const rd = computeRankingDifficulty(competitorData)
+      if (rd) {
+        evidence.ranking_difficulty = toEvidencePoint(rd, 'apify-amazon-search', 'computed', {
+          freshness_date: fetchedAt.slice(0, 10),
+          methodology:    'Deterministic from Apify top_competitors review counts',
+          scope_note:     rd.sample_note,
+          sample_size:    rd.competitor_count,
+        })
+      }
+    }
+
+    // PPC economics — derived from DataForSEO Google CPC + market price evidence
+    const ppcEcon = computePpcEconomics(
+      keywordIntelligence,
+      evidence.median_price?.value ?? 0,
+      evidence.avg_fba_fee?.value ?? 4.50,
+      evidence.avg_referral_fee_pct?.value ?? 15,
+    )
+    if (ppcEcon) {
+      evidence.ppc_economics = toEvidencePoint(ppcEcon, 'dataforseo+computed', 'computed', {
+        freshness_date: fetchedAt.slice(0, 10),
+        methodology:    'Google CPC (DataForSEO) + market price → derived Amazon PPC estimate',
+        scope_note:     'CPC is Google Ads data, NOT Amazon Ads. Amazon PPC is an estimate.',
+      })
+    }
+
+    // Regulatory intelligence — OpenFDA FAERS + enforcement (non-fatal, cached 24h)
+    if (regulatoryIntelligence) {
+      evidence.regulatory_intelligence = toEvidencePoint(
+        regulatoryIntelligence,
+        'openfda',
+        'primary_measurement',
+        {
+          freshness_date: fetchedAt.slice(0, 10),
+          scope_note:     'FDA FAERS adverse event database + enforcement/recall database',
+        }
+      )
+    }
+
     const totalReviews =
       (signals.review_velocity?.value?.meaningful_competitor_count ?? 0) *
       (signals.review_velocity?.value?.avg_review_count ?? 0)
@@ -71,7 +166,7 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    const { data: row, error: insertError } = await supabase
+    const dbWrite = supabase
       .from('market_signals')
       .insert({
         user_id:          user.id,
@@ -86,12 +181,19 @@ export async function POST(req: NextRequest) {
           providers_used:     signals.providers_used,
           failed_providers:   signals.failed_providers ?? [],
           overall_confidence: signals.overall_confidence,
+          keyword_intelligence: keywordIntelligence ?? null,
           duration_ms:        Date.now() - startMs,
           fetched_at:         fetchedAt,
         },
       })
       .select('id, query, quality_grade, pipeline_blocked, blocked_reason, created_at')
       .single()
+
+    const dbTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Supabase write timed out after 12s')), 12_000)
+    )
+
+    const { data: row, error: insertError } = await Promise.race([dbWrite, dbTimeout])
 
     if (insertError) {
       console.error('market_signals insert failed', insertError)

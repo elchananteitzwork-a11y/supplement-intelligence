@@ -9,6 +9,15 @@ import type { FounderFitAnnotation } from '../stage2/types'
 const ai    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL = 'claude-sonnet-4-6'
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`AI call timed out after ${ms}ms`)), ms)
+    ),
+  ])
+}
+
 // ── Memo sections ─────────────────────────────────────────────────────────
 // These are the 10 AI-written prose sections of the investment memo.
 // The AI CANNOT generate verdicts or economic computations — those are
@@ -47,12 +56,49 @@ function buildMemoPrompt(
 ): string {
   const evLines: string[] = []
   if (evidence.est_monthly_revenue?.value)      evLines.push(`Market avg revenue: $${Math.round(evidence.est_monthly_revenue.value / 1000)}k/mo`)
+  if (evidence.top_seller_revenue?.value)       evLines.push(`Top seller revenue: $${Math.round(evidence.top_seller_revenue.value / 1000)}k/mo (category ceiling)`)
+  if (evidence.est_monthly_units_sold?.value)   evLines.push(`Monthly units sold (avg top sellers): ${evidence.est_monthly_units_sold.value.toLocaleString()} units/mo`)
+  if (evidence.avg_market_rating?.value)        evLines.push(`Avg market rating (Keepa bestsellers): ★${evidence.avg_market_rating.value.toFixed(1)}`)
   if (evidence.competitor_count?.value)          evLines.push(`Meaningful competitors: ${evidence.competitor_count.value}`)
   if (evidence.median_price?.value)              evLines.push(`Median price: $${evidence.median_price.value}`)
   if (evidence.momentum_90d_pct?.value !== undefined) evLines.push(`90d momentum: ${evidence.momentum_90d_pct.value}%`)
   if (evidence.price_compression_pct?.value !== undefined) evLines.push(`Price compression (12mo proxy): ${evidence.price_compression_pct.value}%`)
   if (evidence.avg_fba_fee?.value)               evLines.push(`Avg FBA fee: $${evidence.avg_fba_fee.value.toFixed(2)}`)
   if (evidence.avg_referral_fee_pct?.value)      evLines.push(`Referral fee: ${evidence.avg_referral_fee_pct.value}%`)
+
+  // Ranking difficulty
+  const rd = evidence.ranking_difficulty?.value
+  if (rd) {
+    evLines.push(`Ranking difficulty: ${rd.page1_difficulty} (reviews to compete: ${rd.reviews_to_compete.toLocaleString()}, median top-5: ${rd.median_reviews_top5.toLocaleString()})`)
+    if (rd.is_review_protected) evLines.push('Review protection flag: YES — incumbent moat via review volume')
+  }
+
+  // PPC economics
+  const ppc = evidence.ppc_economics?.value
+  if (ppc) {
+    evLines.push(`PPC risk: ${ppc.ppc_risk_level} — ${ppc.risk_reason}`)
+    if (ppc.est_acos_pct !== null) evLines.push(`Est. ACOS at launch: ${ppc.est_acos_pct}% (Google CPC-derived; label as estimate in prose)`)
+    if (ppc.headroom_after_ads !== null) evLines.push(`Net revenue after ads (before COGS): $${ppc.headroom_after_ads.toFixed(2)}/unit`)
+    evLines.push(`Paid launch viable: ${ppc.paid_viable ? 'YES' : 'NO (paid acquisition not economically viable at current price point)'}`)
+  }
+
+  // Regulatory intelligence
+  const reg = evidence.regulatory_intelligence?.value
+  if (reg) {
+    evLines.push(`Regulatory risk (OpenFDA/FAERS): ${reg.risk_level} — ${reg.risk_summary}`)
+    if (reg.adverse_events) {
+      const ae = reg.adverse_events
+      evLines.push(`  FAERS total reports: ${ae.total_reports.toLocaleString()} · deaths: ${ae.death_count} · hospitalizations: ${ae.hospitalization_count}`)
+      if (ae.top_reactions.length) evLines.push(`  Top reported reactions: ${ae.top_reactions.slice(0, 4).join(', ')}`)
+    }
+    if (reg.recalls && reg.recalls.total_recalls > 0) {
+      evLines.push(`  Recalls on record: ${reg.recalls.total_recalls} (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
+    }
+    if (reg.warning_flags.length) {
+      evLines.push(`  Regulatory flags: ${reg.warning_flags.join(' | ')}`)
+    }
+    evLines.push(`  Note for prose: ${reg.disclaimer}`)
+  }
 
   const econBase = economics.sensitivity.base_case
   const revEnv   = economics.revenue_envelope
@@ -112,12 +158,23 @@ The unit_economics_narrative must reference the $${econBase.breakeven_cogs.toFix
 
 // ── Parse response ─────────────────────────────────────────────────────────
 
+const REQUIRED_SECTIONS: (keyof MemoSections)[] = [
+  'executive_summary', 'market_opportunity', 'competitive_landscape', 'product_strategy',
+  'customer_thesis', 'risk_analysis', 'unit_economics_narrative', 'go_to_market',
+  'key_milestones', 'final_considerations',
+]
+
 function parseMemoResponse(raw: string): MemoSections {
   let s = raw.replace(/^```(?:json)?\s*/im, '').replace(/\s*```\s*$/m, '').trim()
   const start = s.indexOf('{')
   if (start > 0) s = s.slice(start)
-  const parsed = JSON.parse(s)
-  return parsed as MemoSections
+  const parsed = JSON.parse(s) as Record<string, unknown>
+  for (const key of REQUIRED_SECTIONS) {
+    if (typeof parsed[key] !== 'string' || !parsed[key]) {
+      parsed[key] = '[Section unavailable — AI response was incomplete]'
+    }
+  }
+  return parsed as unknown as MemoSections
 }
 
 // ── Main entry point ───────────────────────────────────────────────────────
@@ -133,12 +190,12 @@ export async function generateInvestmentMemo(
 ): Promise<InvestmentMemo> {
   const prompt = buildMemoPrompt(thesis, evidence, debate, economics, marketVerdict, founderFit)
 
-  const msg = await ai.messages.create({
+  const msg = await withTimeout(ai.messages.create({
     model:       MODEL,
     max_tokens:  4096,
     temperature: 0.3,
     messages:    [{ role: 'user', content: prompt }],
-  })
+  }), 90_000)
 
   const content = msg.content[0]
   if (content.type !== 'text') throw new Error('Unexpected response type from memo AI call')

@@ -13,6 +13,7 @@ export type KillSwitchId =
   | 'FDA_CLEARANCE_REQUIRED'
   | 'ECONOMICS_STRUCTURALLY_BROKEN'
   | 'COMMODITY_PRICE_COMPRESSION'
+  | 'FDA_REGULATORY_RISK'
 
 export interface KillSwitchResult {
   id:           KillSwitchId
@@ -163,6 +164,53 @@ export function checkCommodityPriceCompression(
   }
 }
 
+// ── KS5: FDA_REGULATORY_RISK ──────────────────────────────────────────────
+// Triggered when OpenFDA data shows Critical risk (Class I recalls + deaths).
+// Boundary zone: High risk level from regulatory intelligence.
+// Flagging mode only — surfaces a mandatory notice but does not block pipeline.
+
+export function checkFdaRegulatoryRisk(evidence: Stage1Evidence): KillSwitchResult {
+  const reg = evidence.regulatory_intelligence?.value
+  if (!reg) {
+    return {
+      id:           'FDA_REGULATORY_RISK',
+      triggered:    false,
+      boundary_zone: false,
+      mode:         'flag',
+      reason:       'Regulatory intelligence data unavailable — OpenFDA not queried or returned no data',
+      data_used:    { risk_level: 'unavailable' },
+    }
+  }
+
+  const triggered     = reg.risk_level === 'Critical'
+  const boundary_zone = !triggered && reg.risk_level === 'High'
+
+  let notice: string | undefined
+  if (triggered) {
+    notice = `REGULATORY RISK — CRITICAL: ${reg.risk_summary}. This ingredient has a Critical regulatory risk profile in OpenFDA. Conduct full regulatory due diligence before any investment or manufacturing commitment. ${reg.disclaimer}`
+  } else if (boundary_zone) {
+    notice = `REGULATORY CAUTION — HIGH: ${reg.risk_summary}. Review all warning flags with a regulatory consultant before launch. ${reg.disclaimer}`
+  }
+
+  return {
+    id:           'FDA_REGULATORY_RISK',
+    triggered,
+    boundary_zone,
+    mode:         'flag',
+    reason:       reg.risk_summary,
+    data_used:    {
+      risk_level:            reg.risk_level,
+      ingredient_searched:   reg.ingredient_searched,
+      adverse_event_total:   reg.adverse_events?.total_reports ?? 0,
+      death_count:           reg.adverse_events?.death_count ?? 0,
+      hospitalization_count: reg.adverse_events?.hospitalization_count ?? 0,
+      recall_total:          reg.recalls?.total_recalls ?? 0,
+      class_i_recalls:       reg.recalls?.class_i_recalls ?? 0,
+    },
+    mandatory_notice: notice,
+  }
+}
+
 // ── Run all kill switches against a thesis ────────────────────────────────
 
 export interface KillSwitchEvaluation {
@@ -185,7 +233,7 @@ export function runAllKillSwitches(
   }
 ): KillSwitchEvaluation {
   // KS3 inputs: use p25 of price distribution as price floor
-  const priceFloor = evidence.price_range?.value?.min ?? evidence.median_price?.value ?? 0
+  const priceFloor = evidence.median_price?.value ?? evidence.price_range?.value?.min ?? 0
   const referralPct = evidence.avg_referral_fee_pct?.value ?? 15
   const fbaFee = evidence.avg_fba_fee?.value ?? 4.50
 
@@ -194,6 +242,7 @@ export function runAllKillSwitches(
     checkFdaClearanceRequired(aiFlags.fda_clearance_required, aiFlags.fda_claim_type),
     checkEconomicsStructurallyBroken(priceFloor, referralPct, fbaFee),
     checkCommodityPriceCompression(evidence.price_compression_pct?.value),
+    checkFdaRegulatoryRisk(evidence),
   ]
 
   const triggered_ids = results.filter(r => r.triggered).map(r => r.id)

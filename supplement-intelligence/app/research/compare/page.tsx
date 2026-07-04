@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback, Suspense } from 'react'
+import React, { useEffect, useState, useMemo, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { ComparisonItem } from '@/app/api/research/compare/route'
@@ -97,7 +97,7 @@ const METRICS: MetricDef[] = [
   { id: 'tiktok',      label: 'TikTok Views',           section: 'Market',     dir: 'higher',     getValue: i => i.tiktok_view_count,   format: fmtN },
   // Competition
   { id: 'competitors', label: 'Competitor Count',       section: 'Competition', dir: 'lower',     getValue: i => i.competitor_count,    format: fmtN },
-  { id: 'revconc',     label: 'Review Concentration',  section: 'Competition', dir: 'lower',      getValue: i => i.review_concentration, format: v => fmtN(v, '%') },
+  { id: 'revconc',     label: 'Review Concentration',  section: 'Competition', dir: 'lower',      getValue: i => i.review_concentration, format: v => (v === null || v === undefined) ? '—' : `${Math.round(Number(v) * 100)}%` },
   // Quality gates
   { id: 'thresholds',  label: 'Thresholds Passed',      section: 'Gates',      dir: 'higher',     getValue: i => i.threshold_pass_count, format: v => `${v}/5` },
   { id: 'killsw',      label: 'Kill Switches Clear',    section: 'Gates',      dir: 'bool_true',  getValue: i => i.all_switches_clear,  format: v => v === null ? '—' : v ? 'All clear' : 'Flagged' },
@@ -447,9 +447,9 @@ function CompareContent() {
                       const sectionMetrics = visibleMetrics.filter(m => m.section === section)
                       if (sectionMetrics.length === 0) return null
                       return (
-                        <>
+                        <React.Fragment key={`section-${section}`}>
                           {/* Section divider */}
-                          <tr key={`section-${section}`} className="border-t border-gray-800">
+                          <tr className="border-t border-gray-800">
                             <td
                               colSpan={compItems.length + 1}
                               className="px-3 py-1.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-900/40"
@@ -504,7 +504,7 @@ function CompareContent() {
                               </tr>
                             )
                           })}
-                        </>
+                        </React.Fragment>
                       )
                     })}
                   </tbody>
@@ -512,34 +512,33 @@ function CompareContent() {
               </div>
 
               {/* Winner summary bar */}
-              <div className="rounded-xl border border-gray-800 bg-gray-900/30 p-4 space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Best-in-class count</p>
-                <div className="flex gap-4 flex-wrap">
-                  {compItems.map((item, i) => {
-                    const winCount = visibleMetrics.reduce((acc, metric) => {
-                      const values = compItems.map(x => metric.getValue(x))
-                      const winners = findWinner(metric.dir, values)
-                      return acc + (winners.has(i) ? 1 : 0)
-                    }, 0)
-                    return (
-                      <div key={i} className="text-center min-w-[100px]">
-                        <p className="text-[10px] text-gray-500 truncate">{item.product_angle.slice(0, 25)}…</p>
-                        <p className={`text-xl font-mono font-bold ${
-                          winCount === Math.max(...compItems.map((_, j) =>
-                            visibleMetrics.reduce((acc, m) => {
-                              const vals = compItems.map(x => m.getValue(x))
-                              return acc + (findWinner(m.dir, vals).has(j) ? 1 : 0)
-                            }, 0)
-                          )) ? 'text-green-400' : 'text-gray-400'
-                        }`}>
-                          {winCount}
-                        </p>
-                        <p className="text-[10px] text-gray-600">of {visibleMetrics.length}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+              {(() => {
+                const winCounts = compItems.map((_, j) =>
+                  visibleMetrics.reduce((acc, m) => {
+                    const vals = compItems.map(x => m.getValue(x))
+                    return acc + (findWinner(m.dir, vals).has(j) ? 1 : 0)
+                  }, 0)
+                )
+                const maxWins = Math.max(...winCounts)
+                return (
+                  <div className="rounded-xl border border-gray-800 bg-gray-900/30 p-4 space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Best-in-class count</p>
+                    <div className="flex gap-4 flex-wrap">
+                      {compItems.map((item, i) => (
+                        <div key={i} className="text-center min-w-[100px]">
+                          <p className="text-[10px] text-gray-500 truncate">{item.product_angle.slice(0, 25)}…</p>
+                          <p className={`text-xl font-mono font-bold ${
+                            maxWins > 0 && winCounts[i] === maxWins ? 'text-green-400' : 'text-gray-400'
+                          }`}>
+                            {winCounts[i]}
+                          </p>
+                          <p className="text-[10px] text-gray-600">of {visibleMetrics.length}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* AI Recommendation */}
               <div className="rounded-xl border border-gray-800 p-5 space-y-4">

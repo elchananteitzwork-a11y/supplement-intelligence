@@ -28,7 +28,7 @@
 export { ReviewCollector } from './collector'
 
 // Providers
-export { RainforestProvider, AmazonScraperProvider } from './providers/registry'
+export { RainforestProvider } from './providers/registry'
 export { getDefaultProviders }                        from './providers/registry'
 export type { ReviewProvider, ProviderPage, ProviderFetchOptions } from './providers/types'
 

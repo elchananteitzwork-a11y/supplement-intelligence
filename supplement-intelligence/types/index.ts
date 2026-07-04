@@ -226,16 +226,11 @@ export interface MemoData {
   // object are LLM-written, and only as a separate parallel call (see
   // lib/news-engine/explain.ts) — completely outside the main prompt/schema.
   news_intelligence?: NewsIntelligence
-  // Real manufacturing estimate (lib/manufacturing-engine), persisted on the
-  // memo when available (2026-06-28 Decision Engine redesign — Profitability's
-  // COGS Margin sub-signal and the Manufacturing Feasibility composite both
-  // read this). NOT YET populated by app/api/generate/route.ts — manufacturing
-  // is currently fetched lazily, on-demand, from the Manufacturing tab
-  // (/api/manufacturing), never eagerly during generation. This field exists
-  // so lib/scoring.ts's formulas are correct and ready the moment that
-  // fetch-timing dependency is resolved; until then it is always undefined,
-  // and both composites above gracefully degrade to qualitative-only exactly
-  // as documented in the frozen architecture.
+  // Real manufacturing estimate (lib/manufacturing-engine), fetched eagerly at
+  // generation time (app/api/generate/route.ts, 12s timeout alongside the
+  // signal fetch). Populated when Apify succeeds. Profitability's COGS Margin
+  // sub-signal and the Manufacturing Feasibility composite both read this;
+  // both degrade gracefully to qualitative-only when it is absent.
   manufacturing_estimate?: ManufacturingEstimate
   // Category-Creation-Candidate broad-query evidence (2026-06-28 Decision
   // Engine redesign) — persisted, not ephemeral, so lib/scoring.ts's
@@ -252,6 +247,13 @@ export interface MemoData {
     signal_evidence?: AggregatedSignals
     keyword_intelligence?: KeywordIntelligence
   }
+  // The exact product name/query the user entered at generation time — stored
+  // so that computeDemand can use the full semantic filter (anchor-word check)
+  // at scoring time, matching what was applied during keyword-engine fetch.
+  // Without this, scoring-time filtering falls back to signal-only checks that
+  // cannot apply anchor-word matches, potentially rejecting keywords that the
+  // generation-time filter correctly accepted via product name overlap.
+  product_query?: string
 }
 
 export interface Analysis {

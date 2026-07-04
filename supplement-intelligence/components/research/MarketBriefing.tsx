@@ -119,7 +119,7 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
         <p className="text-xs text-gray-500">
           Stage 1 · {new Date(signal.created_at).toLocaleString('en-US')} ·{' '}
           {meta.duration_ms ? `${(meta.duration_ms / 1000).toFixed(1)}s` : '—'} ·{' '}
-          Confidence {Math.round(meta.overall_confidence * 100)}%
+          Confidence {Math.min(100, Math.round(meta.overall_confidence * 100))}%
         </p>
       </div>
 
@@ -159,6 +159,16 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
           Demand & Revenue
         </h2>
         <div className="rounded-lg border border-gray-800 divide-y divide-gray-800">
+          {ev.monthly_search_volume?.value != null && (
+            <EvidenceRow
+              label="Monthly Search Volume (US)"
+              value={`${ev.monthly_search_volume.value.toLocaleString('en-US')}/mo`}
+              source={ev.monthly_search_volume.source}
+              source_type={ev.monthly_search_volume.source_type}
+              scope_note={ev.monthly_search_volume.scope_note}
+              sample_size={ev.monthly_search_volume.sample_size}
+            />
+          )}
           <EvidenceRow
             label="Est. Monthly Revenue (avg seller)"
             value={ev.est_monthly_revenue?.value != null ? `$${Math.round(ev.est_monthly_revenue.value / 1000)}k/mo` : null}
@@ -166,6 +176,30 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
             source_type={ev.est_monthly_revenue?.source_type ?? 'computed'}
             scope_note={ev.est_monthly_revenue?.scope_note}
             sample_size={ev.est_monthly_revenue?.sample_size}
+          />
+          <EvidenceRow
+            label="Top Seller Revenue (ceiling)"
+            value={ev.top_seller_revenue?.value != null ? `$${Math.round(ev.top_seller_revenue.value / 1000)}k/mo` : null}
+            source={ev.top_seller_revenue?.source ?? '—'}
+            source_type={ev.top_seller_revenue?.source_type ?? 'provider_model'}
+            scope_note={ev.top_seller_revenue?.scope_note}
+            sample_size={ev.top_seller_revenue?.sample_size}
+          />
+          <EvidenceRow
+            label="Monthly Units Sold (avg top sellers)"
+            value={ev.est_monthly_units_sold?.value != null ? `${ev.est_monthly_units_sold.value.toLocaleString('en-US')} units/mo` : null}
+            source={ev.est_monthly_units_sold?.source ?? '—'}
+            source_type={ev.est_monthly_units_sold?.source_type ?? 'provider_model'}
+            scope_note={ev.est_monthly_units_sold?.scope_note}
+            sample_size={ev.est_monthly_units_sold?.sample_size}
+          />
+          <EvidenceRow
+            label="Avg Market Rating (bestsellers)"
+            value={ev.avg_market_rating?.value != null ? `★${ev.avg_market_rating.value.toFixed(1)}` : null}
+            source={ev.avg_market_rating?.source ?? '—'}
+            source_type={ev.avg_market_rating?.source_type ?? 'primary_measurement'}
+            scope_note={ev.avg_market_rating?.scope_note}
+            sample_size={ev.avg_market_rating?.sample_size}
           />
           <EvidenceRow
             label="Trend direction"
@@ -219,7 +253,7 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
                 </div>
                 <div className="text-xs text-gray-500 mt-0.5">
                   {ev.price_compression_pct?.source} ·{' '}
-                  avg90 ${ev.price_avg_90d?.value?.toFixed(2)} vs avg365 ${ev.price_avg_365d?.value?.toFixed(2)} ·
+                  avg90 ${ev.price_avg_90d?.value?.toFixed(2) ?? 'N/A'} vs avg365 ${ev.price_avg_365d?.value?.toFixed(2) ?? 'N/A'} ·
                   12-month proxy (not full 24-month window)
                 </div>
               </div>
@@ -249,6 +283,77 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
           />
         </div>
       </section>
+
+      {/* PPC Economics */}
+      {ev.ppc_economics?.value && (() => {
+        const ppc = ev.ppc_economics!.value
+        const riskColor =
+          ppc.ppc_risk_level === 'Low'     ? 'text-green-400 border-green-800 bg-green-950/20' :
+          ppc.ppc_risk_level === 'Medium'  ? 'text-yellow-400 border-yellow-800 bg-yellow-950/20' :
+          ppc.ppc_risk_level === 'High'    ? 'text-orange-400 border-orange-800 bg-orange-950/20' :
+                                             'text-red-400 border-red-800 bg-red-950/20'
+        return (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
+                PPC Economics (Estimated)
+              </h2>
+              <SourceTypeBadge type="computed" />
+            </div>
+            <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-4 space-y-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`text-sm font-semibold px-3 py-1 rounded border ${riskColor}`}>
+                  {ppc.ppc_risk_level} PPC Risk
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded border ${ppc.paid_viable ? 'border-green-800 text-green-300' : 'border-red-800 text-red-300'}`}>
+                  Paid launch {ppc.paid_viable ? 'viable' : 'not viable'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400">{ppc.risk_reason}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                {ppc.google_cpc_p50 !== null && (
+                  <div>
+                    <p className="text-gray-500">Google CPC (p50)</p>
+                    <p className="text-gray-100 font-mono">${ppc.google_cpc_p50.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-600">DataForSEO · real</p>
+                  </div>
+                )}
+                {ppc.amazon_ppc_high !== null && (
+                  <div>
+                    <p className="text-gray-500">Est. Amazon PPC</p>
+                    <p className="text-gray-100 font-mono">${ppc.amazon_ppc_low?.toFixed(2)}–${ppc.amazon_ppc_high.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-600">Derived estimate · NOT real Amazon Ads</p>
+                  </div>
+                )}
+                {ppc.est_acos_pct !== null && (
+                  <div>
+                    <p className="text-gray-500">Est. ACOS (launch)</p>
+                    <p className={`font-mono font-semibold ${ppc.est_acos_pct > 50 ? 'text-red-400' : ppc.est_acos_pct > 30 ? 'text-yellow-400' : 'text-green-400'}`}>
+                      {ppc.est_acos_pct}%
+                    </p>
+                    <p className="text-[10px] text-gray-600">At {ppc.est_conversion_rate_pct}% conv. rate</p>
+                  </div>
+                )}
+                {ppc.headroom_after_ads !== null && (
+                  <div>
+                    <p className="text-gray-500">Headroom after ads</p>
+                    <p className={`font-mono font-semibold ${ppc.headroom_after_ads > 0 ? 'text-gray-100' : 'text-red-400'}`}>
+                      ${ppc.headroom_after_ads.toFixed(2)}/unit
+                    </p>
+                    <p className="text-[10px] text-gray-600">Before COGS</p>
+                  </div>
+                )}
+              </div>
+              {ppc.est_tacos_pct_low !== null && ppc.est_tacos_pct_high !== null && (
+                <p className="text-[10px] text-gray-500">
+                  Est. TACoS range: {ppc.est_tacos_pct_low}–{ppc.est_tacos_pct_high}% ·
+                  CPC from Google Ads (DataForSEO) · {ppc.keywords_with_cpc} keywords with real CPC data
+                </p>
+              )}
+            </div>
+          </section>
+        )
+      })()}
 
       {/* Competition */}
       <section className="space-y-1">
@@ -299,9 +404,9 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
                   <tr key={c.productId} className="border-b border-gray-900 hover:bg-gray-900/50">
                     <td className="px-3 py-2 text-gray-500">{c.position ?? i + 1}</td>
                     <td className="px-3 py-2 text-gray-200 max-w-[160px] truncate">{c.brand}</td>
-                    <td className="px-3 py-2 text-right text-gray-300">{c.reviewCount.toLocaleString('en-US')}</td>
-                    <td className="px-3 py-2 text-right text-gray-300">{c.rating.toFixed(1)}</td>
-                    <td className="px-3 py-2 text-right text-gray-300">${c.price.toFixed(0)}</td>
+                    <td className="px-3 py-2 text-right text-gray-300">{(c.reviewCount ?? 0).toLocaleString('en-US')}</td>
+                    <td className="px-3 py-2 text-right text-gray-300">{(c.rating ?? 0).toFixed(1)}</td>
+                    <td className="px-3 py-2 text-right text-gray-300">${(c.price ?? 0).toFixed(0)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -313,6 +418,51 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
             </p>
           </div>
         ) : null}
+
+        {/* Ranking difficulty panel */}
+        {ev.ranking_difficulty?.value && (() => {
+          const rd = ev.ranking_difficulty!.value
+          const diffColor =
+            rd.page1_difficulty === 'Low'     ? 'text-green-400 border-green-800 bg-green-950/20' :
+            rd.page1_difficulty === 'Medium'  ? 'text-yellow-400 border-yellow-800 bg-yellow-950/20' :
+            rd.page1_difficulty === 'High'    ? 'text-orange-400 border-orange-800 bg-orange-950/20' :
+                                                'text-red-400 border-red-800 bg-red-950/20'
+          return (
+            <div className="mt-3 rounded-lg border border-gray-800 bg-gray-900/40 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                  Amazon Ranking Difficulty
+                </p>
+                <SourceTypeBadge type="computed" />
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`text-sm font-semibold px-3 py-1 rounded border ${diffColor}`}>
+                  {rd.page1_difficulty} Difficulty
+                </span>
+                {rd.is_review_protected && (
+                  <span className="text-xs px-2 py-0.5 rounded border border-red-800 text-red-300 bg-red-950/20">
+                    Review-protected market
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-xs">
+                <div>
+                  <p className="text-gray-500">Median top-5 reviews</p>
+                  <p className="text-gray-100 font-mono font-semibold">{(rd.median_reviews_top5 ?? 0).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Avg top-10 reviews</p>
+                  <p className="text-gray-100 font-mono">{(rd.avg_reviews_top10 ?? 0).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Reviews to compete</p>
+                  <p className="text-gray-100 font-mono font-semibold">~{(rd.reviews_to_compete ?? 0).toLocaleString()}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-600">{rd.sample_note} · reviews to compete = 70% of median top-5</p>
+            </div>
+          )
+        })()}
       </section>
 
       {/* Social & Virality */}
@@ -345,6 +495,94 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
         </div>
       </section>
 
+      {/* Regulatory Intelligence */}
+      {ev.regulatory_intelligence?.value && (() => {
+        const reg = ev.regulatory_intelligence!.value
+        const riskColor: Record<string, string> = {
+          Low:      'text-green-400 border-green-800 bg-green-950/30',
+          Medium:   'text-yellow-400 border-yellow-800 bg-yellow-950/30',
+          High:     'text-orange-400 border-orange-800 bg-orange-950/30',
+          Critical: 'text-red-400 border-red-800 bg-red-950/30',
+        }
+        const ae  = reg.adverse_events
+        const rec = reg.recalls
+        return (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
+              Regulatory Intelligence
+            </h2>
+            <div className={`rounded-lg border p-4 space-y-3 ${riskColor[reg.risk_level] ?? riskColor.Low}`}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${riskColor[reg.risk_level]}`}>
+                  {reg.risk_level} Risk
+                </span>
+                <span className="text-xs text-gray-300">{reg.risk_summary}</span>
+              </div>
+
+              {ae && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div>
+                    <p className="text-gray-500 mb-0.5">FAERS Reports</p>
+                    <p className="font-mono text-gray-100">{ae.total_reports.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5">Serious Events</p>
+                    <p className="font-mono text-gray-100">{ae.serious_reports.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5">Hospitalizations</p>
+                    <p className={`font-mono ${ae.hospitalization_count > 20 ? 'text-orange-400' : 'text-gray-100'}`}>
+                      {ae.hospitalization_count.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5">Deaths</p>
+                    <p className={`font-mono ${ae.death_count > 0 ? 'text-red-400' : 'text-gray-100'}`}>
+                      {ae.death_count.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {ae?.top_reactions.length ? (
+                <div className="text-xs">
+                  <span className="text-gray-500">Top reported reactions: </span>
+                  <span className="text-gray-300">{ae.top_reactions.join(', ')}</span>
+                </div>
+              ) : null}
+
+              {rec && rec.total_recalls > 0 && (
+                <div className="text-xs space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-500">Recalls on record:</span>
+                    <span className="font-mono text-gray-100">{rec.total_recalls}</span>
+                    {rec.class_i_recalls > 0 && (
+                      <span className="text-red-400 font-semibold">Class I: {rec.class_i_recalls}</span>
+                    )}
+                    {rec.class_ii_recalls > 0 && (
+                      <span className="text-orange-400">Class II: {rec.class_ii_recalls}</span>
+                    )}
+                  </div>
+                  {rec.recent_recall_descriptions.map((d, i) => (
+                    <p key={i} className="text-gray-500 pl-3 border-l border-gray-700">{d}</p>
+                  ))}
+                </div>
+              )}
+
+              {reg.warning_flags.length > 0 && (
+                <div className="text-xs space-y-1">
+                  {reg.warning_flags.map((f, i) => (
+                    <p key={i} className="text-orange-300">⚑ {f}</p>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-[10px] text-gray-600 leading-snug">{reg.disclaimer}</p>
+            </div>
+          </section>
+        )
+      })()}
+
       {/* Provider metadata */}
       <section className="rounded-lg border border-gray-800 px-4 py-3 space-y-2">
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -363,7 +601,7 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
           ))}
         </div>
         <p className="text-xs text-gray-500">
-          Overall confidence: {Math.round(meta.overall_confidence * 100)}% ·{' '}
+          Overall confidence: {Math.min(100, Math.round(meta.overall_confidence * 100))}% ·{' '}
           Fetched at: {meta.fetched_at ? new Date(meta.fetched_at).toLocaleString('en-US') : '—'}
         </p>
       </section>

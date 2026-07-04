@@ -2002,7 +2002,7 @@ function KeywordIntelligenceContent({ m }: { m: MemoData }) {
     return (
       <div>
         <SectionIntro text="Real per-keyword search data — volume, growth, competition, difficulty, and CPC — pulled directly from DataForSEO. Clusters, opportunity scores, and AI strategy notes are computed from those real numbers, never invented." />
-        <LabEmptyState icon={<IconBeaker className="w-5 h-5" />} title="No data available" description="DataForSEO returned nothing usable for this query." />
+        <LabEmptyState icon={<IconBeaker className="w-5 h-5" />} title="No keyword data found" description="DataForSEO has no search-volume data for this exact phrase or any broadened form of it. This usually means the concept is novel or coined — no one is searching for it by name yet. That can indicate a category-creation opportunity, but there is no existing keyword demand to measure." />
       </div>
     )
   }

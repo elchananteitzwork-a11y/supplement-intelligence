@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ThesisCard } from '@/components/research/ThesisCard'
@@ -34,6 +34,7 @@ export default function OpportunityMapPage() {
   const [generationNote, setNote]     = useState<string>('')
   const [fromCache, setFromCache]     = useState(false)
   const [query, setQuery]             = useState('')
+  const fitScoringAttempted           = useRef(false)
 
   // Check if user has a founder profile
   useEffect(() => {
@@ -114,16 +115,22 @@ export default function OpportunityMapPage() {
         const map: Record<string, FounderFitAnnotation> = {}
         for (const a of data.annotations) map[a.thesis_id] = a
         setFitMap(map)
+        setStage('done')
+      } else {
+        setError('Fit scoring failed — please try again')
+        setStage('error')
       }
-    } finally {
-      setStage('done')
+    } catch {
+      setError('Fit scoring failed — please try again')
+      setStage('error')
     }
   }, [signal_id])
 
-  // Auto-generate when the page first loads with theses already available from cache
+  // Auto-score fit when theses load from cache — guard with ref to prevent infinite loop
   useEffect(() => {
-    if (fromCache && theses.length > 0 && hasProfile === true && Object.keys(fitMap).length === 0) {
-      scoreFit()
+    if (fromCache && theses.length > 0 && hasProfile === true && Object.keys(fitMap).length === 0 && !fitScoringAttempted.current) {
+      fitScoringAttempted.current = true
+      void scoreFit()
     }
   }, [fromCache, theses.length, hasProfile, fitMap, scoreFit])
 

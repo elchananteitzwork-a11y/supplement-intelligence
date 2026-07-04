@@ -85,6 +85,25 @@ export class ApifyReviewProvider implements ReviewProvider {
     if (res.status === 429 || res.status >= 500) {
       throw new RetryableError(`Apify reviews: HTTP ${res.status}`, res.status)
     }
+    if (res.status === 402) {
+      throw new NonRetryableError(
+        `Apify reviews: HTTP 402 — Apify account has insufficient credits. ` +
+        `Check https://console.apify.com/billing. ASIN ${asin} skipped.`,
+        402,
+      )
+    }
+    if (res.status === 403) {
+      // Apify uses 403 (not 402) for monthly hard-limit exhaustion.
+      const body = await res.json().catch(() => null) as { error?: { type?: string; message?: string } } | null
+      const isHardLimit = body?.error?.type === 'platform-feature-disabled'
+      throw new NonRetryableError(
+        isHardLimit
+          ? `Apify reviews: Apify monthly usage hard limit exceeded — go to ` +
+            `https://console.apify.com/billing to increase the limit. ASIN ${asin} skipped.`
+          : `Apify reviews: HTTP 403 for ASIN ${asin}`,
+        403,
+      )
+    }
     if (!res.ok) {
       throw new NonRetryableError(`Apify reviews: HTTP ${res.status} for ASIN ${asin}`, res.status)
     }

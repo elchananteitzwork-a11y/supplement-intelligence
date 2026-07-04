@@ -86,7 +86,7 @@ function CasePanel({
               <li key={i} className="flex items-start gap-2 text-xs">
                 <span className={`mt-0.5 ${pointDot} font-bold shrink-0`}>·</span>
                 <span className="text-gray-300">{pt}</span>
-                {c.evidence_citations[i] && (
+                {c.evidence_citations?.[i] && (
                   <span className="text-gray-600 shrink-0 italic text-[10px] ml-auto">
                     [{c.evidence_citations[i]}]
                   </span>
@@ -141,7 +141,7 @@ export function AdversarialDebate({ debate, thesisLabel }: Props) {
       {triggeredSwitches.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Kill Switches</p>
-          {debate.kill_switches.map(ks => <KillSwitchPanel key={ks.id} ks={ks} />)}
+          {triggeredSwitches.map(ks => <KillSwitchPanel key={ks.id} ks={ks} />)}
         </div>
       )}
 

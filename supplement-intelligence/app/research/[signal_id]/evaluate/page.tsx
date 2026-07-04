@@ -73,7 +73,7 @@ export default function EvaluatePage() {
       const map: Record<string, StoredDebate> = {}
       let firstDebatedId: string | null = null
       for (const { thesisId, debate } of results) {
-        if (debate) {
+        if (debate && debate.bull_case && debate.bear_case) {
           map[thesisId] = debate
           if (!firstDebatedId) firstDebatedId = thesisId
         }

@@ -90,6 +90,10 @@ export function determineMarketVerdict(
   if (fdaFlag) {
     blockers.push('FDA regulatory pathway must be clarified before any production')
   }
+  const fdaRegulatoryFlag = ks.results.find(r => r.id === 'FDA_REGULATORY_RISK' && r.triggered)
+  if (fdaRegulatoryFlag) {
+    blockers.push('Critical regulatory risk (OpenFDA/FAERS) — conduct regulatory due diligence before launch')
+  }
 
   // Construct rationale from thresholds
   thresholds.checks.filter(c => c.result === 'pass').forEach(c => {
@@ -109,7 +113,7 @@ export function determineMarketVerdict(
   if (blockers.length >= 2 || hasEconomicsBlocker || thresholdsBlock) {
     code     = 'DO_NOT_PURSUE'
     headline = 'Market conditions do not support a viable entry — structural blockers identified'
-  } else if (blockers.length === 1 || (patentFlag || fdaFlag)) {
+  } else if (blockers.length === 1 || (patentFlag || fdaFlag || fdaRegulatoryFlag)) {
     code     = 'PURSUE_WITH_CAUTION'
     headline = 'Market opportunity exists but one or more significant risks require resolution before committing capital'
   } else if (boundaryZone || thresholds.overall === 'warn' || computeDataConfidence(thresholds) === 'low') {

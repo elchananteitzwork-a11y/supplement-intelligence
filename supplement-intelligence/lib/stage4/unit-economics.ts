@@ -5,6 +5,8 @@
 import type { Stage1Evidence } from '../evidence/adapter'
 import type { InvestmentThesis } from '../stage2/types'
 import type { FounderProfile } from '../stage25/fit-layer'
+import { computeLaunchCost } from './launch-cost'
+import type { LaunchCostModel } from './launch-cost'
 
 // ── Breakeven COGS ─────────────────────────────────────────────────────────
 // The maximum COGS you can afford to still hit target gross margin.
@@ -93,49 +95,82 @@ export function computeSensitivityAnalysis(
 // Realistic first-year revenue range given market data and launch scenario.
 
 export interface RevenueEnvelope {
-  conservative_monthly: number   // bottom 20% of market scenario
-  base_monthly:         number   // realistic mid-case
-  optimistic_monthly:   number   // top 20% of market (first-mover early share)
+  conservative_monthly: number
+  base_monthly:         number
+  optimistic_monthly:   number
   year1_conservative:   number
   year1_base:           number
   year1_optimistic:     number
-  market_revenue_avg:   number   // from Stage 1 (what avg seller makes)
+  market_revenue_avg:   number   // avg seller monthly revenue (Keepa) or fallback estimate
   market_share_pct:     { conservative: number; base: number; optimistic: number }
   assumptions:          string[]
+  is_estimate?:         boolean  // true when Keepa revenue was absent; fallback used
+  estimate_method?:     string   // describes the fallback source and formula used
 }
 
 export function computeRevenueEnvelope(
   evidence:  Stage1Evidence,
   thesis:    InvestmentThesis
 ): RevenueEnvelope {
-  const marketRevAvg = evidence.est_monthly_revenue?.value ?? 0
-  const price        = evidence.median_price?.value ?? 0
+  const keepaRev    = evidence.est_monthly_revenue?.value
+  const searchVol   = evidence.monthly_search_volume?.value
+  const price       = evidence.median_price?.value ?? 0
 
-  // New entrant market share assumptions (conservative for a cold-start)
-  const conservativeShare = 0.02   // 2% of avg seller revenue
-  const baseShare         = 0.10   // 10% of avg seller revenue
-  const optimisticShare   = 0.25   // 25% of avg seller revenue
+  // Prefer Keepa's measured avg-seller revenue. When absent, fall back to a
+  // search-volume proxy: total category searches × 0.5% search-to-purchase
+  // rate ÷ competitor count → per-seller estimate. This is low-confidence —
+  // labelled clearly and never presented as real revenue.
+  let marketRevAvg: number
+  let isEstimate = false
+  let estimateMethod: string | undefined
 
-  const cons  = marketRevAvg * conservativeShare
-  const base  = marketRevAvg * baseShare
-  const opt   = marketRevAvg * optimisticShare
+  if (keepaRev !== undefined && keepaRev > 0) {
+    marketRevAvg = keepaRev
+  } else if (searchVol !== undefined && searchVol > 0 && price > 0) {
+    const competitors = Math.max(evidence.competitor_count?.value ?? 0, 5)
+    const totalCategoryRev = searchVol * 0.005 * price
+    marketRevAvg = Math.round(totalCategoryRev / competitors)
+    isEstimate = true
+    estimateMethod = `${searchVol.toLocaleString()} searches/mo × 0.5% est. conversion × $${price} ÷ ${competitors} competitors`
+  } else {
+    marketRevAvg = 0
+  }
 
-  const assumptions = [
-    `Market avg seller revenue: $${Math.round(marketRevAvg / 1000)}k/mo (Keepa provider_model)`,
-    `Price point: $${price} (Stage 1 primary_measurement)`,
-    `Conservative (2% share): assumes cold-start, no channel, Amazon only`,
-    `Base (10% share): assumes 1 existing channel, steady reviews after month 3`,
-    `Optimistic (25% share): assumes strong channel + early category placement`,
-    thesis.quick_economics_check.launch_complexity === 'high'
-      ? 'Launch complexity "high" — add 3–6mo before meaningful revenue'
-      : 'Launch complexity allows first sales within stated time horizon',
-  ]
+  const conservativeShare = 0.02
+  const baseShare         = 0.10
+  const optimisticShare   = 0.25
+
+  const cons = marketRevAvg * conservativeShare
+  const base = marketRevAvg * baseShare
+  const opt  = marketRevAvg * optimisticShare
+
+  const assumptions: string[] = isEstimate
+    ? [
+        `Market avg seller revenue: ~$${Math.round(marketRevAvg / 1000)}k/mo (search-volume estimate — Keepa data unavailable)`,
+        `Estimate method: ${estimateMethod}`,
+        `Conservative (2% share): assumes cold-start, no channel, Amazon only`,
+        `Base (10% share): assumes 1 existing channel, steady reviews after month 3`,
+        `Optimistic (25% share): assumes strong channel + early category placement`,
+        thesis.quick_economics_check.launch_complexity === 'high'
+          ? 'Launch complexity "high" — add 3–6mo before meaningful revenue'
+          : 'Launch complexity allows first sales within stated time horizon',
+      ]
+    : [
+        `Market avg seller revenue: $${Math.round(marketRevAvg / 1000)}k/mo (Keepa provider_model)`,
+        `Price point: $${price} (Stage 1 primary_measurement)`,
+        `Conservative (2% share): assumes cold-start, no channel, Amazon only`,
+        `Base (10% share): assumes 1 existing channel, steady reviews after month 3`,
+        `Optimistic (25% share): assumes strong channel + early category placement`,
+        thesis.quick_economics_check.launch_complexity === 'high'
+          ? 'Launch complexity "high" — add 3–6mo before meaningful revenue'
+          : 'Launch complexity allows first sales within stated time horizon',
+      ]
 
   return {
     conservative_monthly: Math.round(cons),
     base_monthly:         Math.round(base),
     optimistic_monthly:   Math.round(opt),
-    year1_conservative:   Math.round(cons * 12 * 0.5),  // ramp-up discount
+    year1_conservative:   Math.round(cons * 12 * 0.5),
     year1_base:           Math.round(base * 12 * 0.65),
     year1_optimistic:     Math.round(opt * 12 * 0.80),
     market_revenue_avg:   Math.round(marketRevAvg),
@@ -145,6 +180,7 @@ export function computeRevenueEnvelope(
       optimistic:   optimisticShare * 100,
     },
     assumptions,
+    ...(isEstimate && { is_estimate: true, estimate_method: estimateMethod }),
   }
 }
 
@@ -161,6 +197,7 @@ export interface Stage4FounderInputs {
 export interface FullUnitEconomics {
   sensitivity:       SensitivityAnalysis
   revenue_envelope:  RevenueEnvelope
+  launch_cost:       LaunchCostModel    // bottom-up launch budget (deterministic estimates)
   founder_inputs?:   Stage4FounderInputs
   // Computed from founder_inputs if provided:
   founder_breakeven_units_mo?: number   // units/mo needed to break even
@@ -177,10 +214,11 @@ export function computeFullUnitEconomics(
     : profile?.risk_posture === 'high_risk_tolerance' ? 0.45
     : 0.50
 
-  const sensitivity     = computeSensitivityAnalysis(evidence, targetGM, founderInputs?.actual_cogs_per_unit)
+  const sensitivity      = computeSensitivityAnalysis(evidence, targetGM, founderInputs?.actual_cogs_per_unit)
   const revenue_envelope = computeRevenueEnvelope(evidence, thesis)
+  const launch_cost      = computeLaunchCost(evidence, evidence.ppc_economics?.value)
 
-  const result: FullUnitEconomics = { sensitivity, revenue_envelope, founder_inputs: founderInputs }
+  const result: FullUnitEconomics = { sensitivity, revenue_envelope, launch_cost, founder_inputs: founderInputs }
 
   if (founderInputs?.actual_cogs_per_unit !== undefined) {
     const price    = founderInputs.target_launch_price ?? evidence.median_price?.value ?? 0

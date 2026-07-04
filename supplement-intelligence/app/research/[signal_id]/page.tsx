@@ -26,14 +26,15 @@ export default async function SignalBriefingPage({ params }: Props) {
       },
     }
   )
-  const { data: { user } } = await supabaseAuth.auth.getUser()
-  if (!user) {
+  const { data: authData, error: authError } = await supabaseAuth.auth.getUser()
+  if (authError || !authData?.user) {
     return (
       <main className="flex items-center justify-center min-h-screen">
         <p className="text-gray-400">Please sign in to view this report.</p>
       </main>
     )
   }
+  const user = authData.user
 
   // Fetch the signal row (service role so RLS doesn't interfere with server render)
   const supabase = createClient(
@@ -64,6 +65,14 @@ export default async function SignalBriefingPage({ params }: Props) {
 
   if (error || !signal) {
     notFound()
+  }
+
+  if (!signal.signal_data || !signal.quality_detail) {
+    return (
+      <main className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-400 text-sm">Signal data is incomplete. Try re-running Stage 1.</p>
+      </main>
+    )
   }
 
   const hasTheses   = (existingTheses?.length ?? 0) > 0

@@ -378,7 +378,7 @@ export default function HistoryPage() {
                     <div className="flex items-center gap-1 ml-1">
                       {(['S1','S2','S3','S4'] as const).map((s, i) => {
                         const filled = (
-                          (i === 0 && !item.pipeline_blocked) ||
+                          (i === 0) ||  // S1 always complete — signal exists in DB
                           (i === 1 && item.thesis_count > 0) ||
                           (i === 2 && item.has_debates) ||
                           (i === 3 && item.has_memo)

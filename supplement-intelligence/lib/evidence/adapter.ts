@@ -1,5 +1,8 @@
 import { EvidencePoint, toEvidencePoint } from './types'
 import { AggregatedSignals, AggregatedDimension, SignalScore } from '../signal-engine/types'
+import type { RankingDifficulty } from '../stage1/ranking-difficulty'
+import type { PpcEconomics } from '../stage1/ppc-economics'
+import type { RegulatoryIntelligence } from '../regulatory-engine/types'
 
 // ── Signal-level evidence points ──────────────────────────────────────────────
 // Each field on AggregatedSignals has a different provenance. This mapping
@@ -18,11 +21,14 @@ export interface Stage1Evidence {
   avg_competitor_reviews?: EvidencePoint<number>
 
   // Revenue signals
-  median_price?:          EvidencePoint<number>
-  price_range?:           EvidencePoint<{ min: number; max: number }>
-  avg_fba_fee?:           EvidencePoint<number>
-  avg_referral_fee_pct?:  EvidencePoint<number>
-  est_monthly_revenue?:   EvidencePoint<number>
+  median_price?:           EvidencePoint<number>
+  price_range?:            EvidencePoint<{ min: number; max: number }>
+  avg_fba_fee?:            EvidencePoint<number>
+  avg_referral_fee_pct?:   EvidencePoint<number>
+  est_monthly_revenue?:    EvidencePoint<number>
+  top_seller_revenue?:     EvidencePoint<number>   // top performer's monthly revenue (Keepa)
+  est_monthly_units_sold?: EvidencePoint<number>   // avg monthly units across top sellers (Keepa)
+  avg_market_rating?:      EvidencePoint<number>   // avg star rating from Keepa bestsellers
 
   // Growth signals
   momentum_90d_pct?:      EvidencePoint<number>
@@ -40,6 +46,15 @@ export interface Stage1Evidence {
   price_compression_pct?: EvidencePoint<number>
   price_avg_90d?:         EvidencePoint<number>
   price_avg_365d?:        EvidencePoint<number>
+
+  // Amazon ranking difficulty (computed from top_competitors review counts)
+  ranking_difficulty?: EvidencePoint<RankingDifficulty>
+
+  // PPC economics estimate (derived from DataForSEO CPC + market price)
+  ppc_economics?: EvidencePoint<PpcEconomics>
+
+  // OpenFDA regulatory intelligence (FAERS adverse events + enforcement recalls)
+  regulatory_intelligence?: EvidencePoint<RegulatoryIntelligence>
 
   // Top competitors list (reused by Stage 2 thesis generator)
   top_competitors?: EvidencePoint<Array<{
@@ -177,7 +192,7 @@ export function adaptAggregatedSignals(signals: AggregatedSignals, fetchedAt: st
     }
     if (rev.value.avg_fba_pick_pack_fee) {
       const feeCents = parseFloat(rev.value.avg_fba_pick_pack_fee.replace(/[^0-9.]/g, ''))
-      if (!isNaN(feeCents)) {
+      if (!isNaN(feeCents) && feeCents > 0.25 && feeCents < 25) {
         result.avg_fba_fee = toEvidencePoint(
           feeCents,
           rev.primarySource,
@@ -200,6 +215,52 @@ export function adaptAggregatedSignals(signals: AggregatedSignals, fetchedAt: st
           {
             freshness_date: today,
             methodology: 'avg_price × avg_monthly_units_sold across top sellers',
+            sample_size: rev.value.revenue_sample_count,
+          }
+        )
+      }
+    }
+    if (rev.value.top_seller_revenue) {
+      const topRevNum = parseFloat(rev.value.top_seller_revenue.replace(/[^0-9.]/g, ''))
+      if (!isNaN(topRevNum)) {
+        result.top_seller_revenue = toEvidencePoint(
+          topRevNum,
+          rev.primarySource,
+          'provider_model',
+          {
+            freshness_date: today,
+            methodology: 'price × monthlySold for the single highest-revenue ASIN in category',
+            sample_size: rev.value.revenue_sample_count,
+          }
+        )
+      }
+    }
+    if (rev.value.est_monthly_units_sold) {
+      const unitsNum = parseFloat(rev.value.est_monthly_units_sold.replace(/[^0-9.]/g, ''))
+      if (!isNaN(unitsNum) && unitsNum > 0) {
+        result.est_monthly_units_sold = toEvidencePoint(
+          Math.round(unitsNum),
+          rev.primarySource,
+          'provider_model',
+          {
+            freshness_date: today,
+            methodology: "Keepa's own monthlySold field averaged across top bestsellers — not a search-volume figure",
+            scope_note: 'Category-wide aggregate from bestseller list, not specific to this exact product concept',
+            sample_size: rev.value.revenue_sample_count,
+          }
+        )
+      }
+    }
+    if (rev.value.avg_rating) {
+      const ratingNum = parseFloat(rev.value.avg_rating)
+      if (!isNaN(ratingNum) && ratingNum > 0) {
+        result.avg_market_rating = toEvidencePoint(
+          ratingNum,
+          rev.primarySource,
+          'primary_measurement',
+          {
+            freshness_date: today,
+            scope_note: 'Avg star rating across Keepa category bestsellers (Amazon-mirrored, requires &rating=1)',
             sample_size: rev.value.revenue_sample_count,
           }
         )
@@ -241,12 +302,16 @@ export function adaptAggregatedSignals(signals: AggregatedSignals, fetchedAt: st
     if (pricing.value.price_range) {
       const match = pricing.value.price_range.match(/\$?([\d.]+)[–-]\$?([\d.]+)/)
       if (match) {
-        result.price_range = toEvidencePoint(
-          { min: parseFloat(match[1]), max: parseFloat(match[2]) },
-          pricing.primarySource,
-          'primary_measurement',
-          { freshness_date: today }
-        )
+        const minVal = parseFloat(match[1])
+        const maxVal = parseFloat(match[2])
+        if (!isNaN(minVal) && !isNaN(maxVal) && minVal > 0 && maxVal >= minVal) {
+          result.price_range = toEvidencePoint(
+            { min: minVal, max: maxVal },
+            pricing.primarySource,
+            'primary_measurement',
+            { freshness_date: today }
+          )
+        }
       }
     }
   }

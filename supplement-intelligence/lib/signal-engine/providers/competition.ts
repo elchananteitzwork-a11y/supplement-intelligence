@@ -57,12 +57,54 @@ interface JungleeResult {
   // glycinate) 120 mg" — grounds formula comparisons in what a real
   // competitor's label actually says instead of AI general knowledge.
   importantInformation?: { items?: { title?: string; text?: string }[] }
+  description?: string   // A+ content / product description block (not always present)
 }
 
+// Sub-item titles in importantInformation that reliably contain ingredient text.
+// Checked case-insensitively; ordered by specificity (most specific first).
+const INGREDIENT_TITLE_PATTERNS = [
+  /^ingredients?$/i,
+  /^active\s+ingredients?$/i,
+  /^supplement\s+facts?$/i,
+  /^ingredient\s+list$/i,
+  /^formula$/i,
+]
+
+// Dose-unit regex: matches "120 mg", "1000mcg", "10 IU", "50%", etc.
+// Used to identify feature bullets that contain actual nutritional content.
+const DOSE_PATTERN = /\d+\s*(mg|mcg|µg|IU|g\b|%\s*(?:DV|Daily Value))/i
+
 function extractIngredientsLabel(r: JungleeResult): string | undefined {
-  const item = r.importantInformation?.items?.find(it => it.title === 'Ingredients')
-  const text = item?.text?.trim()
-  return text && text.length > 0 ? text : undefined
+  const items = r.importantInformation?.items ?? []
+
+  // Pass 1: check importantInformation for known ingredient-title patterns.
+  // Most specific titles first — stops at the first match.
+  for (const pattern of INGREDIENT_TITLE_PATTERNS) {
+    const match = items.find(it => it.title && pattern.test(it.title))
+    const text  = match?.text?.trim()
+    if (text && text.length > 0) return text
+  }
+
+  // Pass 2: any importantInformation item whose text contains dose units —
+  // catches non-standard titles like "Product Formulation", "What's Inside".
+  // Excluded: "Directions" and "Safety Information" titles, which often contain
+  // dose-like text ("Do not exceed 400 mg/day") but are not ingredient lists.
+  const EXCLUDE_TITLES = /^(directions?|safety\s+info|warnings?|disclaimer|legal)/i
+  for (const it of items) {
+    if (it.title && EXCLUDE_TITLES.test(it.title)) continue
+    const text = it.text?.trim() ?? ''
+    if (text.length > 20 && DOSE_PATTERN.test(text)) return text
+  }
+
+  // Pass 3: product feature bullets — supplement bullets often list key actives
+  // ("Contains 400mg Magnesium Glycinate per serving"). Only use if at least 2
+  // bullets independently match dose units, to avoid grabbing a random sentence.
+  if (r.features?.length) {
+    const doseBullets = r.features.filter(f => DOSE_PATTERN.test(f))
+    if (doseBullets.length >= 2) return doseBullets.join(' | ')
+  }
+
+  return undefined
 }
 
 function avg(arr: number[]): number | null {
@@ -109,11 +151,14 @@ export class CompetitionSignalProvider implements SignalProvider {
       // AbortSignal below is our client-side ceiling, kept just above the
       // signal engine's 75_000ms shared race timeout (app/api/generate/route.ts)
       // so that shared race — not this abort — is what actually governs.
-      const url = `${ACTOR_ENDPOINT}?token=${process.env.APIFY_API_TOKEN}&timeout=90`
+      const url = `${ACTOR_ENDPOINT}?timeout=90`
       const res = await fetch(url, {
         method:  'POST',
         signal:  AbortSignal.timeout(80_000),
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.APIFY_API_TOKEN}`,
+        },
         body: JSON.stringify({
           categoryOrProductUrls: [{ url: `https://www.amazon.com/s?k=${encodeURIComponent(category)}` }],
           maxItemsPerStartUrl:    MAX_ITEMS,
@@ -170,7 +215,7 @@ export class CompetitionSignalProvider implements SignalProvider {
     const avgRating = avg(ratings)
 
     const topCompetitors = [...withReviews]
-      .sort((a, b) => b.reviewsCount - a.reviewsCount)
+      .sort((a, b) => a._position - b._position)
       .slice(0, 10)
       .filter(r => typeof r.stars === 'number' && typeof r.price?.value === 'number' && !!r.asin)
       .map(r => ({

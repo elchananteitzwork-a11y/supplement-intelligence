@@ -38,10 +38,12 @@ export interface DataQualityAssessment {
 function countDemandSignals(evidence: Stage1Evidence, reviewCount: number): number {
   let count = 0
 
-  // Keepa monthlySold is a primary demand signal (real units sold)
-  if (evidence.est_monthly_revenue?.value && evidence.est_monthly_revenue.value > 0) {
-    count++
-  }
+  // DataForSEO search volume and Keepa revenue both measure market sales demand —
+  // count only ONE since they're alternative proxies for the same signal.
+  const hasSalesSignal =
+    (evidence.monthly_search_volume?.value && evidence.monthly_search_volume.value >= 1_000) ||
+    (evidence.est_monthly_revenue?.value && evidence.est_monthly_revenue.value > 0)
+  if (hasSalesSignal) count++
 
   // Google Trends top_regions confirms demand from real search activity
   if (evidence.top_regions?.value && evidence.top_regions.value.length >= 3) {
@@ -62,13 +64,22 @@ function countDemandSignals(evidence: Stage1Evidence, reviewCount: number): numb
 }
 
 function gradeSearchVolume(evidence: Stage1Evidence): DimensionQuality {
-  // At Milestone 1, DataForSEO keyword volume flows through the keyword pipeline
-  // (not directly into AggregatedSignals). We grade based on proxy signals instead.
+  // Use DataForSEO real search volume when available — highest fidelity demand signal.
+  // Fall back to Keepa revenue proxy when keyword data hasn't been fetched.
+  const searchVol = evidence.monthly_search_volume?.value
+  if (searchVol !== undefined && searchVol !== null) {
+    if (searchVol >= 50_000) return { level: 'strong',   reason: `${(searchVol / 1000).toFixed(0)}K monthly US searches (DataForSEO)`, value: searchVol }
+    if (searchVol >= 10_000) return { level: 'adequate', reason: `${(searchVol / 1000).toFixed(0)}K monthly US searches (DataForSEO)`, value: searchVol }
+    if (searchVol >= 1_000)  return { level: 'thin',     reason: `${(searchVol / 1000).toFixed(1)}K monthly US searches — low but real (DataForSEO)`, value: searchVol }
+    return { level: 'missing', reason: `Very low search volume (${searchVol}/mo) — niche or mis-matched query`, value: searchVol }
+  }
+
+  // Revenue proxy fallback
   const revenue = evidence.est_monthly_revenue?.value ?? 0
-  if (revenue > 50_000) return { level: 'strong', reason: 'High revenue proxy confirms strong demand', value: revenue }
-  if (revenue > 15_000) return { level: 'adequate', reason: 'Moderate revenue proxy suggests real demand', value: revenue }
-  if (revenue > 0)      return { level: 'thin', reason: 'Low revenue proxy — weak demand evidence', value: revenue }
-  return { level: 'missing', reason: 'No revenue signal available for demand proxy' }
+  if (revenue > 50_000) return { level: 'strong',   reason: 'High revenue proxy confirms strong demand (search volume unavailable)', value: revenue }
+  if (revenue > 15_000) return { level: 'adequate', reason: 'Moderate revenue proxy suggests real demand (search volume unavailable)', value: revenue }
+  if (revenue > 0)      return { level: 'thin',     reason: 'Low revenue proxy — weak demand evidence (search volume unavailable)', value: revenue }
+  return { level: 'missing', reason: 'No demand signal available' }
 }
 
 function gradeCompetitionData(competitorCount: number): DimensionQuality {

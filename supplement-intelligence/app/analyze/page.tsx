@@ -719,6 +719,7 @@ export default function AnalyzePage() {
           context:        extra.trim()   || undefined,
           fromDiscovery:  from === 'results',
           categoryId:     effectiveCategoryId,
+          discoveryQuery: from === 'results' ? input.trim() || undefined : undefined,
         }),
       })
       clearInterval(timer)

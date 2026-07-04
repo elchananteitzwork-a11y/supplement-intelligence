@@ -179,12 +179,12 @@ export async function PATCH(req: NextRequest) {
 
     const current: string[] = (user.user_metadata?.favorited_signals as string[] | undefined) ?? []
     const updated = favorited
-      ? Array.from(new Set([...current, id]))
+      ? Array.from(new Set([...current, id])).slice(-200)
       : current.filter(x => x !== id)
 
     const supabase = serviceClient()
     const { error } = await supabase.auth.admin.updateUserById(user.id, {
-      user_metadata: { ...user.user_metadata, favorited_signals: updated },
+      user_metadata: { favorited_signals: updated },
     })
 
     if (error) {

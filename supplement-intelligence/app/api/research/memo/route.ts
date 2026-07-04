@@ -139,10 +139,6 @@ export async function POST(req: NextRequest) {
     )
 
     // ── Persist ────────────────────────────────────────────────────────────
-    if (existing) {
-      await supabase.from('investment_memos').delete().eq('id', existing.id)
-    }
-
     const { data: inserted, error: insertError } = await supabase
       .from('investment_memos')
       .insert({
@@ -164,6 +160,10 @@ export async function POST(req: NextRequest) {
     if (insertError) {
       console.error('investment_memos insert error', insertError)
       return NextResponse.json({ error: 'Failed to save memo' }, { status: 500 })
+    }
+
+    if (existing) {
+      void supabase.from('investment_memos').delete().eq('id', existing.id)
     }
 
     return NextResponse.json({

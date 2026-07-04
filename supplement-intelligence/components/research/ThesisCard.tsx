@@ -49,6 +49,14 @@ const PAIN_INTENSITY_COLORS: Record<string, string> = {
   mild:     'text-gray-400',
 }
 
+function AiSynthesisBadge() {
+  return (
+    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-purple-900 text-purple-400 bg-purple-950/20 whitespace-nowrap shrink-0">
+      AI synthesis
+    </span>
+  )
+}
+
 export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
   const fitColor = fit ? (FIT_RANK_COLORS[fit.fit_rank] ?? FIT_RANK_COLORS[3]) : ''
 
@@ -93,7 +101,10 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
         <div className="border-t border-gray-800 px-5 py-4 space-y-5">
           {/* Differentiation */}
           <div className="space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Differentiation</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Differentiation</p>
+              <AiSynthesisBadge />
+            </div>
             <p className="text-sm text-gray-200">{thesis.differentiation}</p>
             <p className="text-xs text-gray-500 italic">
               Evidence: {thesis.differentiation_source}
@@ -102,7 +113,10 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
 
           {/* Customer pain */}
           <div className="space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Customer Pain</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Customer Pain</p>
+              <AiSynthesisBadge />
+            </div>
             <p className="text-sm text-gray-200">{thesis.customer_pain.problem}</p>
             <div className="flex gap-3 text-xs mt-1">
               <span className={PAIN_INTENSITY_COLORS[thesis.customer_pain.pain_intensity]}>
@@ -117,7 +131,10 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
 
           {/* Economics */}
           <div className="rounded-lg border border-gray-800 bg-gray-900 p-3 space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Quick Economics</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Quick Economics</p>
+              <AiSynthesisBadge />
+            </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <span className="text-gray-500">Price target</span>
@@ -125,7 +142,7 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
               </div>
               <div>
                 <span className="text-gray-500">Min capital</span>
-                <p className="text-gray-200 font-mono">${(thesis.quick_economics_check.min_capital_required / 1000).toFixed(0)}k</p>
+                <p className="text-gray-200 font-mono">{(() => { const c = thesis.quick_economics_check.min_capital_required; return c >= 1000 ? `$${(c / 1000).toFixed(0)}k` : `$${Math.round(c)}` })()}</p>
               </div>
             </div>
             <p className="text-xs text-gray-400">{thesis.quick_economics_check.margin_note}</p>

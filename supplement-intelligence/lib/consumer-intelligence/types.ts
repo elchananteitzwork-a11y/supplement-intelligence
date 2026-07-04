@@ -17,6 +17,18 @@ export interface ThemeInsight {
   exampleQuote: string    // one full, real sentence containing the phrase
 }
 
+// Step 3 extension: ThemeInsight with cross-competitor attribution.
+// Present on categoryGapThemes and productSpecificThemes; absent on
+// negativeThemes (which retains the pre-Step-3 shape for backward compat).
+export interface CorrelatedThemeInsight extends ThemeInsight {
+  competitorCount: {
+    total:     number   // distinct ASINs in this analysis
+    withTheme: number   // distinct ASINs whose critical reviews contain this theme
+  }
+  competitorCoverage: number   // withTheme / total, 0–1
+  isCategoryGap:      boolean  // true if withTheme >= 2
+}
+
 export interface SentimentBreakdown {
   avgRating:    number
   totalReviews: number
@@ -40,14 +52,32 @@ export interface ConsumerIntelligenceReport {
   productsAnalyzed:      SourceProduct[]
   totalReviewsCollected: number
   positivePoolSize:      number   // 4-5★ reviews used for positiveThemes
-  negativePoolSize:      number   // 1-2★ reviews used for negativeThemes
+  negativePoolSize:      number   // post-temporal-filter critical corpus size
+  negativeRawPoolSize?:  number   // pre-temporal-filter count (absent on legacy stored memos)
 
   sentimentBreakdown:    SentimentBreakdown
 
-  negativeThemes:        ThemeInsight[]   // ranked full list, 1-2★ pool — backs Top Complaints / Customer Pain Points / Negative Themes
+  negativeThemes:        ThemeInsight[]   // full ranked list (all competitors combined) — backward-compat, backs existing UI
   mostMentionedProblems: ThemeInsight[]   // ranked full list, ALL ratings — catches gripes inside otherwise-positive reviews
   featureRequests:       ThemeInsight[]   // pattern-filtered (wish/want/should/need), ALL ratings
   positiveThemes:        ThemeInsight[]   // ranked full list, 4-5★ pool — backs What Customers Love / Positive Themes
+
+  // Step 3: cross-competitor theme correlation (absent on pre-Step-3 stored memos).
+  // categoryGapThemes  = complaints shared by ≥2 distinct competitor ASINs → structural market gap
+  // productSpecificThemes = complaints from only 1 ASIN → that brand's execution issue
+  // scoring.ts weights category gaps 1.5× and product-specific 0.5× in richness formula.
+  categoryGapThemes?:      CorrelatedThemeInsight[]
+  productSpecificThemes?:  CorrelatedThemeInsight[]
+
+  // Step 4: feature request separation by corpus origin (absent on pre-Step-4 stored memos).
+  // prerequisiteFeatureRequests = "wish/want/need" from CRITICAL reviews — the customer is
+  //   dissatisfied and naming something missing. Contributes to Customer Pain scoring.
+  // enhancementFeatureRequests  = "wish/want/would love" from POSITIVE reviews — the customer
+  //   is happy but wants to improve an already-good product. Enhancement opportunity only,
+  //   does NOT increase Customer Pain. Surface in Investor Report as product improvement ideas.
+  // Legacy memos (pre-Step-4) lack these fields; scoring falls back to featureRequests.length.
+  prerequisiteFeatureRequests?: ThemeInsight[]
+  enhancementFeatureRequests?:  ThemeInsight[]
 
   // Real, deterministic pattern-match over the same review text already
   // collected for the themes above. mentionedBy = distinct reviews containing

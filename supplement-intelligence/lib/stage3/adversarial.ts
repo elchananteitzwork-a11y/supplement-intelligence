@@ -7,6 +7,15 @@ import { runAllKillSwitches } from './kill-switches'
 const ai    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL = 'claude-sonnet-4-6'
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`AI call timed out after ${ms}ms`)), ms)
+    ),
+  ])
+}
+
 // ── Adversarial debate types ───────────────────────────────────────────────
 
 export interface InvestmentCase {
@@ -136,7 +145,10 @@ List 3–5 conflicts and 3–5 unknowns. Be specific.`
 
 function formatEvidenceForPrompt(evidence: Stage1Evidence): string {
   const lines: string[] = []
-  if (evidence.est_monthly_revenue?.value) lines.push(`Revenue: ~$${Math.round(evidence.est_monthly_revenue.value / 1000)}k/mo avg seller`)
+  if (evidence.est_monthly_revenue?.value)    lines.push(`Revenue: ~$${Math.round(evidence.est_monthly_revenue.value / 1000)}k/mo avg seller`)
+  if (evidence.top_seller_revenue?.value)     lines.push(`Top seller revenue: ~$${Math.round(evidence.top_seller_revenue.value / 1000)}k/mo (category ceiling)`)
+  if (evidence.est_monthly_units_sold?.value) lines.push(`Monthly units sold (avg top sellers): ${evidence.est_monthly_units_sold.value.toLocaleString()}`)
+  if (evidence.avg_market_rating?.value)      lines.push(`Avg market rating (Keepa bestsellers): ★${evidence.avg_market_rating.value.toFixed(1)}`)
   if (evidence.competitor_count?.value) lines.push(`Meaningful competitors: ${evidence.competitor_count.value}`)
   if (evidence.avg_competitor_reviews?.value) lines.push(`Avg competitor reviews: ${evidence.avg_competitor_reviews.value.toLocaleString()}`)
   if (evidence.review_concentration?.value) lines.push(`Review concentration (top-3): ${Math.round(evidence.review_concentration.value * 100)}%`)
@@ -152,6 +164,39 @@ function formatEvidenceForPrompt(evidence: Stage1Evidence): string {
     lines.push(`TikTok views: ${v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : `${(v / 1e3).toFixed(0)}K`}`)
   }
   if (evidence.seasonality_pattern?.value) lines.push(`Seasonality: ${evidence.seasonality_pattern.value}`)
+
+  // Ranking difficulty
+  const rd = evidence.ranking_difficulty?.value
+  if (rd) {
+    lines.push(`Ranking difficulty: ${rd.page1_difficulty} (median top-5: ${rd.median_reviews_top5.toLocaleString()} reviews, to compete: ${rd.reviews_to_compete.toLocaleString()})`)
+    if (rd.is_review_protected) lines.push('Review protection: YES — median incumbent has ≥1,000 reviews')
+  }
+
+  // PPC economics
+  const ppc = evidence.ppc_economics?.value
+  if (ppc) {
+    lines.push(`PPC risk: ${ppc.ppc_risk_level} — ${ppc.risk_reason}`)
+    if (ppc.est_acos_pct !== null) lines.push(`Est. ACOS at launch: ${ppc.est_acos_pct}% (Google CPC-derived estimate)`)
+    if (ppc.headroom_after_ads !== null) lines.push(`Net revenue after ads (before COGS): $${ppc.headroom_after_ads.toFixed(2)}/unit`)
+    lines.push(`Paid launch viable: ${ppc.paid_viable ? 'YES' : 'NO'}`)
+  }
+
+  // Regulatory intelligence
+  const reg = evidence.regulatory_intelligence?.value
+  if (reg) {
+    lines.push(`Regulatory risk (OpenFDA): ${reg.risk_level} — ${reg.risk_summary}`)
+    if (reg.adverse_events) {
+      const ae = reg.adverse_events
+      lines.push(`  FAERS: ${ae.total_reports.toLocaleString()} total reports · ${ae.hospitalization_count} hospitalizations · ${ae.death_count} deaths · trend: ${ae.recent_trend}`)
+      if (ae.top_reactions.length) lines.push(`  Top reactions: ${ae.top_reactions.slice(0, 4).join(', ')}`)
+    }
+    if (reg.recalls && reg.recalls.total_recalls > 0) {
+      lines.push(`  Recalls: ${reg.recalls.total_recalls} (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
+    }
+    if (reg.warning_flags.length) {
+      lines.push(`  Warning flags: ${reg.warning_flags.join(' | ')}`)
+    }
+  }
 
   const competitors = evidence.top_competitors?.value?.slice(0, 5)
   if (competitors?.length) {
@@ -212,18 +257,18 @@ export async function runAdversarialDebate(
   // Call 1 (Bull, temp 0.5) and Call 2 (Bear, temp 0.8) run in PARALLEL
   // with NO shared context — they never see each other's output.
   const [bullRaw, bearRaw] = await Promise.all([
-    ai.messages.create({
+    withTimeout(ai.messages.create({
       model:       MODEL,
       max_tokens:  8192,
       temperature: 0.5,
       messages:    [{ role: 'user', content: buildBullPrompt(thesis, evidence) }],
-    }),
-    ai.messages.create({
+    }), 90_000),
+    withTimeout(ai.messages.create({
       model:       MODEL,
       max_tokens:  8192,
       temperature: 0.8,
       messages:    [{ role: 'user', content: buildBearPrompt(thesis, evidence) }],
-    }),
+    }), 90_000),
   ])
 
   const bullContent = bullRaw.content[0]
@@ -238,21 +283,23 @@ export async function runAdversarialDebate(
   const bull = parseCase(bullJSON)
   const bear = parseCase(bearJSON)
 
-  // Extract AI-flagged kill switch signals from bull analysis
+  // Extract AI-flagged kill switch signals from both bull and bear analyses (OR logic)
   const aiFlags = {
-    patent_blocking:        !!(bullJSON.patent_risk),
-    patent_claim_text:      bullJSON.patent_claim_text ? String(bullJSON.patent_claim_text) : undefined,
-    fda_clearance_required: !!(bullJSON.fda_risk),
-    fda_claim_type:         bullJSON.fda_claim_type ? String(bullJSON.fda_claim_type) : undefined,
+    patent_blocking:        !!(bullJSON.patent_risk) || !!(bearJSON.patent_risk),
+    patent_claim_text:      (bullJSON.patent_claim_text ? String(bullJSON.patent_claim_text) : undefined)
+                            ?? (bearJSON.patent_claim_text ? String(bearJSON.patent_claim_text) : undefined),
+    fda_clearance_required: !!(bullJSON.fda_risk) || !!(bearJSON.fda_risk),
+    fda_claim_type:         (bullJSON.fda_claim_type ? String(bullJSON.fda_claim_type) : undefined)
+                            ?? (bearJSON.fda_claim_type ? String(bearJSON.fda_claim_type) : undefined),
   }
 
   // Call 3 (Synthesis, temp 0.3) — receives both outputs, finds conflicts/unknowns
-  const synthesisRaw = await ai.messages.create({
+  const synthesisRaw = await withTimeout(ai.messages.create({
     model:       MODEL,
     max_tokens:  1024,
     temperature: 0.3,
     messages:    [{ role: 'user', content: buildSynthesisPrompt(bull, bear, thesis) }],
-  })
+  }), 60_000)
 
   const synthesisContent = synthesisRaw.content[0]
   if (synthesisContent.type !== 'text') throw new Error('Unexpected synthesis response type')

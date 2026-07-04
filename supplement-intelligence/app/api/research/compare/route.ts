@@ -76,7 +76,8 @@ function supabaseAuthClient() {
 
 function computeScore(evidence: Stage1Evidence, verdictCode: string | null): number {
   const thresholds = assessLaunchThresholds(evidence)
-  const base = thresholds.pass_count * 14  // 0..70
+  const total = Math.max(1, thresholds.checks.length)
+  const base = Math.round((thresholds.pass_count / total) * 70)  // 0..70
   if (!verdictCode) return base
   switch (verdictCode) {
     case 'PURSUE':               return Math.min(100, base + 30)
@@ -121,8 +122,13 @@ export async function GET(req: NextRequest) {
     )
 
     // Gather unique signal IDs, then fetch all signals in parallel
-    const theses = thesisResults.map(r => r.data).filter(Boolean)
-    const signalIds = Array.from(new Set(theses.map(t => t!.market_signal_id)))
+    const thesesById = new Map(
+      thesisResults
+        .map(r => r.data)
+        .filter(Boolean)
+        .map(t => [t!.id as string, t!])
+    )
+    const signalIds = Array.from(new Set(Array.from(thesesById.values()).map(t => t.market_signal_id)))
     const [signalResults, debateResults, memoResults] = await Promise.all([
       Promise.all(signalIds.map(id =>
         supabase.from('market_signals').select('*').eq('id', id).eq('user_id', user.id).single()
@@ -142,7 +148,7 @@ export async function GET(req: NextRequest) {
     )
 
     const items: ComparisonItem[] = thesisIds.map((thesisId, idx) => {
-      const thesis    = theses[idx]
+      const thesis    = thesesById.get(thesisId)
       if (!thesis) return null
 
       const signal    = signalMap[thesis.market_signal_id]

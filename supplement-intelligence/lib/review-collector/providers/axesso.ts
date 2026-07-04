@@ -71,6 +71,12 @@ export class AxessoReviewProvider implements ReviewProvider {
       top_rated: 'helpful',
     }
     const sortBy = sortMap[options.sort_by] ?? 'helpful'
+    // Amazon native star filter passed through to Axesso. 'critical' returns 1-3★ reviews;
+    // 'all_stars' applies no filter. If Axesso ignores the parameter, the collector's
+    // applyRatingFilter() still enforces the max_rating constraint post-collection.
+    const filterByStar = (options.max_rating !== undefined && options.max_rating <= 3)
+      ? 'critical'
+      : 'all_stars'
 
     let res: Response
     try {
@@ -83,6 +89,7 @@ export class AxessoReviewProvider implements ReviewProvider {
             asin,
             domainCode:   'com',
             sortBy,
+            filterByStar,
             maxPages,
             reviewerType: 'all_reviews',
           }],
@@ -95,6 +102,26 @@ export class AxessoReviewProvider implements ReviewProvider {
 
     if (res.status === 429 || res.status >= 500) {
       throw new RetryableError(`Axesso reviews: HTTP ${res.status}`, res.status)
+    }
+    if (res.status === 402) {
+      throw new NonRetryableError(
+        `Axesso reviews: HTTP 402 — Apify account has insufficient credits. ` +
+        `Check https://console.apify.com/billing. ASIN ${asin} skipped.`,
+        402,
+      )
+    }
+    if (res.status === 403) {
+      // Apify uses 403 (not 402) for monthly hard-limit exhaustion.
+      // Parse the body to distinguish billing from a real access denial.
+      const body = await res.json().catch(() => null) as { error?: { type?: string; message?: string } } | null
+      const isHardLimit = body?.error?.type === 'platform-feature-disabled'
+      throw new NonRetryableError(
+        isHardLimit
+          ? `Axesso reviews: Apify monthly usage hard limit exceeded — go to ` +
+            `https://console.apify.com/billing to increase the limit. ASIN ${asin} skipped.`
+          : `Axesso reviews: HTTP 403 for ASIN ${asin}`,
+        403,
+      )
     }
     if (!res.ok) {
       throw new NonRetryableError(`Axesso reviews: HTTP ${res.status} for ASIN ${asin}`, res.status)

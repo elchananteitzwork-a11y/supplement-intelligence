@@ -4,9 +4,14 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { generateTheses } from '@/lib/stage2/thesis-generator'
 import { assessLaunchThresholds } from '@/lib/stage25/launch-threshold'
+import { CompetitiveReviewEngine } from '@/lib/competitive-review-engine/engine'
+import { cacheGet, cacheSet } from '@/lib/provider-cache'
 import type { Stage1Evidence } from '@/lib/evidence/adapter'
+import type { MarketReport } from '@/lib/competitive-review-engine/types'
 
-export const maxDuration = 90
+export const maxDuration = 250
+
+const REVIEW_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000  // 7 days — reviews change slowly
 
 function supabaseAuthClient() {
   const jar = cookies()
@@ -78,8 +83,48 @@ export async function POST(req: NextRequest) {
     // Run launch threshold check (deterministic, before AI call)
     const thresholds = assessLaunchThresholds(signal.signal_data as Stage1Evidence)
 
-    // Generate theses via Claude
-    const result = await generateTheses(signal.query, signal.signal_data as Stage1Evidence)
+    // Competitive review intelligence — collect and analyze competitor reviews,
+    // then inject the MarketReport into the thesis prompt as grounded evidence.
+    // Non-fatal: if review collection fails, thesis generation proceeds without it.
+    let marketReport: MarketReport | undefined
+    const competitorList = (signal.signal_data as Stage1Evidence).top_competitors?.value
+    const competitorAsins = (competitorList ?? [])
+      .map(c => c.productId)
+      .filter((id): id is string => !!id)
+      .slice(0, 8)
+
+    if (competitorAsins.length >= 3) {
+      const reviewCacheKey = `reviews:competitive:v1:${[...competitorAsins].sort().join(',')}`
+      const cachedReport = await cacheGet<MarketReport>(reviewCacheKey)
+      if (cachedReport) {
+        console.log('[thesis] review cache HIT', { asins: competitorAsins.length })
+        marketReport = cachedReport
+      } else {
+        try {
+          console.log('[thesis] running competitive review engine', { asins: competitorAsins.length })
+          const engine = new CompetitiveReviewEngine()
+          marketReport = await engine.analyzeByASINs(competitorAsins, {
+            max_products:        competitorAsins.length,
+            reviews_per_product: 50,
+            product_concurrency: 3,
+          })
+          cacheSet(reviewCacheKey, 'competitive-review-engine', marketReport, REVIEW_CACHE_TTL_MS).catch(() => {})
+          console.log('[thesis] review analysis complete', {
+            products:   marketReport.products_analyzed,
+            reviews:    marketReport.total_reviews_analyzed,
+            confidence: Math.round(marketReport.market_confidence * 100) + '%',
+            gaps:       marketReport.universal_gaps.length + marketReport.common_gaps.length,
+          })
+        } catch (reviewErr) {
+          console.error('[thesis] review engine failed (non-fatal)', reviewErr instanceof Error ? reviewErr.message : reviewErr)
+        }
+      }
+    } else {
+      console.log('[thesis] skipping review engine — insufficient competitor ASINs', { count: competitorAsins.length })
+    }
+
+    // Generate theses via Claude (with review intelligence when available)
+    const result = await generateTheses(signal.query, signal.signal_data as Stage1Evidence, marketReport)
 
     // Persist each thesis
     const rows = result.theses.map(t => ({

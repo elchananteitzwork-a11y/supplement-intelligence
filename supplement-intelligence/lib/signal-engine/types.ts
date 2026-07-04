@@ -59,6 +59,10 @@ export interface RevenueSignal extends SignalScore {
   // is empty (no relevant bestseller found). Used by provenance tooltips and
   // the RevenueEvidencePanel sample-size note.
   revenue_sample_count?:    number
+  // True when est_monthly_revenue was computed from avg_price × avg_monthly_units
+  // (category-level fallback) rather than per-product price×monthlySold pairs.
+  // Undefined/absent when the per-product method was used (or no revenue at all).
+  revenue_is_category_estimate?: boolean
 
   // Price compression signal (12-month proxy for Kill Switch #4).
   // Negative = prices falling (compression); positive = prices rising.

@@ -4,6 +4,9 @@ import type { CollectedReview }   from '../review-collector/types'
 import { cleanReviewText, splitSentences } from './clean-text'
 import { clusterPhrases }         from './cluster'
 import type { SentenceRef }       from './cluster'
+import { normalizeAndMerge }      from './normalize'
+import { correlateThemes }        from './correlate'
+import type { CorrelatedThemeInsight } from './types'
 import { detectSymptomSignals }   from './symptoms'
 import { collectTikTokComments } from './tiktok-comments'
 import type {
@@ -29,6 +32,13 @@ import { cacheGet, cacheSet } from '../provider-cache'
 //   Tier 3: TikTok comments (clockworks~free-tiktok-scraper)
 //             — runs in PARALLEL with Tier 1, used when Amazon reviews < 5
 //
+// Dual-corpus collection (2026-07-03):
+//   Each ASIN is fetched twice:
+//     'helpful' pass  — helpful-sorted, no star filter  → positive corpus
+//     'critical' pass — max_rating=3, filterByStar=critical → negative corpus
+//   Separate cache keys; 14-day TTL on each.
+//   Cost per cold analysis: ~$0.09 (helpful) + ~$0.02-0.04 (critical, fewer reviews)
+//
 // Cost model (2026-07-01, post-axesso migration):
 //   Cold cache (first analysis using an ASIN):  $0.045/ASIN via axesso (50 reviews)
 //   Warm cache (any repeat of that ASIN):       $0.00
@@ -46,6 +56,9 @@ const TOTAL_TIMEOUT_MS = 90_000
 const TIKTOK_TIMEOUT_MS = 75_000
 // Minimum reviews before we declare Amazon success (skip TikTok fallback)
 const AMAZON_SUCCESS_THRESHOLD = 5
+// Critical-corpus temporal filter: exclude reviews older than this to prevent
+// closed-gap false positives (complaints already fixed by a product reformulation).
+const CRITICAL_REVIEW_MONTHS = 18
 
 // ── Sentiment detection ───────────────────────────────────────────────────────
 
@@ -90,34 +103,37 @@ export async function analyzeConsumerIntelligence(
 
   const reviewsPerProduct = Math.floor(TOTAL_REVIEW_BUDGET / Math.max(1, targets.length))
 
-  // ── Tier 1 + 2: Amazon reviews (parallel across competitors) ──────────────
-  // Uses getDefaultProviders() which includes junglee (priority 0) →
-  // web_wanderer (currently broken, priority 0.5) → AmazonScraper (priority 2).
-  // The collector tries providers in priority order and falls back automatically.
+  // ── Tier 1 + 2: Amazon reviews — two passes per ASIN ─────────────────────
+  // 'helpful' pass: helpful-sorted, no star filter  → positive corpus
+  // 'critical' pass: max_rating=3 (filterByStar=critical via Axesso) → negative corpus
+  // Separate cache keys so each corpus is independently cached at 14-day TTL.
+  // Helpful pass uses the legacy key for backward compatibility with warm caches.
 
-  const fetchAmazonReviews = async (target: { productId: string; brand: string }) => {
-    const cacheKey = `reviews:v1:${target.productId}`
+  const fetchReviews = async (
+    target: { productId: string; brand: string },
+    mode: 'helpful' | 'critical',
+  ): Promise<{ target: { productId: string; brand: string }; reviews: CollectedReview[] }> => {
+    const cacheKey = mode === 'helpful'
+      ? `reviews:v1:${target.productId}`           // backward-compatible — hits existing cache
+      : `reviews:v1:critical:${target.productId}`  // new key for critical corpus
 
-    // ── Tier 1a: review cache (free on hit, eliminates Apify call) ────────
     const cached = await cacheGet<CollectedReview[]>(cacheKey)
     if (cached && cached.length >= AMAZON_SUCCESS_THRESHOLD) {
       console.log('[ConsumerIntelligence] review cache HIT', {
-        productId: target.productId,
-        cached:    cached.length,
+        productId: target.productId, mode, cached: cached.length,
       })
       return { target, reviews: cached }
     }
 
-    // ── Tier 1: live fetch from provider registry ─────────────────────────
     try {
       const collector = new ReviewCollector(getDefaultProviders(), {
         max_reviews:  reviewsPerProduct,
         timeout_ms:   COLLECTOR_TIMEOUT_MS,
         max_retries:  COLLECTOR_MAX_RETRIES,
+        ...(mode === 'critical' ? { max_rating: 3 } : {}),
       })
       const result = await collector.collect(target.productId)
 
-      // Write to cache — fire-and-forget, never blocks analysis
       if (result.reviews.length >= AMAZON_SUCCESS_THRESHOLD) {
         cacheSet(cacheKey, 'amazon-reviews', result.reviews, REVIEW_CACHE_TTL_MS).catch(() => {})
       }
@@ -125,8 +141,7 @@ export async function analyzeConsumerIntelligence(
       return { target, reviews: result.reviews }
     } catch (e: unknown) {
       console.error('[ConsumerIntelligence] Amazon collection failed', {
-        productId: target.productId,
-        error:     e instanceof Error ? e.message : e,
+        productId: target.productId, mode, error: e instanceof Error ? e.message : e,
       })
       return { target, reviews: [] as CollectedReview[] }
     }
@@ -135,12 +150,13 @@ export async function analyzeConsumerIntelligence(
   const withTimeout = <T,>(p: Promise<T>, ms: number, fallback: T): Promise<T> =>
     Promise.race([p, new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms))])
 
-  // Run Amazon and TikTok in parallel — TikTok starts immediately so it doesn't
-  // add serial latency even when Amazon succeeds. TikTok result is only merged
-  // into the analysis when Amazon reviews fall below the success threshold.
-  const [amazonSettled, tiktokResult] = await withTimeout(
+  // Run both Amazon passes and TikTok in parallel. Helpful and critical passes start
+  // simultaneously; TikTok starts immediately so it never adds serial latency.
+  // TikTok result is only merged into analysis when Amazon reviews fall below threshold.
+  const [helpfulSettled, criticalSettled, tiktokResult] = await withTimeout(
     Promise.all([
-      Promise.all(targets.map(fetchAmazonReviews)),
+      Promise.all(targets.map(t => fetchReviews(t, 'helpful'))),
+      Promise.all(targets.map(t => fetchReviews(t, 'critical'))),
       tiktokHashtag
         ? collectTikTokComments(tiktokHashtag, TIKTOK_TIMEOUT_MS).catch((e: unknown) => {
             console.error('[ConsumerIntelligence] TikTok collection failed', e instanceof Error ? e.message : e)
@@ -151,19 +167,24 @@ export async function analyzeConsumerIntelligence(
     TOTAL_TIMEOUT_MS,
     [
       targets.map(target => ({ target, reviews: [] as CollectedReview[] })),
+      targets.map(target => ({ target, reviews: [] as CollectedReview[] })),
       null,
     ],
   )
 
-  // ── Merge Amazon reviews ───────────────────────────────────────────────────
+  // ── Merge Amazon reviews — two separate corpora ───────────────────────────
+  // Helpful and critical reviews are deduped within their own corpus independently
+  // (a review appearing in both passes is kept in both — they serve different purposes).
   const productsAnalyzed: SourceProduct[] = []
-  const seenIds = new Set<string>()
-  const amazonReviews: CollectedReview[] = []
+  const seenHelpful  = new Set<string>()
+  const seenCritical = new Set<string>()
+  const helpfulReviews:  CollectedReview[] = []
+  const criticalReviews: CollectedReview[] = []
 
-  for (const { target, reviews } of amazonSettled) {
-    const fresh = reviews.filter(r => !seenIds.has(r.id))
-    fresh.forEach(r => seenIds.add(r.id))
-    amazonReviews.push(...fresh)
+  for (const { target, reviews } of helpfulSettled) {
+    const fresh = reviews.filter(r => !seenHelpful.has(r.id))
+    fresh.forEach(r => seenHelpful.add(r.id))
+    helpfulReviews.push(...fresh)
     if (targets.find(t => t.productId === target.productId)) {
       productsAnalyzed.push({
         productId:        target.productId,
@@ -171,6 +192,19 @@ export async function analyzeConsumerIntelligence(
         reviewsCollected: fresh.length,
       })
     }
+  }
+
+  for (const { reviews } of criticalSettled) {
+    const fresh = reviews.filter(r => !seenCritical.has(r.id))
+    fresh.forEach(r => seenCritical.add(r.id))
+    criticalReviews.push(...fresh)
+  }
+
+  // Combined pool for TikTok-fallback decision and early-exit check (deduped by id).
+  const seenIds     = new Set<string>(Array.from(seenHelpful))
+  const amazonReviews: CollectedReview[] = [...helpfulReviews]
+  for (const r of criticalReviews) {
+    if (!seenIds.has(r.id)) { seenIds.add(r.id); amazonReviews.push(r) }
   }
 
   // ── Decide whether to add TikTok comments ─────────────────────────────────
@@ -199,19 +233,34 @@ export async function analyzeConsumerIntelligence(
   }
 
   console.log('[ConsumerIntelligence] collection complete', {
-    amazon:     amazonReviews.length,
+    helpful:    helpfulReviews.length,
+    critical:   criticalReviews.length,
     tiktok:     tiktokReviews.length,
     total:      allReviews.length,
     dataSource,
   })
 
   // ── Text analysis ──────────────────────────────────────────────────────────
+  // 'cleaned' is built from allReviews (helpful + deduped critical + TikTok) and
+  // drives allSentences, featureRequests, mostMentionedProblems — unchanged behavior.
   const cleaned = allReviews.map(r => ({ ...r, body: cleanReviewText(r.body) }))
 
-  // Star-rating pools: only Amazon reviews have meaningful ratings.
-  // TikTok comments are all rating=3 (neutral) so they fall out of both pools.
+  // Positive pool: 4-5★ from cleaned. TikTok comments carry rating=3 (neutral)
+  // so they naturally fall out of this pool.
   const positive = cleaned.filter(r => r.rating >= 4)
-  const negative = cleaned.filter(r => r.rating <= 2)
+
+  // Negative pool: dedicated critical corpus (1-3★ from the second collection pass),
+  // temporally filtered to the last 18 months to exclude complaints that incumbent
+  // products may have already resolved via reformulation or line extension.
+  // Fallback chain: recent critical → all critical → 1-2★ from helpful corpus.
+  const criticalCutoff = new Date()
+  criticalCutoff.setMonth(criticalCutoff.getMonth() - CRITICAL_REVIEW_MONTHS)
+  const allCriticalCleaned = criticalReviews.map(r => ({ ...r, body: cleanReviewText(r.body) }))
+  const criticalFiltered   = allCriticalCleaned.filter(r => new Date(r.date) >= criticalCutoff)
+  const negative =
+    criticalFiltered.length   >= AMAZON_SUCCESS_THRESHOLD ? criticalFiltered   :
+    allCriticalCleaned.length >= AMAZON_SUCCESS_THRESHOLD ? allCriticalCleaned :
+    cleaned.filter(r => r.rating <= 2)   // pre-dual-corpus behavior if critical pass empty
 
   const toSentences = (reviews: CollectedReview[]): SentenceRef[] =>
     reviews.flatMap(r => splitSentences(r.body).map(text => ({ reviewId: r.id, text })))
@@ -230,25 +279,98 @@ export async function analyzeConsumerIntelligence(
       exampleQuote: c.exampleQuote,
     }))
 
-  const negativeThemes        = toThemes(clusterPhrases(negativeSentences, { excludeWords }), negative.length)
+  // Semantic normalization (Step 2): normalizeAndMerge calls claude-haiku to
+  //   (a) assign canonical labels so synonyms merge before Step 3 correlation
+  //   (b) filter out positive-sentiment phrases extracted from critical reviews
+  //   (c) filter noise (generic phrases that passed frequency threshold)
+  // Graceful fallback: if ANTHROPIC_API_KEY absent or call fails, returns raw clusters.
+  const rawNegativeClusters  = clusterPhrases(negativeSentences, { excludeWords })
+  const { clusters: normalizedNegativeClusters } = await normalizeAndMerge(
+    rawNegativeClusters,
+    { category: query ?? 'product', corpusType: 'negative' },
+  )
+
+  // Cross-competitor correlation (Step 3): map each cluster's reviewIds back
+  // to their source ASINs using the negative corpus. Clusters appearing in
+  // reviews from ≥2 distinct ASINs are tagged as category gaps; clusters from
+  // only 1 ASIN are tagged as competitor-specific execution issues.
+  // Pure function — no I/O, no LLM calls. Always runs regardless of API key.
+  const reviewToAsin   = new Map<string, string>(negative.map(r => [r.id, r.asin]))
+  const criticalAsins  = new Set(negative.map(r => r.asin))
+  const correlatedClusters = correlateThemes(
+    normalizedNegativeClusters,
+    reviewToAsin,
+    criticalAsins.size,
+  )
+
+  const toCorrelatedTheme = (c: ReturnType<typeof correlateThemes>[number]): CorrelatedThemeInsight => ({
+    label:              c.label,
+    mentionedBy:        c.reviewCount,
+    outOf:              negative.length,
+    exampleQuote:       c.exampleQuote,
+    competitorCount:    c.competitorCount,
+    competitorCoverage: c.competitorCoverage,
+    isCategoryGap:      c.isCategoryGap,
+  })
+
+  const categoryGapThemes     = correlatedClusters.filter(c => c.isCategoryGap).map(toCorrelatedTheme)
+  const productSpecificThemes = correlatedClusters.filter(c => !c.isCategoryGap).map(toCorrelatedTheme)
+
+  // negativeThemes = full combined list (all competitors) for backward compatibility.
+  // UI and scoring consumers that predate Step 3 continue to work unchanged.
+  const negativeThemes        = toThemes(normalizedNegativeClusters, negative.length)
   const positiveThemes        = toThemes(clusterPhrases(positiveSentences, { excludeWords }), positive.length)
   const mostMentionedProblems = toThemes(
     clusterPhrases(problemSentences, { minReviewCount: 3, minPoolFraction: 0.03, excludeWords }),
     cleaned.length,
   )
+  // Apply minReviewCount against the full cleaned pool (not the request-language
+  // sub-pool) so generic 2-review phrases don't pass the 2% threshold when the
+  // request-language pool is small (~30-40 reviews vs 200+ total).
+  const featureMinCount = Math.max(2, Math.ceil(0.02 * cleaned.length))
   const featureRequests = toThemes(
-    clusterPhrases(requestSentences, { minReviewCount: 2, minPoolFraction: 0.02, excludeWords }),
+    clusterPhrases(requestSentences, { minReviewCount: featureMinCount, minPoolFraction: 0, excludeWords }),
     cleaned.length,
   )
 
-  // ── Amazon-only pool ─────────────────────────────────────────────────────
-  // Defined before sentiment so the same filtered set drives sentiment,
-  // repurchase detection, and symptom detection.
-  const amazonCleaned = cleaned.filter(r => r.source_provider !== 'tiktok-comments')
+  // Step 4: separate feature requests by corpus origin.
+  // Critical corpus requests = "wish/want/need" from dissatisfied reviewers (1-3★).
+  //   These are prerequisites — the customer is naming something they needed but didn't get.
+  //   Contributes to Customer Pain scoring.
+  // Positive corpus requests = "would love/wish" from satisfied reviewers (4-5★).
+  //   These are enhancement ideas — the customer is already happy and imagining improvements.
+  //   Surface as enhancement opportunities; do NOT increase Customer Pain.
+  //
+  // Pool fractions are calibrated against each corpus independently (not the full cleaned
+  // pool) because each corpus is ~50–90 reviews — applying the 2% full-pool threshold
+  // would be too permissive (any 1-review phrase passes on a 50-review corpus). We
+  // use the same absolute minimum (2 reviews) as a floor in both cases.
+  const criticalRequestSentences = negativeSentences.filter(s => hasUnnegatedMatch(s.text, REQUEST_CUES))
+  const positiveRequestSentences = positiveSentences.filter(s => hasUnnegatedMatch(s.text, REQUEST_CUES))
+
+  const prereqMinCount   = Math.max(2, Math.ceil(0.03 * negative.length))
+  const enhanceMinCount  = Math.max(2, Math.ceil(0.03 * positive.length))
+
+  const prerequisiteFeatureRequests = toThemes(
+    clusterPhrases(criticalRequestSentences,  { minReviewCount: prereqMinCount,  minPoolFraction: 0, excludeWords }),
+    negative.length,
+  )
+  const enhancementFeatureRequests = toThemes(
+    clusterPhrases(positiveRequestSentences, { minReviewCount: enhanceMinCount, minPoolFraction: 0, excludeWords }),
+    positive.length,
+  )
+
+  // ── Helpful-corpus-only pool for sentiment, repurchase, symptom detection ──
+  // The critical corpus is intentionally biased 1-3★ — including it in sentiment
+  // would inflate negativePct far beyond the true market distribution. Derived from
+  // helpfulReviews (no TikTok possible in the helpful pass, but filter for safety).
+  const amazonCleaned = helpfulReviews
+    .map(r => ({ ...r, body: cleanReviewText(r.body) }))
+    .filter(r => r.source_provider !== 'tiktok-comments')
 
   // TikTok comments carry rating=3 (neutral) by construction — including them
-  // deflates avgRating and inflates neutralPct. Use Amazon-only when available.
-  const sentimentBreakdown = computeSentimentBreakdown(amazonReviews.length > 0 ? amazonCleaned : cleaned)
+  // deflates avgRating and inflates neutralPct. Use helpful-corpus when available.
+  const sentimentBreakdown = computeSentimentBreakdown(helpfulReviews.length > 0 ? amazonCleaned : cleaned)
   const confidence = computeConfidence(cleaned.length, productsAnalyzed.length + (useTikTok ? 1 : 0))
 
   // ── Repurchase language: Amazon reviews ONLY ──────────────────────────────
@@ -277,10 +399,15 @@ export async function analyzeConsumerIntelligence(
     totalReviewsCollected: cleaned.length,
     positivePoolSize:      positive.length,
     negativePoolSize:      negative.length,
+    negativeRawPoolSize:   allCriticalCleaned.length,
     sentimentBreakdown,
     negativeThemes,
+    categoryGapThemes,
+    productSpecificThemes,
     mostMentionedProblems,
     featureRequests,
+    prerequisiteFeatureRequests,
+    enhancementFeatureRequests,
     positiveThemes,
     repurchaseLanguage: { mentionedBy: repurchaseReviewCount, outOf: amazonCleaned.length },
     tiktokPurchaseIntent,

@@ -1,4 +1,5 @@
 import type { MemoData, BuildDecision } from '@/types/index'
+import { checkKeywordIntent, checkKeywordProductSignals, checkKeywordSemanticRelevance } from '@/lib/keyword-engine/relevance-guard'
 
 // ── Grounded Opportunity Score — Decision Engine v2 (2026-06-28) ───────────
 //
@@ -66,7 +67,22 @@ export interface EvidenceBreadth {
 // gated at < 50 reviews (THIN_SAMPLE_THRESHOLD); above threshold, raw score
 // is used without dampening. Demand Breadth Boost (+0 to +2) added for
 // keyword portfolio coverage. Leaderboard seed data removed via migration 011.
-export const SCORING_ENGINE_VERSION = '2.1.0'
+//
+// 2.2.0 (2026-07-04): Three calibration fixes — goal is accuracy, not higher scores.
+// (1) Logarithmic demand scale replaces step-function: 10k→5.0 (was 7), 50k→7.7
+//     (was 9), 200k+→10.0 (was 9 cap). Continuous — no artificial score cliffs.
+// (2) Customer Opportunity replaces Customer Pain: pain component (richness×0.6 +
+//     severity×0.4) blended 60% with opportunity component (structural gaps +
+//     solution naming) 40%. prerequisiteFeatureRequests moved from pain richness
+//     to opportunity: solution-naming is not complaint density. categoryGapThemes
+//     contribute to pain via density (normalized) and to opportunity via existence
+//     (not normalized) — genuinely different measurements of different properties.
+// (3) COGS at generation time: manufacturing_estimate fetched eagerly alongside
+//     signal/keyword calls; realistic_unit_cost unlocks the 45%-weight COGS Margin
+//     sub-signal in Profitability when real Alibaba data is available.
+// Legacy memo scores from v2.1.0 will differ by ±2–4 points — same evidence,
+// more accurate decomposition. SCORING_ENGINE_VERSION guards comparisons.
+export const SCORING_ENGINE_VERSION = '2.2.0'
 
 export interface GroundedScore {
   score:       number   // 0-100
@@ -174,12 +190,6 @@ function detectContributingProviders(m: MemoData): string[] {
   }
   if (m.consumer_intelligence) found.add('apify-amazon-reviews')
   if (hasRealRecallOrAdverseEvent(m)) found.add('openfda')
-  // 'apify-alibaba' (manufacturing) is intentionally never added here today
-  // — manufacturing data is fetched lazily, on-demand from the Manufacturing
-  // tab, not during generation, so MemoData.manufacturing_estimate is never
-  // populated at score-compute time. This is the same accepted, documented
-  // blocker the Profitability and Manufacturing Feasibility composites
-  // below also degrade gracefully around — not a bug, a known dependency.
   if (m.manufacturing_estimate) found.add('apify-alibaba')
 
   return Array.from(found)
@@ -221,11 +231,19 @@ function computeEvidenceBreadth(m: MemoData): EvidenceBreadth {
 // here, the blend already happened before this file ever sees the value.
 
 function searchVolumeToScore(volume: number): number {
-  if (volume >= 50_000) return 9
-  if (volume >= 10_000) return 7
-  if (volume >= 2_000)  return 5
-  if (volume >= 500)    return 3
-  return 1
+  if (volume <= 0) return 0
+  // Logarithmic scale: 500→0, 10k→5.0, 50k→7.7, 200k+→10.0.
+  // Replaces the v2.1.0 step-function (≥50k→9, ≥10k→7, ≥2k→5, ≥500→3).
+  // Rationale: step-functions create arbitrary score cliffs (48k→7, 50k→9)
+  // and cap at 9 regardless of demand size. Log scale produces continuous,
+  // proportional scores and correctly reflects the real difference between
+  // a 15k and a 150k search market. Thresholds: MIN=500 (meaningful floor),
+  // MAX=200k (score 10 ceiling — large markets like protein powder, melatonin).
+  const MIN_VOLUME = 500
+  const MAX_VOLUME = 200_000
+  const raw = (Math.log10(volume) - Math.log10(MIN_VOLUME))
+            / (Math.log10(MAX_VOLUME) - Math.log10(MIN_VOLUME)) * 10
+  return Math.max(0, Math.min(10, Math.round(raw * 10) / 10))
 }
 
 // ── Demand Breadth Boost ──────────────────────────────────────────────────────
@@ -253,18 +271,44 @@ function computeDemandBreadthBoost(keywords: { monthly_searches?: number | null 
 interface RealResult { rawScore: number | null; sourceLabel: string }
 
 export function computeDemand(m: MemoData): RealResult {
-  const topKeyword = m.keyword_intelligence?.top_buying?.[0]
   const allKeywords = m.keyword_intelligence?.top_buying ?? []
   const se = m.signal_evidence
+
+  // Two-stage keyword filter:
+  //   Stage 1 — navigational intent (e.g. "breakfast near me"): clearly not a
+  //     product purchase query regardless of volume.
+  //   Stage 2 — semantic product relevance: when m.product_query is present
+  //     (stored at generation time, v2.2.0+) we use the full anchor-word check
+  //     (checkKeywordSemanticRelevance) — the same filter applied during keyword
+  //     fetching. Legacy memos without product_query fall back to the signal-only
+  //     check (checkKeywordProductSignals), which is less precise but never wrong.
+  const withVolume = allKeywords.filter(kw => kw.monthly_searches)
+  const navSkipped = withVolume.filter(kw => checkKeywordIntent(kw.keyword).navigational)
+  const afterNav   = withVolume.filter(kw => !checkKeywordIntent(kw.keyword).navigational)
+
+  const isSemanticValid = (keyword: string): boolean =>
+    m.product_query
+      ? checkKeywordSemanticRelevance(m.product_query, keyword).allowed
+      : checkKeywordProductSignals(keyword).valid
+
+  const semSkipped    = afterNav.filter(kw => !isSemanticValid(kw.keyword))
+  const validKeywords = afterNav.filter(kw =>  isSemanticValid(kw.keyword))
+  const topKeyword = validKeywords[0] ?? null
 
   if (topKeyword?.monthly_searches) {
     let score = searchVolumeToScore(topKeyword.monthly_searches)
     if (typeof topKeyword.growth_pct === 'number' && topKeyword.growth_pct > 20) score = Math.min(10, score + 1)
     if (typeof topKeyword.growth_pct === 'number' && topKeyword.growth_pct < -20) score = Math.max(0, score - 1)
-    const breadthBoost = computeDemandBreadthBoost(allKeywords)
+    const breadthBoost = computeDemandBreadthBoost(validKeywords)
     score = Math.min(10, score + breadthBoost)
-    const sourceNote = breadthBoost > 0 ? ` (+${breadthBoost} breadth boost, ${allKeywords.length} keywords)` : ''
-    return { rawScore: score, sourceLabel: `dataforseo${sourceNote}` }
+    const sourceNote = breadthBoost > 0 ? ` (+${breadthBoost} breadth boost, ${validKeywords.length} valid keywords)` : ''
+    const navNote = navSkipped.length > 0
+      ? ` · nav-rejected ${navSkipped.map(k => `"${k.keyword}"`).join('; ')}`
+      : ''
+    const semNote = semSkipped.length > 0
+      ? ` · sem-rejected ${semSkipped.map(k => `"${k.keyword}"`).join('; ')}`
+      : ''
+    return { rawScore: score, sourceLabel: `dataforseo${sourceNote}${navNote}${semNote}` }
   }
   if (se?.demand) {
     const sub = se.demand.value.primary_signal
@@ -351,10 +395,23 @@ function p25(nums: number[]): number | null {
 }
 
 function realisticPrice(m: MemoData): number | null {
+  // Prefer the category average price from the Keepa pricing signal — already
+  // aggregated over relevant bestsellers and stored as e.g. "$46". The
+  // competitor list can include deeply-discounted entry-level products that
+  // pull p25 to the cheapest outlier tier, systematically zeroing the
+  // profitability score for any healthy supplement category.
+  const pricingAvg = parseDollarString(m.signal_evidence?.pricing?.value.avg_price)
+  if (pricingAvg !== null && pricingAvg > 0) return pricingAvg
+
+  // Fallback: median (p50) of real competitor prices when no explicit pricing
+  // signal exists. Median is less sensitive to cheap outliers than p25.
   const competitors = m.signal_evidence?.review_velocity?.value.top_competitors
   if (!competitors?.length) return null
   const prices = competitors.map(c => c.price).filter((p): p is number => typeof p === 'number' && p > 0)
-  return p25(prices)
+  if (!prices.length) return null
+  const sorted = [...prices].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
 }
 
 function parseDollarString(s: string | undefined): number | null {
@@ -406,68 +463,128 @@ function computeProfitability(m: MemoData): RealResult {
     subSignals.push({ score: marginToScore(marginPct), weight: 0.45, source: 'apify-alibaba' })
   }
 
-  // CAC Pressure (25%) — real DataForSEO CPC ÷ realistic price.
+  // CAC Pressure (25%) — DataForSEO CPC ÷ realistic price.
+  // PROXY LIMITATION: CPC is cost-per-click, not true Customer Acquisition Cost.
+  // Real CAC = CPC ÷ conversion_rate (typically 10-25% for supplements on Amazon),
+  // so actual CAC is 4-10× CPC. This sub-signal correctly ranks products by
+  // relative acquisition difficulty across categories but underestimates the
+  // absolute cost. Calibrate the 20% denominator (cacPressureToScore) against
+  // real CAC data when available.
   const cpc = m.keyword_intelligence?.top_buying?.[0]?.cpc
+  const cacSourceNote = cpc != null ? ' (CPC proxy — see scoring.ts cacPressureToScore)' : ''
   if (typeof cpc === 'number' && cpc > 0) {
-    subSignals.push({ score: cacPressureToScore(cpc / price), weight: 0.25, source: 'dataforseo' })
+    subSignals.push({ score: cacPressureToScore(cpc / price), weight: 0.25, source: `dataforseo${cacSourceNote}` })
   }
 
   if (!subSignals.length) return { rawScore: null, sourceLabel: '' }
 
   const totalW = subSignals.reduce((s, x) => s + x.weight, 0)
   const blended = subSignals.reduce((s, x) => s + x.score * (x.weight / totalW), 0)
-  const sourceLabel = Array.from(new Set(subSignals.map(s => s.source))).join(' + ')
+  const rawSources = Array.from(new Set(subSignals.map(s => s.source))).join(' + ')
+  const cacNote = cpc != null ? ' · CAC Pressure uses CPC as proxy (actual CAC = CPC ÷ conversion rate, not measured)' : ''
+  const sourceLabel = rawSources + cacNote
 
   return { rawScore: Math.round(blended * 10) / 10, sourceLabel }
 }
 
-// ── Customer Pain / Unmet Need — richness normalized by review volume ─────
-// Severity (negativePct) was already a true percentage — real, already
-// volume-normalized, unchanged. Richness was an ABSOLUTE theme count, which
-// mechanically scales with how many reviews exist to mine themes from —
-// the architecture review's "category-age confound." Fixed by converting
-// richness to a density (themes ÷ log1p(reviews)), the same log-dampening
-// technique already used in lib/competitive-review-engine/market-scorer.ts's
-// computeMarketPain. The confidence multiplier at the end is a SEPARATE,
-// still-needed correction (small samples are unreliable, independent of
-// whether they're correctly normalized) — not redundant with the fix above.
+// ── Customer Opportunity — pain component + opportunity component ──────────
 //
-// CONFIDENCE DAMPENING POLICY (2026-07-01): applied only when the sample is
-// genuinely thin (< THIN_SAMPLE_THRESHOLD reviews). Above the threshold the
-// signal is well-evidenced and the raw score is the finding — pre-deflating
-// it without disclosure would systematically understate real pain. Below the
-// threshold, the multiplier is retained as a disclosed hedge against sampling
-// noise. Threshold chosen to match the volumeScore plateau in
-// lib/consumer-intelligence/analyze.ts computeConfidence (50+ reviews = max
-// volume contribution there too).
+// Replaces "Customer Pain / Unmet Need" (v2.1.0). Same underlying data;
+// cleaner decomposition into two genuinely distinct measurements:
+//
+// PAIN COMPONENT (60%) — how much are customers suffering?
+//   richness = density of complaint themes in the negative corpus (pool-normalized)
+//   severity = negativePct from the helpful corpus (already a rate, unchanged)
+//   NOTE: prerequisiteFeatureRequests deliberately EXCLUDED from effectiveThemeCount.
+//   Solution-naming requests ("I wish it had X") are not complaint density signals —
+//   they belong in the opportunity component, not the pain richness formula.
+//
+// OPPORTUNITY COMPONENT (40%) — how specifically are customers pointing at
+// what to build?
+//   structuralGaps  = categoryGapThemes.length × 1.5  (cross-competitor, unfixed
+//                     engineering targets — existence count, NOT pool-normalized.
+//                     Pain richness uses density; opportunity uses existence.
+//                     These measure genuinely different properties of the same data.)
+//   solutionNaming  = (prerequisiteFeatureRequests + enhancementFeatureRequests) × 0.8
+//                     (explicit customer requests from both corpora — moved here
+//                     from effectiveThemeCount because naming a solution is an
+//                     opportunity signal, not a complaint density signal)
+//   Output: categorical 0/2/4/6/8/10 — avoids precision artifacts on sparse data.
+//
+// LEGACY BACKWARD COMPATIBILITY:
+//   No categoryGapThemes (pre-Step-3) → structuralGaps = 0
+//   No prerequisiteFeatureRequests (pre-Step-4) → prereqCount falls back to
+//   featureRequests.length (all-corpus mix). Score may differ ±2 from v2.1.0.
+//
+// CONFIDENCE DAMPENING POLICY (unchanged from 2026-07-01): applied only when
+// the sample is genuinely thin (< THIN_SAMPLE_THRESHOLD reviews). Above the
+// threshold, raw score is reported undampened — the signal is well-evidenced.
 
 const THIN_SAMPLE_THRESHOLD = 50
+
+function computeOpportunityComponent(ci: NonNullable<MemoData['consumer_intelligence']>): number {
+  // Structural gaps: cross-competitor unfixed engineering targets.
+  // Existence count (not density) — 3 structural gaps is 3 gaps whether
+  // there are 10 or 200 negative reviews. Independent of pool size.
+  const structuralGaps = (ci.categoryGapThemes?.length ?? 0) * 1.5
+
+  // Solution naming: explicit requests from both corpora.
+  // prerequisiteFeatureRequests = dissatisfied customers naming a solution they needed
+  // enhancementFeatureRequests  = satisfied customers naming improvements they'd like
+  // Legacy fallback: featureRequests (all-corpus mix) when Step 4 absent.
+  const prereqCount  = ci.prerequisiteFeatureRequests?.length ?? ci.featureRequests.length
+  const enhanceCount = ci.enhancementFeatureRequests?.length  ?? 0
+  const solutionNaming = (prereqCount + enhanceCount) * 0.8
+
+  const total = structuralGaps + solutionNaming
+  if (total === 0)    return 0
+  if (total < 1.5)   return 2
+  if (total < 3)     return 4
+  if (total < 5)     return 6
+  if (total < 7.5)   return 8
+  return 10
+}
 
 function consumerPainScore(m: MemoData): number | null {
   const ci = m.consumer_intelligence
   if (!ci) return null
-  const themeCount = ci.negativeThemes.length + ci.featureRequests.length
-  const density     = themeCount / Math.log1p(ci.totalReviewsCollected)
-  // Calibrated so a density of ~3 reaches the ceiling — a disclosed
-  // judgment-call threshold over real arithmetic, same epistemic tier as
-  // every bucket function in this file.
+
+  // Pain component — negative corpus only.
+  // Step 3: weight category-gap themes 1.5× (structural, cross-competitor)
+  // and product-specific themes 0.5× (one brand's execution failure).
+  // prerequisiteFeatureRequests deliberately excluded — moved to opportunity
+  // component. Legacy memos (pre-Step-3) fall back to negativeThemes.length.
+  const effectiveThemeCount = (ci.categoryGapThemes && ci.productSpecificThemes)
+    ? ci.categoryGapThemes.length * 1.5
+      + ci.productSpecificThemes.length * 0.5
+    : ci.negativeThemes.length
+
+  // Calibrate density against the critical corpus (negativePoolSize), not the
+  // full review pool. Falls back to totalReviewsCollected for pre-dual-corpus memos.
+  const painPoolSize = ci.negativePoolSize > 0 ? ci.negativePoolSize : ci.totalReviewsCollected
+  const density  = effectiveThemeCount / Math.log1p(painPoolSize)
   const richness = Math.min(10, density * (10 / 3))
   const severity = Math.min(10, (ci.sentimentBreakdown.negativePct / 30) * 10)
-  const raw = richness * 0.6 + severity * 0.4
+  const painComponent = richness * 0.6 + severity * 0.4
+
+  // Opportunity component — structural gaps + solution naming.
+  const opportunityComponent = computeOpportunityComponent(ci)
+
+  // Weighted blend: pain 60%, opportunity 40%.
+  const raw    = painComponent * 0.6 + opportunityComponent * 0.4
   const capped = Math.min(10, raw)
   return ci.totalReviewsCollected < THIN_SAMPLE_THRESHOLD
     ? Math.round(capped * ci.confidence)
     : Math.round(capped)
 }
 
-// KNOWN, DOCUMENTED LIMITATION (architecture review, 2026-06-28): this
-// composite cannot distinguish a category where complaints reflect a
-// fixable execution gap from one where customers are inherently hard to
-// satisfy regardless of product quality. Every real signal available in
-// this codebase was tested against this question and found insufficient —
-// see lib/provenance.ts consumerPainLimitationNote for the disclosed text
-// surfaced alongside this dimension. Not solved by this redesign; solved
-// by disclosing the boundary honestly instead of forcing a weak proxy.
+// KNOWN, DOCUMENTED LIMITATION (architecture review, 2026-06-28, updated
+// 2026-07-04): the opportunity component measures how specifically customers
+// name what they want — it cannot confirm that the named improvement is
+// technically feasible or that a new entrant can actually build it. The
+// pain component cannot distinguish suffering that a better product would
+// fix from suffering that is structural to the category regardless of quality.
+// See lib/provenance.ts consumerPainLimitationNote for disclosed text.
 
 // ── Subscription / Retention Fit — real repurchase-language frequency ─────
 // New deterministic signal over review text already collected by
@@ -492,14 +609,13 @@ function subscriptionScore(m: MemoData): number | null {
     : Math.round(raw)
 }
 
-// ── Manufacturing Feasibility — real, but blocked on fetch timing ─────────
+// ── Manufacturing Feasibility ─────────────────────────────────────────────
 // customizable% / country-concentration / lead time — deliberately excludes
 // unit_cost, which lives in Profitability, so no field is counted twice.
-// Always null today: manufacturing data is fetched lazily from the
-// Manufacturing tab, never eagerly during generation, so
-// MemoData.manufacturing_estimate never exists at score-compute time. This
-// is the same accepted, documented dependency Profitability's COGS Margin
-// also degrades around — not a new gap, the same one, named once here.
+// manufacturing_estimate is fetched eagerly at generation time alongside the
+// signal fetch (see app/api/generate/route.ts, 12s timeout in parallel with
+// signalPromise). Returns null when Apify fails or returns no suppliers, in
+// which case computeGroundedScore redistributes the weight to other dimensions.
 
 function manufacturingFeasibilityScore(m: MemoData): RealResult {
   const est = m.manufacturing_estimate
@@ -530,7 +646,12 @@ function computeSafetyGateTier(m: MemoData): BuildDecision | null {
   // openFDA's check failing/timing out must never read the same as "checked,
   // clean" — that would give false reassurance exactly when the safety check
   // didn't actually run. See lib/news-engine/engine.ts failedProviders.
-  if (m.news_intelligence?.failedProviders?.includes('openfda')) return 'VALIDATE_FURTHER'
+  //
+  // Also treat completely absent news_intelligence the same way: if the entire
+  // news pipeline never ran we cannot confirm the product is clean, so require
+  // validation rather than implicitly granting a clean bill of health.
+  if (!m.news_intelligence) return 'VALIDATE_FURTHER'
+  if (m.news_intelligence.failedProviders?.includes('openfda')) return 'VALIDATE_FURTHER'
 
   const items = m.news_intelligence?.items ?? []
   const recalls = items.filter(i => i.provider === 'openfda' && i.recall_classification)
@@ -556,7 +677,11 @@ const DECISION_RANK: Record<BuildDecision, number> = {
 
 function mostConservative(decisions: (BuildDecision | null)[]): BuildDecision {
   const real = decisions.filter((d): d is BuildDecision => d !== null)
-  return real.reduce((a, b) => (DECISION_RANK[a] <= DECISION_RANK[b] ? a : b), 'SKIP' as BuildDecision)
+  // Must NOT pass 'SKIP' as reduce's initial value — SKIP has rank 0 (lowest),
+  // so it would always beat every element in the comparator and return SKIP
+  // unconditionally, regardless of what the actual decisions say.
+  if (!real.length) return 'SKIP'
+  return real.reduce((a, b) => (DECISION_RANK[a] <= DECISION_RANK[b] ? a : b))
 }
 
 // ── Backward compat / qualitative fallback (unchanged from prior redesign) ─
@@ -595,16 +720,22 @@ function assembleDimensions(m: MemoData): { candidates: ScoreDimension[]; gateTi
   const profitability = computeProfitability(m)
   if (profitability.rawScore !== null) {
     candidates.push({ key: 'profitability', label: 'Profitability', weight: BASE_WEIGHTS.profitability, rawScore: profitability.rawScore, source: 'verified', sourceLabel: profitability.sourceLabel })
+  } else {
+    // Profitability is excluded (0 weight, redistributed) whenever all three
+    // real sub-signals fail: no Keepa fee schedule, no realistic COGS from
+    // Apify/manufacturing, no DataForSEO CPC. Show as qualitative so the gap
+    // is visible in the UI rather than silently inflating other dimensions.
+    candidates.push(qualitative('profitability', 'Profitability', undefined, 'Insufficient pricing data — no Keepa fee schedule, Apify unit cost, or DataForSEO CPC available for this query (20% weight excluded, redistributed to other dimensions)'))
   }
-  // No qualitative fallback for Profitability — same as the prior "Revenue"
-  // dimension: there is no AI-written profitability field in the schema to
-  // fall back to, so it is excluded entirely rather than shown as a guess.
 
   const painScore = consumerPainScore(m)
   if (painScore !== null) {
     const ci = m.consumer_intelligence!
     const dampened = ci.totalReviewsCollected < THIN_SAMPLE_THRESHOLD
-    candidates.push({ key: 'consumerPain', label: 'Customer Pain / Unmet Need', weight: BASE_WEIGHTS.consumerPain, rawScore: painScore, source: 'verified', sourceLabel: `Apify — ${ci.totalReviewsCollected} real competitor reviews${dampened ? ' (confidence-adjusted, thin sample)' : ''}` })
+    // Label updated 2026-07-04 (v2.2.0): "Customer Opportunity" reflects the
+    // new formula (pain component 60% + opportunity component 40%). Key kept
+    // as 'consumerPain' for backward compat with UI and stored memo references.
+    candidates.push({ key: 'consumerPain', label: 'Customer Opportunity', weight: BASE_WEIGHTS.consumerPain, rawScore: painScore, source: 'verified', sourceLabel: `Apify — ${ci.totalReviewsCollected} real competitor reviews (pain: negative corpus; opportunity: both corpora)${dampened ? ' · confidence-adjusted, thin sample' : ''}` })
   }
 
   if (m.signal_evidence?.virality) {
@@ -628,7 +759,7 @@ function assembleDimensions(m: MemoData): { candidates: ScoreDimension[]; gateTi
     // Weight deliberately set to 0 (qualitative) — this dimension's 5% share is
     // redistributed to the remaining real dimensions. Disclosed explicitly in the
     // source label so the UI can surface this fact without reading scoring internals.
-    candidates.push(qualitative('manufacturing', 'Manufacturing Feasibility', m.scores.manufacturing?.level ?? legacyScoreToLevel(m.scores.manufacturing?.score), 'Not yet analyzed — fetch from Manufacturing tab to include in score (5% weight currently excluded)'))
+    candidates.push(qualitative('manufacturing', 'Manufacturing Feasibility', m.scores.manufacturing?.level ?? legacyScoreToLevel(m.scores.manufacturing?.score), 'Supplier data unavailable — Apify manufacturing scrape returned no results for this product (5% weight excluded, redistributed to other dimensions)'))
   }
 
   return { candidates, gateTiers }

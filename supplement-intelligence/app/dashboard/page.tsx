@@ -6,8 +6,11 @@ import AppSidebar     from '@/components/AppSidebar'
 import OpportunityCard from '@/components/OpportunityCard'
 import { IconTarget } from '@/components/icons'
 
-function timeAgo(d: string) {
-  const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
+function timeAgo(d: string | null | undefined) {
+  if (!d) return 'unknown'
+  const t = new Date(d).getTime()
+  if (isNaN(t)) return 'unknown'
+  const diff = Math.floor((Date.now() - t) / 1000)
   if (diff < 60)    return 'just now'
   if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
@@ -16,8 +19,9 @@ function timeAgo(d: string) {
 
 export default async function Dashboard() {
   const sb = createClient()
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) redirect('/login')
+  const { data: authData, error: authError } = await sb.auth.getUser()
+  if (authError || !authData?.user) redirect('/login')
+  const user = authData.user
 
   const [{ data: analyses }, { data: profile }] = await Promise.all([
     sb.from('analyses').select('*').eq('user_id', user.id).eq('is_archived', false).order('created_at', { ascending: false }).limit(30),

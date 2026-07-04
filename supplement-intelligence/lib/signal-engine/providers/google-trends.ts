@@ -254,10 +254,11 @@ export class GoogleTrendsProvider implements SignalProvider {
     // ── Momentum: last 4 weeks vs weeks 5–16 ──
     const last4     = avg(values.slice(-4))
     const prev12    = avg(values.slice(-16, -4))
-    const momPct    = prev12 > 0 ? ((last4 - prev12) / prev12) * 100 : 0
+    const momPct    = (prev12 !== null && prev12 > 0) ? ((last4 - prev12) / prev12) * 100 : null
     const momentum: GrowthSignal['momentum'] =
-      momPct > 10  ? 'Accelerating' :
-      momPct < -10 ? 'Decelerating' : 'Stable'
+      momPct === null ? 'Stable' :
+      momPct > 10    ? 'Accelerating' :
+      momPct < -10   ? 'Decelerating' : 'Stable'
 
     // ── Seasonality: coefficient of variation (shared helper, see lib/stats.ts) ──
     const cv       = coefficientOfVariation(values)

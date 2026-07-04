@@ -332,6 +332,7 @@ export class KeepaProvider implements SignalProvider {
     const bsrs365:      number[] = []
     const offers:       number[] = []
     const prices:       number[] = []
+    const allPrices:    number[] = []   // ungated — every product; only used as revenue fallback when no relevant products exist
     const monthlySolds: number[] = []
     // Per-product revenue (price × monthlySold for the SAME product, not
     // avg-price × avg-units across different products) — needed to give an
@@ -381,12 +382,11 @@ export class KeepaProvider implements SignalProvider {
       const priceAmazon = keepaPrice(statVal(s, 'avg90', CSV.AMAZON_PRICE) ?? undefined)
       const priceBuyBox = keepaPrice(statVal(s, 'avg90', CSV.BUYBOX_PRICE) ?? undefined)
       const price = priceAmazon ?? priceBuyBox
-      if (price !== null && price > 0) prices.push(price)
+      if (price !== null && price > 0) allPrices.push(price)
 
       const price365Amazon = keepaPrice(statVal(s, 'avg365', CSV.AMAZON_PRICE) ?? undefined)
       const price365BuyBox = keepaPrice(statVal(s, 'avg365', CSV.BUYBOX_PRICE) ?? undefined)
       const price365 = price365Amazon ?? price365BuyBox
-      if (price365 !== null && price365 > 0) prices365.push(price365)
 
       // monthlySold is a top-level field (not in stats array).
       // Confirmed: 70k–100k for top-10 Vitamins & Supplements products.
@@ -396,33 +396,22 @@ export class KeepaProvider implements SignalProvider {
       // category-wide aggregate (lib/provenance.ts unitsSoldProvenance).
       if (p.monthlySold && p.monthlySold > 0) monthlySolds.push(p.monthlySold)
 
-      // ROOT CAUSE FIX (2026-06-29, live investigation): productRevenues
-      // (price × monthlySold for ONE product — the basis for
-      // est_monthly_revenue/top_seller_revenue/avg_seller_revenue) used to
-      // be pushed unconditionally, regardless of whether this bestseller
-      // had anything to do with the query. CONFIRMED VIA LIVE CALL:
-      // "Peptide-Fortified Scalp Mask" was credited with $2,446,000/mo —
-      // the revenue of La Roche-Posay's Toleriane face moisturizer, the
-      // single highest-revenue ASIN in the entire Beauty department's
-      // bestseller list (CATEGORY_NODES is resolved by category only, with
-      // no way to search Keepa for the specific product). Reusing the same
-      // relevance check already proven for keyword broadening
-      // (lib/keyword-engine/relevance-guard.ts) against this product's
-      // real title — only the dollar-revenue figures are gated; Demand,
-      // Competition, Growth, Pricing, fees, rating, and review-count below
-      // are untouched (they're either already disclosed as category-wide
-      // or are legitimately category-uniform facts, not a per-product
-      // dollar claim, and changing them would alter existing scoring
-      // behavior, which is out of scope for this fix).
       // Both gates must agree: the vocab-based guard catches species/body-
       // area/demographic drift, the word-overlap check catches everything
       // else it can't see (see hasWordOverlap comment above).
+      // Pricing averages are gated here too — an irrelevant bestseller's
+      // price (e.g. a face moisturizer in the Beauty category priced at
+      // $35) would skew price_range/price_avg for an unrelated product query.
       const isRelevantBestseller =
         !!p.title &&
         checkKeywordRelevance(query, p.title).allowed &&
         hasWordOverlap(query, p.title)
-      if (isRelevantBestseller && price !== null && price > 0 && p.monthlySold && p.monthlySold > 0) {
-        productRevenues.push(price * p.monthlySold)
+      if (isRelevantBestseller) {
+        if (price   !== null && price   > 0) prices.push(price)
+        if (price365 !== null && price365 > 0) prices365.push(price365)
+        if (price !== null && price > 0 && p.monthlySold && p.monthlySold > 0) {
+          productRevenues.push(price * p.monthlySold)
+        }
       }
 
       // Keepa encodes rating ×10 (47 = 4.7★); -1/missing means no data, not zero.
@@ -439,6 +428,7 @@ export class KeepaProvider implements SignalProvider {
     const avgBsr365      = avg(bsrs365)
     const avgOffers      = avg(offers)
     const avgPrice       = avg(prices)
+    const avgAllPrice    = avg(allPrices)   // category-wide; only for revenue fallback
     const avgPrice365    = avg(prices365)
     const avgMonthlySold = avg(monthlySolds)
     // Rounded at the source — confirmed live (2026-06-26): an unrounded
@@ -543,17 +533,43 @@ export class KeepaProvider implements SignalProvider {
     // while revenue additionally requires monthlySold on the SAME product —
     // a stricter condition that shouldn't silently drop real review data
     // just because the revenue figure couldn't be computed.
+    //
+    // Fallback: when no per-product price×monthlySold pair could be formed
+    // (e.g. niche query whose exact vocabulary doesn't appear in the top-10
+    // category bestsellers), estimate using avg_price (already gated by
+    // isRelevantBestseller so it reflects the query's price tier) multiplied
+    // by avgMonthlySold (category-wide velocity baseline). This gives a
+    // category-level floor estimate rather than silently returning no revenue
+    // when both price and velocity data are available. Confidence is lower
+    // than per-product pairs to reflect the coarser methodology.
     const avgRating      = avg(ratings)
     const avgReviewCount = avg(reviewCounts)
 
     let revenue: RevenueSignal | undefined
-    if (productRevenues.length > 0 || avgRating !== null || avgReviewCount !== null) {
+    if (productRevenues.length > 0 || avgRating !== null || avgReviewCount !== null ||
+        (avgPrice !== null && avgMonthlySold !== null)) {
       const topRevenue = productRevenues.length ? Math.max(...productRevenues) : null
-      const avgRevenue = avg(productRevenues)
+      const perProductAvg = avg(productRevenues)
+      // Fallback tier 1: relevant-price avg × category-velocity (avgPrice is gated by relevance).
+      // Fallback tier 2: category-wide price avg × category-velocity — used when no bestseller
+      // matched the query's vocabulary at all (avgPrice is null). Lower confidence than tier 1.
+      const avgRevenue =
+        perProductAvg ??
+        (avgPrice !== null && avgMonthlySold !== null
+          ? avgPrice * avgMonthlySold
+          : avgAllPrice !== null && avgMonthlySold !== null
+          ? avgAllPrice * avgMonthlySold
+          : null)
+      const isPerProductRevenue  = perProductAvg !== null
+      const isRelevantPriceFall  = perProductAvg === null && avgPrice !== null && avgRevenue !== null
+      const isCategoryPriceFall  = perProductAvg === null && avgPrice === null  && avgRevenue !== null
       const fmt = (n: number) => n >= 1000 ? `$${Math.round(n / 1000)}k/mo` : `$${Math.round(n)}/mo`
       revenue = {
-        score:                  avgRevenue !== null ? (avgRevenue > 50_000 ? 8 : avgRevenue > 15_000 ? 6 : avgRevenue > 5_000 ? 4 : 2) : 0,
-        confidence:             productRevenues.length >= 5 ? 0.7 : 0.5,
+        score:      avgRevenue !== null ? (avgRevenue > 50_000 ? 8 : avgRevenue > 15_000 ? 6 : avgRevenue > 5_000 ? 4 : 2) : 0,
+        confidence: isPerProductRevenue ? (productRevenues.length >= 5 ? 0.7 : 0.5)
+                  : isRelevantPriceFall  ? 0.35
+                  : isCategoryPriceFall  ? 0.20
+                  : 0,
         est_monthly_revenue:    avgRevenue !== null ? fmt(avgRevenue) : undefined,
         top_seller_revenue:     topRevenue !== null ? fmt(topRevenue) : undefined,
         est_monthly_units_sold: avgMonthlySold !== null ? `${Math.round(avgMonthlySold).toLocaleString()} units/mo` : undefined,
@@ -562,6 +578,9 @@ export class KeepaProvider implements SignalProvider {
         avg_fba_pick_pack_fee:  avgFbaFee !== null ? `$${avgFbaFee.toFixed(2)}` : undefined,
         avg_referral_fee_pct:   avgReferralFee !== null ? Math.round(avgReferralFee * 10) / 10 : undefined,
         revenue_sample_count:   productRevenues.length > 0 ? productRevenues.length : undefined,
+        // true for both fallback tiers (relevant-price-avg and category-price-avg);
+        // absent when per-product pairs were used (highest-quality path).
+        revenue_is_category_estimate: !isPerProductRevenue && avgRevenue !== null ? true : undefined,
         // Price compression: avg90 vs avg365 — 90-day vs. 12-month price proxy.
         // Negative = prices fell (compression); capped at meaningful sample sizes.
         ...(avgPrice !== null && avgPrice365 !== null && prices.length >= 3 && prices365.length >= 3 && {
@@ -587,6 +606,13 @@ export class KeepaProvider implements SignalProvider {
       avgOffers:       avgOffers !== null ? Math.round(avgOffers * 10) / 10 : null,
       avgPrice:        avgPrice  !== null ? `$${Math.round(avgPrice)}` : null,
       topRevenue:      productRevenues.length ? Math.round(Math.max(...productRevenues)) : null,
+      revenueFallback: productRevenues.length === 0
+        ? (avgPrice !== null && avgMonthlySold !== null
+            ? `$${Math.round(avgPrice * avgMonthlySold / 1000)}k (relevant-price estimate, conf=0.35)`
+            : avgAllPrice !== null && avgMonthlySold !== null
+            ? `$${Math.round(avgAllPrice * avgMonthlySold / 1000)}k (category-price estimate, conf=0.20)`
+            : 'null (no price or monthlySold available)')
+        : null,
       avgRating:       avgRating !== null ? avgRating.toFixed(1) : null,
       avgReviewCount:  avgReviewCount !== null ? Math.round(avgReviewCount) : null,
       avgMomentum90d:  avgMomentum90d !== null ? `${avgMomentum90d}%` : null,

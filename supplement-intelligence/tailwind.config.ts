@@ -89,11 +89,58 @@ const config: Config = {
           '0%, 100%': { opacity: '0.6' },
           '50%':      { opacity: '1' },
         },
+        piFloat: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%':      { transform: 'translateY(-10px)' },
+        },
+        piGlow: {
+          '0%, 100%': { opacity: '0.35' },
+          '50%':      { opacity: '0.75' },
+        },
+        piSpin: {
+          from: { transform: 'rotate(0deg)' },
+          to:   { transform: 'rotate(360deg)' },
+        },
+        piPulse: {
+          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
+          '50%':      { transform: 'scale(1.05)', opacity: '0.85' },
+        },
+        piBar: {
+          from: { transform: 'scaleX(0)' },
+          to:   { transform: 'scaleX(1)' },
+        },
+        piSlideUp: {
+          from: { opacity: '0', transform: 'translateY(20px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
+        piScaleIn: {
+          from: { opacity: '0', transform: 'scale(0.9)' },
+          to:   { opacity: '1', transform: 'scale(1)' },
+        },
+        piTickerLeft: {
+          '0%':   { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+        piShimmer: {
+          from: { backgroundPosition: '-200% center' },
+          to:   { backgroundPosition:  '200% center' },
+        },
       },
       animation: {
         'rise-in': 'riseIn .6s cubic-bezier(.16,1,.3,1) both',
         'lab-fade-up':   'labFadeUp .35s cubic-bezier(.16,1,.3,1) both',
         'lab-glow-pulse': 'labGlowPulse 2.4s ease-in-out infinite',
+        'pi-float':   'piFloat 5s ease-in-out infinite',
+        'pi-float-d1':'piFloat 5s ease-in-out 1s infinite',
+        'pi-float-d2':'piFloat 5s ease-in-out 2s infinite',
+        'pi-glow':    'piGlow 3s ease-in-out infinite',
+        'pi-spin':    'piSpin 12s linear infinite',
+        'pi-pulse':   'piPulse 2s ease-in-out infinite',
+        'pi-bar':     'piBar 1.2s cubic-bezier(.16,1,.3,1) both',
+        'pi-slide-up':'piSlideUp .6s cubic-bezier(.16,1,.3,1) both',
+        'pi-scale-in':'piScaleIn .5s cubic-bezier(.16,1,.3,1) both',
+        'pi-ticker':  'piTickerLeft 28s linear infinite',
+        'pi-shimmer': 'piShimmer 2.5s linear infinite',
       },
     },
   },

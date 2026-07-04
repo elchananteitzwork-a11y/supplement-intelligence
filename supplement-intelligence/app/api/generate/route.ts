@@ -7,6 +7,7 @@ import { signalEngine }    from '@/lib/signal-engine'
 import { keywordEngine, enrichKeywordIntelligence, explainKeywordIntelligence } from '@/lib/keyword-engine'
 import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
 import { computeGroundedScore, computeTractionBand, SCORING_ENGINE_VERSION } from '@/lib/scoring'
+import { fetchManufacturingEstimate } from '@/lib/manufacturing-engine'
 import { checkConsistency } from '@/lib/consistency'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
 import { buildNewsIntelligence } from '@/lib/news-engine'
@@ -334,10 +335,11 @@ export async function POST(req: Request) {
     context?:        string
     fromDiscovery?:  boolean
     categoryId?:     string
+    discoveryQuery?: string
   }
   try { body = await req.json() } catch { return err('Invalid JSON body') }
 
-  const { input, targetAudience, pricePoint, context, fromDiscovery, categoryId: rawCategoryId } = body
+  const { input, targetAudience, pricePoint, context, fromDiscovery, categoryId: rawCategoryId, discoveryQuery } = body
 
   // ── validation ─────────────────────────────────────────────────
   if (!input?.trim()) return err('input is required')
@@ -421,6 +423,17 @@ export async function POST(req: Request) {
   // shorter silently dropped a result that had already succeeded and been
   // billed. Matches that provider's own internal AbortSignal.timeout(80_000).
   const signalPromise  = signalEngine.fetch({ query: input.trim(), categoryId: module.id }, 75_000).catch(() => null)
+  // Manufacturing estimate: fired here alongside signalPromise so it resolves
+  // (≤12s timeout) long before the ~48-100s Anthropic generation call completes —
+  // zero additional latency on the critical path. Enables the 45%-weight COGS
+  // Margin sub-signal in Profitability (lib/scoring.ts computeProfitability),
+  // which is always absent when manufacturing data is fetched lazily from the
+  // Manufacturing tab. Uses the raw query as the product string; category is
+  // module.id (supplements / beauty / etc.). Falls through to null on any failure.
+  const manufacturingPromise = fetchManufacturingEstimate(
+    { product: input.trim(), category: module.id },
+    12_000,
+  ).catch(() => null)
   // ROOT CAUSE FIX (2026-06-28, "Monthly Search Volume often shows no data"
   // investigation): this outer race ceiling (8s) was SHORTER than
   // lib/keyword-engine/dataforseo.ts's own internal per-attempt
@@ -431,7 +444,12 @@ export async function POST(req: Request) {
   // stripped) after today's broadening fix, not just one. 25s comfortably
   // covers that and costs nothing on the overall request's critical path —
   // this runs concurrently with the 75s signalPromise above, not after it.
-  const keywordPromise = keywordEngine.fetch(input.trim(), 25_000).catch(() => null)
+  // When launched from Open Discovery, `input` is the AI product concept name
+  // (e.g. "Ashwagandha + Rhodiola Fatigue Fighter") — a marketing label with no
+  // keyword graph coverage. Use the original discovery query instead, since it's
+  // the actual search phrase users typed and has real keyword volume data.
+  const keywordSeed = (fromDiscovery && discoveryQuery?.trim()) ? discoveryQuery.trim() : input.trim()
+  const keywordPromise = keywordEngine.fetch(keywordSeed, 25_000).catch(() => null)
   // News Intelligence: independent of signals/competitors, so it fires here
   // rather than waiting on topCompetitors below. Includes its own Haiku
   // "why it matters" pass internally — never touches the main Sonnet prompt
@@ -473,7 +491,7 @@ export async function POST(req: Request) {
   const broadQueryEvidencePromise: Promise<MemoData['category_creation_broad_evidence']> =
     (async () => {
       if (!specificDemandLooksAbsent) return undefined
-      const broadQuery = broadenQuery(input.trim())
+      const broadQuery = broadenQuery(keywordSeed)
       if (!broadQuery) return undefined
       const [broadSignals, broadKeyword] = await Promise.all([
         signalEngine.fetch({ query: broadQuery, categoryId: module.id }, 20_000).catch(() => null),
@@ -678,6 +696,37 @@ export async function POST(req: Request) {
   if (!skipReason && consumerIntelligence) {
     memo.consumer_intelligence = consumerIntelligence
   }
+  // Manufacturing estimate: already resolved (12s timeout fired early; by this
+  // point we've spent ~48-100s in Anthropic generation). Attach before scoring
+  // so computeGroundedScore can populate the COGS Margin sub-signal in
+  // Profitability (realistic_unit_cost). No-op on null (provider failure or
+  // APIFY_API_TOKEN absent) — Profitability degrades gracefully without it.
+  if (!skipReason) {
+    const manufacturingEstimate = await manufacturingPromise
+    if (manufacturingEstimate) {
+      memo.manufacturing_estimate = manufacturingEstimate
+      console.log('Manufacturing estimate attached at generation time', {
+        category:     module.id,
+        hasRealistic: !!manufacturingEstimate.realistic_unit_cost,
+        realisticCost: manufacturingEstimate.realistic_unit_cost
+          ? `$${manufacturingEstimate.realistic_unit_cost.low}–$${manufacturingEstimate.realistic_unit_cost.high}`
+          : 'absent (fewer than 3 paired MOQ+price listings — COGS Margin sub-signal will be excluded from Profitability)',
+        source:       manufacturingEstimate.data_source,
+        confidence:   manufacturingEstimate.confidence_label,
+        suppliers:    manufacturingEstimate.supplier_count?.estimate,
+      })
+    } else {
+      console.warn('Manufacturing estimate unavailable — COGS Margin and Manufacturing Feasibility will be excluded from score', {
+        category: module.id,
+        reason:   process.env.APIFY_API_TOKEN ? 'Apify returned no results or timed out (12s)' : 'APIFY_API_TOKEN not set',
+      })
+    }
+  }
+  // Store the original product query on the memo so scoring-time semantic
+  // keyword validation can apply the same anchor-word filter that was used
+  // at generation time (computeDemand uses this via checkKeywordSemanticRelevance).
+  if (!skipReason) memo.product_query = input.trim()
+
   // News Intelligence: started way back alongside signalPromise/keywordPromise,
   // so by this point (after the ~48-68s main Claude call) it has almost
   // certainly already resolved — this await is just a formality, not a wait.

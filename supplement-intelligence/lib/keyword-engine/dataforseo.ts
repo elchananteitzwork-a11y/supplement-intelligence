@@ -143,6 +143,12 @@ interface DfsResult { items?: DfsItem[] }
 interface DfsTask { result?: DfsResult[]; status_code?: number; status_message?: string }
 interface DfsResponse { tasks?: DfsTask[]; status_code?: number; status_message?: string }
 
+// Types for keywords_data/google_ads/search_volume/live — simpler flat structure
+// (result is a direct array of keyword rows, no items[] nesting).
+interface DfsSvRow { keyword?: string; search_volume?: number; competition?: number; competition_level?: string; cpc?: number; monthly_searches?: DfsMonthlySearch[] }
+interface DfsSvTask     { result?: DfsSvRow[]; status_code?: number }
+interface DfsSvResponse { tasks?: DfsSvTask[] }
+
 // Growth from real monthly history: oldest third of the window vs newest third.
 // CONFIRMED VIA LIVE CALL (2026-06-24): DataForSEO returns monthly_searches
 // most-recent-first (e.g. 2026-05, 2026-04, ... 2025-06) — NOT chronological.
@@ -300,12 +306,46 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
 
     if (bestRejected) {
       console.log('DataForSEO: relevance guard rejected every candidate\'s top keyword', { original: keyword, ...bestRejected })
-      return {
-        seed_keyword: keyword,
-        top_buying: [], opportunity: [], long_tail: [], fast_growing: [],
-        provider: 'dataforseo',
-        fetched_at: new Date().toISOString(),
+      // The related-keyword graph had results but none described the same product.
+      // Still try the direct SV lookup on the original seed: its own search volume
+      // is honest evidence (we're not crediting an unrelated keyword — we're
+      // crediting the seed phrase itself), so include it when available.
+      const sv = !signal?.aborted ? await this.fetchSearchVolume(keyword, signal) : null
+      const result: KeywordIntelligence = {
+        seed_keyword:      keyword,
+        top_buying:        sv ? [sv] : [],
+        opportunity:       [],
+        long_tail:         [],
+        fast_growing:      [],
+        provider:          sv ? 'dataforseo-search-volume' : 'dataforseo',
+        fetched_at:        new Date().toISOString(),
         relevance_rejected: bestRejected,
+      }
+      if (sv) cacheSet(cacheKey, 'dataforseo', result, KEYWORD_CACHE_TTL_MS).catch(() => {})
+      return result
+    }
+
+    // Fallback: when related_keywords/live returns 0 usable items for every
+    // broadened candidate, try keywords_data/google_ads/search_volume/live on
+    // the original seed. This endpoint does a direct lookup (not graph
+    // expansion) and reliably returns data for compound product phrases like
+    // "magnesium glycinate sleep supplement" that the related-keywords graph
+    // has never indexed. Populates top_buying[0] with real monthly_searches
+    // and CPC — enough for Demand scoring and CAC Pressure.
+    if (!signal?.aborted) {
+      const sv = await this.fetchSearchVolume(keyword, signal)
+      if (sv) {
+        const result: KeywordIntelligence = {
+          seed_keyword:  keyword,
+          top_buying:    [sv],
+          opportunity:   [],
+          long_tail:     [],
+          fast_growing:  [],
+          provider:      'dataforseo-search-volume',
+          fetched_at:    new Date().toISOString(),
+        }
+        cacheSet(cacheKey, 'dataforseo', result, KEYWORD_CACHE_TTL_MS).catch(() => {})
+        return result
       }
     }
     return null
@@ -382,6 +422,45 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
       } else {
         console.error('DataForSEO provider error', { keyword, error: e instanceof Error ? e.message : e })
       }
+      return null
+    } finally {
+      clearTimeout(perCallTimeout)
+      externalSignal?.removeEventListener('abort', onExternalAbort)
+    }
+  }
+
+  private async fetchSearchVolume(keyword: string, externalSignal?: AbortSignal): Promise<KeywordMetric | null> {
+    if (externalSignal?.aborted) return null
+    const controller = new AbortController()
+    const onExternalAbort = () => controller.abort()
+    externalSignal?.addEventListener('abort', onExternalAbort)
+    const perCallTimeout = setTimeout(() => controller.abort(), 12_000)
+    try {
+      const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64')
+      const res = await fetch('https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live', {
+        method:  'POST',
+        signal:  controller.signal,
+        headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify([{ keywords: [keyword], language_code: 'en', location_code: US_LOCATION_CODE }]),
+      })
+      if (!res.ok) return null
+      const data = await res.json() as DfsSvResponse
+      const task = data.tasks?.[0]
+      if (!task || task.status_code !== 20000) return null
+      const row = task.result?.[0]
+      if (!row || typeof row.search_volume !== 'number' || row.search_volume <= 0) return null
+      console.log('[DataForSEO] search_volume/live fallback succeeded', { keyword, search_volume: row.search_volume, cpc: row.cpc })
+      return {
+        keyword,
+        monthly_searches:  row.search_volume,
+        growth_pct:        computeGrowthPct(row.monthly_searches ?? []),
+        competition:       row.competition ?? null,
+        difficulty:        null,
+        cpc:               row.cpc ?? null,
+        competition_level: row.competition_level ?? null,
+        monthly_history:   toMonthlyHistory(row.monthly_searches ?? []),
+      }
+    } catch {
       return null
     } finally {
       clearTimeout(perCallTimeout)

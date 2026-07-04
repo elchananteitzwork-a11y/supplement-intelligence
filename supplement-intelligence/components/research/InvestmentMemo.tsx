@@ -3,6 +3,7 @@
 import type { MarketVerdict, FounderVerdict } from '@/lib/stage4/verdict'
 import type { MemoSections } from '@/lib/stage4/memo-generator'
 import type { FullUnitEconomics } from '@/lib/stage4/unit-economics'
+import type { LaunchCostScenario } from '@/lib/stage4/launch-cost'
 
 interface MemoRow {
   id: string
@@ -52,8 +53,19 @@ const SECTION_ORDER: (keyof MemoSections)[] = [
 ]
 
 function fmt(n: number) { return n.toLocaleString() }
-function fmtK(n: number) { return n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n}` }
+function fmtK(n: number | undefined | null) {
+  if (n == null || isNaN(n)) return '—'
+  return n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${Math.round(n)}`
+}
 function fmtUsd(n: number) { return `$${n.toFixed(2)}` }
+
+function AiSynthesisBadge() {
+  return (
+    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-purple-900 text-purple-400 bg-purple-950/20 whitespace-nowrap shrink-0">
+      AI synthesis · not independently verified
+    </span>
+  )
+}
 
 function UnitEconomicsPanel({ econ }: { econ: FullUnitEconomics }) {
   const base = econ.sensitivity.base_case
@@ -136,6 +148,84 @@ function UnitEconomicsPanel({ econ }: { econ: FullUnitEconomics }) {
         </div>
       </div>
 
+      {/* Launch cost model */}
+      {econ.launch_cost && (() => {
+        const lc = econ.launch_cost
+        const RISK_COLORS: Record<string, string> = {
+          Low:     'text-green-400 border-green-800 bg-green-950/20',
+          Medium:  'text-yellow-400 border-yellow-800 bg-yellow-950/20',
+          High:    'text-orange-400 border-orange-800 bg-orange-950/20',
+          Extreme: 'text-red-400 border-red-800 bg-red-950/20',
+        }
+        const scenarios: LaunchCostScenario[] = [lc.minimum, lc.conservative, lc.aggressive]
+        return (
+          <div className="space-y-2">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+              True Launch Cost Estimate — Bottom-Up (Category Estimates)
+            </p>
+            <div className="rounded-lg border border-gray-800 overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-gray-800 bg-gray-900/60">
+                    <th className="px-3 py-2 text-left text-gray-400 font-medium">Component</th>
+                    <th className="px-3 py-2 text-right text-gray-400 font-medium">Minimum</th>
+                    <th className="px-3 py-2 text-right text-gray-400 font-medium">Conservative</th>
+                    <th className="px-3 py-2 text-right text-gray-400 font-medium">Aggressive</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {([
+                    ['Inventory (MOQ)', 'first_inventory_order'],
+                    ['FBA prep + shipping', 'amazon_fba_prep_shipping'],
+                    ['Testing & compliance', 'product_testing_compliance'],
+                    ['Photography & creative', 'photography_creative'],
+                    ['A+ content', 'a_plus_content'],
+                    ['Amazon Vine', 'amazon_vine'],
+                    ['Initial PPC budget', 'initial_ppc_budget'],
+                    ['Contingency', 'contingency'],
+                  ] as [string, keyof LaunchCostScenario][]).map(([label, key]) => (
+                    <tr key={key} className="border-b border-gray-900">
+                      <td className="px-3 py-1.5 text-gray-400">{label}</td>
+                      {scenarios.map(s => (
+                        <td key={s.label} className="px-3 py-1.5 text-right font-mono text-gray-300">
+                          {s[key] != null ? fmtK(s[key] as number) : '—'}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  <tr className="bg-gray-900/30">
+                    <td className="px-3 py-2 text-gray-200 font-semibold">Total</td>
+                    {scenarios.map(s => (
+                      <td key={s.label} className="px-3 py-2 text-right font-mono font-semibold">
+                        <span className={RISK_COLORS[s.capital_risk_level] ?? ''}>
+                          {fmtK(s.total)}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td className="px-3 py-1.5 text-gray-500 text-[10px]">MOQ (units)</td>
+                    {scenarios.map(s => (
+                      <td key={s.label} className="px-3 py-1.5 text-right font-mono text-gray-600 text-[10px]">
+                        {s.moq_units.toLocaleString()} × ${s.est_cogs_per_unit.toFixed(2)}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[10px] text-yellow-600">
+              Undercapitalized threshold: {fmtK(lc.undercapitalized_at)} minimum — get real supplier quotes before committing
+            </p>
+            <div className="px-1 space-y-0.5">
+              {lc.limitations.map((l, i) => (
+                <p key={i} className="text-[10px] text-gray-600">· {l}</p>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Founder's actual numbers (if provided) */}
       {(econ.founder_target_gm_pct !== undefined || econ.founder_breakeven_units_mo !== undefined) && (
         <div className="rounded-lg border border-indigo-800 bg-indigo-950/20 p-4 space-y-2">
@@ -176,6 +266,12 @@ function UnitEconomicsPanel({ econ }: { econ: FullUnitEconomics }) {
         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
           Revenue Envelope — New Entrant Scenarios
         </p>
+        {rev.is_estimate && (
+          <div className="rounded border border-yellow-800 bg-yellow-950/20 px-3 py-2 text-xs text-yellow-300 space-y-0.5">
+            <p className="font-medium">Search-volume-based estimate · Low confidence</p>
+            <p className="text-yellow-500">Keepa sales data was unavailable. Projections below are derived from search volume × estimated conversion rate and should not be treated as real revenue figures.</p>
+          </div>
+        )}
         <div className="rounded-lg border border-gray-800 overflow-hidden">
           <table className="w-full text-xs">
             <thead>
@@ -190,20 +286,20 @@ function UnitEconomicsPanel({ econ }: { econ: FullUnitEconomics }) {
               <tr className="border-b border-gray-900">
                 <td className="px-3 py-2 text-gray-400">Conservative</td>
                 <td className="px-3 py-2 text-right font-mono text-gray-500">{rev.market_share_pct.conservative}%</td>
-                <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtK(rev.conservative_monthly)}/mo</td>
-                <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtK(rev.year1_conservative)}</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-300">{rev.is_estimate ? '~' : ''}{fmtK(rev.conservative_monthly)}/mo</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-300">{rev.is_estimate ? '~' : ''}{fmtK(rev.year1_conservative)}</td>
               </tr>
               <tr className="border-b border-gray-900 bg-gray-900/20">
                 <td className="px-3 py-2 text-gray-200 font-medium">Base</td>
                 <td className="px-3 py-2 text-right font-mono text-gray-400">{rev.market_share_pct.base}%</td>
-                <td className="px-3 py-2 text-right font-mono text-gray-100 font-semibold">{fmtK(rev.base_monthly)}/mo</td>
-                <td className="px-3 py-2 text-right font-mono text-gray-100 font-semibold">{fmtK(rev.year1_base)}</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-100 font-semibold">{rev.is_estimate ? '~' : ''}{fmtK(rev.base_monthly)}/mo</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-100 font-semibold">{rev.is_estimate ? '~' : ''}{fmtK(rev.year1_base)}</td>
               </tr>
               <tr>
                 <td className="px-3 py-2 text-gray-400">Optimistic</td>
                 <td className="px-3 py-2 text-right font-mono text-gray-500">{rev.market_share_pct.optimistic}%</td>
-                <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtK(rev.optimistic_monthly)}/mo</td>
-                <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtK(rev.year1_optimistic)}</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-300">{rev.is_estimate ? '~' : ''}{fmtK(rev.optimistic_monthly)}/mo</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-300">{rev.is_estimate ? '~' : ''}{fmtK(rev.year1_optimistic)}</td>
               </tr>
             </tbody>
           </table>
@@ -342,9 +438,12 @@ export function InvestmentMemo({ memo }: Props) {
               {/* AI-written narrative */}
               {memo.sections[key] && (
                 <section className="space-y-3">
-                  <h2 className="text-sm font-semibold text-gray-300 tracking-tight border-b border-gray-800 pb-2">
-                    {SECTION_TITLES[key]}
-                  </h2>
+                  <div className="flex items-center justify-between gap-3 border-b border-gray-800 pb-2">
+                    <h2 className="text-sm font-semibold text-gray-300 tracking-tight">
+                      {SECTION_TITLES[key]}
+                    </h2>
+                    <AiSynthesisBadge />
+                  </div>
                   <div className="text-sm text-gray-300 leading-relaxed space-y-3">
                     {memo.sections[key].split('\n\n').filter(Boolean).map((para, i) => (
                       <p key={i}>{para}</p>
@@ -360,9 +459,12 @@ export function InvestmentMemo({ memo }: Props) {
         if (!text) return null
         return (
           <section key={key} className="space-y-3">
-            <h2 className="text-sm font-semibold text-gray-300 tracking-tight border-b border-gray-800 pb-2">
-              {SECTION_TITLES[key]}
-            </h2>
+            <div className="flex items-center justify-between gap-3 border-b border-gray-800 pb-2">
+              <h2 className="text-sm font-semibold text-gray-300 tracking-tight">
+                {SECTION_TITLES[key]}
+              </h2>
+              <AiSynthesisBadge />
+            </div>
             <div className="text-sm text-gray-300 leading-relaxed space-y-3">
               {text.split('\n\n').filter(Boolean).map((para, i) => (
                 <p key={i}>{para}</p>

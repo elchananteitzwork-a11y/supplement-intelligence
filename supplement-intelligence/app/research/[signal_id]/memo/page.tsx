@@ -84,11 +84,12 @@ export default function MemoPage() {
     fetch(`/api/research/memo?thesis_id=${selected}`)
       .then(r => r.json())
       .then(data => {
-        if (data) {
+        if (data && data.sections) {
           setMemo(data)  // GET already includes unit_economics, fit_annotation, founder_profile
           setFromCache(true)
           setStage('done')
         }
+        // data === null or missing sections → no memo yet, leave stage as 'idle'
       })
       .catch(() => {})
   }, [selected])
@@ -128,7 +129,7 @@ export default function MemoPage() {
     }
   }, [selected, actualCOGS, targetPrice, adBudget])
 
-  const selectedNotReady = selected !== null && !debateReady.has(selected) && debateReady.size > 0
+  const selectedNotReady = selected !== null && !debateReady.has(selected)
 
   return (
     <main className="max-w-3xl mx-auto px-6 py-12 space-y-8">
