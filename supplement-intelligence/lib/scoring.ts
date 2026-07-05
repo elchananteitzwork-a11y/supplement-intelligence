@@ -82,7 +82,28 @@ export interface EvidenceBreadth {
 //     sub-signal in Profitability when real Alibaba data is available.
 // Legacy memo scores from v2.1.0 will differ by ±2–4 points — same evidence,
 // more accurate decomposition. SCORING_ENGINE_VERSION guards comparisons.
-export const SCORING_ENGINE_VERSION = '2.2.0'
+//
+// 2.3.0 (2026-07-05): Two structural improvements.
+// (1) Review Moat sub-signal added to Market Accessibility: log₁₀(monthly_searches
+//     / avg_review_count) measures how much social proof incumbents have accumulated
+//     relative to current search demand. High → customers convert without depending
+//     on a thick review base (accessible); Low → review investment is a prerequisite
+//     to compete (moated). Weight 0.10 within the composite (≈9% of Market
+//     Accessibility, ≈1.6% of final score) — conservative initial calibration,
+//     marked for tuning once beta outcome data is available. Uses DataForSEO
+//     monthly_searches (query-specific) paired with Apify avg_review_count
+//     (query-specific competitors) — avoids pairing category-level Keepa demand
+//     with query-level review density, which would produce a meaningless ratio.
+//     Gated: requires monthly_searches ≥ 1,000 AND avg_review_count ≥ 10.
+// (2) Customer Opportunity weight-exclusion for thin corpus with cross-validated
+//     demand: when fewer than THIN_SAMPLE_THRESHOLD reviews AND real demand is
+//     confirmed by other channels (DataForSEO ≥ 10K searches OR Keepa monthly
+//     sold ≥ 5K), Customer Opportunity is excluded (weight redistributed) rather
+//     than scored 0–1 at full 18% weight. Converts "insufficient evidence" from
+//     actively penalizing the score to an honest "not yet measurable" state.
+//     Scenario A (thin reviews AND no demand cross-validation) retains damped
+//     score — correct behavior when there truly is no corroborating evidence.
+export const SCORING_ENGINE_VERSION = '2.3.0'
 
 export interface GroundedScore {
   score:       number   // 0-100
@@ -318,15 +339,53 @@ export function computeDemand(m: MemoData): RealResult {
   return { rawScore: null, sourceLabel: '' }
 }
 
-// ── Market Accessibility — blend of 3 real sub-signals + partial gate ─────
+// ── Market Accessibility — blend of 4 real sub-signals + partial gate ─────
 // Apify's review-concentration accessibility (45%) + Keepa's own
 // offers-based saturation signal (30% — real, computed every request by
 // keepa.ts, previously discarded entirely by this file) + DataForSEO's
-// keyword_difficulty (25%, inverted to an ease score) — three independent
-// real measurements of "how hard to enter," not one.
+// keyword_difficulty (25%, inverted to an ease score) + Review Moat (10%,
+// log₁₀(monthly_searches / avg_review_count) — see SCORING_ENGINE_VERSION
+// 2.3.0 header comment for full rationale and calibration notes).
 
 function difficultyToEaseScore(difficulty: number): number {
   return Math.max(0, Math.min(10, Math.round((100 - difficulty) / 10)))
+}
+
+// Review Moat: how much social proof do incumbents hold relative to current
+// search demand? High ratio → customers convert without a thick review base
+// (low moat, accessible). Low ratio → incumbents have built a review moat
+// that a new entrant must cross before competing on equal terms.
+//
+// Formula: log₁₀(monthly_searches / avg_review_count), clamped to [-2, 2]
+// and mapped to [0, 10] with ratio=1 as the neutral midpoint (score=5).
+//   ratio=100  → score=10.0 (demand far exceeds review base — very accessible)
+//   ratio=10   → score=7.5
+//   ratio=1    → score=5.0 (searches ≈ reviews — neutral)
+//   ratio=0.1  → score=2.5
+//   ratio=0.01 → score=0.0 (review-saturated — high moat)
+//
+// Gated: requires monthly_searches ≥ 1,000 (DataForSEO confirmed demand)
+// AND avg_review_count ≥ 10 (Apify found real established competitors).
+// Both values are query-specific, not category-level, avoiding the
+// category/query mismatch that makes Keepa monthly_sold an unreliable
+// pairing with query-specific review density.
+//
+// Initial calibration weight: 0.10 within the composite (≈9% of Market
+// Accessibility, ≈1.6% of final opportunity score). Mark for tuning once
+// beta outcome data links review moat ratios to actual launch difficulty.
+const REVIEW_MOAT_MIN_SEARCHES   = 1_000
+const REVIEW_MOAT_MIN_REVIEWS    = 10
+
+function computeReviewMoatScore(m: MemoData): number | null {
+  const searches    = m.keyword_intelligence?.top_buying?.[0]?.monthly_searches
+  const avgReviews  = m.signal_evidence?.review_velocity?.value.avg_review_count
+  if (
+    typeof searches   !== 'number' || searches   < REVIEW_MOAT_MIN_SEARCHES ||
+    typeof avgReviews !== 'number' || avgReviews < REVIEW_MOAT_MIN_REVIEWS
+  ) return null
+  const ratio      = searches / avgReviews
+  const logClamped = Math.max(-2, Math.min(2, Math.log10(ratio)))
+  return Math.round(((logClamped + 2) / 4) * 10 * 10) / 10
 }
 
 interface GatedResult extends RealResult { gateTier: BuildDecision | null }
@@ -344,6 +403,10 @@ function computeMarketAccessibility(m: MemoData): GatedResult {
   const topKeyword = m.keyword_intelligence?.top_buying?.[0]
   if (typeof topKeyword?.difficulty === 'number') {
     subSignals.push({ score: difficultyToEaseScore(topKeyword.difficulty), weight: 0.25, source: 'dataforseo' })
+  }
+  const reviewMoat = computeReviewMoatScore(m)
+  if (reviewMoat !== null) {
+    subSignals.push({ score: reviewMoat, weight: 0.10, source: 'dataforseo + apify-amazon-search (review moat)' })
   }
 
   if (!subSignals.length) return { rawScore: null, sourceLabel: '', gateTier: null }
@@ -731,11 +794,35 @@ function assembleDimensions(m: MemoData): { candidates: ScoreDimension[]; gateTi
   const painScore = consumerPainScore(m)
   if (painScore !== null) {
     const ci = m.consumer_intelligence!
-    const dampened = ci.totalReviewsCollected < THIN_SAMPLE_THRESHOLD
-    // Label updated 2026-07-04 (v2.2.0): "Customer Opportunity" reflects the
-    // new formula (pain component 60% + opportunity component 40%). Key kept
-    // as 'consumerPain' for backward compat with UI and stored memo references.
-    candidates.push({ key: 'consumerPain', label: 'Customer Opportunity', weight: BASE_WEIGHTS.consumerPain, rawScore: painScore, source: 'verified', sourceLabel: `Apify — ${ci.totalReviewsCollected} real competitor reviews (pain: negative corpus; opportunity: both corpora)${dampened ? ' · confidence-adjusted, thin sample' : ''}` })
+    const thinCorpus  = ci.totalReviewsCollected < THIN_SAMPLE_THRESHOLD
+    const topKeyword  = m.keyword_intelligence?.top_buying?.[0]
+    const se          = m.signal_evidence
+    const keepaMonthlySold    = parseDollarString(se?.revenue?.value.est_monthly_units_sold) ?? 0
+    const demandCrossValidated =
+      (topKeyword?.monthly_searches ?? 0) >= 10_000 ||
+      keepaMonthlySold >= 5_000
+
+    if (thinCorpus && demandCrossValidated) {
+      // Scenario B: thin corpus + cross-validated demand → weight-exclusion.
+      // The absence of review evidence cannot be interpreted as weak customer
+      // pain when independent demand channels confirm real market pull. Scoring
+      // 0–1 at full 18% weight would actively penalise the product for having
+      // fewer reviews — the opposite of the correct inference. Instead, exclude
+      // this dimension and redistribute its weight to the remaining dimensions.
+      const dfConfirmed   = (topKeyword?.monthly_searches ?? 0) >= 10_000
+      const keepaConfirmed = keepaMonthlySold >= 5_000
+      const demandNote    = [
+        dfConfirmed    ? `DataForSEO ${topKeyword!.monthly_searches!.toLocaleString()} searches/mo` : '',
+        keepaConfirmed ? `Keepa ${keepaMonthlySold.toLocaleString()} units/mo` : '',
+      ].filter(Boolean).join(' + ')
+      candidates.push(qualitative('consumerPain', 'Customer Opportunity', undefined, `Thin review corpus (${ci.totalReviewsCollected} reviews) with cross-validated demand — weight excluded and redistributed (see scoring.ts v2.3.0). Demand confirmed by: ${demandNote}.`))
+    } else {
+      // Scenario A (thin + no cross-validation) or normal corpus: report score.
+      // Label key kept as 'consumerPain' for backward compat with UI and stored
+      // memo references.
+      const dampened = thinCorpus
+      candidates.push({ key: 'consumerPain', label: 'Customer Opportunity', weight: BASE_WEIGHTS.consumerPain, rawScore: painScore, source: 'verified', sourceLabel: `Apify — ${ci.totalReviewsCollected} real competitor reviews (pain: negative corpus; opportunity: both corpora)${dampened ? ' · confidence-adjusted, thin sample' : ''}` })
+    }
   }
 
   if (m.signal_evidence?.virality) {
