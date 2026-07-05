@@ -9,6 +9,8 @@ import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
 import { computeGroundedScore, computeTractionBand, SCORING_ENGINE_VERSION } from '@/lib/scoring'
 import { fetchManufacturingEstimate } from '@/lib/manufacturing-engine'
 import { checkConsistency } from '@/lib/consistency'
+import { buildSynthesisInput, generateInterpretation } from '@/lib/ai-interpretation'
+import { buildExpandableCards, selectFirstScreenSignals } from '@/lib/evidence'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
 import { buildNewsIntelligence } from '@/lib/news-engine'
 import { shouldConsumeSlot } from '@/lib/analysis-slot-policy'
@@ -804,6 +806,47 @@ export async function POST(req: Request) {
         flags:    flags.map(f => ({ field: f.field, claim: f.claim })),
       })
     }
+
+    // ── AI Writing Layer (spec §8) ─────────────────────────────────────────
+    // Builds SynthesisInput from grounded score + memo, then fires 3 parallel
+    // small Anthropic calls (max 400/100/600 tokens each). Falls back to
+    // deterministic templates on AI failure — never blocks the save.
+    // Time guard: skip entirely if the remaining budget is below the worst-case
+    // interpretation ceiling (2 retries × 3 calls ≈ 30s), so a late-running
+    // main generation never pushes the overall request past maxDuration.
+    const synthesisInput = buildSynthesisInput(grounded, memo, input.trim(), module.name)
+    const INTERPRETATION_BUDGET_MS = 35_000
+    const remainingBudgetMs = maxDuration * 1000 - (Date.now() - requestStart)
+    if (remainingBudgetMs > INTERPRETATION_BUDGET_MS) {
+      const writerOutput = await generateInterpretation(ai, synthesisInput).catch((e: unknown) => {
+        console.error('Writer generation failed — interpretation omitted', {
+          error: e instanceof Error ? e.message : e,
+        })
+        return null
+      })
+      if (writerOutput) memo.writer_output = writerOutput
+    } else {
+      console.warn('Writer generation skipped — insufficient time budget', {
+        remainingBudgetMs, required: INTERPRETATION_BUDGET_MS,
+      })
+    }
+
+    // ── Evidence Layer (spec §9) ───────────────────────────────────────────
+    // Deterministic card builder — no network calls, O(n signals).
+    // Map converted to plain object for JSON serialization.
+    const evidenceCards = buildExpandableCards(synthesisInput, memo)
+    const expandableCards: MemoData['expandable_cards'] = {}
+    evidenceCards.forEach((card, id) => {
+      expandableCards![id] = card
+    })
+    memo.expandable_cards = expandableCards
+
+    // First-screen signal selection (spec §5.3): exactly 3 signals,
+    // verdict-conditional, weight-based tie-breaking.
+    memo.first_screen_signal_ids = selectFirstScreenSignals(
+      synthesisInput.signals,
+      synthesisInput.verdict,
+    ).map(s => s.id)
   }
 
   console.log('Analysis decision', {
