@@ -123,7 +123,18 @@ export interface EvidenceBreadth {
 //     10:1, 100:1, 300:1, and 1000:1 produce meaningfully different scores (6.7,
 //     8.3, 9.1, 10.0). The negative side is symmetrically extended so ratios of
 //     0.1:1, 0.01:1, and 0.001:1 produce 3.3, 1.7, and 0.0.
-export const SCORING_ENGINE_VERSION = '2.4.0'
+//
+// 2.5.0 (2026-07-05): VALIDATE_FURTHER threshold corrected from 50 to 40.
+// First-principles analysis (see architecture decision log) showed that the
+// 50 threshold conflated "below-average market" with "not worth entering,"
+// penalising thin-data niche categories that warrant validation, not rejection.
+// Score 40–64 now maps to VALIDATE_FURTHER; only score < 40 (genuinely weak
+// across all dimensions) maps to SKIP. SCORING_ENGINE_VERSION bumped because
+// any stored analysis with score 40–49 produced a wrong SKIP decision under
+// 2.4.0 and must be re-evaluated before being compared to 2.5.0 results.
+// The Technical Specification (Section 6.1) has always specified 65/40;
+// this change aligns the engine to that contract.
+export const SCORING_ENGINE_VERSION = '2.5.0'
 
 export interface GroundedScore {
   score:       number   // 0-100
@@ -397,7 +408,7 @@ const REVIEW_MOAT_MIN_SEARCHES   = 1_000
 const REVIEW_MOAT_MIN_REVIEWS    = 10
 const REVIEW_MOAT_SPEC_FLOOR     = 0.2
 
-function computeReviewMoatScore(m: MemoData): number | null {
+export function computeReviewMoatScore(m: MemoData): number | null {
   const avgReviews = m.signal_evidence?.review_velocity?.value.avg_review_count
   if (typeof avgReviews !== 'number' || avgReviews < REVIEW_MOAT_MIN_REVIEWS) return null
 
@@ -902,7 +913,7 @@ function scoreFromCandidates(candidates: ScoreDimension[]): { score: number; wei
   const dimensions = candidates.map(c => ({ ...c, weight: c.weight / totalWeight }))
   const weightedAvg = dimensions.reduce((s, d) => s + (d.rawScore ?? 0) * d.weight, 0)
   const score = Math.max(0, Math.min(100, Math.round(weightedAvg * 10)))
-  const rawDecision: BuildDecision = score >= 65 ? 'BUILD_NOW' : score >= 50 ? 'VALIDATE_FURTHER' : 'SKIP'
+  const rawDecision: BuildDecision = score >= 65 ? 'BUILD_NOW' : score >= 40 ? 'VALIDATE_FURTHER' : 'SKIP'
   // Weight re-normalization inflates a single strong dimension to score ≥ 65.
   // A single verified signal (e.g. search volume alone) is insufficient basis
   // for a BUILD_NOW recommendation when 6 of 7 composites are missing.
