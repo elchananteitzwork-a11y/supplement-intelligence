@@ -1,5 +1,5 @@
 import type { MemoData, BuildDecision } from '@/types/index'
-import { checkKeywordIntent, checkKeywordProductSignals, checkKeywordSemanticRelevance } from '@/lib/keyword-engine/relevance-guard'
+import { checkKeywordIntent, checkKeywordProductSignals, checkKeywordSemanticRelevance, keywordSpecificity } from '@/lib/keyword-engine/relevance-guard'
 
 // ── Grounded Opportunity Score — Decision Engine v2 (2026-06-28) ───────────
 //
@@ -103,7 +103,27 @@ export interface EvidenceBreadth {
 //     actively penalizing the score to an honest "not yet measurable" state.
 //     Scenario A (thin reviews AND no demand cross-validation) retains damped
 //     score — correct behavior when there truly is no corroborating evidence.
-export const SCORING_ENGINE_VERSION = '2.3.0'
+//
+// 2.4.0 (2026-07-05): Two calibration fixes for the Review Moat sub-signal.
+// (1) Keyword Specificity: monthly_searches is now discounted by the token-overlap
+//     ratio between the validated top keyword and the product_query before entering
+//     the ratio. Fixes the case where a broad category keyword (e.g. "creatine",
+//     11M searches) inflates the moat ratio for a product-specific query ("creatine
+//     breakfast bar"). Specificity = |keyword_tokens ∩ product_query_tokens| /
+//     |product_query_tokens|, computed over semantic tokens (stopwords removed, no
+//     GENERIC_DESCRIPTORS filter — format words like "bar" and "breakfast" DO
+//     matter for specificity even though they cannot serve as anchor words for the
+//     category-drift check). Floor of 0.2 prevents complete zeroing. The validated
+//     top keyword is now also sourced via the same semantic filter as computeDemand
+//     (instead of blindly using top_buying[0]), so navigational and drift-failing
+//     keywords are excluded from the ratio.
+// (2) Log scale extended from [-2, 2] to [-3, 3]: ratio 1:1 still maps to 5.0
+//     (neutral), but the ceiling moves from 100:1 (score 10.0) to 1000:1 (score
+//     10.0). Previously every ratio above 100:1 scored identically; now ratios of
+//     10:1, 100:1, 300:1, and 1000:1 produce meaningfully different scores (6.7,
+//     8.3, 9.1, 10.0). The negative side is symmetrically extended so ratios of
+//     0.1:1, 0.01:1, and 0.001:1 produce 3.3, 1.7, and 0.0.
+export const SCORING_ENGINE_VERSION = '2.4.0'
 
 export interface GroundedScore {
   score:       number   // 0-100
@@ -356,36 +376,58 @@ function difficultyToEaseScore(difficulty: number): number {
 // (low moat, accessible). Low ratio → incumbents have built a review moat
 // that a new entrant must cross before competing on equal terms.
 //
-// Formula: log₁₀(monthly_searches / avg_review_count), clamped to [-2, 2]
+// Formula (v2.4.0): log₁₀(effectiveSearches / avg_review_count), where
+// effectiveSearches = monthly_searches × specificity, clamped to [-3, 3]
 // and mapped to [0, 10] with ratio=1 as the neutral midpoint (score=5).
-//   ratio=100  → score=10.0 (demand far exceeds review base — very accessible)
-//   ratio=10   → score=7.5
+//   ratio=1000 → score=10.0 (demand far exceeds review base — very accessible)
+//   ratio=100  → score=8.3
+//   ratio=10   → score=6.7
 //   ratio=1    → score=5.0 (searches ≈ reviews — neutral)
-//   ratio=0.1  → score=2.5
-//   ratio=0.01 → score=0.0 (review-saturated — high moat)
+//   ratio=0.1  → score=3.3
+//   ratio=0.01 → score=1.7
+//   ratio=0.001→ score=0.0 (review-saturated — high moat)
 //
-// Gated: requires monthly_searches ≥ 1,000 (DataForSEO confirmed demand)
-// AND avg_review_count ≥ 10 (Apify found real established competitors).
-// Both values are query-specific, not category-level, avoiding the
-// category/query mismatch that makes Keepa monthly_sold an unreliable
-// pairing with query-specific review density.
-//
-// Initial calibration weight: 0.10 within the composite (≈9% of Market
-// Accessibility, ≈1.6% of final opportunity score). Mark for tuning once
-// beta outcome data links review moat ratios to actual launch difficulty.
+// Specificity: fraction of the product_query's semantic tokens present in the
+// keyword. "creatine" vs "creatine breakfast bar" → 1/3 = 0.33. Prevents a
+// broad category keyword from inflating the ratio for a product-specific query.
+// Floor of 0.2 avoids gating keywords that passed via the product-signal path.
+// Gate: effective_searches ≥ 1,000 AND avg_review_count ≥ 10.
+// Keyword source: same semantic filter as computeDemand (not raw top_buying[0]).
 const REVIEW_MOAT_MIN_SEARCHES   = 1_000
 const REVIEW_MOAT_MIN_REVIEWS    = 10
+const REVIEW_MOAT_SPEC_FLOOR     = 0.2
 
 function computeReviewMoatScore(m: MemoData): number | null {
-  const searches    = m.keyword_intelligence?.top_buying?.[0]?.monthly_searches
-  const avgReviews  = m.signal_evidence?.review_velocity?.value.avg_review_count
-  if (
-    typeof searches   !== 'number' || searches   < REVIEW_MOAT_MIN_SEARCHES ||
-    typeof avgReviews !== 'number' || avgReviews < REVIEW_MOAT_MIN_REVIEWS
-  ) return null
-  const ratio      = searches / avgReviews
-  const logClamped = Math.max(-2, Math.min(2, Math.log10(ratio)))
-  return Math.round(((logClamped + 2) / 4) * 10 * 10) / 10
+  const avgReviews = m.signal_evidence?.review_velocity?.value.avg_review_count
+  if (typeof avgReviews !== 'number' || avgReviews < REVIEW_MOAT_MIN_REVIEWS) return null
+
+  // Use the same semantically validated top keyword as computeDemand — never
+  // the raw top_buying[0], which may be a broad category keyword.
+  const validKw = (m.keyword_intelligence?.top_buying ?? [])
+    .filter(kw => typeof kw.monthly_searches === 'number' && kw.monthly_searches > 0)
+    .filter(kw => !checkKeywordIntent(kw.keyword).navigational)
+    .find(kw =>
+      m.product_query
+        ? checkKeywordSemanticRelevance(m.product_query, kw.keyword).allowed
+        : checkKeywordProductSignals(kw.keyword).valid,
+    )
+
+  if (!validKw) return null
+  const rawSearches = validKw.monthly_searches as number
+
+  // Specificity discount: if the keyword is broader than the product query,
+  // scale down the search volume by the fraction of the product query's semantic
+  // tokens that the keyword actually contains.
+  const specificity       = m.product_query
+    ? keywordSpecificity(m.product_query, validKw.keyword)
+    : 1.0
+  const effectiveSearches = rawSearches * Math.max(specificity, REVIEW_MOAT_SPEC_FLOOR)
+
+  if (effectiveSearches < REVIEW_MOAT_MIN_SEARCHES) return null
+
+  const ratio      = effectiveSearches / avgReviews
+  const logClamped = Math.max(-3, Math.min(3, Math.log10(ratio)))
+  return Math.round(((logClamped + 3) / 6) * 10 * 10) / 10
 }
 
 interface GatedResult extends RealResult { gateTier: BuildDecision | null }

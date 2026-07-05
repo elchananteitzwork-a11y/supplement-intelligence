@@ -207,6 +207,30 @@ function semanticTokens(text: string): string[] {
   return text.toLowerCase().split(/\W+/).filter(w => w.length > 1 && !SEMANTIC_STOPWORDS.has(w))
 }
 
+/**
+ * Fraction of the product query's semantic tokens that appear in the keyword.
+ * Returns [0, 1]. Used to discount search volume in the Review Moat signal when
+ * the top DataForSEO keyword is a broad category term rather than a product-
+ * specific query.
+ *
+ * Unlike extractAnchorWords (which strips GENERIC_DESCRIPTORS), this uses the
+ * full semantic token set so that format/descriptor words from the product query
+ * ("bar", "breakfast") contribute to the specificity ratio — they ARE meaningful
+ * differentiators between "creatine" (category) and "creatine breakfast bar"
+ * (specific format), even if they cannot serve as anchor words for category-
+ * drift detection.
+ *
+ * Returns 1.0 when product query has no semantic tokens (nothing to compare).
+ */
+export function keywordSpecificity(productQuery: string, keyword: string): number {
+  const pqTokens = semanticTokens(productQuery)
+  if (pqTokens.length === 0) return 1.0
+  const pqSet    = new Set(pqTokens)
+  const kwSet    = new Set(semanticTokens(keyword))
+  const overlap  = pqTokens.filter(t => kwSet.has(t)).length
+  return overlap / pqSet.size
+}
+
 function extractAnchorWords(productQuery: string): Set<string> {
   const anchors = new Set<string>()
   for (const word of semanticTokens(productQuery)) {
