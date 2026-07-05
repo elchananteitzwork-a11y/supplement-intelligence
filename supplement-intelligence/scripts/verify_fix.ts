@@ -59,10 +59,12 @@ function makeMemo(opts: {
     },
     market_saturation: {
       maturity:              'Growing',
+      dominant_brands:       'Various',
       concentration:         'Low',
       entry_difficulty:      'Medium',
       competitive_intensity: 'Medium',
     },
+    biggest_competitor: { name: 'TestCo', revenue: '$1M', gap: 'test gap' },
     market_gaps:         ['a', 'b', 'c', 'd', 'e'],
     brand_opportunities: ['a', 'b', 'c', 'd', 'e'],
     customer_language: {
@@ -98,6 +100,7 @@ function makeMemo(opts: {
           cpc:              opts.keywordCpc ?? null,
           difficulty:       opts.keywordDifficulty ?? null,
           growth_pct:       opts.keywordGrowthPct ?? null,
+          competition:      null,
         },
         // Secondary keywords for breadth boost (their volumes matter, not the objects)
         ...opts.keywordBucket.map((b, i) => ({
@@ -106,6 +109,7 @@ function makeMemo(opts: {
           cpc:              null,
           difficulty:       null,
           growth_pct:       null,
+          competition:      null,
         })),
       ],
       opportunity:  [],
@@ -125,10 +129,9 @@ function makeMemo(opts: {
   if (opts.reviewVelocityScore !== null) {
     se.review_velocity = {
       value: {
-        score:            opts.reviewVelocityScore,
-        confidence:       0.8,
-        accessibility_label: 'medium',
-        top_competitors:  [],
+        score:           opts.reviewVelocityScore,
+        confidence:      0.8,
+        top_competitors: [],
       },
       sources:       ['apify-amazon-search'],
       primarySource: 'apify-amazon-search',
@@ -138,7 +141,7 @@ function makeMemo(opts: {
 
   if (opts.competitionScore !== null) {
     se.competition = {
-      value:         { score: opts.competitionScore, confidence: 0.7, label: 'medium' },
+      value:         { score: opts.competitionScore, confidence: 0.7 },
       sources:       ['keepa'],
       primarySource: 'keepa',
       confidence:    0.7,
@@ -186,10 +189,8 @@ function makeMemo(opts: {
   if (opts.viralityScore !== null) {
     se.virality = {
       value: {
-        score:     opts.viralityScore,
+        score:      opts.viralityScore,
         confidence: 0.8,
-        hashtag:   'test',
-        data_quality: 'VERIFIED',
       },
       sources:       ['tiktok'],
       primarySource: 'tiktok',
@@ -202,8 +203,11 @@ function makeMemo(opts: {
   // ── consumer_intelligence ─────────────────────────────────────────────────
   base.consumer_intelligence = {
     totalReviewsCollected: opts.totalReviews,
-    productsAnalyzed:      [{ asin: 'B000TEST', title: 'test', reviewsCollected: opts.totalReviews }],
+    positivePoolSize:      Math.round(opts.totalReviews * 0.8),
+    negativePoolSize:      Math.round(opts.totalReviews * 0.2),
+    productsAnalyzed:      [{ productId: 'B000TEST', brand: 'TestBrand', reviewsCollected: opts.totalReviews }],
     dataSource:            'amazon-reviews',
+    generatedAt:           new Date().toISOString(),
     negativeThemes:        Array.from({ length: opts.negativeThemeCount }, (_, i) => ({
       label: `theme${i}`, mentionedBy: 5, outOf: opts.totalReviews, exampleQuote: 'test',
     })),
@@ -213,9 +217,12 @@ function makeMemo(opts: {
     })),
     mostMentionedProblems: [],
     sentimentBreakdown: {
-      positivePct: 100 - opts.negativePct,
-      neutralPct:  0,
-      negativePct: opts.negativePct,
+      avgRating:    4.0,
+      totalReviews: opts.totalReviews,
+      distribution: [],
+      positivePct:  100 - opts.negativePct,
+      neutralPct:   0,
+      negativePct:  opts.negativePct,
     },
     repurchaseLanguage:    {
       mentionedBy: opts.repurchaseRate !== null ? Math.round(opts.repurchaseRate * opts.repurchaseOutOf) : 0,
@@ -223,7 +230,7 @@ function makeMemo(opts: {
     },
     confidence:            opts.reviewConfidence,
     symptomSignals:        [],
-    tiktokPurchaseIntent:  null,
+    tiktokPurchaseIntent:  undefined,
   }
 
   return base

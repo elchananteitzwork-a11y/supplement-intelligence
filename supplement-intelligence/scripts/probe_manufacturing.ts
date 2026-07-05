@@ -27,7 +27,7 @@ async function main() {
     if (!seen.has(key)) seen.set(key, r)
   }
 
-  const memos = [...seen.values()]
+  const memos = Array.from(seen.values())
   console.log(`\nTotal unique products: ${memos.length} (from ${rows.length} rows)`)
   console.log('─'.repeat(60))
 

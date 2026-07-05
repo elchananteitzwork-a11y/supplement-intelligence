@@ -83,7 +83,7 @@ function productAnchorWords(query: string): Set<string> {
 
 function sharedSpecificWords(anchors: Set<string>, keyword: string): string[] {
   const kwTokens = new Set(tokenize(keyword))
-  return [...anchors].filter(a => kwTokens.has(a))
+  return Array.from(anchors).filter(a => kwTokens.has(a))
 }
 
 type KeywordVerdict = {
@@ -124,7 +124,7 @@ function classifyKeyword(productQuery: string, keyword: string, volume: number):
   // keywords that got through on generic signals alone without any product connection.
   const kwTokenSet = new Set(tokenize(keyword))
   const productTokens = new Set(tokenize(productQuery))
-  const anyOverlap = [...kwTokenSet].some(w => productTokens.has(w))
+  const anyOverlap = Array.from(kwTokenSet).some(w => productTokens.has(w))
   const potentialFP = accepted && !anyOverlap && anchors.size > 0
 
   return {
@@ -159,7 +159,7 @@ async function main() {
     const key = r.raw_input.toLowerCase().trim()
     if (!seen.has(key)) seen.set(key, r)
   }
-  const memos = [...seen.values()]
+  const memos = Array.from(seen.values())
   console.log(`\n  Total unique products in corpus: ${memos.length}`)
 
   // ── Per-product analysis ──────────────────────────────────────────────────
@@ -229,7 +229,7 @@ async function main() {
     const effectiveKw = accepted[0]?.keyword ?? null
 
     const oldTopKw  = withVol[0]?.keyword ?? null
-    const oldTopVol = withVol[0]?.volume ?? null
+    const oldTopVol = withVol[0]?.monthly_searches ?? null
     const topKwChanged = effectiveKw !== oldTopKw
 
     reports.push({
@@ -321,7 +321,7 @@ async function main() {
   } else {
     for (const r of hasFNs) {
       console.log(`\n  ── "${r.product}"`)
-      console.log(`     Product anchor words: ${[...productAnchorWords(r.product)].join(', ') || '(none — all-generic name)'}`)
+      console.log(`     Product anchor words: ${Array.from(productAnchorWords(r.product)).join(', ') || '(none — all-generic name)'}`)
       for (const fn of r.potentialFNs) {
         console.log(`     ⚠ "${fn.keyword}" (${fn.volume.toLocaleString()}/mo) — rejected but shares "${fn.sharedAnchors.join('", "')}"`)
         console.log(`       Rejection reason: ${fn.semReason}`)

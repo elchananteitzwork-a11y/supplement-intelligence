@@ -335,7 +335,7 @@ async function main() {
     const key = r.raw_input.toLowerCase().trim()
     if (!seen.has(key)) seen.set(key, r)
   }
-  const memos = [...seen.values()]
+  const memos = Array.from(seen.values())
 
   console.log(`\n  Found ${rows.length} total rows → ${memos.length} unique products\n`)
 

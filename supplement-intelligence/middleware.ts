@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const GUARDED = ['/dashboard', '/memo', '/leaderboard']
+const GUARDED = ['/dashboard', '/memo', '/leaderboard', '/research']
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req })
@@ -41,5 +41,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.\.(?:svg|png|jpg|webp)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|\\.(?:svg|png|jpg|webp)$).*)'],
 }
