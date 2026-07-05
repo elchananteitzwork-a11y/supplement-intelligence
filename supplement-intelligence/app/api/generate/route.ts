@@ -7,10 +7,12 @@ import { signalEngine }    from '@/lib/signal-engine'
 import { keywordEngine, enrichKeywordIntelligence, explainKeywordIntelligence } from '@/lib/keyword-engine'
 import { analyzeConsumerIntelligence } from '@/lib/consumer-intelligence'
 import { computeGroundedScore, computeTractionBand, SCORING_ENGINE_VERSION } from '@/lib/scoring'
+import type { GroundedScore } from '@/lib/scoring'
 import { fetchManufacturingEstimate } from '@/lib/manufacturing-engine'
 import { checkConsistency } from '@/lib/consistency'
 import { buildSynthesisInput, generateInterpretation } from '@/lib/ai-interpretation'
 import { buildExpandableCards, selectFirstScreenSignals } from '@/lib/evidence'
+import { writeBuildNowPattern } from '@/lib/pattern-memory'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
 import { buildNewsIntelligence } from '@/lib/news-engine'
 import { shouldConsumeSlot } from '@/lib/analysis-slot-policy'
@@ -775,6 +777,9 @@ export async function POST(req: Request) {
   // basis entirely — it no longer falls back to the model's own invented
   // number for anything. Those dimensions still show, qualitatively, in the
   // UI breakdown — never as a number.
+  // Hoisted so the pattern-memory write below can reference it after the block closes.
+  let groundedScore: GroundedScore | null = null
+
   if (!skipReason && memo.scores) {
     // Persisted, not passed as an argument — see MemoData.
     // category_creation_broad_evidence and lib/scoring.ts header comment:
@@ -784,6 +789,7 @@ export async function POST(req: Request) {
     // diverge from what was actually saved.
     if (broadQueryEvidence) memo.category_creation_broad_evidence = broadQueryEvidence
     const grounded = computeGroundedScore(memo)
+    groundedScore = grounded
     memo.opportunity_score = grounded.score
     memo.build_decision    = grounded.decision
     // Stamped so this score can always be traced to the exact formula that
@@ -944,6 +950,14 @@ export async function POST(req: Request) {
     // Non-fatal: the analysis itself already saved successfully above —
     // a leaderboard-display hiccup shouldn't fail the whole request.
     console.error('Leaderboard upsert failed', leaderboardErr)
+  }
+
+  // ── Pattern Memory (BUILD_NOW only) ───────────────────────────────────────
+  // Append-only record for analytics and future calibration. Never read by
+  // the scoring engine — the Decision Engine remains fully independent.
+  // Non-fatal: failure here never blocks the response.
+  if (groundedScore && groundedScore.decision === 'BUILD_NOW') {
+    void writeBuildNowPattern(sb, memo, groundedScore, analysis.id, user.id)
   }
 
   return NextResponse.json({ analysisId: analysis.id, memo })
