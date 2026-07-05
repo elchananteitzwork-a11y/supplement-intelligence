@@ -27,8 +27,8 @@ import { cacheGet, cacheSet } from '../../provider-cache'
 // real field to exclude it by. Documented, not silently assumed away.
 
 const ACTOR_ENDPOINT = 'https://api.apify.com/v2/acts/junglee~amazon-crawler/run-sync-get-dataset-items'
-const MAX_ITEMS = 20
-const SERP_CACHE_TTL_MS = 48 * 60 * 60 * 1000  // 48 hours — SERP rankings shift faster than reviews
+const MAX_ITEMS = 10
+const SERP_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000  // 7 days — top-10 competitive landscape stable week-to-week
 
 // A listing needs at least this many reviews to count as a real, established
 // competitor rather than a throwaway/new listing with no track record.
@@ -138,7 +138,7 @@ export class CompetitionSignalProvider implements SignalProvider {
     const category = ctx.query
     if (!category.trim()) return null
 
-    // ── SERP cache (48h TTL, saves $0.06/hit) ────────────────────────────
+    // ── SERP cache (7-day TTL, saves $0.03/hit at 10 results) ───────────
     const cacheKey = `serp:v1:${category.toLowerCase().trim()}`
     const cached = await cacheGet<ProviderSignals>(cacheKey)
     if (cached) {

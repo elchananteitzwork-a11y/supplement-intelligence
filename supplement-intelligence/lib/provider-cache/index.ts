@@ -7,9 +7,10 @@ import { createClient } from '@supabase/supabase-js'
 // server-side. Never import from a client component.
 //
 // Key conventions:
-//   reviews:v1:{asin}    — CollectedReview[] from Amazon review providers
-//   serp:v1:{query}      — ProviderSignals from junglee~amazon-crawler
-//   keywords:v1:{query}  — KeywordIntelligence from DataForSEO
+//   reviews:v1:{asin}              — CollectedReview[] from Amazon review providers
+//   serp:v1:{query}                — ProviderSignals from junglee~amazon-crawler
+//   keywords:v1:{query}            — KeywordIntelligence from DataForSEO
+//   mfg:v1:{product}:{category}    — ManufacturingEstimate from Apify/Alibaba
 //
 // All reads/writes are non-fatal: a cache miss or write failure never
 // blocks the analysis — callers proceed to the live provider instead.
