@@ -42,6 +42,7 @@ import {
   type Provenance, type ProvenanceLevel,
 } from '@/lib/provenance'
 import type { NewsItem } from '@/lib/news-engine/types'
+import { FirstScreen } from '@/components/FirstScreen'
 
 // ── Manufacturing Intelligence local types (mirrors /api/manufacturing response) ──
 interface MfgEstimate {
@@ -3320,6 +3321,7 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
 
         {/* ── Always visible: the first 15 seconds, then supporting detail ── */}
         <div className="space-y-5">
+          <FirstScreen m={m} />
           <Hero m={m} score={score} decision={decision} generatedAt={generatedAt} />
           <EvidenceConfidenceSection m={m} decision={decision} confidence={confidence} />
           <AIAnalystSection m={m} />

@@ -8,3 +8,8 @@ export type { RiskContext } from './risk-classifier'
 export * from './types'
 export { generateInterpretation } from './writer'
 export type { WriterOutput, ValidationTrace, CallValidationTrace, ValidationStepResult } from './writer'
+export {
+  verdictDisplayText, verdictLabelFromScore, verdictLabelFromDecision,
+  computeVerdictConfidence, buildConfidenceQualifier,
+  VERDICT_DISPLAY_TEXT,
+} from './verdict'
