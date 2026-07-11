@@ -12,7 +12,7 @@ export default function CopyLinkButton() {
   }
 
   return (
-    <button onClick={copy} className="btn-ghost text-xs">
+    <button onClick={copy} className="text-xs font-mono uppercase text-[#4c4546] hover:text-black transition-colors px-3 py-2">
       {copied ? '✓ Copied' : 'Copy link'}
     </button>
   )

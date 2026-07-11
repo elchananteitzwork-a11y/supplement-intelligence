@@ -73,10 +73,10 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
 
   if (loading || !data) {
     return (
-      <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-6">
-        <div className="lab-skeleton h-4 w-40 mb-3" />
-        <div className="lab-skeleton h-3 w-full mb-2" />
-        <div className="lab-skeleton h-3 w-2/3" />
+      <div className="bg-white border border-black p-6">
+        <div className="h-4 w-40 mb-3 bg-[#e2e2e2] animate-pulse" />
+        <div className="h-3 w-full mb-2 bg-[#e2e2e2] animate-pulse" />
+        <div className="h-3 w-2/3 bg-[#e2e2e2] animate-pulse" />
       </div>
     )
   }
@@ -84,23 +84,23 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
   const justSaved = savedAt !== null && Date.now() - savedAt < 4000
 
   return (
-    <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-6 space-y-5">
+    <div className="bg-white border border-black p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-lab-text-primary">What actually happened with this idea?</p>
-          <p className="text-xs text-lab-text-tertiary mt-1">
+          <p className="text-sm font-medium text-black">What actually happened with this idea?</p>
+          <p className="text-xs text-[#7e7576] mt-1">
             Real outcomes — yours and everyone else's — are the only way we'll ever know if this score means anything. Update this anytime.
           </p>
         </div>
         {justSaved && (
-          <span className="flex items-center gap-1.5 text-xs text-lab-verdant shrink-0">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-[#008a00] shrink-0">
             <IconCheck className="w-3.5 h-3.5" /> Saved
           </span>
         )}
       </div>
 
       <div>
-        <p className="text-xs text-lab-text-tertiary mb-2">Did you build it?</p>
+        <p className="text-xs font-mono text-[#7e7576] uppercase mb-2">Did you build it?</p>
         <div className="flex flex-wrap gap-2">
           {BUILT_OPTIONS.map(o => (
             <button
@@ -108,10 +108,10 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
               type="button"
               onClick={() => save({ ...data, built_status: o.value })}
               disabled={saving}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              className={`text-xs px-3 py-1.5 border transition-colors ${
                 data.built_status === o.value
-                  ? 'bg-lab-photon/15 border-lab-photon/40 text-lab-photon'
-                  : 'bg-white/[0.04] border-lab-border-default text-lab-text-tertiary hover:text-lab-text-primary'
+                  ? 'bg-black border-black text-white'
+                  : 'bg-white border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3]'
               }`}
             >
               {o.label}
@@ -121,7 +121,7 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
       </div>
 
       <div>
-        <p className="text-xs text-lab-text-tertiary mb-2">Launch status</p>
+        <p className="text-xs font-mono text-[#7e7576] uppercase mb-2">Launch status</p>
         <div className="flex flex-wrap gap-2">
           {LAUNCH_OPTIONS.map(o => (
             <button
@@ -129,10 +129,10 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
               type="button"
               onClick={() => save({ ...data, launch_status: o.value })}
               disabled={saving}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              className={`text-xs px-3 py-1.5 border transition-colors ${
                 data.launch_status === o.value
-                  ? 'bg-lab-photon/15 border-lab-photon/40 text-lab-photon'
-                  : 'bg-white/[0.04] border-lab-border-default text-lab-text-tertiary hover:text-lab-text-primary'
+                  ? 'bg-black border-black text-white'
+                  : 'bg-white border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3]'
               }`}
             >
               {o.label}
@@ -142,7 +142,7 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
       </div>
 
       <div>
-        <p className="text-xs text-lab-text-tertiary mb-2">How did it go? (only once you actually know)</p>
+        <p className="text-xs font-mono text-[#7e7576] uppercase mb-2">How did it go? (only once you actually know)</p>
         <div className="flex flex-wrap gap-2">
           {VERDICT_OPTIONS.map(o => (
             <button
@@ -150,10 +150,10 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
               type="button"
               onClick={() => save({ ...data, outcome_verdict: o.value })}
               disabled={saving}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              className={`text-xs px-3 py-1.5 border transition-colors ${
                 data.outcome_verdict === o.value
-                  ? 'bg-lab-photon/15 border-lab-photon/40 text-lab-photon'
-                  : 'bg-white/[0.04] border-lab-border-default text-lab-text-tertiary hover:text-lab-text-primary'
+                  ? 'bg-black border-black text-white'
+                  : 'bg-white border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3]'
               }`}
             >
               {o.label}
@@ -163,7 +163,7 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
       </div>
 
       <div>
-        <p className="text-xs text-lab-text-tertiary mb-2">Monthly revenue (optional, never shared individually)</p>
+        <p className="text-xs font-mono text-[#7e7576] uppercase mb-2">Monthly revenue (optional, never shared individually)</p>
         <input
           type="number"
           min={0}
@@ -176,12 +176,12 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
             if (n !== data.monthly_revenue_usd) save({ ...data, monthly_revenue_usd: n })
           }}
           placeholder="e.g. 2400"
-          className="bg-white/[0.03] border border-lab-border-default rounded-lab-sm px-4 py-2.5 text-sm text-lab-text-primary placeholder-lab-text-tertiary focus:outline-none focus:border-lab-photon/50 transition-colors w-40"
+          className="bg-white border-2 border-black px-4 py-2.5 text-sm text-black placeholder-[#7e7576] focus:outline-none transition-colors w-40"
         />
       </div>
 
       <div>
-        <p className="text-xs text-lab-text-tertiary mb-2">Notes (optional)</p>
+        <p className="text-xs font-mono text-[#7e7576] uppercase mb-2">Notes (optional)</p>
         <textarea
           defaultValue={data.notes ?? ''}
           onBlur={e => {
@@ -189,13 +189,13 @@ export default function OutcomeWidget({ analysisId }: { analysisId: string }) {
             if (v !== (data.notes ?? '')) save({ ...data, notes: v || null })
           }}
           placeholder="What actually happened — manufacturing surprises, real CAC, anything the score didn't predict."
-          className="bg-white/[0.03] border border-lab-border-default rounded-lab-sm px-4 py-2.5 text-sm text-lab-text-primary placeholder-lab-text-tertiary focus:outline-none focus:border-lab-photon/50 transition-colors resize-none h-20"
+          className="bg-white border-2 border-black px-4 py-2.5 text-sm text-black placeholder-[#7e7576] focus:outline-none transition-colors resize-none h-20"
           maxLength={2000}
         />
       </div>
 
       {data.updated_at && (
-        <p className="text-[11px] text-lab-text-tertiary">
+        <p className="text-[11px] font-mono text-[#7e7576]">
           Last updated {new Date(data.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
         </p>
       )}

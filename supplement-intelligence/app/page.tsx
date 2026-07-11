@@ -16,179 +16,179 @@ const CATEGORIES_PREVIEW = [
 ]
 
 const VERDICT_COLOR: Record<string, string> = {
-  BUILD_NOW: '#34d9a0', VALIDATE_FURTHER: '#f5b947', SKIP: '#ff6259',
+  BUILD_NOW: '#008a00', VALIDATE_FURTHER: '#fbc02d', SKIP: '#d32f2f',
+}
+const VERDICT_TEXT_ON: Record<string, string> = {
+  BUILD_NOW: '#ffffff', VALIDATE_FURTHER: '#000000', SKIP: '#ffffff',
 }
 const VERDICT_LABEL: Record<string, string> = {
-  BUILD_NOW: 'Build Now', VALIDATE_FURTHER: 'Validate', SKIP: 'Pass',
+  BUILD_NOW: 'Entry Supported', VALIDATE_FURTHER: 'Validation Required', SKIP: 'Not Supported',
 }
 
 export default function Landing() {
   return (
-    <div className="min-h-screen" style={{ background: '#050507' }}>
+    <div className="min-h-screen flex flex-col font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
 
       {/* ── NAV ── */}
-      <nav className="border-b border-lab-border-soft px-6 h-14 flex items-center justify-between sticky top-0 z-50 bg-[#050507]/90 backdrop-blur-md">
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="w-1 h-4 rounded-full bg-lab-photon" />
-          <span className="font-display text-sm font-semibold tracking-tight">
-            Intelligence <span className="text-lab-photon">Lab</span>
-          </span>
-        </Link>
-        <Link
-          href="/login"
-          className="text-xs font-medium text-lab-text-secondary hover:text-lab-text-primary px-4 py-2 rounded-lab-sm border border-lab-border-default hover:border-lab-border-strong transition-colors"
-        >
-          Sign in
-        </Link>
-      </nav>
+      <header className="w-full sticky top-0 z-50 bg-[#f9f9f9] border-b-2 border-black">
+        <nav className="flex justify-between items-center px-6 py-4 max-w-full">
+          <Link href="/" className="text-lg font-black tracking-tighter uppercase">
+            Intelligence Lab
+          </Link>
+          <Link
+            href="/login"
+            className="bg-black text-white font-bold px-6 py-2 uppercase text-sm border border-black hover:bg-white hover:text-black transition-colors duration-200 active:scale-95"
+          >
+            Sign in
+          </Link>
+        </nav>
+      </header>
 
-      {/* ── HERO ── */}
-      <section className="relative max-w-5xl mx-auto px-6 pt-24 pb-20 overflow-hidden">
-        {/* Background radial */}
-        <div
-          className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[400px] pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at center, rgba(79,168,255,0.08) 0%, transparent 70%)' }}
-          aria-hidden
-        />
-
-        <div className="relative z-10 max-w-3xl">
-          {/* Eyebrow */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-lab-photon/25 bg-lab-photon/8 text-lab-photon text-[11px] font-semibold uppercase tracking-[0.14em] mb-9">
-            <span className="w-1.5 h-1.5 rounded-full bg-lab-photon animate-pulse" />
+      <main className="flex-grow">
+        {/* ── HERO ── */}
+        <section className="max-w-[720px] mx-auto text-center px-6 pt-24 pb-20">
+          <div className="inline-flex items-center gap-2 border border-black px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] mb-9">
+            <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
             Beta — limited access
           </div>
 
-          <h1 className="font-display text-5xl sm:text-6xl font-bold leading-[1.05] tracking-tight mb-6 text-lab-text-primary">
-            Know if your idea<br />
-            is <span style={{ color: '#4fa8ff' }}>worth building</span><br />
-            in 60 seconds.
+          <h1 className="text-[40px] sm:text-[56px] font-black leading-[1.05] tracking-tight mb-6">
+            Know if your idea is worth building in 60 seconds.
           </h1>
 
-          <p className="text-lg text-lab-text-secondary max-w-xl mb-10 leading-relaxed">
-            Type any product category. Get investor-grade intelligence — real Amazon data, competitive landscape, demand signals, and a grounded BUILD / SKIP verdict.
+          <p className="text-lg text-[#4c4546] mb-10 leading-relaxed">
+            Type any product category. Get investor-grade intelligence — real Amazon data, competitive landscape, demand signals, and a grounded Entry Supported or Not Supported verdict.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/login"
-              className="inline-flex items-center gap-2 text-base font-semibold text-[#050507] bg-lab-photon hover:bg-lab-photon-bright px-8 py-3.5 rounded-lab-sm transition-colors duration-lab-fast"
+              href="/login?signup=1"
+              className="inline-flex items-center gap-2 text-base font-black uppercase tracking-wide text-white bg-black px-8 py-3.5 border-2 border-black hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
             >
               Get Early Access →
             </Link>
-            <span className="text-sm text-lab-text-tertiary">Free during beta · No credit card</span>
+            <span className="text-sm font-mono text-[#7e7576]">Free during beta · No credit card</span>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── SIGNAL METRICS ── */}
-      <section className="border-y border-lab-border-soft py-8 px-6 mb-20">
-        <div className="max-w-3xl mx-auto flex justify-center gap-16 flex-wrap">
-          {METRICS.map(m => (
-            <div key={m.label} className="text-center">
-              <p className="font-display text-3xl font-bold text-lab-photon mb-1">{m.value}</p>
-              <p className="text-xs text-lab-text-tertiary uppercase tracking-wider">{m.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── LIVE LEADERBOARD PREVIEW ── */}
-      <section className="max-w-2xl mx-auto px-6 mb-24">
-        <div className="mb-6">
-          <p className="text-[11px] text-lab-text-tertiary uppercase tracking-wider mb-1">Live intelligence board</p>
-          <h2 className="font-display text-2xl font-semibold text-lab-text-primary">28 categories. Ranked by real data.</h2>
-        </div>
-
-        <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-lg overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-lab-border-faint bg-white/[0.02]">
-            <span className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Category</span>
-            <span className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Score</span>
-          </div>
-          {CATEGORIES_PREVIEW.map((row, i) => (
-            <div
-              key={row.name}
-              className="flex items-center justify-between px-5 py-3.5 border-b border-lab-border-faint last:border-b-0 hover:bg-white/[0.02] transition-colors"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="lab-text-data text-[10px] text-lab-text-tertiary w-4 text-right shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ background: VERDICT_COLOR[row.d] }}
-                />
-                <span className="text-sm text-lab-text-secondary truncate">{row.name}</span>
+        {/* ── SIGNAL METRICS ── */}
+        <section className="border-y-2 border-black py-8 px-6 mb-20">
+          <div className="max-w-3xl mx-auto flex justify-center gap-16 flex-wrap">
+            {METRICS.map(m => (
+              <div key={m.label} className="text-center">
+                <p className="text-3xl font-black mb-1">{m.value}</p>
+                <p className="text-xs font-mono text-[#4c4546] uppercase tracking-wider">{m.label}</p>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span
-                  className="text-[11px] font-medium hidden sm:block"
-                  style={{ color: VERDICT_COLOR[row.d] }}
-                >
-                  {VERDICT_LABEL[row.d]}
-                </span>
-                <span
-                  className="lab-text-data text-sm font-bold tabular-nums"
-                  style={{ color: VERDICT_COLOR[row.d] }}
-                >
-                  {row.score}
-                </span>
-              </div>
-            </div>
-          ))}
-          <div className="px-5 py-3 bg-white/[0.01]">
-            <p className="text-xs text-lab-text-tertiary">Your analyses added automatically. Scores computed from real provider data.</p>
+            ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section className="max-w-3xl mx-auto px-6 pb-24">
-        <p className="text-[11px] text-lab-text-tertiary uppercase tracking-wider mb-2">How it works</p>
-        <h2 className="font-display text-2xl font-semibold text-lab-text-primary mb-10">Three steps to clarity.</h2>
+        {/* ── LIVE LEADERBOARD PREVIEW — reskinned as verdict cards ── */}
+        <section className="max-w-[1200px] mx-auto px-6 mb-24">
+          <div className="mb-6 text-center">
+            <p className="text-[11px] font-mono text-[#4c4546] uppercase tracking-wider mb-1">Live intelligence board</p>
+            <h2 className="text-2xl font-black">28 categories. Ranked by real data.</h2>
+          </div>
 
-        <div className="space-y-0">
-          {[
-            { n: '01', t: 'Type your idea', b: "Enter any product concept — as broad as 'stress supplement for women' or as specific as 'cortisol support for women 35–50 with hair loss.'" },
-            { n: '02', t: 'Real data runs in background', b: 'The engine queries Amazon sales data, search demand, TikTok virality, competitor reviews, and FDA safety signals — all in parallel.' },
-            { n: '03', t: 'Get a grounded verdict', b: 'Market gaps. Formula. Financials. Customer language. Evidence breadth. A BUILD / SKIP verdict backed by real sources, not AI guesses.' },
-          ].map((s, i) => (
-            <div
-              key={s.n}
-              className="flex gap-8 py-7 border-t border-lab-border-soft first:border-t-0"
-            >
-              <span
-                className="font-display text-2xl font-bold shrink-0 mt-0.5"
-                style={{ color: '#4fa8ff33' }}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {CATEGORIES_PREVIEW.slice(0, 3).map((row, i) => (
+              <div key={row.name} className="bg-white border border-black p-6 flex flex-col h-full">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <span className="text-[11px] font-mono text-[#4c4546] uppercase tracking-wider block mb-1">Category</span>
+                    <span className="text-lg font-bold leading-snug block">{row.name}</span>
+                  </div>
+                  <div
+                    className="px-3 py-1 font-black text-[11px] uppercase shrink-0 ml-3"
+                    style={{ background: VERDICT_COLOR[row.d], color: VERDICT_TEXT_ON[row.d] }}
+                  >
+                    {String(i + 1).padStart(2, '0')}
+                  </div>
+                </div>
+                <div className="mb-6">
+                  <span className="text-[11px] font-mono text-[#4c4546] uppercase tracking-wider block mb-1">Score</span>
+                  <span className="font-mono text-3xl font-bold tabular-nums" style={{ color: VERDICT_COLOR[row.d] }}>{row.score}</span>
+                </div>
+                <div className="mt-auto">
+                  <span className="text-[11px] font-mono text-[#4c4546] uppercase tracking-wider block mb-1">Verdict</span>
+                  <span className="text-sm font-bold uppercase" style={{ color: VERDICT_COLOR[row.d] }}>{VERDICT_LABEL[row.d]}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 border border-black bg-white divide-y divide-black/10">
+            {CATEGORIES_PREVIEW.slice(3).map((row, i) => (
+              <div key={row.name} className="flex items-center justify-between px-5 py-3.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="font-mono text-[10px] text-[#7e7576] w-4 text-right shrink-0">{String(i + 4).padStart(2, '0')}</span>
+                  <span className="w-2 h-2 shrink-0" style={{ background: VERDICT_COLOR[row.d] }} />
+                  <span className="text-sm truncate">{row.name}</span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-[11px] font-bold uppercase hidden sm:block" style={{ color: VERDICT_COLOR[row.d] }}>
+                    {VERDICT_LABEL[row.d]}
+                  </span>
+                  <span className="font-mono text-sm font-bold tabular-nums" style={{ color: VERDICT_COLOR[row.d] }}>
+                    {row.score}
+                  </span>
+                </div>
+              </div>
+            ))}
+            <div className="px-5 py-3 bg-[#f3f3f3]">
+              <p className="text-xs font-mono text-[#4c4546]">Your analyses added automatically. Scores computed from real provider data.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── HOW IT WORKS ── */}
+        <section className="max-w-3xl mx-auto px-6 pb-24">
+          <p className="text-[11px] font-mono text-[#4c4546] uppercase tracking-wider mb-2 text-center">How it works</p>
+          <h2 className="text-2xl font-black mb-10 text-center">Three steps to clarity.</h2>
+
+          <div className="space-y-0">
+            {[
+              { n: '01', t: 'Type your idea', b: "Enter any product concept — as broad as 'stress supplement for women' or as specific as 'cortisol support for women 35–50 with hair loss.'" },
+              { n: '02', t: 'Real data runs in background', b: 'The engine queries Amazon sales data, search demand, TikTok virality, competitor reviews, and FDA safety signals — all in parallel.' },
+              { n: '03', t: 'Get a grounded verdict', b: 'Market gaps. Formula. Financials. Customer language. Evidence breadth. An Entry Supported or Not Supported verdict backed by real sources, not AI guesses.' },
+            ].map((s, i) => (
+              <div
+                key={s.n}
+                className="flex gap-8 py-7 border-t-2 border-black first:border-t-0"
               >
-                {s.n}
-              </span>
-              <div>
-                <p className="font-semibold text-lab-text-primary mb-1.5">{s.t}</p>
-                <p className="text-sm text-lab-text-tertiary leading-relaxed">{s.b}</p>
+                <span className="font-mono text-2xl font-bold shrink-0 mt-0.5 text-[#cfc4c5]">
+                  {s.n}
+                </span>
+                <div>
+                  <p className="font-bold mb-1.5">{s.t}</p>
+                  <p className="text-sm text-[#4c4546] leading-relaxed">{s.b}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
 
-      {/* ── FINAL CTA ── */}
-      <section className="max-w-lg mx-auto px-6 pb-32 text-center">
-        <div
-          className="rounded-lab-xl border border-lab-photon/20 p-12"
-          style={{ background: 'rgba(79,168,255,0.04)', boxShadow: '0 0 80px rgba(79,168,255,0.08)' }}
-        >
-          <h2 className="font-display text-2xl font-bold text-lab-text-primary mb-2">Start this week.</h2>
-          <p className="text-lab-text-tertiary mb-8 text-sm">3 free analyses during beta. No credit card.</p>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 text-base font-semibold text-[#050507] bg-lab-photon hover:bg-lab-photon-bright px-10 py-3.5 rounded-lab-sm transition-colors"
-          >
-            Request Beta Access →
-          </Link>
-        </div>
-      </section>
+        {/* ── FINAL CTA ── */}
+        <section className="max-w-lg mx-auto px-6 pb-32 text-center">
+          <div className="border-2 border-black bg-white p-12 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <h2 className="text-2xl font-black mb-2">Start this week.</h2>
+            <p className="text-[#4c4546] mb-8 text-sm">3 free analyses during beta. No credit card.</p>
+            <Link
+              href="/login?signup=1"
+              className="inline-flex items-center gap-2 text-base font-black uppercase tracking-wide text-white bg-black px-10 py-3.5 border-2 border-black hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
+            >
+              Request Beta Access →
+            </Link>
+          </div>
+        </section>
+      </main>
 
-      <footer className="border-t border-lab-border-soft py-8 text-center">
-        <p className="text-sm text-lab-text-tertiary">Intelligence Lab · Beta v0.2</p>
+      {/* ── FOOTER ── */}
+      <footer className="w-full border-t-2 border-black bg-[#f3f3f3]">
+        <div className="flex flex-col md:flex-row justify-between items-center px-6 py-10 max-w-full">
+          <span className="font-mono font-bold text-sm uppercase">Intelligence Lab</span>
+          <p className="font-mono text-xs text-[#4c4546] mt-4 md:mt-0">Intelligence Lab · Beta v0.2</p>
+        </div>
       </footer>
     </div>
   )

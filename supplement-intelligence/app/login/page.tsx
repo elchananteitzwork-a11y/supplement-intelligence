@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -11,6 +11,10 @@ export default function LoginPage() {
   const router = useRouter()
   const [mode,     setMode]     = useState<Mode>('signin')
   const [email,    setEmail]    = useState('')
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('signup') === '1') setMode('signup')
+  }, [])
   const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
@@ -51,41 +55,36 @@ export default function LoginPage() {
     }
   }
 
-  const inputCls = "w-full bg-white/[0.04] border border-lab-border-default rounded-lab-sm px-4 py-3 text-sm text-lab-text-primary placeholder-lab-text-tertiary focus:outline-none focus:border-lab-photon/60 focus:ring-1 focus:ring-lab-photon/20 transition-all"
+  const inputCls = "w-full bg-white border-2 border-black px-4 py-3 text-sm font-sans text-black placeholder-[#7e7576] focus:outline-none transition-transform duration-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:shadow-none focus:translate-x-[2px] focus:translate-y-[2px]"
+  const labelCls = "block text-[11px] font-mono text-[#4c4546] mb-1.5 uppercase tracking-wider"
 
   const EmailConfirm = ({ title, body }: { title: string; body: React.ReactNode }) => (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: '#050507' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 font-sans" style={{ background: '#f9f9f9' }}>
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center mb-2">
-          <Link href="/" className="font-display text-sm font-semibold">
-            Intelligence <span className="text-lab-photon">Lab</span>
+          <Link href="/" className="font-sans text-sm font-black uppercase tracking-tight text-black">
+            Intelligence Lab
           </Link>
         </div>
-        <div
-          className="rounded-lab-lg border border-lab-border-soft p-8 text-center space-y-5"
-          style={{ background: 'rgba(255,255,255,0.03)' }}
-        >
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center mx-auto"
-            style={{ background: 'rgba(79,168,255,0.08)', border: '1px solid rgba(79,168,255,0.2)' }}
-          >
-            <svg className="w-5 h-5 text-lab-photon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="border border-black bg-white p-8 text-center space-y-5">
+          <div className="w-12 h-12 border-2 border-black flex items-center justify-center mx-auto">
+            <svg className="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
           <div>
-            <p className="font-display font-semibold text-lab-text-primary text-lg">{title}</p>
-            <p className="text-sm text-lab-text-tertiary mt-1.5 leading-relaxed">{body}</p>
+            <p className="font-sans font-black text-black text-lg uppercase tracking-tight">{title}</p>
+            <p className="text-sm text-[#4c4546] mt-1.5 leading-relaxed">{body}</p>
           </div>
           <button
             onClick={() => { setResetSent(false); setAwaitingConfirm(false); switchMode('signin') }}
-            className="text-xs text-lab-text-secondary hover:text-lab-text-primary transition-colors"
+            className="text-xs font-mono uppercase tracking-wider text-[#4c4546] hover:text-black transition-colors border-b border-black"
           >
             ← Back to sign in
           </button>
         </div>
         <p className="text-center">
-          <Link href="/" className="text-xs text-lab-text-tertiary hover:text-lab-text-secondary transition-colors">← Back to home</Link>
+          <Link href="/" className="text-xs font-mono uppercase tracking-wider text-[#4c4546] hover:text-black transition-colors">← Back to home</Link>
         </p>
       </div>
     </div>
@@ -94,54 +93,43 @@ export default function LoginPage() {
   if (resetSent) return (
     <EmailConfirm
       title="Check your email"
-      body={<>Reset link sent to <span className="text-lab-text-primary">{email}</span>. Click it to choose a new password.</>}
+      body={<>Reset link sent to <span className="text-black font-semibold">{email}</span>. Click it to choose a new password.</>}
     />
   )
 
   if (awaitingConfirm) return (
     <EmailConfirm
       title="Confirm your email"
-      body={<>Confirmation link sent to <span className="text-lab-text-primary">{email}</span>. Click it to activate your account.</>}
+      body={<>Confirmation link sent to <span className="text-black font-semibold">{email}</span>. Click it to activate your account.</>}
     />
   )
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative" style={{ background: '#050507' }}>
-      {/* Background glow */}
-      <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse, rgba(79,168,255,0.05) 0%, transparent 70%)' }}
-        aria-hidden
-      />
-
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
       <div className="relative w-full max-w-sm space-y-6">
         {/* Brand */}
         <div className="text-center">
           <Link href="/" className="inline-flex items-center gap-2 group">
-            <span className="w-1 h-4 rounded-full bg-lab-photon" />
-            <span className="font-display text-sm font-semibold">
-              Intelligence <span className="text-lab-photon">Lab</span>
+            <span className="font-sans text-sm font-black uppercase tracking-tight text-black">
+              Intelligence Lab
             </span>
           </Link>
         </div>
 
         {/* Card */}
-        <div
-          className="rounded-lab-lg border border-lab-border-soft p-8"
-          style={{ background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(20px)' }}
-        >
+        <div className="border border-black bg-white p-8">
           <form onSubmit={submit} className="space-y-5">
             <div>
-              <p className="font-display font-semibold text-lg text-lab-text-primary mb-1">
+              <p className="font-sans font-black text-lg text-black mb-1 uppercase tracking-tight">
                 {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Reset password'}
               </p>
-              <p className="text-sm text-lab-text-tertiary">
+              <p className="text-sm text-[#4c4546]">
                 {mode === 'signin' ? 'Enter your credentials to continue.' : mode === 'signup' ? 'Sign up for beta access.' : "Enter your email and we'll send a reset link."}
               </p>
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-xs text-lab-text-tertiary mb-1.5 uppercase tracking-wider">Email address</label>
+              <label htmlFor="email" className={labelCls}>Email address</label>
               <input
                 id="email" type="email" required autoFocus autoComplete="email"
                 value={email} onChange={e => setEmail(e.target.value)}
@@ -153,9 +141,9 @@ export default function LoginPage() {
             {mode !== 'forgot' && (
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="password" className="block text-xs text-lab-text-tertiary uppercase tracking-wider">Password</label>
+                  <label htmlFor="password" className="text-[11px] font-mono text-[#4c4546] uppercase tracking-wider">Password</label>
                   {mode === 'signin' && (
-                    <button type="button" onClick={() => switchMode('forgot')} className="text-xs text-lab-text-tertiary hover:text-lab-text-secondary transition-colors">
+                    <button type="button" onClick={() => switchMode('forgot')} className="text-[11px] font-mono uppercase tracking-wider text-[#4c4546] hover:text-black transition-colors">
                       Forgot password?
                     </button>
                   )}
@@ -172,7 +160,7 @@ export default function LoginPage() {
             )}
 
             {error && (
-              <div className="text-sm text-lab-ember bg-lab-ember/8 border border-lab-ember/25 rounded-lab-sm px-3 py-2.5">
+              <div className="text-sm text-[#93000a] bg-[#ffdad6] border border-[#ba1a1a] px-3 py-2.5">
                 {error}
               </div>
             )}
@@ -180,7 +168,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !email.trim() || (mode !== 'forgot' && password.length < 6)}
-              className="w-full py-3 text-sm font-semibold text-[#050507] bg-lab-photon hover:bg-lab-photon-bright rounded-lab-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full py-3.5 text-sm font-black uppercase tracking-widest text-white bg-black border-2 border-black hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -193,20 +181,20 @@ export default function LoginPage() {
               ) : mode === 'signin' ? 'Sign in →' : mode === 'signup' ? 'Create account →' : 'Send reset link →'}
             </button>
 
-            <p className="text-xs text-lab-text-tertiary text-center">
+            <p className="text-xs font-mono text-[#4c4546] text-center uppercase tracking-wide">
               {mode === 'forgot' ? (
-                <>Remember your password?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-lab-photon hover:underline">Sign in</button></>
+                <>Remember your password?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-black underline">Sign in</button></>
               ) : mode === 'signin' ? (
-                <>Don&apos;t have an account?{' '}<button type="button" onClick={() => switchMode('signup')} className="text-lab-photon hover:underline">Sign up</button></>
+                <>Don&apos;t have an account?{' '}<button type="button" onClick={() => switchMode('signup')} className="text-black underline">Sign up</button></>
               ) : (
-                <>Already have an account?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-lab-photon hover:underline">Sign in</button></>
+                <>Already have an account?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-black underline">Sign in</button></>
               )}
             </p>
           </form>
         </div>
 
         <p className="text-center">
-          <Link href="/" className="text-xs text-lab-text-tertiary hover:text-lab-text-secondary transition-colors">← Back to home</Link>
+          <Link href="/" className="text-xs font-mono uppercase tracking-wider text-[#4c4546] hover:text-black transition-colors">← Back to home</Link>
         </p>
       </div>
     </div>

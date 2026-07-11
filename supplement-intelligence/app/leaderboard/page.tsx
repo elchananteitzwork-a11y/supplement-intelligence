@@ -32,44 +32,44 @@ export default async function Leaderboard() {
   const canAnalyze = devUnlimited || used < limit
 
   const stats = [
-    { label: 'Build Now',   value: build,            color: '#34d9a0' },
-    { label: 'Validate',    value: validate,          color: '#f5b947' },
-    { label: 'Category',    value: categoryCreation,  color: '#8b7cff' },
-    { label: 'Pass',        value: skip,             color: '#ff6259' },
+    { label: 'Entry Supported',     value: build,            color: '#008a00' },
+    { label: 'Validation Required', value: validate,          color: '#a67c00' },
+    { label: 'Category Creation',   value: categoryCreation,  color: '#000000' },
+    { label: 'Not Supported',       value: skip,              color: '#d32f2f' },
   ]
 
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="min-h-screen lg:flex font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
       <AppSidebar active="leaderboard" used={used} limit={limit} canAnalyze={canAnalyze} />
 
       <main className="flex-1 px-4 py-8 lg:px-10 lg:py-10 min-w-0">
         <div className="max-w-6xl">
 
           {/* Mobile header */}
-          <div className="flex items-center justify-between mb-8 lg:hidden">
-            <p className="font-display text-base font-semibold text-lab-text-primary">Leaderboard</p>
-            <nav className="flex items-center gap-2">
-              <Link href="/dashboard"   className="text-xs text-lab-text-tertiary">Analyses</Link>
-              <Link href="/leaderboard" className="text-xs text-lab-photon">Leaderboard</Link>
+          <div className="flex items-center justify-between mb-8 lg:hidden border-b-2 border-black pb-4">
+            <p className="text-base font-black uppercase tracking-tight text-black">Leaderboard</p>
+            <nav className="flex items-center gap-3">
+              <Link href="/dashboard"   className="text-xs font-mono uppercase text-[#7e7576]">Analyses</Link>
+              <Link href="/leaderboard" className="text-xs font-mono uppercase text-black font-bold">Leaderboard</Link>
             </nav>
           </div>
 
-          <div className="hidden lg:flex items-baseline justify-between mb-8">
-            <h1 className="font-display text-xl font-semibold text-lab-text-primary">Leaderboard</h1>
-            <p className="lab-text-data text-xs text-lab-text-tertiary">{rows.length} categories ranked</p>
+          <div className="hidden lg:flex items-baseline justify-between mb-8 border-b-2 border-black pb-4">
+            <h1 className="text-xl font-black uppercase tracking-tight text-black">Leaderboard</h1>
+            <p className="font-mono text-xs text-[#7e7576]">{rows.length} categories ranked</p>
           </div>
 
           {/* Verdict distribution */}
-          <div className="grid grid-cols-4 gap-3 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
             {stats.map(s => (
-              <div key={s.label} className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md px-4 py-4">
+              <div key={s.label} className="bg-white border border-black px-4 py-4">
                 <p
-                  className="lab-text-data text-2xl font-bold mb-1 leading-none"
+                  className="font-mono text-2xl font-black mb-1 leading-none"
                   style={{ color: s.color }}
                 >
                   {s.value}
                 </p>
-                <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">{s.label}</p>
+                <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider">{s.label}</p>
               </div>
             ))}
           </div>

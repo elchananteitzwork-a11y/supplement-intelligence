@@ -5,7 +5,7 @@ import './design-tokens.css'
 
 const inter = Inter({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '500', '600', '700', '800', '900'],
   variable: '--font-inter',
   display: 'swap',
 })
@@ -40,7 +40,7 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: 'Supplement Intelligence — Know Before You Build',
-  description: 'Generate investor-grade supplement analysis in 60 seconds. Market gaps, formula, financials, BUILD/SKIP verdict.',
+  description: 'Generate investor-grade supplement analysis in 60 seconds. Market gaps, formula, financials, and a grounded Entry Supported or Not Supported verdict.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

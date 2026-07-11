@@ -4,10 +4,10 @@ import { ScoreDial } from '@/components/ScoreDial'
 import { ProductGlyphMini, inferProductShape } from '@/components/ProductGlyph'
 
 const DECISION_CFG: Record<BuildDecision, { label: string; color: string; glow: string; bg: string }> = {
-  BUILD_NOW:        { label: 'Build Now',       color: '#34d9a0', glow: 'rgba(52,217,160,0.12)', bg: 'rgba(52,217,160,0.08)' },
-  VALIDATE_FURTHER: { label: 'Validate First',  color: '#f5b947', glow: 'rgba(245,185,71,0.10)', bg: 'rgba(245,185,71,0.06)' },
-  SKIP:             { label: 'Pass',            color: '#ff6259', glow: 'rgba(255,98,89,0.08)',  bg: 'rgba(255,98,89,0.05)'  },
-  CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation', color: '#8b7cff', glow: 'rgba(139,124,255,0.10)', bg: 'rgba(139,124,255,0.06)' },
+  BUILD_NOW:        { label: 'Entry Supported',     color: '#008a00', glow: 'transparent', bg: 'transparent' },
+  VALIDATE_FURTHER: { label: 'Validation Required', color: '#fbc02d', glow: 'transparent', bg: 'transparent' },
+  SKIP:             { label: 'Not Supported',       color: '#d32f2f', glow: 'transparent', bg: 'transparent' },
+  CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation', color: '#000000', glow: 'transparent', bg: 'transparent' },
 }
 
 interface OpportunityCardProps {
@@ -23,20 +23,17 @@ interface OpportunityCardProps {
   timeLabel:    string
 }
 
+function sanitizeMarketSize(s: string | null | undefined): string | null {
+  if (!s || s === 'N/A') return null
+  if (/\$[A-Z]+B?\s*\(year\)/i.test(s)) return null
+  return s
+}
+
 export default function OpportunityCard({
   href, rank, gridIndex, categoryName, score, decision, format, competitor, marketSize, timeLabel,
 }: OpportunityCardProps) {
   const cfg = DECISION_CFG[decision]
-  const delay = Math.min(typeof gridIndex === 'number' ? gridIndex : 0, 11) * 0.05
-  const isBuild = decision === 'BUILD_NOW' && score >= 70
-
-  const style: React.CSSProperties = {
-    borderTopColor: `${cfg.color}40`,
-    borderTopWidth: 2,
-    animation: 'lab-fade-up .45s var(--lab-ease-enter, ease) both',
-    animationDelay: `${delay}s`,
-    ...(isBuild ? { boxShadow: `0 0 32px ${cfg.glow}` } : {}),
-  }
+  const safeMarketSize = sanitizeMarketSize(marketSize)
 
   const content = (
     <>
@@ -44,12 +41,11 @@ export default function OpportunityCard({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           {typeof rank === 'number' && (
-            <span className="lab-text-data text-[10px] text-lab-text-tertiary shrink-0 w-5 text-right">{String(rank).padStart(2, '0')}</span>
+            <span className="font-mono text-[10px] text-[#7e7576] shrink-0 w-5 text-right">{String(rank).padStart(2, '0')}</span>
           )}
           {format && (
             <span
-              className="w-8 h-8 rounded-full grid place-items-center shrink-0"
-              style={{ background: `${cfg.color}12`, border: `1px solid ${cfg.color}25` }}
+              className="w-8 h-8 border border-black grid place-items-center shrink-0"
               title={format}
             >
               <ProductGlyphMini shape={inferProductShape(format)} className="w-3.5 h-4 opacity-80" />
@@ -60,43 +56,42 @@ export default function OpportunityCard({
       </div>
 
       {/* Category name */}
-      <h3 className="font-display text-[15px] font-semibold leading-snug text-lab-text-primary line-clamp-2 -mt-0.5">
+      <h3 className="text-[15px] font-bold leading-snug text-black line-clamp-2 -mt-0.5">
         {categoryName}
       </h3>
 
       {/* Facts */}
-      {(competitor || marketSize) && (
+      {(competitor || safeMarketSize) && (
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {competitor && competitor !== 'N/A' && (
             <div>
-              <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider mb-0.5">Competitor</p>
-              <p className="lab-text-data text-xs text-lab-text-secondary truncate max-w-[9rem]">{competitor}</p>
+              <p className="text-[9px] font-mono text-[#7e7576] uppercase tracking-wider mb-0.5">Competitor</p>
+              <p className="font-mono text-xs text-[#4c4546] truncate max-w-[9rem]">{competitor}</p>
             </div>
           )}
-          {marketSize && marketSize !== 'N/A' && (
+          {safeMarketSize && (
             <div>
-              <p className="text-[9px] text-lab-text-tertiary uppercase tracking-wider mb-0.5">Market</p>
-              <p className="lab-text-data text-xs text-lab-text-secondary truncate max-w-[9rem]">{marketSize}</p>
+              <p className="text-[9px] font-mono text-[#7e7576] uppercase tracking-wider mb-0.5">Market</p>
+              <p className="font-mono text-xs text-[#4c4546] truncate max-w-[9rem]">{safeMarketSize}</p>
             </div>
           )}
         </div>
       )}
 
       {/* Bottom: verdict + time */}
-      <div className="flex items-center justify-between gap-3 pt-3 mt-auto border-t border-lab-border-faint">
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: cfg.color }}>
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: cfg.color }} />
+      <div className="flex items-center justify-between gap-3 pt-3 mt-auto border-t border-black/10">
+        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-black uppercase" style={{ background: cfg.color, color: decision === 'VALIDATE_FURTHER' ? '#000000' : '#ffffff' }}>
           {cfg.label}
         </span>
-        <span className="lab-text-data text-[10px] text-lab-text-tertiary shrink-0">{timeLabel}</span>
+        <span className="font-mono text-[10px] text-[#7e7576] shrink-0">{timeLabel}</span>
       </div>
     </>
   )
 
-  const cls = `bg-lab-void-2 border border-lab-border-soft rounded-lab-md flex flex-col gap-3.5 p-5 ${
-    href ? 'hover:border-lab-border-strong hover:-translate-y-0.5 hover:shadow-lab-md transition-all duration-lab-base cursor-pointer' : ''
+  const cls = `bg-white border border-black flex flex-col gap-3.5 p-5 ${
+    href ? 'hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] transition-all duration-150 cursor-pointer' : ''
   }`
 
-  if (href) return <Link href={href} className={cls} style={style}>{content}</Link>
-  return <div className={cls} style={style}>{content}</div>
+  if (href) return <Link href={href} className={cls}>{content}</Link>
+  return <div className={cls}>{content}</div>
 }

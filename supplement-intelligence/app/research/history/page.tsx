@@ -33,30 +33,30 @@ const STATUS_LABEL: Record<string, string> = {
   stage4:  'Complete',
 }
 const STATUS_COLOR: Record<string, string> = {
-  blocked: 'bg-red-950/40 text-red-400 border-red-900',
-  stage1:  'bg-gray-900 text-gray-500 border-gray-700',
-  stage2:  'bg-blue-950/30 text-blue-400 border-blue-900',
-  stage3:  'bg-yellow-950/30 text-yellow-400 border-yellow-900',
-  stage4:  'bg-green-950/30 text-green-400 border-green-900',
+  blocked: 'bg-[#ffdad6] text-[#93000a] border-[#ba1a1a]',
+  stage1:  'bg-[#f3f3f3] text-[#7e7576] border-black',
+  stage2:  'bg-white text-black border-black',
+  stage3:  'bg-[#fdf6e3] text-[#a67c00] border-[#a67c00]',
+  stage4:  'bg-[#e6f4e6] text-[#008a00] border-[#008a00]',
 }
 
 const VERDICT_COLOR: Record<string, string> = {
-  PURSUE:               'text-green-400',
-  PURSUE_WITH_CAUTION:  'text-yellow-400',
-  INVESTIGATE_FURTHER:  'text-blue-400',
-  DO_NOT_PURSUE:        'text-red-400',
+  PURSUE:               'text-[#008a00]',
+  PURSUE_WITH_CAUTION:  'text-[#a67c00]',
+  INVESTIGATE_FURTHER:  'text-black',
+  DO_NOT_PURSUE:        'text-[#d32f2f]',
 }
 
 function scoreColor(score: number): string {
-  if (score >= 70) return 'text-green-400'
-  if (score >= 45) return 'text-yellow-400'
-  return 'text-red-400'
+  if (score >= 70) return 'text-[#008a00]'
+  if (score >= 45) return 'text-[#a67c00]'
+  return 'text-[#d32f2f]'
 }
 
 function scoreBg(score: number): string {
-  if (score >= 70) return 'bg-green-950/40 border-green-900'
-  if (score >= 45) return 'bg-yellow-950/40 border-yellow-900'
-  return 'bg-red-950/30 border-red-900'
+  if (score >= 70) return 'bg-[#e6f4e6] border-[#008a00]'
+  if (score >= 45) return 'bg-[#fdf6e3] border-[#a67c00]'
+  return 'bg-[#ffdad6] border-[#d32f2f]'
 }
 
 function formatDate(iso: string): string {
@@ -179,30 +179,31 @@ export default function HistoryPage() {
   }
 
   return (
+    <div className="min-h-screen w-full font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
     <main className="max-w-5xl mx-auto px-6 py-12 space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
-          <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
-            <Link href="/research" className="hover:text-gray-300 transition-colors">Research</Link>
-            <span className="text-gray-700">/</span>
-            <span className="text-gray-400">History</span>
+          <div className="flex items-center gap-3 text-xs font-mono uppercase text-[#7e7576] mb-2">
+            <Link href="/research" className="hover:text-black transition-colors">Research</Link>
+            <span className="text-[#cfc4c5]">/</span>
+            <span className="text-[#4c4546]">History</span>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Research History</h1>
-          <p className="text-sm text-gray-400">
+          <h1 className="text-2xl font-black tracking-tight text-black">Research History</h1>
+          <p className="text-sm text-[#4c4546]">
             {loading ? 'Loading…' : `${items.length} ${items.length === 1 ? 'analysis' : 'analyses'}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/research/compare"
-            className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors"
+            className="bg-white border border-black px-3 py-2 text-sm text-black hover:bg-[#f3f3f3] transition-colors"
           >
             Compare →
           </Link>
           <Link
             href="/research"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
+            className="bg-black text-white font-black uppercase tracking-wide border-2 border-black px-4 py-2 text-sm hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
           >
             + New Analysis
           </Link>
@@ -217,12 +218,12 @@ export default function HistoryPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by product or category…"
-            className="flex-1 min-w-48 rounded-lg border border-gray-700 bg-gray-900 px-4 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 min-w-48 border border-black bg-white px-4 py-2 text-sm text-black placeholder:text-[#7e7576] focus:outline-none focus:ring-2 focus:ring-black"
           />
           <select
             value={sort}
             onChange={e => setSort(e.target.value as SortKey)}
-            className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="border border-black bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black"
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -237,10 +238,10 @@ export default function HistoryPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1 rounded-full text-xs border transition-colors capitalize ${
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wide border transition-colors ${
                 filter === f
-                  ? 'border-indigo-600 bg-indigo-950/50 text-indigo-300'
-                  : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
+                  ? 'border-2 border-black bg-black text-white'
+                  : 'border-black text-[#7e7576] hover:bg-[#f3f3f3] hover:text-black'
               }`}
             >
               {f === 'all' ? 'All' : f === 'favorited' ? '★ Favorites' : f === 'complete' ? 'Stage 4 Complete' : 'Blocked'}
@@ -250,10 +251,10 @@ export default function HistoryPage() {
             <button
               key={cat}
               onClick={() => setFilter(cat === filter ? 'all' : cat)}
-              className={`px-3 py-1 rounded-full text-xs border transition-colors ${
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wide border transition-colors ${
                 filter === cat
-                  ? 'border-indigo-600 bg-indigo-950/50 text-indigo-300'
-                  : 'border-gray-800 text-gray-600 hover:border-gray-600 hover:text-gray-400'
+                  ? 'border-2 border-black bg-black text-white'
+                  : 'border-black text-[#7e7576] hover:bg-[#f3f3f3] hover:text-black'
               }`}
             >
               {categoryLabel(cat)}
@@ -264,16 +265,16 @@ export default function HistoryPage() {
 
       {/* Error */}
       {error && (
-        <p className="text-xs text-red-400 bg-red-950/30 border border-red-800 rounded px-3 py-2">{error}</p>
+        <p className="text-sm text-[#93000a] bg-[#ffdad6] border border-[#ba1a1a] px-3 py-2">{error}</p>
       )}
 
       {/* Loading skeleton */}
       {loading && (
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="rounded-xl border border-gray-800 p-5 animate-pulse">
-              <div className="h-4 bg-gray-800 rounded w-48 mb-2" />
-              <div className="h-3 bg-gray-800/60 rounded w-24" />
+            <div key={i} className="border border-black bg-white p-5 animate-pulse">
+              <div className="h-4 bg-[#e0dede] w-48 mb-2" />
+              <div className="h-3 bg-[#e0dede] w-24" />
             </div>
           ))}
         </div>
@@ -281,8 +282,8 @@ export default function HistoryPage() {
 
       {/* Empty state */}
       {!loading && displayed.length === 0 && (
-        <div className="rounded-xl border border-gray-800 p-12 text-center space-y-3">
-          <p className="text-gray-400 text-sm">
+        <div className="border border-black bg-white p-12 text-center space-y-3">
+          <p className="text-[#4c4546] text-sm">
             {items.length === 0
               ? 'No analyses yet — run your first market signal to get started.'
               : 'No results match your current filters.'}
@@ -290,7 +291,7 @@ export default function HistoryPage() {
           {items.length === 0 && (
             <Link
               href="/research"
-              className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
+              className="inline-block bg-black text-white font-black uppercase tracking-wide border-2 border-black px-4 py-2 text-sm hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
             >
               Start an analysis →
             </Link>
@@ -298,7 +299,7 @@ export default function HistoryPage() {
           {items.length > 0 && (
             <button
               onClick={() => { setSearch(''); setFilter('all') }}
-              className="text-xs text-indigo-400 hover:text-indigo-300"
+              className="text-xs font-mono uppercase tracking-wide text-black underline hover:text-[#4c4546]"
             >
               Clear filters
             </button>
@@ -312,8 +313,8 @@ export default function HistoryPage() {
           {displayed.map(item => (
             <div
               key={item.id}
-              className={`rounded-xl border bg-gray-950 transition-colors ${
-                item.is_favorited ? 'border-yellow-900/50' : 'border-gray-800 hover:border-gray-700'
+              className={`border bg-white transition-colors ${
+                item.is_favorited ? 'border-2 border-[#a67c00]' : 'border-black hover:bg-[#f9f9f9]'
               }`}
             >
               <div className="p-4 flex items-start gap-4">
@@ -322,7 +323,7 @@ export default function HistoryPage() {
                   onClick={() => toggleFavorite(item)}
                   disabled={actioning === item.id}
                   className={`shrink-0 mt-0.5 text-lg leading-none transition-colors disabled:opacity-40 ${
-                    item.is_favorited ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-700 hover:text-yellow-600'
+                    item.is_favorited ? 'text-[#a67c00] hover:text-black' : 'text-[#cfc4c5] hover:text-[#a67c00]'
                   }`}
                   title={item.is_favorited ? 'Remove from favorites' : 'Add to favorites'}
                 >
@@ -333,21 +334,21 @@ export default function HistoryPage() {
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-medium text-gray-100 truncate">{item.query}</p>
+                      <p className="text-sm font-bold text-black truncate">{item.query}</p>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-wide">
+                        <span className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wide">
                           {categoryLabel(item.category_id)}
                         </span>
-                        <span className="text-gray-700">·</span>
-                        <span className="text-[10px] text-gray-600">{formatDate(item.created_at)}</span>
+                        <span className="text-[#cfc4c5]">·</span>
+                        <span className="text-[10px] font-mono text-[#7e7576]">{formatDate(item.created_at)}</span>
                       </div>
                     </div>
 
                     {/* Score + Verdict */}
                     <div className="flex items-center gap-3 shrink-0 flex-wrap">
                       {item.status !== 'blocked' && (
-                        <div className={`rounded-lg border px-2.5 py-1 text-center min-w-[52px] ${scoreBg(item.opportunity_score)}`}>
-                          <p className="text-[9px] text-gray-500 uppercase tracking-wider">Score</p>
+                        <div className={`border-2 px-2.5 py-1 text-center min-w-[52px] ${scoreBg(item.opportunity_score)}`}>
+                          <p className="text-[9px] font-mono text-[#7e7576] uppercase tracking-wider">Score</p>
                           <p className={`text-base font-mono font-bold leading-tight ${scoreColor(item.opportunity_score)}`}>
                             {item.opportunity_score}
                           </p>
@@ -355,7 +356,7 @@ export default function HistoryPage() {
                       )}
 
                       {item.verdict_code && (
-                        <span className={`text-xs font-mono ${VERDICT_COLOR[item.verdict_code] ?? 'text-gray-400'}`}>
+                        <span className={`text-xs font-mono ${VERDICT_COLOR[item.verdict_code] ?? 'text-[#7e7576]'}`}>
                           {item.verdict_code.replace(/_/g, ' ')}
                         </span>
                       )}
@@ -364,13 +365,13 @@ export default function HistoryPage() {
 
                   {/* Stage progress + quality */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-[10px] px-2 py-0.5 rounded border ${STATUS_COLOR[item.status]}`}>
+                    <span className={`text-[10px] px-2 py-0.5 border ${STATUS_COLOR[item.status]}`}>
                       {STATUS_LABEL[item.status]}
                     </span>
                     <span className={`text-[10px] font-mono ${
-                      item.quality_grade === 'sufficient' ? 'text-green-600'
-                      : item.quality_grade === 'thin' ? 'text-yellow-600'
-                      : 'text-red-600'
+                      item.quality_grade === 'sufficient' ? 'text-[#008a00]'
+                      : item.quality_grade === 'thin' ? 'text-[#a67c00]'
+                      : 'text-[#d32f2f]'
                     }`}>
                       {item.quality_grade.toUpperCase()}
                     </span>
@@ -386,8 +387,8 @@ export default function HistoryPage() {
                         return (
                           <span
                             key={s}
-                            className={`text-[9px] font-mono px-1 py-0.5 rounded ${
-                              filled ? 'text-indigo-300 bg-indigo-950/50' : 'text-gray-700 bg-gray-900'
+                            className={`text-[9px] font-mono px-1 py-0.5 border border-black ${
+                              filled ? 'text-white bg-black' : 'text-[#7e7576] bg-white'
                             }`}
                           >
                             {s}
@@ -398,38 +399,38 @@ export default function HistoryPage() {
                   </div>
 
                   {item.blocked_reason && (
-                    <p className="text-[10px] text-red-500">{item.blocked_reason}</p>
+                    <p className="text-[10px] text-[#d32f2f]">{item.blocked_reason}</p>
                   )}
                 </div>
               </div>
 
               {/* Action row */}
-              <div className="border-t border-gray-800/50 px-4 py-2 flex items-center gap-1">
+              <div className="border-t border-black px-4 py-2 flex items-center gap-1">
                 <Link
                   href={openItem(item)}
-                  className="rounded px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 transition-colors mr-2"
+                  className="bg-black text-white font-black uppercase tracking-wide border border-black px-3 py-1.5 text-xs hover:bg-white hover:text-black transition-colors duration-200 mr-2"
                 >
                   Open →
                 </Link>
 
                 {/* Stage links */}
                 {!item.pipeline_blocked && (
-                  <Link href={`/research/${item.id}`} className="rounded px-2.5 py-1.5 text-[10px] text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors">
+                  <Link href={`/research/${item.id}`} className="px-2.5 py-1.5 text-[10px] font-mono text-[#7e7576] hover:text-black hover:bg-[#f3f3f3] transition-colors">
                     S1
                   </Link>
                 )}
                 {item.thesis_count > 0 && (
-                  <Link href={`/research/${item.id}/opportunity`} className="rounded px-2.5 py-1.5 text-[10px] text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors">
+                  <Link href={`/research/${item.id}/opportunity`} className="px-2.5 py-1.5 text-[10px] font-mono text-[#7e7576] hover:text-black hover:bg-[#f3f3f3] transition-colors">
                     S2
                   </Link>
                 )}
                 {item.has_debates && (
-                  <Link href={`/research/${item.id}/evaluate`} className="rounded px-2.5 py-1.5 text-[10px] text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors">
+                  <Link href={`/research/${item.id}/evaluate`} className="px-2.5 py-1.5 text-[10px] font-mono text-[#7e7576] hover:text-black hover:bg-[#f3f3f3] transition-colors">
                     S3
                   </Link>
                 )}
                 {item.has_memo && (
-                  <Link href={`/research/${item.id}/memo`} className="rounded px-2.5 py-1.5 text-[10px] text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors">
+                  <Link href={`/research/${item.id}/memo`} className="px-2.5 py-1.5 text-[10px] font-mono text-[#7e7576] hover:text-black hover:bg-[#f3f3f3] transition-colors">
                     S4
                   </Link>
                 )}
@@ -439,7 +440,7 @@ export default function HistoryPage() {
                 {/* Duplicate */}
                 <button
                   onClick={() => duplicateItem(item.query)}
-                  className="rounded px-2.5 py-1.5 text-[10px] text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="px-2.5 py-1.5 text-[10px] font-mono text-[#7e7576] hover:text-black hover:bg-[#f3f3f3] transition-colors"
                   title="Re-run analysis"
                 >
                   Duplicate
@@ -448,17 +449,17 @@ export default function HistoryPage() {
                 {/* Delete */}
                 {deleting === item.id ? (
                   <div className="flex items-center gap-1">
-                    <span className="text-[10px] text-red-400">Delete?</span>
+                    <span className="text-[10px] text-[#d32f2f]">Delete?</span>
                     <button
                       onClick={() => deleteItem(item.id)}
                       disabled={actioning === item.id}
-                      className="rounded px-2 py-1 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-950/30 transition-colors disabled:opacity-40"
+                      className="px-2 py-1 text-[10px] text-[#d32f2f] hover:text-[#93000a] hover:bg-[#ffdad6] transition-colors disabled:opacity-40"
                     >
                       Yes
                     </button>
                     <button
                       onClick={() => setDeleting(null)}
-                      className="rounded px-2 py-1 text-[10px] text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+                      className="px-2 py-1 text-[10px] text-[#7e7576] hover:text-black hover:bg-[#f3f3f3] transition-colors"
                     >
                       Cancel
                     </button>
@@ -466,7 +467,7 @@ export default function HistoryPage() {
                 ) : (
                   <button
                     onClick={() => setDeleting(item.id)}
-                    className="rounded px-2.5 py-1.5 text-[10px] text-gray-600 hover:text-red-400 hover:bg-red-950/20 transition-colors"
+                    className="px-2.5 py-1.5 text-[10px] text-[#7e7576] hover:text-[#d32f2f] hover:bg-[#ffdad6] transition-colors"
                     title="Delete analysis"
                   >
                     Delete
@@ -480,10 +481,11 @@ export default function HistoryPage() {
 
       {/* Bottom count */}
       {!loading && displayed.length > 0 && (
-        <p className="text-xs text-center text-gray-700">
+        <p className="text-xs text-center text-[#7e7576] font-mono">
           Showing {displayed.length} of {items.length}
         </p>
       )}
     </main>
+    </div>
   )
 }

@@ -30,10 +30,10 @@ export function useCountUp(target: number, durationMs = 900) {
 }
 
 const DECISION_COLOR: Record<BuildDecision, string> = {
-  BUILD_NOW: '#34d9a0',
-  VALIDATE_FURTHER: '#f5b947',
-  SKIP: '#ff6259',
-  CATEGORY_CREATION_CANDIDATE: '#8b7cff',
+  BUILD_NOW: '#008a00',
+  VALIDATE_FURTHER: '#a67c00',
+  SKIP: '#d32f2f',
+  CATEGORY_CREATION_CANDIDATE: '#000000',
 }
 
 export function ScoreGauge({ s, decision, size = 176 }: { s: number; decision: BuildDecision; size?: number }) {
@@ -52,12 +52,6 @@ export function ScoreGauge({ s, decision, size = 176 }: { s: number; decision: B
 
   return (
     <div className="relative shrink-0" style={{ width: w, height: h }}>
-      {/* Ambient glow behind the dial — instrument backlight, not decoration */}
-      <div
-        className="absolute inset-0 -z-10 blur-2xl opacity-40"
-        style={{ background: `radial-gradient(circle at 50% 85%, ${c}55, transparent 70%)` }}
-        aria-hidden
-      />
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
         <defs>
           <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -71,21 +65,21 @@ export function ScoreGauge({ s, decision, size = 176 }: { s: number; decision: B
           const y1 = cy - (r + 4) * Math.sin(theta)
           const x2 = cx + (r + 9) * Math.cos(theta)
           const y2 = cy - (r + 9) * Math.sin(theta)
-          return <line key={t} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#2a2c35" strokeWidth={1.5} strokeLinecap="round" />
+          return <line key={t} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cfc4c5" strokeWidth={1.5} strokeLinecap="round" />
         })}
-        <path d={arcPath} fill="none" stroke="#1b1c23" strokeWidth={7} strokeLinecap="round" />
+        <path d={arcPath} fill="none" stroke="#e2e2e2" strokeWidth={7} strokeLinecap="round" />
         <path
           d={arcPath} fill="none" stroke={`url(#${gradId})`} strokeWidth={7} strokeLinecap="round"
           strokeDasharray={pathLen}
           strokeDashoffset={pathLen - (pathLen * s) / 100}
-          style={{ transition: 'stroke-dashoffset 1.1s var(--lab-ease-enter)' }}
+          style={{ transition: 'stroke-dashoffset 1.1s ease' }}
         />
       </svg>
       <div className="absolute inset-x-0 flex flex-col items-center" style={{ top: cy - r * 0.62 }}>
-        <span className="lab-text-data font-bold leading-none tabular-nums" style={{ color: c, fontSize: w * 0.24 }}>
+        <span className="font-mono font-bold leading-none tabular-nums" style={{ color: c, fontSize: w * 0.24 }}>
           {animated}
         </span>
-        <span className="text-lab-text-tertiary text-[10px] mt-1.5 tracking-wide font-sans">/ 100</span>
+        <span className="text-[#7e7576] text-[10px] mt-1.5 tracking-wide font-sans">/ 100</span>
       </div>
     </div>
   )

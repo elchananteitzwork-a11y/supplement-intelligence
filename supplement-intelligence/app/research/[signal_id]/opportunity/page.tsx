@@ -15,9 +15,9 @@ interface StoredThesis extends InvestmentThesis {
 type Stage = 'idle' | 'generating' | 'scoring_fit' | 'done' | 'error'
 
 const THRESHOLD_RESULT_COLORS: Record<string, string> = {
-  pass: 'text-green-400',
-  warn: 'text-yellow-400',
-  fail: 'text-red-400',
+  pass: 'text-[#008a00]',
+  warn: 'text-[#a67c00]',
+  fail: 'text-[#d32f2f]',
 }
 
 export default function OpportunityMapPage() {
@@ -143,22 +143,23 @@ export default function OpportunityMapPage() {
   })
 
   return (
+    <div className="min-h-screen w-full font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
     <main className="max-w-3xl mx-auto px-6 py-12 space-y-8">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-3 text-xs text-gray-500">
-        <Link href="/research" className="hover:text-gray-300 transition-colors">Research</Link>
-        <span className="text-gray-700">/</span>
-        <Link href={`/research/${signal_id}`} className="hover:text-gray-300 transition-colors">
+      <div className="flex items-center gap-3 text-xs font-mono text-[#7e7576] uppercase">
+        <Link href="/research" className="hover:text-black transition-colors">Research</Link>
+        <span className="text-[#cfc4c5]">/</span>
+        <Link href={`/research/${signal_id}`} className="hover:text-black transition-colors">
           {query || signal_id.slice(0, 8) + '…'}
         </Link>
-        <span className="text-gray-700">/</span>
-        <span className="text-gray-400">Opportunity Map</span>
+        <span className="text-[#cfc4c5]">/</span>
+        <span className="text-[#4c4546]">Opportunity Map</span>
       </div>
 
       {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Opportunity Map</h1>
-        <p className="text-sm text-gray-400">
+        <h1 className="text-2xl font-black tracking-tight text-black">Opportunity Map</h1>
+        <p className="text-sm text-[#4c4546]">
           Stage 2 — AI synthesizes {theses.length > 0 ? theses.length : '3–5'} investment theses
           grounded in Stage 1 evidence.
           {Object.keys(fitMap).length > 0 && ' Sorted by your founder fit score.'}
@@ -167,10 +168,10 @@ export default function OpportunityMapPage() {
 
       {/* Launch thresholds */}
       {thresholds && (
-        <div className="rounded-lg border border-gray-800 p-4 space-y-3">
+        <div className="border border-black bg-white p-4 space-y-3">
           <div className="flex items-center gap-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Launch Thresholds</p>
-            <span className={`text-xs font-mono ${THRESHOLD_RESULT_COLORS[thresholds.overall]}`}>
+            <p className="text-xs font-mono font-semibold text-[#7e7576] uppercase tracking-wider">Launch Thresholds</p>
+            <span className={`text-xs font-mono font-bold ${THRESHOLD_RESULT_COLORS[thresholds.overall]}`}>
               {thresholds.overall.toUpperCase()} ({thresholds.pass_count}P / {thresholds.warn_count}W / {thresholds.fail_count}F)
             </span>
           </div>
@@ -181,10 +182,10 @@ export default function OpportunityMapPage() {
                   {c.result === 'pass' ? '✓' : c.result === 'warn' ? '⚠' : '✗'}
                 </span>
                 <div>
-                  <span className="text-gray-300">{c.metric}</span>
+                  <span className="text-[#4c4546]">{c.metric}</span>
                   {' '}
-                  <span className="text-gray-500 font-mono">{c.value}</span>
-                  <p className="text-gray-600">{c.reason}</p>
+                  <span className="text-[#7e7576] font-mono">{c.value}</span>
+                  <p className="text-[#7e7576]">{c.reason}</p>
                 </div>
               </div>
             ))}
@@ -194,13 +195,13 @@ export default function OpportunityMapPage() {
 
       {/* Founder profile notice */}
       {hasProfile === false && theses.length === 0 && (
-        <div className="rounded-lg border border-yellow-800 bg-yellow-950/20 px-4 py-3 space-y-2">
-          <p className="text-sm text-yellow-300">
+        <div className="border border-[#a67c00] bg-[#fdf6e3] px-4 py-3 space-y-2">
+          <p className="text-sm text-[#a67c00]">
             No founder profile — theses will be generated without fit scoring.
           </p>
           <Link
             href={`/research/profile?return_to=/research/${signal_id}/opportunity`}
-            className="text-xs text-yellow-400 underline hover:text-yellow-200"
+            className="text-xs text-[#a67c00] underline hover:text-black"
           >
             Complete profile first for personalized fit scores →
           </Link>
@@ -212,7 +213,7 @@ export default function OpportunityMapPage() {
         <button
           onClick={generateTheses}
           disabled={stage === 'error'}
-          className="w-full rounded-lg bg-indigo-600 py-3 text-sm font-medium hover:bg-indigo-500 disabled:opacity-40 transition-colors"
+          className="w-full bg-black border-2 border-black text-white py-3 text-sm font-black uppercase tracking-widest hover:bg-white hover:text-black disabled:opacity-40 transition-colors duration-200 active:scale-[0.98]"
         >
           Generate Investment Theses
         </button>
@@ -221,32 +222,32 @@ export default function OpportunityMapPage() {
       {/* Status */}
       {stage === 'generating' && (
         <div className="text-center py-8 space-y-2">
-          <div className="text-gray-400 text-sm animate-pulse">Generating investment theses…</div>
-          <p className="text-xs text-gray-600">Claude is synthesizing Stage 1 evidence into product opportunities. ~30–60s</p>
+          <div className="text-black text-sm animate-pulse font-mono">Generating investment theses…</div>
+          <p className="text-xs text-[#7e7576]">Claude is synthesizing Stage 1 evidence into product opportunities. ~30–60s</p>
         </div>
       )}
       {stage === 'scoring_fit' && (
         <div className="text-center py-4">
-          <p className="text-xs text-gray-400 animate-pulse">Scoring founder fit (deterministic)…</p>
+          <p className="text-xs text-[#4c4546] animate-pulse font-mono">Scoring founder fit (deterministic)…</p>
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-800 bg-red-950/20 px-4 py-3 text-sm text-red-300">
+        <div className="border border-[#ba1a1a] bg-[#ffdad6] px-4 py-3 text-sm text-[#93000a]">
           {error}
         </div>
       )}
 
       {/* Generation note */}
       {generationNote && (
-        <p className="text-xs text-gray-500 italic border-l-2 border-gray-700 pl-3">{generationNote}</p>
+        <p className="text-xs text-[#7e7576] italic border-l-2 border-black pl-3">{generationNote}</p>
       )}
 
       {fromCache && theses.length > 0 && (
-        <p className="text-xs text-gray-600">
+        <p className="text-xs font-mono text-[#7e7576]">
           Theses from previous generation.{' '}
           <button
-            className="text-gray-500 underline hover:text-gray-400"
+            className="text-[#4c4546] underline hover:text-black"
             onClick={() => {
               setTheses([])
               setStage('idle')
@@ -276,11 +277,11 @@ export default function OpportunityMapPage() {
 
       {/* Footer actions */}
       {theses.length > 0 && hasProfile === false && (
-        <div className="border-t border-gray-800 pt-6 space-y-3">
-          <p className="text-sm text-gray-400">Add a founder profile to see which thesis fits your situation best.</p>
+        <div className="border-t-2 border-black pt-6 space-y-3">
+          <p className="text-sm text-[#4c4546]">Add a founder profile to see which thesis fits your situation best.</p>
           <Link
             href={`/research/profile?return_to=/research/${signal_id}/opportunity`}
-            className="inline-block rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-sm hover:bg-gray-700 transition-colors"
+            className="inline-block bg-white border border-black px-4 py-2 text-sm text-black hover:bg-[#f3f3f3] transition-colors"
           >
             Complete Founder Profile →
           </Link>
@@ -289,20 +290,21 @@ export default function OpportunityMapPage() {
 
       {/* Next: Stage 3 */}
       {theses.length > 0 && (
-        <div className="rounded-lg border border-indigo-800 bg-indigo-950/20 px-5 py-4">
-          <p className="text-sm font-medium text-indigo-300 mb-1">Stage 3 — Adversarial Evaluation</p>
-          <p className="text-xs text-indigo-400/70">
+        <div className="border-2 border-black bg-white px-5 py-4">
+          <p className="text-sm font-bold text-black mb-1">Stage 3 — Adversarial Evaluation</p>
+          <p className="text-xs text-[#4c4546]">
             Bull case (temp 0.5) and Bear case (temp 0.8) run in parallel with no shared context.
             Kill switches then execute deterministically before synthesis.
           </p>
           <Link
             href={`/research/${signal_id}/evaluate`}
-            className="inline-block mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
+            className="inline-block mt-3 bg-black border-2 border-black text-white px-4 py-2 text-sm font-black uppercase tracking-wide hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
           >
             Run Adversarial Evaluation →
           </Link>
         </div>
       )}
     </main>
+    </div>
   )
 }

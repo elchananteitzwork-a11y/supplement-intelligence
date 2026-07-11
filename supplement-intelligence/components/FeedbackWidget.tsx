@@ -33,17 +33,17 @@ export default function FeedbackWidget({ analysisId }: { analysisId: string }) {
 
   if (done) {
     return (
-      <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-6 text-center lab-animate-fade-up">
-        <IconCheck className="w-5 h-5 text-lab-verdant mx-auto mb-2" />
-        <p className="text-sm text-lab-text-primary font-medium">Thank you for the feedback.</p>
-        <p className="text-xs text-lab-text-tertiary mt-1">It directly shapes the next version.</p>
+      <div className="bg-white border border-black p-6 text-center animate-in">
+        <IconCheck className="w-5 h-5 text-[#008a00] mx-auto mb-2" />
+        <p className="text-sm text-black font-medium">Thank you for the feedback.</p>
+        <p className="text-xs text-[#7e7576] mt-1">It directly shapes the next version.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-lab-void-2 border border-lab-border-soft rounded-lab-md p-6">
-      <p className="text-sm font-medium text-lab-text-primary mb-4">Was this analysis useful?</p>
+    <div className="bg-white border border-black p-6">
+      <p className="text-sm font-medium text-black mb-4">Was this analysis useful?</p>
 
       <div className="flex gap-1 mb-5">
         {[1, 2, 3, 4, 5].map(s => (
@@ -54,24 +54,24 @@ export default function FeedbackWidget({ analysisId }: { analysisId: string }) {
             onMouseLeave={() => setHover(0)}
             className="text-2xl transition-transform hover:scale-110"
           >
-            <span className={s <= (hover || rating) ? 'text-lab-amber' : 'text-white/[0.15]'}>★</span>
+            <span className={s <= (hover || rating) ? 'text-[#fbc02d]' : 'text-black/15'}>★</span>
           </button>
         ))}
       </div>
 
       {rating > 0 && (
-        <div className="space-y-4 lab-animate-fade-up">
+        <div className="space-y-4 animate-in">
           <div>
-            <p className="text-xs text-lab-text-tertiary mb-2">What was most useful?</p>
+            <p className="text-xs font-mono text-[#7e7576] uppercase mb-2">What was most useful?</p>
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.map(c => (
                 <button
                   key={c.value} type="button"
                   onClick={() => setCategory(c.value)}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                  className={`text-xs px-3 py-1.5 border transition-colors ${
                     category === c.value
-                      ? 'bg-lab-photon/15 border-lab-photon/40 text-lab-photon'
-                      : 'bg-white/[0.04] border-lab-border-default text-lab-text-tertiary hover:text-lab-text-primary'
+                      ? 'bg-black border-black text-white'
+                      : 'bg-white border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3]'
                   }`}
                 >
                   {c.label}
@@ -81,12 +81,12 @@ export default function FeedbackWidget({ analysisId }: { analysisId: string }) {
           </div>
 
           <div>
-            <p className="text-xs text-lab-text-tertiary mb-2">One thing to improve (optional)</p>
+            <p className="text-xs font-mono text-[#7e7576] uppercase mb-2">One thing to improve (optional)</p>
             <textarea
               value={comment}
               onChange={e => setComment(e.target.value)}
               placeholder="Be blunt. What was wrong or missing?"
-              className="w-full bg-white/[0.03] border border-lab-border-default rounded-lab-sm px-4 py-2.5 text-sm text-lab-text-primary placeholder-lab-text-tertiary focus:outline-none focus:border-lab-photon/50 transition-colors resize-none h-20"
+              className="w-full bg-white border-2 border-black px-4 py-2.5 text-sm text-black placeholder-[#7e7576] focus:outline-none transition-colors resize-none h-20"
               maxLength={500}
             />
           </div>
@@ -94,7 +94,7 @@ export default function FeedbackWidget({ analysisId }: { analysisId: string }) {
           <button
             onClick={submit}
             disabled={loading}
-            className="w-full bg-white/[0.06] border border-lab-border-default text-lab-text-primary text-sm font-medium px-5 py-2.5 rounded-lab-sm hover:bg-white/[0.1] transition-colors disabled:opacity-40"
+            className="w-full bg-black border-2 border-black text-white text-sm font-black uppercase tracking-wide px-5 py-2.5 hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98] disabled:opacity-40"
           >
             {loading ? 'Submitting…' : 'Submit feedback'}
           </button>

@@ -46,10 +46,10 @@ const VERDICT_RANK: Record<string, number> = {
   PURSUE: 4, PURSUE_WITH_CAUTION: 3, INVESTIGATE_FURTHER: 2, DO_NOT_PURSUE: 1,
 }
 const VERDICT_COLOR: Record<string, string> = {
-  PURSUE:               'text-green-400',
-  PURSUE_WITH_CAUTION:  'text-yellow-400',
-  INVESTIGATE_FURTHER:  'text-blue-400',
-  DO_NOT_PURSUE:        'text-red-400',
+  PURSUE:               'text-[#008a00]',
+  PURSUE_WITH_CAUTION:  'text-[#a67c00]',
+  INVESTIGATE_FURTHER:  'text-black',
+  DO_NOT_PURSUE:        'text-[#d32f2f]',
 }
 const COMPLEXITY_RANK: Record<string, number> = { low: 3, medium: 2, high: 1 }
 const FIT_LEVEL_RANK:  Record<string, number> = { sufficient: 3, strong: 3, feasible: 3, partial: 2, tight: 2, stretched: 2, insufficient: 1, weak: 1, infeasible: 1 }
@@ -270,19 +270,20 @@ function CompareContent() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
+    <div className="min-h-screen w-full font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
     <main className="max-w-6xl mx-auto px-4 py-12 space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
-          <div className="flex items-center gap-3 text-xs text-gray-500 mb-1">
-            <Link href="/research" className="hover:text-gray-300">Research</Link>
-            <span className="text-gray-700">/</span>
-            <Link href="/research/history" className="hover:text-gray-300">History</Link>
-            <span className="text-gray-700">/</span>
-            <span className="text-gray-400">Compare</span>
+          <div className="flex items-center gap-3 text-xs font-mono uppercase text-[#7e7576] mb-1">
+            <Link href="/research" className="hover:text-black transition-colors">Research</Link>
+            <span className="text-[#cfc4c5]">/</span>
+            <Link href="/research/history" className="hover:text-black transition-colors">History</Link>
+            <span className="text-[#cfc4c5]">/</span>
+            <span className="text-[#4c4546]">Compare</span>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Comparison Mode</h1>
-          <p className="text-sm text-gray-400">
+          <h1 className="text-2xl font-black tracking-tight text-black">Comparison Mode</h1>
+          <p className="text-sm text-[#4c4546]">
             {phase === 'select'
               ? 'Select 2–4 theses to compare side-by-side.'
               : `Comparing ${compItems.length} ${compItems.length === 1 ? 'thesis' : 'theses'} — all metrics are verified, computed data.`
@@ -292,7 +293,7 @@ function CompareContent() {
         {phase === 'compare' && (
           <Link
             href="/research/compare"
-            className="text-xs border border-gray-700 rounded-lg px-3 py-2 text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors"
+            className="text-xs bg-white border border-black px-3 py-2 text-black hover:bg-[#f3f3f3] transition-colors"
           >
             ← New comparison
           </Link>
@@ -304,13 +305,13 @@ function CompareContent() {
         <div className="space-y-4">
           {/* Floating action bar */}
           {selectionIds.size >= 2 && (
-            <div className="sticky top-4 z-10 flex items-center justify-between rounded-xl border border-indigo-700 bg-indigo-950/80 backdrop-blur px-4 py-3">
-              <p className="text-sm text-indigo-300">
+            <div className="sticky top-4 z-10 flex items-center justify-between border-2 border-black bg-white px-4 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <p className="text-sm font-mono text-black">
                 {selectionIds.size} selected — up to 4
               </p>
               <button
                 onClick={goCompare}
-                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium hover:bg-indigo-500 transition-colors"
+                className="bg-black text-white font-black uppercase tracking-wide border-2 border-black px-4 py-1.5 text-sm hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
               >
                 Compare →
               </button>
@@ -319,14 +320,17 @@ function CompareContent() {
 
           {historyLoading && (
             <div className="space-y-2">
-              {[1,2,3].map(i => <div key={i} className="h-14 rounded-xl border border-gray-800 animate-pulse bg-gray-900/40" />)}
+              {[1,2,3].map(i => <div key={i} className="h-14 border border-black animate-pulse bg-[#f3f3f3]" />)}
             </div>
           )}
 
           {!historyLoading && thesisOptions.length === 0 && (
-            <div className="rounded-xl border border-gray-800 p-10 text-center space-y-3">
-              <p className="text-gray-400 text-sm">No theses found. Run at least 2 market analyses first.</p>
-              <Link href="/research" className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500">
+            <div className="border border-black bg-white p-10 text-center space-y-3">
+              <p className="text-[#4c4546] text-sm">No theses found. Run at least 2 market analyses first.</p>
+              <Link
+                href="/research"
+                className="inline-block bg-black text-white font-black uppercase tracking-wide border-2 border-black px-4 py-2 text-sm hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
+              >
                 Start an analysis →
               </Link>
             </div>
@@ -334,7 +338,7 @@ function CompareContent() {
 
           {thesisOptions.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">
+              <p className="text-xs font-mono text-[#7e7576] uppercase tracking-wider font-semibold">
                 {thesisOptions.length} theses across {historyItems.length} analyses
               </p>
               {thesisOptions.map(opt => {
@@ -343,10 +347,10 @@ function CompareContent() {
                 return (
                   <label
                     key={opt.thesis_id}
-                    className={`flex items-start gap-4 rounded-xl border px-4 py-3 cursor-pointer transition-colors ${
-                      checked   ? 'border-indigo-600 bg-indigo-950/20'
-                      : disabled ? 'border-gray-900 opacity-40 cursor-not-allowed'
-                      : 'border-gray-800 hover:border-gray-700'
+                    className={`flex items-start gap-4 border px-4 py-3 cursor-pointer transition-colors bg-white ${
+                      checked   ? 'border-2 border-black bg-[#f3f3f3]'
+                      : disabled ? 'border-black opacity-40 cursor-not-allowed'
+                      : 'border-black hover:bg-[#f3f3f3]'
                     }`}
                   >
                     <input
@@ -354,24 +358,24 @@ function CompareContent() {
                       checked={checked}
                       disabled={disabled}
                       onChange={() => !disabled && toggleSelection(opt.thesis_id)}
-                      className="mt-0.5 accent-indigo-500"
+                      className="mt-0.5 accent-black"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-100 font-medium truncate">{opt.label}</p>
-                      <p className="text-xs text-gray-500 truncate">{opt.query}</p>
+                      <p className="text-sm text-black font-medium truncate">{opt.label}</p>
+                      <p className="text-xs text-[#7e7576] truncate">{opt.query}</p>
                     </div>
                     <div className="shrink-0 text-right space-y-0.5">
                       <p className={`text-xs font-mono ${
-                        opt.status === 'stage4' ? 'text-green-400'
-                        : opt.status === 'stage3' ? 'text-yellow-400'
-                        : 'text-gray-500'
+                        opt.status === 'stage4' ? 'text-[#008a00]'
+                        : opt.status === 'stage3' ? 'text-[#a67c00]'
+                        : 'text-[#7e7576]'
                       }`}>
                         {opt.status === 'stage4' ? 'Complete'
                           : opt.status === 'stage3' ? 'S3'
                           : opt.status === 'stage2' ? 'S2'
                           : 'S1'}
                       </p>
-                      <p className="text-[10px] text-gray-600">Score {opt.opportunity_score}</p>
+                      <p className="text-[10px] text-[#7e7576]">Score {opt.opportunity_score}</p>
                     </div>
                   </label>
                 )
@@ -386,12 +390,12 @@ function CompareContent() {
         <div className="space-y-6">
           {compLoading && (
             <div className="text-center py-12">
-              <p className="text-sm text-gray-400 animate-pulse">Loading comparison data…</p>
+              <p className="text-sm text-[#4c4546] animate-pulse font-mono">Loading comparison data…</p>
             </div>
           )}
 
           {compError && (
-            <p className="text-xs text-red-400 bg-red-950/30 border border-red-800 rounded px-3 py-2">{compError}</p>
+            <p className="text-sm text-[#93000a] bg-[#ffdad6] border border-[#ba1a1a] px-3 py-2">{compError}</p>
           )}
 
           {!compLoading && compItems.length >= 2 && (
@@ -406,20 +410,20 @@ function CompareContent() {
 
                   {/* Column headers */}
                   <thead>
-                    <tr className="border-b-2 border-gray-800">
-                      <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
+                    <tr className="border-b-2 border-black">
+                      <th className="px-3 py-3 text-left text-[10px] font-mono font-semibold text-[#7e7576] uppercase tracking-wider">
                         Metric
                       </th>
                       {compItems.map((item, i) => (
                         <th key={i} className="px-3 py-3 text-left align-top">
                           <div className="space-y-1">
-                            <p className="text-xs font-semibold text-gray-100 leading-tight">{item.product_angle}</p>
-                            <p className="text-[10px] text-gray-500 leading-tight truncate">{item.target_customer}</p>
+                            <p className="text-xs font-semibold text-black leading-tight">{item.product_angle}</p>
+                            <p className="text-[10px] text-[#7e7576] leading-tight truncate">{item.target_customer}</p>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className={`text-[10px] font-mono ${
-                                item.stage === 'stage4' ? 'text-green-500'
-                                : item.stage === 'stage3' ? 'text-yellow-500'
-                                : 'text-gray-500'
+                                item.stage === 'stage4' ? 'text-[#008a00]'
+                                : item.stage === 'stage3' ? 'text-[#a67c00]'
+                                : 'text-[#7e7576]'
                               }`}>
                                 {item.stage === 'stage4' ? 'Complete' : item.stage === 'stage3' ? 'Stage 3' : 'Stage 2'}
                               </span>
@@ -431,7 +435,7 @@ function CompareContent() {
                                     ? `/research/${item.signal_id}/evaluate`
                                     : `/research/${item.signal_id}`
                                 }
-                                className="text-[10px] text-indigo-500 hover:text-indigo-300"
+                                className="text-[10px] text-black underline hover:text-[#4c4546]"
                               >
                                 Open →
                               </Link>
@@ -449,10 +453,10 @@ function CompareContent() {
                       return (
                         <React.Fragment key={`section-${section}`}>
                           {/* Section divider */}
-                          <tr className="border-t border-gray-800">
+                          <tr className="border-t border-black">
                             <td
                               colSpan={compItems.length + 1}
-                              className="px-3 py-1.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-900/40"
+                              className="px-3 py-1.5 text-[10px] font-mono font-semibold text-[#7e7576] uppercase tracking-wider bg-[#f3f3f3]"
                             >
                               {section}
                             </td>
@@ -465,9 +469,9 @@ function CompareContent() {
                             return (
                               <tr
                                 key={metric.id}
-                                className="border-b border-gray-900 hover:bg-gray-900/20 transition-colors"
+                                className="border-b border-black hover:bg-[#f3f3f3] transition-colors"
                               >
-                                <td className="px-3 py-2.5 text-xs text-gray-500 align-top whitespace-nowrap">
+                                <td className="px-3 py-2.5 text-xs text-[#7e7576] align-top whitespace-nowrap">
                                   {metric.label}
                                 </td>
                                 {values.map((val, i) => {
@@ -479,21 +483,21 @@ function CompareContent() {
                                     <td
                                       key={i}
                                       className={`px-3 py-2.5 text-xs align-top transition-colors ${
-                                        isWinner ? 'bg-green-950/20' : ''
+                                        isWinner ? 'bg-[#e6f4e6]' : ''
                                       }`}
                                     >
                                       <div className="flex items-center gap-1.5">
                                         {isWinner && (
-                                          <span className="text-green-500 text-[10px] shrink-0" title="Best in class">▲</span>
+                                          <span className="text-[#008a00] text-[10px] shrink-0" title="Best in class">▲</span>
                                         )}
                                         <span className={`font-mono ${
                                           isVerdict
-                                            ? VERDICT_COLOR[String(val)] ?? 'text-gray-400'
+                                            ? VERDICT_COLOR[String(val)] ?? 'text-[#7e7576]'
                                             : isWinner
-                                            ? 'text-green-300 font-semibold'
+                                            ? 'text-[#008a00] font-semibold'
                                             : formatted === '—'
-                                            ? 'text-gray-700'
-                                            : 'text-gray-300'
+                                            ? 'text-[#cfc4c5]'
+                                            : 'text-[#1a1c1c]'
                                         }`}>
                                           {formatted}
                                         </span>
@@ -521,18 +525,18 @@ function CompareContent() {
                 )
                 const maxWins = Math.max(...winCounts)
                 return (
-                  <div className="rounded-xl border border-gray-800 bg-gray-900/30 p-4 space-y-2">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Best-in-class count</p>
+                  <div className="border border-black bg-white p-4 space-y-2">
+                    <p className="text-xs font-mono font-semibold text-[#7e7576] uppercase tracking-wider">Best-in-class count</p>
                     <div className="flex gap-4 flex-wrap">
                       {compItems.map((item, i) => (
                         <div key={i} className="text-center min-w-[100px]">
-                          <p className="text-[10px] text-gray-500 truncate">{item.product_angle.slice(0, 25)}…</p>
+                          <p className="text-[10px] text-[#7e7576] truncate">{item.product_angle.slice(0, 25)}…</p>
                           <p className={`text-xl font-mono font-bold ${
-                            maxWins > 0 && winCounts[i] === maxWins ? 'text-green-400' : 'text-gray-400'
+                            maxWins > 0 && winCounts[i] === maxWins ? 'text-[#008a00]' : 'text-[#7e7576]'
                           }`}>
                             {winCounts[i]}
                           </p>
-                          <p className="text-[10px] text-gray-600">of {visibleMetrics.length}</p>
+                          <p className="text-[10px] text-[#7e7576]">of {visibleMetrics.length}</p>
                         </div>
                       ))}
                     </div>
@@ -541,11 +545,11 @@ function CompareContent() {
               })()}
 
               {/* AI Recommendation */}
-              <div className="rounded-xl border border-gray-800 p-5 space-y-4">
+              <div className="border border-black bg-white p-5 space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-gray-200">AI Recommendation</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-sm font-bold text-black">AI Recommendation</p>
+                    <p className="text-xs text-[#7e7576] mt-0.5">
                       Claude synthesizes the data above — numbers are never modified, only explained.
                     </p>
                   </div>
@@ -553,7 +557,7 @@ function CompareContent() {
                     <button
                       onClick={getRecommendation}
                       disabled={recLoading}
-                      className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 disabled:opacity-40 transition-colors"
+                      className="shrink-0 bg-black text-white font-black uppercase tracking-wide border-2 border-black px-4 py-2 text-sm hover:bg-white hover:text-black disabled:opacity-40 transition-colors duration-200 active:scale-[0.98]"
                     >
                       {recLoading ? 'Analyzing…' : 'Get Recommendation →'}
                     </button>
@@ -561,23 +565,23 @@ function CompareContent() {
                 </div>
 
                 {recLoading && (
-                  <p className="text-xs text-gray-400 animate-pulse">
+                  <p className="text-xs text-[#4c4546] animate-pulse font-mono">
                     Synthesizing comparison data — comparing {compItems.length} theses…
                   </p>
                 )}
 
                 {recError && (
-                  <p className="text-xs text-red-400">{recError}</p>
+                  <p className="text-xs text-[#d32f2f]">{recError}</p>
                 )}
 
                 {recommendation && (
                   <div className="space-y-2">
-                    <div className="rounded-lg border border-indigo-900/50 bg-indigo-950/20 p-4">
-                      <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">{recommendation}</p>
+                    <div className="border border-black bg-[#f3f3f3] p-4">
+                      <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">{recommendation}</p>
                     </div>
                     <button
                       onClick={getRecommendation}
-                      className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors"
+                      className="text-[10px] font-mono uppercase tracking-wide text-[#7e7576] hover:text-black transition-colors"
                     >
                       Regenerate
                     </button>
@@ -589,14 +593,15 @@ function CompareContent() {
         </div>
       )}
     </main>
+    </div>
   )
 }
 
 export default function ComparePage() {
   return (
     <Suspense fallback={
-      <main className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-500 text-sm animate-pulse">Loading…</p>
+      <main className="flex items-center justify-center min-h-screen font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
+        <p className="text-[#7e7576] text-sm animate-pulse font-mono">Loading…</p>
       </main>
     }>
       <CompareContent />

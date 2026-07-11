@@ -71,25 +71,25 @@ const PRICES = [
 // CategorySignalPanel) — every "how good/strong is this" color cue is now
 // keyed on the AI's own qualitative tier, never a fabricated number.
 function promiseColor(p: 'High' | 'Medium' | 'Low') {
-  return p === 'High' ? 'text-lab-verdant' : p === 'Medium' ? 'text-lab-amber' : 'text-lab-ember'
+  return p === 'High' ? 'text-[#008a00]' : p === 'Medium' ? 'text-[#a67c00]' : 'text-[#d32f2f]'
 }
 
 function tierColor(t: 'High' | 'Medium' | 'Low' | 'Strong' | 'Moderate' | 'Weak') {
-  return t === 'High' || t === 'Strong' ? 'text-lab-verdant'
-       : t === 'Medium' || t === 'Moderate' ? 'text-lab-amber'
-       : 'text-lab-ember'
+  return t === 'High' || t === 'Strong' ? 'text-[#008a00]'
+       : t === 'Medium' || t === 'Moderate' ? 'text-[#a67c00]'
+       : 'text-[#d32f2f]'
 }
 
 // ── sub-components ─────────────────────────────────────────────
 
 function DifficultyBadge({ d }: { d: OpportunityCard['difficulty'] }) {
   const styles = {
-    Easy:   'text-lab-verdant bg-emerald-400/10 border-emerald-400/20',
-    Medium: 'text-lab-amber  bg-amber-400/10  border-amber-400/20',
-    Hard:   'text-lab-ember    bg-red-400/10    border-red-400/20',
+    Easy:   'text-[#008a00] border-[#008a00]',
+    Medium: 'text-[#a67c00] border-[#a67c00]',
+    Hard:   'text-[#d32f2f] border-[#d32f2f]',
   }
   return (
-    <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border ${styles[d]}`}>
+    <span className={`inline-flex items-center text-xs font-bold font-mono uppercase px-2 py-0.5 border ${styles[d]}`}>
       {d}
     </span>
   )
@@ -100,12 +100,12 @@ function DifficultyBadge({ d }: { d: OpportunityCard['difficulty'] }) {
 // rather than dollar figures or day-counts with no real per-opportunity basis.
 function TierBadge({ value, good, bad }: { value: string; good: string; bad: string }) {
   const cls = value === good
-    ? 'text-lab-verdant bg-emerald-400/10 border-emerald-400/20'
+    ? 'text-[#008a00] border-[#008a00]'
     : value === bad
-      ? 'text-lab-ember bg-red-400/10 border-red-400/20'
-      : 'text-lab-amber bg-amber-400/10 border-amber-400/20'
+      ? 'text-[#d32f2f] border-[#d32f2f]'
+      : 'text-[#a67c00] border-[#a67c00]'
   return (
-    <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={`inline-flex items-center text-xs font-bold font-mono uppercase px-2 py-0.5 border ${cls}`}>
       {value}
     </span>
   )
@@ -113,17 +113,17 @@ function TierBadge({ value, good, bad }: { value: string; good: string; bad: str
 
 function MetaRow({ opp }: { opp: OpportunityCard }) {
   return (
-    <div className="flex divide-x divide-white/[0.06] rounded-lg border border-lab-border-soft mt-3 overflow-hidden">
+    <div className="flex divide-x divide-black/10 border border-black mt-3 overflow-hidden">
       <div className="flex-1 px-2.5 py-2.5 text-center">
-        <p className="text-[10px] text-lab-text-tertiary mb-1">Capital Tier</p>
+        <p className="text-[10px] font-mono text-[#7e7576] uppercase mb-1">Capital Tier</p>
         <TierBadge value={opp.startup_cost_tier ?? '—'} good="Lean" bad="Capital-Intensive" />
       </div>
       <div className="flex-1 px-2.5 py-2.5 text-center">
-        <p className="text-[10px] text-lab-text-tertiary mb-1">Difficulty</p>
+        <p className="text-[10px] font-mono text-[#7e7576] uppercase mb-1">Difficulty</p>
         <DifficultyBadge d={opp.difficulty} />
       </div>
       <div className="flex-1 px-2.5 py-2.5 text-center">
-        <p className="text-[10px] text-lab-text-tertiary mb-1">Launch Speed</p>
+        <p className="text-[10px] font-mono text-[#7e7576] uppercase mb-1">Launch Speed</p>
         <TierBadge value={opp.launch_speed ?? '—'} good="Fast" bad="Slow" />
       </div>
     </div>
@@ -162,14 +162,14 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
   return (
     <div className="grid grid-cols-2 gap-2 mt-3">
       {dims.map(({ label, tier, facts }) => (
-        <div key={label} className="bg-white/[0.03] border border-lab-border-soft rounded-xl p-3">
+        <div key={label} className="bg-white border border-black p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-semibold text-lab-text-tertiary uppercase tracking-wide">{label}</span>
+            <span className="text-[10px] font-mono font-semibold text-[#7e7576] uppercase tracking-wide">{label}</span>
             <span className={`text-[10px] font-bold uppercase tracking-wide ${tierColor(tier as 'High' | 'Medium' | 'Low' | 'Strong' | 'Moderate' | 'Weak')}`}>{tier}</span>
           </div>
           <div className="space-y-0.5">
             {facts.map((f, i) => (
-              <p key={i} className="text-[11px] text-lab-text-secondary leading-snug">{f}</p>
+              <p key={i} className="text-[11px] text-[#4c4546] leading-snug">{f}</p>
             ))}
           </div>
         </div>
@@ -204,11 +204,11 @@ function StillWorking() {
   )]
   return (
     <div className="flex gap-2.5 mb-2">
-      <span className="text-lab-text-tertiary shrink-0 select-none">[··]</span>
-      <span className="text-lab-text-secondary italic">
+      <span className="text-[#7e7576] shrink-0 select-none">[··]</span>
+      <span className="text-[#4c4546] italic">
         {msg}
-        <span className="text-lab-text-tertiary ml-2 font-mono not-italic">{elapsed}s</span>
-        <span className="inline-block w-[7px] h-[13px] bg-lab-photon ml-1.5 align-middle animate-pulse" />
+        <span className="text-[#7e7576] ml-2 font-mono not-italic">{elapsed}s</span>
+        <span className="inline-block w-[7px] h-[13px] bg-black ml-1.5 align-middle animate-pulse" />
       </span>
     </div>
   )
@@ -221,18 +221,18 @@ function InvestigationConsole({
 }) {
   const exhausted = stepIdx === steps.length - 1
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 font-sans" style={{ background: '#f9f9f9' }}>
       <div className="w-full max-w-lg animate-in">
-        <div className="rounded-lg border border-white/[0.1] bg-[#0a0a0c] overflow-hidden shadow-[0_30px_80px_-30px_rgba(0,0,0,.8)]">
+        <div className="border-2 border-black bg-white overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           {/* terminal title bar */}
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.08] bg-white/[0.03]">
-            <span className="w-2 h-2 rounded-full bg-red-400/50" />
-            <span className="w-2 h-2 rounded-full bg-amber-400/50" />
-            <span className="w-2 h-2 rounded-full bg-emerald-400/50" />
-            <span className="ml-2 text-[11px] text-lab-text-tertiary font-mono truncate flex-1">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b-2 border-black bg-[#f3f3f3]">
+            <span className="w-2 h-2 border border-black" />
+            <span className="w-2 h-2 border border-black" />
+            <span className="w-2 h-2 border border-black bg-black" />
+            <span className="ml-2 text-[11px] font-mono text-[#4c4546] truncate flex-1 uppercase">
               investigation · &ldquo;{query}&rdquo;
             </span>
-            <span className="text-[11px] text-lab-text-tertiary font-mono shrink-0">{stepIdx + 1}/{steps.length}</span>
+            <span className="text-[11px] font-mono text-[#7e7576] shrink-0">{stepIdx + 1}/{steps.length}</span>
           </div>
 
           {/* log body */}
@@ -241,21 +241,21 @@ function InvestigationConsole({
               const isLastAndExhausted = i === stepIdx && exhausted
               return (
                 <div key={i} className="flex gap-2.5 mb-2">
-                  <span className="text-lab-text-tertiary shrink-0 select-none">[{String(i + 1).padStart(2, '0')}]</span>
-                  <span className={i < stepIdx ? 'text-lab-text-tertiary' : 'text-lab-text-primary'}>
+                  <span className="text-[#7e7576] shrink-0 select-none">[{String(i + 1).padStart(2, '0')}]</span>
+                  <span className={i < stepIdx ? 'text-[#7e7576]' : 'text-black'}>
                     {s}
                     {i < stepIdx || isLastAndExhausted
-                      ? <span className="text-lab-photon/80 ml-2">✓</span>
-                      : <span className="inline-block w-[7px] h-[13px] bg-lab-photon ml-1.5 align-middle animate-pulse" />}
+                      ? <span className="text-[#008a00] ml-2">✓</span>
+                      : <span className="inline-block w-[7px] h-[13px] bg-black ml-1.5 align-middle animate-pulse" />}
                   </span>
                 </div>
               )
             })}
             {exhausted && <StillWorking />}
             {sources && exhausted && (
-              <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-lab-border-soft">
+              <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-black">
                 {sources.map(src => (
-                  <span key={src} className="text-[10px] text-lab-text-tertiary border border-white/[0.08] rounded px-1.5 py-0.5">{src}</span>
+                  <span key={src} className="text-[10px] font-mono text-[#4c4546] border border-black px-1.5 py-0.5 uppercase">{src}</span>
                 ))}
               </div>
             )}
@@ -272,11 +272,11 @@ function InvestigationConsole({
 // never seeing the response.
 function ErrorBanner({ message, networkFailure }: { message: string; networkFailure: boolean }) {
   return (
-    <div className="bg-red-400/10 border border-red-400/20 rounded-lg p-4 text-sm text-lab-ember">
+    <div className="bg-[#ffdad6] border border-[#ba1a1a] p-4 text-sm text-[#93000a]">
       <p>{message}</p>
       {networkFailure && (
-        <p className="mt-2 text-lab-ember/80">
-          <Link href="/dashboard" className="underline hover:text-red-300">Check your dashboard</Link> before re-running this — if it finished, you&rsquo;ll find it there without using another analysis slot.
+        <p className="mt-2 text-[#93000a]/80">
+          <Link href="/dashboard" className="underline hover:text-[#93000a]">Check your dashboard</Link> before re-running this — if it finished, you&rsquo;ll find it there without using another analysis slot.
         </p>
       )}
     </div>
@@ -296,17 +296,17 @@ function CategorySelector({
   const otherConfigs = CATEGORY_CLIENT_CONFIGS.filter(c => !c.isAuto)
 
   return (
-    <div className="card p-4 mb-6">
-      <p className="text-xs text-lab-text-tertiary uppercase tracking-widest mb-3">Mode</p>
+    <div className="bg-white border border-black p-4 mb-6">
+      <p className="text-xs font-mono text-[#7e7576] uppercase tracking-widest mb-3">Mode</p>
 
       {/* Open Discovery — full-width first */}
       <button
         type="button"
         onClick={() => onSelect(autoConfig.id)}
-        className={`w-full mb-3 px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors text-left flex items-center gap-2 ${
+        className={`w-full mb-3 px-4 py-2.5 border text-sm font-medium transition-colors text-left flex items-center gap-2 ${
           selected === autoConfig.id
-            ? 'bg-lab-photon/10 border-lab-photon/40 text-lab-photon'
-            : 'bg-white/[0.04] border-white/[0.1] text-lab-text-secondary hover:text-white hover:border-white/[0.2]'
+            ? 'bg-black text-white border-black'
+            : 'bg-white border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3]'
         }`}
       >
         <span className="text-base">{autoConfig.icon}</span>
@@ -317,17 +317,17 @@ function CategorySelector({
       </button>
 
       {/* Category chips */}
-      <p className="text-xs text-lab-text-tertiary mb-2">Or choose a specific category:</p>
+      <p className="text-xs font-mono text-[#7e7576] uppercase mb-2">Or choose a specific category:</p>
       <div className="flex flex-wrap gap-2">
         {otherConfigs.map(cat => (
           <button
             key={cat.id}
             type="button"
             onClick={() => onSelect(cat.id)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+            className={`px-3 py-1.5 text-xs font-medium border transition-colors ${
               selected === cat.id
-                ? 'bg-lab-photon/10 border-lab-photon/40 text-lab-photon'
-                : 'bg-white/[0.04] border-white/[0.1] text-lab-text-secondary hover:text-white hover:border-white/[0.2]'
+                ? 'bg-black text-white border-black'
+                : 'bg-white border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3]'
             }`}
           >
             <span className="mr-1">{cat.icon}</span>{cat.name}
@@ -342,7 +342,7 @@ function CategorySelector({
 
 function DetectedCategoryBadge({ config }: { config: CategoryClientConfig }) {
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-lab-photon bg-lab-photon/10 border border-lab-photon/20 px-2 py-0.5 rounded-full">
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold font-mono uppercase text-black border border-black px-2 py-0.5">
       <span>{config.icon}</span> {config.name}
     </span>
   )
@@ -383,25 +383,25 @@ function OpportunityMap({
   onSelect: (name: string) => void
 }) {
   return (
-    <div className="card-premium p-5 sm:p-7">
+    <div className="bg-white border border-black p-5 sm:p-7">
       <div className="flex items-center justify-between mb-1">
-        <p className="label">Opportunity Map</p>
-        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider hidden sm:inline">Promise vs. ease of execution — AI judgment, not measured</p>
+        <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-[#7e7576]">Opportunity Map</p>
+        <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider hidden sm:inline">Promise vs. ease of execution — AI judgment, not measured</p>
       </div>
-      <div className="relative mt-7 h-[300px] sm:h-[400px] ml-8 border-l border-b border-white/[0.14]">
+      <div className="relative mt-7 h-[300px] sm:h-[400px] ml-8 border-l border-b border-black">
         {/* quadrant dividers */}
-        <div className="absolute left-0 right-0 border-t border-dashed border-white/[0.08] pointer-events-none" style={{ top: '35%' }} />
-        <div className="absolute top-0 bottom-0 border-l border-dashed border-white/[0.08] pointer-events-none" style={{ left: '50%' }} />
+        <div className="absolute left-0 right-0 border-t border-dashed border-black/15 pointer-events-none" style={{ top: '35%' }} />
+        <div className="absolute top-0 bottom-0 border-l border-dashed border-black/15 pointer-events-none" style={{ left: '50%' }} />
 
         {/* quadrant labels */}
-        <span className="absolute top-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-lab-verdant/70 font-medium">Best bets</span>
-        <span className="absolute top-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-lab-text-tertiary">High reward, hard</span>
-        <span className="absolute bottom-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-lab-text-tertiary">Quick wins</span>
-        <span className="absolute bottom-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-lab-text-tertiary">Low priority</span>
+        <span className="absolute top-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-[#008a00]/80 font-mono font-medium">Best bets</span>
+        <span className="absolute top-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-[#7e7576] font-mono">High reward, hard</span>
+        <span className="absolute bottom-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-[#7e7576] font-mono">Quick wins</span>
+        <span className="absolute bottom-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-[#7e7576] font-mono">Low priority</span>
 
         {/* y-axis labels */}
         {(['High', 'Medium', 'Low'] as const).map(p => (
-          <span key={p} className="absolute -left-9 -translate-y-1/2 text-[9px] text-lab-text-tertiary uppercase tracking-wide" style={{ top: `${promiseY(p)}%` }}>{p}</span>
+          <span key={p} className="absolute -left-9 -translate-y-1/2 text-[9px] font-mono text-[#7e7576] uppercase tracking-wide" style={{ top: `${promiseY(p)}%` }}>{p}</span>
         ))}
 
         {/* points */}
@@ -410,7 +410,7 @@ function OpportunityMap({
           const y = Math.min(96, Math.max(3, promiseY(opp.promise) + hashJitter(opp.name + 'y', 10)))
           const isTop    = i < 3
           const isSel    = selectedName === opp.name
-          const c        = opp.promise === 'High' ? '#34d399' : opp.promise === 'Medium' ? '#fbbf24' : '#f87171'
+          const c        = opp.promise === 'High' ? '#008a00' : opp.promise === 'Medium' ? '#fbc02d' : '#d32f2f'
           const size     = isSel ? 15 : isTop ? 11 : 7
           return (
             <button
@@ -421,20 +421,20 @@ function OpportunityMap({
               aria-label={opp.name}
             >
               <span
-                className="block rounded-full transition-all duration-200 group-hover:scale-125"
+                className="block rounded-full transition-all duration-200 group-hover:scale-125 border border-black"
                 style={{
                   width: size, height: size, background: c,
-                  boxShadow: isSel ? `0 0 0 5px ${c}2A` : isTop ? '0 0 0 2px rgba(200,164,99,.55)' : 'none',
+                  boxShadow: isSel ? `0 0 0 4px rgba(0,0,0,0.15)` : isTop ? '0 0 0 2px rgba(0,0,0,.4)' : 'none',
                 }}
               />
-              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2 py-1 rounded-md bg-[#15151a] border border-white/[0.1] text-[10px] text-lab-text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2 py-1 bg-black border border-black text-[10px] font-mono text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                 {opp.name} · {opp.promise}
               </span>
             </button>
           )
         })}
       </div>
-      <div className="flex justify-between mt-2.5 ml-8 text-[10px] text-lab-text-tertiary uppercase tracking-wider">
+      <div className="flex justify-between mt-2.5 ml-8 text-[10px] font-mono text-[#7e7576] uppercase tracking-wider">
         <span>← Harder to build</span>
         <span>Easier to build →</span>
       </div>
@@ -446,21 +446,21 @@ function OpportunityDetail({
   opp, rank, onOpen,
 }: { opp: OpportunityCard; rank: number; onOpen: () => void }) {
   return (
-    <div className="card-premium p-5 sm:p-6 animate-in">
+    <div className="bg-white border border-black p-5 sm:p-6 animate-in">
       <div className="flex items-start gap-4">
-        <span className="font-mono font-bold text-xl text-lab-text-tertiary shrink-0 pt-0.5 w-5 text-right">{rank}</span>
+        <span className="font-mono font-bold text-xl text-[#7e7576] shrink-0 pt-0.5 w-5 text-right">{rank}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="font-semibold text-base leading-snug">{opp.name}</h3>
-            <span className={`font-display font-semibold text-sm uppercase tracking-wide ${promiseColor(opp.promise)}`}>{opp.promise}</span>
+            <h3 className="font-bold text-base leading-snug text-black">{opp.name}</h3>
+            <span className={`font-black text-sm uppercase tracking-wide ${promiseColor(opp.promise)}`}>{opp.promise}</span>
           </div>
-          <p className="text-sm text-lab-text-secondary mt-1.5">{opp.rationale}</p>
-          <p className="text-[10px] text-lab-text-tertiary italic mt-2">
+          <p className="text-sm text-[#4c4546] mt-1.5">{opp.rationale}</p>
+          <p className="text-[10px] text-[#7e7576] italic mt-2">
             AI editorial judgment, not independently verified — promise tier and dimension labels are model output, not a measurement. See the Category Signal panel for the one real data point behind this search. Open the full report for per-field source detail on your specific idea.
           </p>
           <MetaRow opp={opp} />
           <EvidenceGrid scores={opp.scores} />
-          <button onClick={onOpen} className="btn-white w-full mt-4 py-2.5 text-sm">
+          <button onClick={onOpen} className="w-full mt-4 py-2.5 text-sm font-black uppercase tracking-wide text-white bg-black hover:bg-white hover:text-black border-2 border-black transition-colors duration-200 active:scale-[0.98]">
             Open Full Report →
           </button>
         </div>
@@ -479,25 +479,25 @@ function OpportunityTable({
   showMeta: boolean
 }) {
   return (
-    <div className="rounded-lg border border-white/[0.08] overflow-hidden">
-      <div className="grid grid-cols-[2rem_1fr_5.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_4.5rem] gap-3 px-4 py-2 text-[10px] text-lab-text-tertiary uppercase tracking-wider border-b border-white/[0.08] bg-white/[0.02] font-mono">
+    <div className="border border-black overflow-hidden">
+      <div className="grid grid-cols-[2rem_1fr_5.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_4.5rem] gap-3 px-4 py-2 text-[10px] text-[#7e7576] uppercase tracking-wider border-b border-black bg-[#f3f3f3] font-mono">
         <span>#</span><span>Opportunity</span><span className="text-right">Difficulty</span>
         <span className="text-right hidden sm:inline">Signal</span><span className="text-right">Promise</span>
       </div>
-      <div className="divide-y divide-white/[0.05]">
+      <div className="divide-y divide-black/10">
         {opportunities.map((opp, i) => (
           <button
             key={opp.name}
             onClick={() => onOpen(opp.name)}
-            className="w-full grid grid-cols-[2rem_1fr_5.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_4.5rem] gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors items-center group"
+            className="w-full grid grid-cols-[2rem_1fr_5.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_4.5rem] gap-3 px-4 py-3 text-left hover:bg-[#f3f3f3] transition-colors items-center group bg-white"
           >
-            <span className="text-xs text-lab-text-tertiary font-mono">{String(i + 1).padStart(2, '0')}</span>
+            <span className="text-xs text-[#7e7576] font-mono">{String(i + 1).padStart(2, '0')}</span>
             <span className="min-w-0 flex items-center gap-1.5">
-              <span className="text-sm text-lab-text-primary group-hover:text-white truncate">{opp.name}</span>
-              {showMeta && opp._meta?.is_new && <span className="w-1 h-1 rounded-full bg-lab-photon shrink-0" />}
+              <span className="text-sm text-black truncate">{opp.name}</span>
+              {showMeta && opp._meta?.is_new && <span className="w-1.5 h-1.5 bg-black shrink-0" />}
             </span>
-            <span className="text-xs text-right text-lab-text-secondary">{opp.difficulty}</span>
-            <span className="text-xs text-right text-lab-text-tertiary hidden sm:inline">{opp.scores.demand.signal}</span>
+            <span className="text-xs text-right text-[#4c4546]">{opp.difficulty}</span>
+            <span className="text-xs text-right text-[#7e7576] hidden sm:inline">{opp.scores.demand.signal}</span>
             <span className={`text-xs text-right font-semibold uppercase tracking-wide ${promiseColor(opp.promise)}`}>{opp.promise}</span>
           </button>
         ))}
@@ -532,20 +532,20 @@ function CategorySignalPanel({ signal, category }: { signal: AggregatedSignals |
   if (!rows.length) return null
 
   return (
-    <div className="card p-4 mb-4">
+    <div className="bg-white border border-black p-4 mb-4">
       <div className="flex items-center justify-between mb-2.5">
-        <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Real Category Signal</p>
-        <span className="text-[10px] text-lab-text-tertiary font-mono">{signal.providers_used.join(', ')} · {Math.round(signal.overall_confidence * 100)}% confidence</span>
+        <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider">Real Category Signal</p>
+        <span className="text-[10px] font-mono text-[#7e7576]">{signal.providers_used.join(', ')} · {Math.round(signal.overall_confidence * 100)}% confidence</span>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1.5">
         {rows.map(r => (
           <div key={r.label} className="leading-tight">
-            <span className="text-[10px] text-lab-text-tertiary">{r.label}: </span>
-            <span className="text-xs font-mono text-lab-text-secondary">{r.value}</span>
+            <span className="text-[10px] font-mono text-[#7e7576]">{r.label}: </span>
+            <span className="text-xs font-mono text-[#4c4546]">{r.value}</span>
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-lab-text-tertiary mt-2 italic">
+      <p className="text-[10px] text-[#7e7576] mt-2 italic">
         Real provider data for the broad category &ldquo;{category}&rdquo; as a whole — not specific to any individual opportunity below.
       </p>
       {/* Resilience layer (2026-06-29): providers_used above only shows the
@@ -553,7 +553,7 @@ function CategorySignalPanel({ signal, category }: { signal: AggregatedSignals |
           providers succeeded and which failed" rather than silently
           omitting a provider that errored or timed out from the response. */}
       {!!signal.failed_providers?.length && (
-        <p className="text-[10px] text-amber-500/70 mt-1">
+        <p className="text-[10px] font-mono text-[#a67c00] mt-1">
           Temporarily unavailable: {signal.failed_providers.join(', ')} — other sources above are unaffected.
         </p>
       )}
@@ -796,24 +796,24 @@ export default function AnalyzePage() {
     const selectedRank = selected ? opportunities.findIndex(o => o.name === selected.name) + 1 : 0
 
     return (
-      <div className="min-h-screen py-14 px-4">
+      <div className="min-h-screen py-14 px-4 font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
         <div className="max-w-6xl mx-auto animate-in lg:grid lg:grid-cols-[1fr_272px] lg:gap-10 lg:items-start">
         <div className="min-w-0">
 
-          <button onClick={() => setMode('form')} className="btn-ghost text-xs -ml-2 mb-6 lg:hidden">
+          <button onClick={() => setMode('form')} className="text-xs font-mono uppercase text-[#4c4546] hover:text-black -ml-2 mb-6 lg:hidden">
             ← New Search
           </button>
 
-          <h1 className="font-display text-2xl font-medium mb-2">
+          <h1 className="text-2xl font-black mb-2">
             Top Opportunities in{' '}
-            <span className="italic text-lab-photon">{input}</span>
+            <span className="italic">{input}</span>
           </h1>
           {resultCategoryName && resultCategoryName !== 'Supplements' && (
-            <p className="text-xs text-lab-text-tertiary mb-1">
+            <p className="text-xs font-mono text-[#7e7576] mb-1">
               Analyzed as: {resultCategoryName}
             </p>
           )}
-          <p className="text-sm text-lab-text-tertiary mb-8">
+          <p className="text-sm text-[#4c4546] mb-8">
             Explore the map or scan the list, then open a full investment memo · costs 1 analysis slot
           </p>
 
@@ -822,17 +822,17 @@ export default function AnalyzePage() {
           <CategorySignalPanel signal={categorySignal} category={searchedQuery} />
 
           {/* ── view toggle ── */}
-          <div className="flex items-center gap-1 mb-5 border-b border-lab-border-soft">
+          <div className="flex items-center gap-1 mb-5 border-b-2 border-black">
             {(['map', 'list'] as const).map(v => (
               <button
                 key={v}
                 onClick={() => setResultsView(v)}
-                className={`relative text-xs font-medium uppercase tracking-wider px-4 py-2.5 transition-colors ${
-                  resultsView === v ? 'text-zinc-50' : 'text-lab-text-tertiary hover:text-lab-text-secondary'
+                className={`relative text-xs font-mono font-medium uppercase tracking-wider px-4 py-2.5 transition-colors ${
+                  resultsView === v ? 'text-black font-bold' : 'text-[#7e7576] hover:text-[#4c4546]'
                 }`}
               >
                 {v === 'map' ? 'Map' : 'List'}
-                {resultsView === v && <span className="absolute left-3 right-3 -bottom-px h-[1.5px] bg-lab-photon rounded-full" />}
+                {resultsView === v && <span className="absolute left-3 right-3 -bottom-[2px] h-[2px] bg-black" />}
               </button>
             ))}
           </div>
@@ -863,34 +863,34 @@ export default function AnalyzePage() {
 
         {/* ── Persistent search-summary rail (desktop only) ─────────── */}
         <aside className="hidden lg:block lg:sticky lg:top-10 space-y-4">
-          <div className="card-premium p-5">
-            <p className="label mb-4">Search Summary</p>
+          <div className="bg-white border border-black p-5">
+            <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-[#7e7576] mb-4">Search Summary</p>
             <div className="space-y-3">
               <div>
-                <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-1">Query</p>
-                <p className="text-sm italic text-lab-photon truncate">&ldquo;{input}&rdquo;</p>
+                <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider mb-1">Query</p>
+                <p className="text-sm italic text-black truncate">&ldquo;{input}&rdquo;</p>
               </div>
-              <div className="pt-3 border-t border-lab-border-soft flex items-center justify-between">
-                <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Found</p>
-                <p className="text-sm font-semibold text-lab-text-primary">{opportunities.length} opportunities</p>
+              <div className="pt-3 border-t border-black/10 flex items-center justify-between">
+                <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider">Found</p>
+                <p className="text-sm font-bold text-black">{opportunities.length} opportunities</p>
               </div>
               {isAutoMode && detectedConfig && (
-                <div className="pt-3 border-t border-lab-border-soft flex items-center justify-between">
-                  <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider">Category</p>
+                <div className="pt-3 border-t border-black/10 flex items-center justify-between">
+                  <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider">Category</p>
                   <DetectedCategoryBadge config={detectedConfig} />
                 </div>
               )}
               {cached && cacheWeek && (
-                <div className="pt-3 border-t border-lab-border-soft">
-                  <p className="text-[10px] text-lab-text-tertiary uppercase tracking-wider mb-1">Data freshness</p>
-                  <p className="text-xs text-lab-text-secondary">
+                <div className="pt-3 border-t border-black/10">
+                  <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider mb-1">Data freshness</p>
+                  <p className="text-xs text-[#4c4546]">
                     {cacheStatus === 'updated' ? 'Updated this week' : 'Cached this week'} · {cacheWeek}
                   </p>
                 </div>
               )}
             </div>
           </div>
-          <button onClick={() => setMode('form')} className="btn-dark w-full text-sm py-2.5">
+          <button onClick={() => setMode('form')} className="w-full text-sm py-2.5 font-bold uppercase tracking-wide bg-white border border-black text-black hover:bg-[#f3f3f3] transition-colors">
             ← New Search
           </button>
         </aside>
@@ -901,16 +901,16 @@ export default function AnalyzePage() {
 
   // ── FORM ──────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen py-16 px-4">
+    <div className="min-h-screen py-16 px-4 font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
       <div className="max-w-5xl mx-auto animate-in lg:grid lg:grid-cols-[1fr_272px] lg:gap-10 lg:items-start">
       <div className="min-w-0">
 
-        <Link href="/dashboard" className="btn-ghost text-xs mb-6 -ml-2 inline-flex">
+        <Link href="/dashboard" className="text-xs font-mono uppercase text-[#4c4546] hover:text-black mb-6 -ml-2 inline-flex">
           ← Analyses
         </Link>
 
-        <h1 className="font-display text-2xl font-medium mb-1">Discover Opportunities</h1>
-        <p className="text-sm text-lab-text-secondary mb-8">
+        <h1 className="text-2xl font-black mb-1">Discover Opportunities</h1>
+        <p className="text-sm text-[#4c4546] mb-8">
           {isAutoMode
             ? 'Type any product idea — Open Discovery routes to the right category automatically.'
             : 'Enter a broad category to explore opportunities, or a specific idea for a direct analysis.'}
@@ -923,11 +923,11 @@ export default function AnalyzePage() {
 
           {/* main input — command-prompt entry, not a boxed form field */}
           <div className="mb-2">
-            <label className="block text-[11px] uppercase tracking-wider text-lab-text-tertiary mb-3">
+            <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7e7576] mb-3">
               {isAutoMode ? 'Product idea or category' : `${category.name} category or idea`}
             </label>
-            <div className="flex items-start gap-3 border-b-2 border-white/[0.12] focus-within:border-lab-photon pb-3 transition-colors">
-              <span className="font-mono text-xl text-lab-photon shrink-0 select-none leading-[1.7]">&gt;</span>
+            <div className="flex items-start gap-3 border-b-2 border-black pb-3 transition-colors">
+              <span className="font-mono text-xl text-black shrink-0 select-none leading-[1.7]">&gt;</span>
               <textarea
                 value={input} onChange={e => setInput(e.target.value)}
                 placeholder={
@@ -935,36 +935,36 @@ export default function AnalyzePage() {
                     ? `e.g. "dog joint supplement", "anti-aging serum", "viral kitchen gadget"…`
                     : `Broad: "${category.examples.broad[0]}"  →  discovers 20 opportunities\nSpecific: "${category.examples.specific[0] ?? ''}"  →  full memo`
                 }
-                className="flex-1 bg-transparent border-0 outline-none resize-none font-mono text-lg text-lab-text-primary placeholder:text-lab-text-tertiary placeholder:text-sm leading-relaxed h-[3.4rem]"
+                className="flex-1 bg-transparent border-0 outline-none resize-none font-mono text-lg text-black placeholder:text-[#7e7576] placeholder:text-sm leading-relaxed h-[3.4rem]"
                 maxLength={200} required autoFocus
               />
             </div>
             <div className="flex items-center justify-between mt-3">
               {input.trim() && !isAutoMode ? (
-                <p className="text-xs text-lab-text-tertiary flex items-center gap-1.5">
+                <p className="text-xs text-[#4c4546] flex items-center gap-1.5">
                   {broad
-                    ? <><IconTarget className="w-3 h-3 text-lab-photon shrink-0" /> Broad category — will discover 20 ranked opportunities</>
-                    : <><IconBeaker className="w-3 h-3 text-lab-photon shrink-0" /> Specific idea — will generate full investment memo</>}
+                    ? <><IconTarget className="w-3 h-3 text-black shrink-0" /> Broad category — will discover 20 ranked opportunities</>
+                    : <><IconBeaker className="w-3 h-3 text-black shrink-0" /> Specific idea — will generate full investment memo</>}
                 </p>
               ) : input.trim() && isAutoMode ? (
-                <p className="text-xs text-lab-text-tertiary flex items-center gap-1.5"><IconSpark className="w-3 h-3 text-lab-photon shrink-0" /> Open Discovery — category detected automatically</p>
+                <p className="text-xs text-[#4c4546] flex items-center gap-1.5"><IconSpark className="w-3 h-3 text-black shrink-0" /> Open Discovery — category detected automatically</p>
               ) : (
-                <p className="text-xs text-lab-text-tertiary">Costs 1 slot per full report</p>
+                <p className="text-xs font-mono text-[#7e7576]">Costs 1 slot per full report</p>
               )}
-              <span className="text-xs text-lab-text-tertiary font-mono">{input.length}/200</span>
+              <span className="text-xs text-[#7e7576] font-mono">{input.length}/200</span>
             </div>
           </div>
 
           {/* optional context — only for specific (non-auto, non-broad) */}
           {!isAutoMode && !broad && input.trim() && (
-            <div className="card p-6">
+            <div className="bg-white border border-black p-6">
               <button type="button" onClick={() => setShowExtra(v => !v)}
                 className="flex items-center justify-between w-full text-left group">
                 <div>
-                  <p className="text-sm font-medium">Optional context</p>
-                  <p className="text-xs text-lab-text-tertiary mt-0.5">Audience, price point, background</p>
+                  <p className="text-sm font-medium text-black">Optional context</p>
+                  <p className="text-xs text-[#7e7576] mt-0.5">Audience, price point, background</p>
                 </div>
-                <svg className={`w-4 h-4 text-lab-text-tertiary shrink-0 ml-4 transition-transform ${showExtra ? 'rotate-180' : ''}`}
+                <svg className={`w-4 h-4 text-[#7e7576] shrink-0 ml-4 transition-transform ${showExtra ? 'rotate-180' : ''}`}
                   fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
                 </svg>
@@ -973,22 +973,22 @@ export default function AnalyzePage() {
               {showExtra && (
                 <div className="mt-5 space-y-4 animate-in">
                   <div>
-                    <label className="block text-sm text-lab-text-secondary mb-1.5">Target audience</label>
+                    <label className="block text-sm text-[#4c4546] mb-1.5">Target audience</label>
                     <input type="text" value={audience} onChange={e => setAudience(e.target.value)}
                       placeholder="e.g. women 30–45 with hormonal issues"
-                      className="field text-sm" maxLength={100}/>
+                      className="w-full bg-white border-2 border-black px-4 py-2.5 text-sm text-black placeholder-[#7e7576] focus:outline-none" maxLength={100}/>
                   </div>
                   <div>
-                    <label className="block text-sm text-lab-text-secondary mb-1.5">Price point</label>
-                    <select value={price} onChange={e => setPrice(e.target.value)} className="field text-sm">
+                    <label className="block text-sm text-[#4c4546] mb-1.5">Price point</label>
+                    <select value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-white border-2 border-black px-4 py-2.5 text-sm text-black focus:outline-none">
                       {PRICES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-lab-text-secondary mb-1.5">Additional context</label>
+                    <label className="block text-sm text-[#4c4546] mb-1.5">Additional context</label>
                     <textarea value={extra} onChange={e => setExtra(e.target.value)}
                       placeholder="Key ingredient, competitor you've spotted, your background..."
-                      className="field text-sm resize-none h-20" maxLength={500}/>
+                      className="w-full bg-white border-2 border-black px-4 py-2.5 text-sm text-black placeholder-[#7e7576] focus:outline-none resize-none h-20" maxLength={500}/>
                   </div>
                 </div>
               )}
@@ -997,7 +997,7 @@ export default function AnalyzePage() {
 
           {error && <ErrorBanner message={error} networkFailure={networkFailure} />}
 
-          <button type="submit" disabled={!input.trim()} className="btn-white w-full py-3 text-base">
+          <button type="submit" disabled={!input.trim()} className="w-full py-3.5 text-base font-black uppercase tracking-widest text-white bg-black hover:bg-white hover:text-black border-2 border-black transition-colors duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed">
             {isAutoMode
               ? 'Discover with Open Discovery →'
               : broad && input.trim()
@@ -1009,11 +1009,11 @@ export default function AnalyzePage() {
           <div className="space-y-3 pt-1">
             {isAutoMode ? (
               <div>
-                <p className="text-xs text-lab-text-tertiary mb-2">Try any of these:</p>
+                <p className="text-xs font-mono text-[#7e7576] mb-2">Try any of these:</p>
                 <div className="flex flex-wrap gap-2">
                   {category.examples.broad.map(ex => (
                     <button key={ex} type="button" onClick={() => setInput(ex)}
-                      className="text-xs px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.1] text-lab-text-secondary hover:text-white hover:border-white/[0.2] transition-colors">
+                      className="text-xs px-3 py-1.5 bg-white border border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3] transition-colors">
                       {ex}
                     </button>
                   ))}
@@ -1023,11 +1023,11 @@ export default function AnalyzePage() {
               <>
                 {category.examples.broad.length > 0 && (
                   <div>
-                    <p className="text-xs text-lab-text-tertiary mb-2">Broad categories (discovery mode):</p>
+                    <p className="text-xs font-mono text-[#7e7576] mb-2">Broad categories (discovery mode):</p>
                     <div className="flex flex-wrap gap-2">
                       {category.examples.broad.map(ex => (
                         <button key={ex} type="button" onClick={() => setInput(ex)}
-                          className="text-xs px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.1] text-lab-text-secondary hover:text-white hover:border-white/[0.2] transition-colors">
+                          className="text-xs px-3 py-1.5 bg-white border border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3] transition-colors">
                           {ex}
                         </button>
                       ))}
@@ -1036,11 +1036,11 @@ export default function AnalyzePage() {
                 )}
                 {category.examples.specific.length > 0 && (
                   <div>
-                    <p className="text-xs text-lab-text-tertiary mb-2">Specific ideas (direct analysis):</p>
+                    <p className="text-xs font-mono text-[#7e7576] mb-2">Specific ideas (direct analysis):</p>
                     <div className="flex flex-wrap gap-2">
                       {category.examples.specific.map(ex => (
                         <button key={ex} type="button" onClick={() => setInput(ex)}
-                          className="text-xs px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.1] text-lab-text-secondary hover:text-white hover:border-white/[0.2] transition-colors">
+                          className="text-xs px-3 py-1.5 bg-white border border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3] transition-colors">
                           {ex}
                         </button>
                       ))}
@@ -1056,27 +1056,27 @@ export default function AnalyzePage() {
 
       {/* ── Process rail (desktop only) ──────────────────────────── */}
       <aside className="hidden lg:block lg:sticky lg:top-10 space-y-4">
-        <div className="card-premium p-5">
-          <p className="label mb-4">How it works</p>
+        <div className="bg-white border border-black p-5">
+          <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-[#7e7576] mb-4">How it works</p>
           <div className="space-y-4">
             {[
               { n: '01', t: 'Type your idea', b: 'Broad category or specific concept.' },
               { n: '02', t: 'Wait ~60 seconds', b: 'Demand, virality, subscription, and manufacturing get scored.' },
-              { n: '03', t: 'Get your answer', b: 'Market gaps, formula, financials, and a BUILD / SKIP verdict.' },
+              { n: '03', t: 'Get your answer', b: 'Market gaps, formula, financials, and an Entry Supported or Not Supported verdict.' },
             ].map(s => (
               <div key={s.n} className="flex gap-3">
-                <span className="italic text-lg text-lab-photon/70 shrink-0">{s.n}</span>
+                <span className="italic text-lg text-[#cfc4c5] shrink-0 font-mono">{s.n}</span>
                 <div>
-                  <p className="text-sm font-medium leading-snug">{s.t}</p>
-                  <p className="text-xs text-lab-text-tertiary mt-0.5 leading-relaxed">{s.b}</p>
+                  <p className="text-sm font-medium leading-snug text-black">{s.t}</p>
+                  <p className="text-xs text-[#7e7576] mt-0.5 leading-relaxed">{s.b}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
-        <div className="card-premium p-5">
-          <p className="label mb-2">Beta</p>
-          <p className="text-xs text-lab-text-tertiary leading-relaxed">3 free analyses · 28 categories pre-loaded on the leaderboard · your analyses are added automatically.</p>
+        <div className="bg-white border border-black p-5">
+          <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-[#7e7576] mb-2">Beta</p>
+          <p className="text-xs text-[#4c4546] leading-relaxed">3 free analyses · 28 categories pre-loaded on the leaderboard · your analyses are added automatically.</p>
         </div>
       </aside>
       </div>

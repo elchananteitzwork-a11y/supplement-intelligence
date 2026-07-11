@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════
-// THE INTELLIGENCE LAB — badges & evidence indicators
-// Two families per §10: filled Verdict badges, outline Provenance badges.
-// Plus the Evidence Strength meter (§16) — a direct, honest visualization
+// Badges & evidence indicators — reskinned to the neo-brutalist system.
+// Two families: filled Verdict badges, outline Provenance badges.
+// Plus the Evidence Strength meter — a direct, honest visualization
 // of lib/scoring.ts's real evidenceBreadth output. No data computed here;
 // every prop is read from an existing real value.
 // ═══════════════════════════════════════════════════════════════════════
@@ -12,21 +12,21 @@ import type { Provenance, ProvenanceLevel } from '@/lib/provenance'
 type EvidenceType = ProvenanceLevel
 
 const EVIDENCE_CFG: Record<EvidenceType, { label: string; cls: string; dot: string }> = {
-  verified:    { label: 'Verified Data',                    cls: 'text-lab-photon bg-lab-photon/10 border-lab-photon/30',     dot: 'bg-lab-photon' },
-  estimated:   { label: 'AI Interpretation',                cls: 'text-lab-amber bg-lab-amber/10 border-lab-amber/30',         dot: 'bg-lab-amber' },
-  synthesized: { label: 'AI Interpretation',                cls: 'text-lab-spectrum bg-lab-spectrum/10 border-lab-spectrum/30', dot: 'bg-lab-spectrum' },
-  unknown:     { label: 'Unsupported / Needs Verification', cls: 'text-lab-ember bg-lab-ember/10 border-lab-ember/30',         dot: 'bg-lab-ember' },
-  unsupported: { label: 'Unsupported / Needs Verification', cls: 'text-lab-ember bg-lab-ember/10 border-lab-ember/30',         dot: 'bg-lab-ember' },
+  verified:    { label: 'Verified Data',                    cls: 'text-black border-black',           dot: 'bg-black' },
+  estimated:   { label: 'AI Interpretation',                cls: 'text-[#a67c00] border-[#a67c00]',    dot: 'bg-[#a67c00]' },
+  synthesized: { label: 'AI Interpretation',                cls: 'text-[#4c4546] border-black',        dot: 'bg-[#4c4546]' },
+  unknown:     { label: 'Unsupported / Needs Verification', cls: 'text-[#d32f2f] border-[#d32f2f]',    dot: 'bg-[#d32f2f]' },
+  unsupported: { label: 'Unsupported / Needs Verification', cls: 'text-[#d32f2f] border-[#d32f2f]',    dot: 'bg-[#d32f2f]' },
 }
 
-/** Provenance badge (§10) — outline-weight, used profusely throughout
+/** Provenance badge — outline-weight, used profusely throughout
  * evidence panels. Deliberately lower visual weight than VerdictBadge. */
 export function EvidenceBadge({ type, detail, source }: { type: EvidenceType; detail?: string; source?: string }) {
   const { label, cls, dot } = EVIDENCE_CFG[type]
   const title = detail ? (source ? `${source} — ${detail}` : detail) : undefined
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-[10px] font-semibold border rounded-full px-2 py-0.5 tracking-wide shrink-0 cursor-default ${cls}`}
+      className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold border px-2 py-0.5 uppercase tracking-wide shrink-0 cursor-default bg-white ${cls}`}
       title={title}
     >
       <span className={`w-1 h-1 rounded-full ${dot} shrink-0`} />
@@ -45,29 +45,29 @@ export function ProvenanceBadge({ p }: { p: Provenance }) {
 export function ProvenanceCaption({ p }: { p: Provenance }) {
   const { label, cls } = EVIDENCE_CFG[p.level]
   return (
-    <div className={`flex items-start gap-2 text-[11px] rounded-lab-sm border px-2.5 py-2 ${cls}`}>
+    <div className={`flex items-start gap-2 text-[11px] border px-2.5 py-2 bg-white ${cls}`}>
       <span className="font-semibold shrink-0 whitespace-nowrap">{label}:</span>
       <span className="opacity-90">{p.detail}</span>
     </div>
   )
 }
 
-const VERDICT_CFG: Record<BuildDecision, { label: string; cls: string; dot: string; glow: string }> = {
-  BUILD_NOW:        { label: 'Build Now',       cls: 'text-lab-verdant bg-lab-verdant/10 border-lab-verdant/30', dot: 'bg-lab-verdant', glow: 'shadow-lab-glow-verdant' },
-  VALIDATE_FURTHER: { label: 'Validate First',  cls: 'text-lab-amber bg-lab-amber/10 border-lab-amber/30',       dot: 'bg-lab-amber',   glow: 'shadow-lab-glow-amber' },
-  SKIP:             { label: 'Pass',            cls: 'text-lab-ember bg-lab-ember/10 border-lab-ember/30',       dot: 'bg-lab-ember',   glow: 'shadow-lab-glow-ember' },
-  CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation', cls: 'text-lab-spectrum bg-lab-spectrum/10 border-lab-spectrum/30', dot: 'bg-lab-spectrum', glow: 'shadow-lab-glow-spectrum' },
+const VERDICT_CFG: Record<BuildDecision, { label: string; cls: string; dot: string }> = {
+  BUILD_NOW:        { label: 'Entry Supported',     cls: 'text-white bg-[#008a00] border-[#008a00]', dot: 'bg-white' },
+  VALIDATE_FURTHER: { label: 'Validation Required', cls: 'text-black bg-[#fbc02d] border-[#fbc02d]',  dot: 'bg-black' },
+  SKIP:             { label: 'Not Supported',       cls: 'text-white bg-[#d32f2f] border-[#d32f2f]',  dot: 'bg-white' },
+  CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation', cls: 'text-white bg-black border-black', dot: 'bg-white' },
 }
 
-/** Verdict badge (§10) — filled, the one decisive call-out per analysis. */
+/** Verdict badge — filled, the one decisive call-out per analysis. */
 export function VerdictBadge({
-  d, insufficientEvidence, withGlow = false,
+  d, insufficientEvidence,
 }: { d: BuildDecision; insufficientEvidence?: boolean; withGlow?: boolean }) {
   const cfg = insufficientEvidence
-    ? { label: 'Insufficient Data', cls: 'text-lab-text-secondary bg-white/[0.06] border-lab-border-default', dot: 'bg-lab-text-secondary', glow: '' }
+    ? { label: 'Insufficient Data', cls: 'text-[#4c4546] bg-white border-black', dot: 'bg-[#4c4546]' }
     : VERDICT_CFG[d]
   return (
-    <span className={`inline-flex items-center gap-2 font-semibold text-[11px] tracking-[0.16em] px-3 py-1.5 rounded-full border uppercase ${cfg.cls} ${withGlow ? cfg.glow : ''}`}>
+    <span className={`inline-flex items-center gap-2 font-black text-[11px] tracking-[0.16em] px-3 py-1.5 border uppercase ${cfg.cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
       {cfg.label}
     </span>
@@ -76,27 +76,30 @@ export function VerdictBadge({
 
 export function ConfidencePill({ level, note }: { level: 'High' | 'Medium' | 'Low'; note: string }) {
   const cls = level === 'High'
-    ? 'text-lab-verdant border-lab-verdant/25 bg-lab-verdant/10'
+    ? 'text-[#008a00] border-[#008a00] bg-white'
     : level === 'Medium'
-      ? 'text-lab-amber border-lab-amber/25 bg-lab-amber/10'
-      : 'text-lab-text-tertiary border-lab-border-default bg-white/[0.03]'
-  const dot = level === 'High' ? 'bg-lab-verdant' : level === 'Medium' ? 'bg-lab-amber' : 'bg-lab-text-tertiary'
+      ? 'text-[#a67c00] border-[#a67c00] bg-white'
+      : 'text-[#7e7576] border-black bg-white'
+  const dot = level === 'High' ? 'bg-[#008a00]' : level === 'Medium' ? 'bg-[#a67c00]' : 'bg-[#7e7576]'
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs border rounded-full px-2.5 py-1 ${cls}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 ${cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
-      {level} confidence · {note}
+      {note}
     </span>
   )
 }
 
-/** Evidence Strength meter (§16) — visualizes evidenceBreadth.
+/** Evidence Strength meter — visualizes evidenceBreadth.
  * contributingProviders / totalScoreEligibleProviders. Purely
  * presentational; computes nothing, reads two already-real numbers. */
 export function EvidenceMeter({ filled, total }: { filled: number; total: number }) {
   return (
-    <div className="lab-evidence-meter" role="img" aria-label={`${filled} of ${total} providers contributed real evidence`}>
+    <div className="flex gap-1" role="img" aria-label={`${filled} of ${total} providers contributed real evidence`}>
       {Array.from({ length: total }).map((_, i) => (
-        <span key={i} className="lab-evidence-meter-segment" data-filled={i < filled ? 'true' : 'false'} />
+        <span
+          key={i}
+          className={`w-2 h-2 rounded-full border border-black ${i < filled ? 'bg-black' : 'bg-white'}`}
+        />
       ))}
     </div>
   )
