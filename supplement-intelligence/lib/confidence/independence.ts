@@ -32,7 +32,15 @@ import { DIMENSION_ELIGIBLE_CHANNELS, DIMENSION_ELIGIBLE_PROVIDERS } from './eli
 import { reliabilityOf } from './priors'
 import type { ConfidenceAssessment, DimensionConfidence, ChannelWitness } from './types'
 
-export const CONFIDENCE_MODEL_VERSION = '1.0.0'
+// 1.1.0 (Roadmap M1.3, 2026-07-12): no formula change here — the version
+// bump reflects that the channels this module reads from eligibility.ts
+// changed meaning (social_community split into social_attention /
+// consumer_voice / paid_media in lib/scoring.ts's PROVIDER_CHANNEL). A
+// virality confidence computed under 1.0.0 for a query where both tiktok
+// and meta-ads fired would have seen 1 confirming channel; the same query
+// re-run under 1.1.0 sees up to 3 — not comparable across this boundary,
+// same convention as SCORING_ENGINE_VERSION bumps in lib/scoring.ts.
+export const CONFIDENCE_MODEL_VERSION = '1.1.0'
 
 export interface ConfidenceInput {
   dimensions:      ScoreDimension[]

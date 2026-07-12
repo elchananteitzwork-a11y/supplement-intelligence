@@ -29,13 +29,15 @@ Remove manufacturing feasibility and seasonality from weighted scoring (both rem
 - `amazon-ads.ts` deleted; registry has no dead entries; build green.
 - Regression: re-run 3 benchmark queries (berberine, creatine, magnesium); score deltas explained entirely by the removed weights.
 
-### M1.3 — Channel tags on all signals `[ ]`
+### M1.3 — Channel tags on all signals `[x]`
 **Blueprint refs:** §4 stage 2, §6. **Depends on:** nothing (parallel).
 Add a `channel` field to the provider signal envelope: `amazon-market | search-intent | social-attention | paid-media | science | supply-side | consumer-voice`. Tag every existing provider output.
 **Acceptance criteria:**
 - Every signal reaching the Decision Engine carries exactly one channel tag.
 - Keepa-derived signals tag as `amazon-market` (or `supply-side` for listing-age/velocity outputs).
 - Type-level enforcement: untagged signals fail the build.
+
+**Completed 2026-07-12.** Implemented as an expansion of the channel taxonomy already living in `lib/scoring.ts` (`ChannelType`/`PROVIDER_CHANNEL`) rather than a new field on the signal envelope itself — that map was already the single source of truth every provider's output flows through on its way to `EvidenceBreadth`/confidence, so adding a field directly to `ProviderSignals` would have created a second, competing source of truth. The prior 5-channel taxonomy (`amazon_marketplace | search_seo | social_community | manufacturing_supply | regulatory_safety`) is now 8: the blueprint's 7 (renamed to match this codebase's existing snake_case convention) plus `regulatory_safety` retained for openFDA, which the blueprint's channel list doesn't name and which dropping would have been a regression. `social_community` — previously shared by tiktok, reddit, and meta-ads, capping virality's channel-independence count at 1 no matter how many of the three fired — is split into `social_attention` (tiktok), `consumer_voice` (reddit), and `paid_media` (meta-ads); `science` is added but unpopulated, reserved for M2.5. "Type-level enforcement" is implemented as a test (`lib/__tests__/channel-tagging.test.ts`) asserting every provider in the registry has a `PROVIDER_CHANNEL` entry, gating `npm test` — true compiler enforcement isn't available since providers register by string name, not a closed union. `SCORING_ENGINE_VERSION` was not bumped (no score/weight/gate formula changed); `CONFIDENCE_MODEL_VERSION` was bumped 1.0.0→1.1.0 (channel semantics changed, confidence numbers for multi-social-provider queries are not comparable across the boundary). Verified: `tsc --noEmit` clean, 354/354 tests passing (23 files, including 5 updated fixture files and this milestone's new coverage), `next build` clean.
 
 ### M1.4 — Independence-aware confidence + two-channel gate `[ ]`
 **Blueprint refs:** §10, Principles 6–8. **Depends on:** M1.3.

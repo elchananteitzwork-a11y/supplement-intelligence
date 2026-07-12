@@ -28,38 +28,37 @@
 //     reviews (apify-amazon-reviews).
 //   virality (assembleDimensions, se.virality): tiktok primary, reddit
 //     secondary, meta-ads added Milestone 5 (providers/meta-ads.ts) — all
-//     three per detectContributingProviders. meta-ads maps to the SAME
-//     social_community channel as tiktok/reddit (see lib/scoring.ts
-//     PROVIDER_CHANNEL comment — this codebase's 5-channel taxonomy
-//     predates the V2 Blueprint's 7-channel model, which has a distinct
-//     paid-media channel; that split is Roadmap M1.3, not yet
-//     implemented). Consequence: if both tiktok and meta-ads fire on the
-//     same query, they collapse to ONE channel witness at the higher of
-//     the two reliabilities (meta-ads 0.65 > tiktok 0.45), per the
-//     existing same-channel max-reliability rollup — meta-ads alone does
-//     not increase demand's channel-independence count beyond what
-//     tiktok/reddit already provided, unless it's the only one of the
-//     three that fires.
+//     three per detectContributingProviders.
 //   manufacturingFeasibilityScore (L757+): m.manufacturing_estimate, from
 //     apify-alibaba exclusively.
+//
+// Roadmap M1.3 (2026-07-12): tiktok/reddit/meta-ads previously all mapped
+// to the same social_community channel in lib/scoring.ts, so virality could
+// never show more than one confirming channel even when 2-3 of them fired
+// on the same query. lib/scoring.ts's PROVIDER_CHANNEL now splits them into
+// social_attention (tiktok), consumer_voice (reddit), and paid_media
+// (meta-ads) — three genuinely distinct witnesses. demand's third slot
+// (previously the shared social_community) becomes consumer_voice, not
+// social_attention, because tiktok was never in demand's eligible-providers
+// list below — only reddit ever fed demand.
 
 import type { ChannelType } from '@/lib/scoring'
 
 export const DIMENSION_ELIGIBLE_CHANNELS: Record<string, ChannelType[]> = {
-  demand:               ['search_seo', 'amazon_marketplace', 'social_community'],
-  marketAccessibility:  ['amazon_marketplace', 'search_seo'],
-  profitability:        ['amazon_marketplace', 'manufacturing_supply', 'search_seo'],
-  consumerPain:         ['amazon_marketplace'],
-  virality:             ['social_community'],
-  subscription:         ['amazon_marketplace'],
-  manufacturing:        ['manufacturing_supply'],
+  demand:               ['search_intent', 'amazon_market', 'consumer_voice'],
+  marketAccessibility:  ['amazon_market', 'search_intent'],
+  profitability:        ['amazon_market', 'supply_side', 'search_intent'],
+  consumerPain:         ['amazon_market'],
+  virality:             ['social_attention', 'consumer_voice', 'paid_media'],
+  subscription:         ['amazon_market'],
+  manufacturing:        ['supply_side'],
 }
 
 // Which real providers (within an eligible channel) a given dimension can
 // draw from — used to select the correct provider(s) to look up a
 // reliability prior for, rather than crediting a dimension with a provider
 // that contributed to a DIFFERENT dimension within the same channel (e.g.
-// marketAccessibility's amazon_marketplace eligibility is {keepa,
+// marketAccessibility's amazon_market eligibility is {keepa,
 // apify-amazon-search}, not apify-amazon-reviews, which only ever feeds
 // consumerPain/subscription).
 export const DIMENSION_ELIGIBLE_PROVIDERS: Record<string, string[]> = {

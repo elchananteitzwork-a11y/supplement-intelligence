@@ -53,7 +53,7 @@ describe('computeConfidenceAssessment — single-channel confidence', () => {
         totalScoreEligibleProviders: 8,
         pct: 12,
         channelBreakdown: [
-          { channel: 'search_seo', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
+          { channel: 'search_intent', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
         ],
         distinctChannelTypes: 1,
         crossChannelCorroborated: false,
@@ -66,12 +66,12 @@ describe('computeConfidenceAssessment — single-channel confidence', () => {
 })
 
 describe('computeConfidenceAssessment — the roadmap acceptance criterion', () => {
-  it('a second confirming channel (keepa, amazon_marketplace) measurably raises confidence over dataforseo alone', () => {
+  it('a second confirming channel (keepa, amazon_market) measurably raises confidence over dataforseo alone', () => {
     const oneChannel = grounded({
       dimensions: [{ key: 'demand', label: 'Demand', weight: 0.22, rawScore: 7, source: 'verified', sourceLabel: 'dataforseo' }],
       evidenceBreadth: {
         contributingProviders: ['dataforseo'], totalScoreEligibleProviders: 8, pct: 12,
-        channelBreakdown: [{ channel: 'search_seo', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] }],
+        channelBreakdown: [{ channel: 'search_intent', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] }],
         distinctChannelTypes: 1, crossChannelCorroborated: false,
       },
     })
@@ -80,8 +80,8 @@ describe('computeConfidenceAssessment — the roadmap acceptance criterion', () 
       evidenceBreadth: {
         contributingProviders: ['dataforseo', 'keepa'], totalScoreEligibleProviders: 8, pct: 25,
         channelBreakdown: [
-          { channel: 'search_seo', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
-          { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+          { channel: 'search_intent', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
+          { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
         ],
         distinctChannelTypes: 2, crossChannelCorroborated: true,
       },
@@ -96,19 +96,19 @@ describe('computeConfidenceAssessment — the roadmap acceptance criterion', () 
     expect(twoConfidence).toBeCloseTo(expected, 3)
   })
 
-  it('a third same-channel signal (apify-amazon-search, still amazon_marketplace) does NOT raise confidence further', () => {
+  it('a third same-channel signal (apify-amazon-search, still amazon_market) does NOT raise confidence further', () => {
     const twoChannels = grounded({
       dimensions: [{ key: 'demand', label: 'Demand', weight: 0.22, rawScore: 7, source: 'verified', sourceLabel: 'dataforseo + keepa' }],
       evidenceBreadth: {
         contributingProviders: ['dataforseo', 'keepa'], totalScoreEligibleProviders: 8, pct: 25,
         channelBreakdown: [
-          { channel: 'search_seo', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
-          { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+          { channel: 'search_intent', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
+          { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
         ],
         distinctChannelTypes: 2, crossChannelCorroborated: true,
       },
     })
-    // Same two channels, but amazon_marketplace now lists a second REAL
+    // Same two channels, but amazon_market now lists a second REAL
     // provider (keepa is still the one demand is eligible to draw from;
     // this simulates the channel already being "maxed" — adding another
     // provider to the same channel entry must not change the result).
@@ -117,14 +117,14 @@ describe('computeConfidenceAssessment — the roadmap acceptance criterion', () 
       evidenceBreadth: {
         contributingProviders: ['dataforseo', 'keepa'], totalScoreEligibleProviders: 8, pct: 25,
         channelBreakdown: [
-          { channel: 'search_seo', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
+          { channel: 'search_intent', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
           // Same channel, same eligible provider set for 'demand' — keepa is
-          // still the only demand-eligible provider under amazon_marketplace
+          // still the only demand-eligible provider under amazon_market
           // (apify-amazon-search/apify-amazon-reviews are not in demand's
           // eligible-provider list — see eligibility.ts), so this represents
           // "more data landed in the same channel" without adding a new
           // channel or a new demand-eligible provider.
-          { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+          { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
         ],
         distinctChannelTypes: 2, crossChannelCorroborated: true,
       },
@@ -136,14 +136,14 @@ describe('computeConfidenceAssessment — the roadmap acceptance criterion', () 
   })
 
   it('same-channel rollup uses the MAX reliability among real contributing providers, not a sum', () => {
-    // marketAccessibility is eligible for amazon_marketplace via both keepa
+    // marketAccessibility is eligible for amazon_market via both keepa
     // and apify-amazon-search — both present in the same channel entry.
     const g = grounded({
       dimensions: [{ key: 'marketAccessibility', label: 'Market Accessibility', weight: 0.18, rawScore: 6, source: 'verified', sourceLabel: 'keepa + apify-amazon-search' }],
       evidenceBreadth: {
         contributingProviders: ['keepa', 'apify-amazon-search'], totalScoreEligibleProviders: 8, pct: 25,
         channelBreakdown: [
-          { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa', 'apify-amazon-search'] },
+          { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa', 'apify-amazon-search'] },
         ],
         distinctChannelTypes: 1, crossChannelCorroborated: false,
       },
@@ -167,9 +167,9 @@ describe('computeConfidenceAssessment — weakest-link composite', () => {
       evidenceBreadth: {
         contributingProviders: ['dataforseo', 'keepa', 'tiktok'], totalScoreEligibleProviders: 8, pct: 37,
         channelBreakdown: [
-          { channel: 'search_seo', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
-          { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
-          { channel: 'social_community', label: 'Social / Community', contributed: true, providers: ['tiktok'] },
+          { channel: 'search_intent', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
+          { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+          { channel: 'social_attention', label: 'Social Attention', contributed: true, providers: ['tiktok'] },
         ],
         distinctChannelTypes: 3, crossChannelCorroborated: true,
       },
@@ -197,13 +197,13 @@ describe('computeConfidenceAssessment — distinctConfirmingChannels union', () 
       evidenceBreadth: {
         contributingProviders: ['keepa'], totalScoreEligibleProviders: 8, pct: 12,
         channelBreakdown: [
-          { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+          { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
         ],
         distinctChannelTypes: 1, crossChannelCorroborated: false,
       },
     })
     const assessment = computeConfidenceAssessment(g)
-    // amazon_marketplace confirms BOTH dimensions, but is one distinct channel.
+    // amazon_market confirms BOTH dimensions, but is one distinct channel.
     expect(assessment.distinctConfirmingChannels).toBe(1)
   })
 })
@@ -219,7 +219,7 @@ describe('computeConfidenceAssessment — channel mismatch honesty', () => {
       evidenceBreadth: {
         contributingProviders: [], totalScoreEligibleProviders: 8, pct: 0,
         channelBreakdown: [
-          { channel: 'search_seo', label: 'Search / SEO', contributed: false, providers: [] },
+          { channel: 'search_intent', label: 'Search / SEO', contributed: false, providers: [] },
         ],
         distinctChannelTypes: 0, crossChannelCorroborated: false,
       },

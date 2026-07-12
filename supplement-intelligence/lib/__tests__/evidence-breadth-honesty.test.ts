@@ -47,7 +47,7 @@ describe('detectContributingProviders — AI-synthesized estimates are not provi
   it('does NOT credit apify-alibaba when manufacturing_estimate.data_source is ai_synthesis', () => {
     const grounded = computeGroundedScore(memoWithEstimate('ai_synthesis'))
     expect(grounded.evidenceBreadth.contributingProviders).not.toContain('apify-alibaba')
-    const mfgChannel = grounded.evidenceBreadth.channelBreakdown.find(c => c.channel === 'manufacturing_supply')
+    const mfgChannel = grounded.evidenceBreadth.channelBreakdown.find(c => c.channel === 'supply_side')
     expect(mfgChannel?.contributed).toBe(false)
   })
 

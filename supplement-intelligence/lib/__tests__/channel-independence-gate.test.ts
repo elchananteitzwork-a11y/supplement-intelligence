@@ -37,25 +37,25 @@ describe('computeChannelIndependenceGateTier — the roadmap acceptance criterio
   it('caps to VALIDATE_FURTHER when demand is confirmed by Keepa alone, regardless of how high the score is', () => {
     const candidates = [demandDimension(10)] // maximum possible score
     const breadth = evidenceBreadth([
-      { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+      { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
     ])
     expect(computeChannelIndependenceGateTier(candidates, breadth)).toBe('VALIDATE_FURTHER')
   })
 
-  it('does NOT cap when demand is confirmed by Keepa (amazon_marketplace) AND DataForSEO (search_seo)', () => {
+  it('does NOT cap when demand is confirmed by Keepa (amazon_market) AND DataForSEO (search_intent)', () => {
     const candidates = [demandDimension(10)]
     const breadth = evidenceBreadth([
-      { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
-      { channel: 'search_seo', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
+      { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+      { channel: 'search_intent', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
     ])
     expect(computeChannelIndependenceGateTier(candidates, breadth)).toBeNull()
   })
 
-  it('does NOT cap when demand is confirmed by Amazon + Social (TikTok) — any 2 distinct channels suffice', () => {
+  it('does NOT cap when demand is confirmed by Amazon + Consumer Voice (Reddit) — any 2 distinct channels suffice', () => {
     const candidates = [demandDimension(8)]
     const breadth = evidenceBreadth([
-      { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
-      { channel: 'social_community', label: 'Social / Community', contributed: true, providers: ['reddit'] },
+      { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+      { channel: 'consumer_voice', label: 'Consumer Voice', contributed: true, providers: ['reddit'] },
     ])
     expect(computeChannelIndependenceGateTier(candidates, breadth)).toBeNull()
   })
@@ -65,7 +65,7 @@ describe('computeChannelIndependenceGateTier — same-channel providers do not c
   it('two Amazon-marketplace providers (keepa + apify-amazon-search) are still one channel — still caps', () => {
     const candidates = [demandDimension(9)]
     const breadth = evidenceBreadth([
-      { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa', 'apify-amazon-search'] },
+      { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa', 'apify-amazon-search'] },
     ])
     expect(computeChannelIndependenceGateTier(candidates, breadth)).toBe('VALIDATE_FURTHER')
   })
@@ -85,7 +85,7 @@ describe('computeChannelIndependenceGateTier — no-op cases', () => {
       { key: 'profitability', label: 'Profitability', weight: 0.20, rawScore: 8, source: 'verified', sourceLabel: 'keepa' },
     ]
     const breadth = evidenceBreadth([
-      { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+      { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
     ])
     expect(computeChannelIndependenceGateTier(candidates, breadth)).toBeNull()
   })
@@ -96,8 +96,8 @@ describe('computeChannelIndependenceGateTier — no-op cases', () => {
       { key: 'profitability', label: 'Profitability', weight: 0.20, rawScore: 8, source: 'verified' as const, sourceLabel: 'apify-alibaba' },
     ]
     const breadth = evidenceBreadth([
-      { channel: 'amazon_marketplace', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
-      { channel: 'manufacturing_supply', label: 'Manufacturing / Supply', contributed: true, providers: ['apify-alibaba'] },
+      { channel: 'amazon_market', label: 'Amazon Marketplace', contributed: true, providers: ['keepa'] },
+      { channel: 'supply_side', label: 'Manufacturing / Supply', contributed: true, providers: ['apify-alibaba'] },
     ])
     // 2 distinct channels overall, but demand itself is still only Keepa —
     // the gate must still cap, proving it is demand-specific, not a

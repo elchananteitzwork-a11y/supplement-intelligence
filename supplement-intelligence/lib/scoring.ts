@@ -32,11 +32,29 @@ export interface ScoreDimension {
 
 // ── Evidence Breadth / Channel Concentration ───────────────────────────────
 
+// Roadmap M1.3 (2026-07-12): expanded from the original 5-type taxonomy to
+// the V2 Blueprint's 7-channel model, plus regulatory_safety retained as an
+// 8th — the blueprint's 7 channels (amazon-market | search-intent |
+// social-attention | paid-media | science | supply-side | consumer-voice)
+// don't name a regulatory/safety channel at all, and dropping openFDA's
+// existing, real, functioning channel to force-fit the blueprint's list
+// would be a regression, not an implementation of it. `science` is added
+// but not yet populated by any provider — reserved for Roadmap M2.5
+// (PubMed/ClinicalTrials.gov). The old social_community bucket is split
+// three ways: TikTok's organic engagement stays social_attention; Reddit
+// (real discussion/pain-point text, not attention metrics) moves to the
+// new consumer_voice; Meta Ad Library (paid spend, not social engagement)
+// moves to the new paid_media — previously all three collapsed into one
+// witness for channel-independence purposes, which under-counted real
+// corroboration whenever more than one of them fired on the same query.
 export type ChannelType =
-  | 'amazon_marketplace'
-  | 'search_seo'
-  | 'social_community'
-  | 'manufacturing_supply'
+  | 'amazon_market'
+  | 'search_intent'
+  | 'social_attention'
+  | 'paid_media'
+  | 'consumer_voice'
+  | 'supply_side'
+  | 'science'
   | 'regulatory_safety'
 
 export interface ChannelBreakdownEntry {
@@ -202,6 +220,14 @@ export interface EvidenceBreadth {
 // recent)") for report-level transparency. Legacy memos scored under 2.9.0
 // or earlier did not have this nuance applied; re-evaluate before
 // comparing scores across this version boundary, same as every prior bump.
+//
+// NOT bumped for Roadmap M1.3 (channel tagging, 2026-07-12): ChannelType/
+// PROVIDER_CHANNEL/CHANNEL_COVERAGE_NOTES changed (see their own comments),
+// but no score weight, threshold, or gate formula changed. The only
+// user-visible effect is more accurate channel-independence *confidence*
+// reporting (lib/confidence, versioned separately via CONFIDENCE_MODEL_VERSION)
+// — verdicts and scores for any given evidence set are bit-for-bit identical
+// before and after this change.
 export const SCORING_ENGINE_VERSION = '2.10.0'
 
 export interface GroundedScore {
@@ -242,30 +268,49 @@ const BASE_WEIGHTS = {
 // hardcoded constant — it grows automatically if a new provider is ever
 // registered here.
 
-const CHANNEL_LABELS: Record<ChannelType, string> = {
-  amazon_marketplace:   'Amazon Marketplace',
-  search_seo:           'Search / SEO',
-  social_community:     'Social / Community',
-  manufacturing_supply: 'Manufacturing / Supply',
-  regulatory_safety:    'Regulatory / Safety',
+export const CHANNEL_LABELS: Record<ChannelType, string> = {
+  amazon_market:      'Amazon Marketplace',
+  search_intent:      'Search / SEO',
+  social_attention:   'Social Attention',
+  paid_media:         'Paid Media',
+  consumer_voice:     'Consumer Voice',
+  supply_side:        'Manufacturing / Supply',
+  science:            'Scientific Literature',
+  regulatory_safety:  'Regulatory / Safety',
 }
 
-const PROVIDER_CHANNEL: Record<string, ChannelType> = {
-  keepa:                  'amazon_marketplace',
-  'apify-amazon-search':  'amazon_marketplace',
-  'apify-amazon-reviews': 'amazon_marketplace',
-  dataforseo:             'search_seo',
-  'google-trends':        'search_seo',
-  tiktok:                 'social_community',
-  reddit:                 'social_community',
-  // Meta Ad Library indexes ads running on Facebook/Instagram — both social
-  // platforms. This codebase's channel taxonomy (5 types) predates the V2
-  // Blueprint's separate 7-channel model, which has a dedicated paid-media
-  // channel distinct from social — that split is Roadmap M1.3, not yet
-  // implemented. social_community is the closest existing fit without
-  // introducing a new channel type this milestone didn't authorize.
-  'meta-ads':             'social_community',
-  'apify-alibaba':        'manufacturing_supply',
+// Roadmap M1.3 (2026-07-12): Meta Ad Library and Reddit split out of the
+// former single social_community bucket into their own channels — see the
+// ChannelType comment above for why. Every other mapping is a rename only
+// (amazon_marketplace→amazon_market, search_seo→search_intent,
+// manufacturing_supply→supply_side), same provider, same real data, no
+// behavior change beyond the label. `science` has no provider yet
+// (reserved for Roadmap M2.5).
+//
+// KNOWN SCOPING LIMIT (deliberate): Keepa's CompetitionSignal carries both
+// marketplace-saturation fields (competing_brands, saturation — genuinely
+// amazon_market) and listing-velocity fields (avg_listing_age_months,
+// seller_count_trend — arguably supply_side). PROVIDER_CHANNEL maps at
+// provider granularity, not per-field, so keepa is tagged amazon_market as
+// a whole; splitting its listing-velocity output into its own supply_side
+// signal is Roadmap M2.3 ("New-listing velocity from listedSince"), which
+// formalizes that exact sub-signal as its own dimension. Not done here to
+// avoid a per-field channel model this milestone didn't authorize.
+// Exported (Roadmap M1.3) so lib/__tests__/channel-tagging.test.ts can
+// assert every provider registered in lib/signal-engine/registry.ts has a
+// real entry here — the closest available substitute for true type-level
+// enforcement, since providers are registered by string name, not a closed
+// union type.
+export const PROVIDER_CHANNEL: Record<string, ChannelType> = {
+  keepa:                  'amazon_market',
+  'apify-amazon-search':  'amazon_market',
+  'apify-amazon-reviews': 'amazon_market',
+  dataforseo:             'search_intent',
+  'google-trends':        'search_intent',
+  tiktok:                 'social_attention',
+  reddit:                 'consumer_voice',
+  'meta-ads':             'paid_media',
+  'apify-alibaba':        'supply_side',
   openfda:                'regulatory_safety',
 }
 // HARDENING FIX (2026-06-28): kept in PROVIDER_CHANNEL above (so a future
@@ -285,11 +330,14 @@ const TOTAL_SCORE_ELIGIBLE_PROVIDERS = Object.keys(PROVIDER_CHANNEL).length - ST
 // Never varies, so it can never misrepresent real data — it asserts nothing
 // about THIS query, only about the channel's own structural blind spots.
 export const CHANNEL_COVERAGE_NOTES: Record<ChannelType, string> = {
-  amazon_marketplace:   'Reflects Amazon US marketplace behavior only — retail, wholesale, and international-marketplace dynamics are not visible here.',
-  search_seo:           'Reflects Google search behavior — demand that bypasses search entirely (e.g. word-of-mouth, retail discovery) is not visible here.',
-  social_community:     "Reflects TikTok and Reddit's own audience composition by platform design (skews younger, US, English-speaking) — absence of signal here is not evidence of absence of demand in other demographics or channels.",
-  manufacturing_supply: 'Reflects suppliers indexed by this specific scraper — sourcing regions or supplier networks outside it are not visible here.',
-  regulatory_safety:    'Reflects only FDA recall and adverse-event data — does not cover non-US regulators or unreported incidents.',
+  amazon_market:      'Reflects Amazon US marketplace behavior only — retail, wholesale, and international-marketplace dynamics are not visible here.',
+  search_intent:      'Reflects Google search behavior — demand that bypasses search entirely (e.g. word-of-mouth, retail discovery) is not visible here.',
+  social_attention:   "Reflects TikTok's own audience composition by platform design (skews younger, US, English-speaking) — absence of signal here is not evidence of absence of demand on other platforms or demographics.",
+  paid_media:         'Reflects only ads indexed by the Meta Ad Library (Facebook/Instagram) — spend on Google, Amazon, TikTok, or other ad platforms is not visible here, and true ad budget is never exposed by this endpoint, only ad/advertiser counts.',
+  consumer_voice:     "Reflects Reddit's own audience composition by platform design (skews younger, US, English-speaking, text-first) — absence of signal here is not evidence of absence of demand or complaints elsewhere.",
+  supply_side:        'Reflects suppliers indexed by this specific scraper — sourcing regions or supplier networks outside it are not visible here.',
+  science:            'No provider populates this channel yet — reserved for Roadmap M2.5 (PubMed / ClinicalTrials.gov).',
+  regulatory_safety:  'Reflects only FDA recall and adverse-event data — does not cover non-US regulators or unreported incidents.',
 }
 
 function hasRealRecallOrAdverseEvent(m: MemoData): boolean {

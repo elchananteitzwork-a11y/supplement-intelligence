@@ -26,7 +26,7 @@ function makeCtx(overrides: Partial<ExtractLedgerEntryContext> = {}): ExtractLed
       totalScoreEligibleProviders: 8,
       pct: 12,
       channelBreakdown: [
-        { channel: 'search_seo', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
+        { channel: 'search_intent', label: 'Search / SEO', contributed: true, providers: ['dataforseo'] },
       ],
       distinctChannelTypes: 1,
       crossChannelCorroborated: false,
