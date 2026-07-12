@@ -30,6 +30,14 @@
 //     pattern used everywhere else in the report; "Top 3 Reasons to
 //     Build"/"Top 3 Risks" renamed "Bull Case"/"Bear Case" to match the
 //     investor-memo voice Stitch's own Kill Criteria section uses.
+//
+// Roadmap M1.5 (2026-07-12): added Marketing Intelligence — real Meta Ad
+// Library data (ad count, advertiser count, ad start dates, creative
+// longevity), previously computed but only ever folded invisibly into
+// Demand Intensity's TikTok card via the shared `virality` composite.
+// Gated on metaAdsProvenance confirming meta-ads actually contributed to
+// THIS query; renders a "not available from this provider" empty state
+// otherwise, never an estimate.
 // ═══════════════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useRef } from 'react'
@@ -48,6 +56,7 @@ import ReviewNarrative from './ReviewNarrative'
 import StrategicReadinessChecklist from './StrategicReadinessChecklist'
 import InvestmentThesis from './InvestmentThesis'
 import NewsIntelligence from './NewsIntelligence'
+import MarketingIntelligence from './MarketingIntelligence'
 import LaunchStrategy from './LaunchStrategy'
 
 // ── Reading progress bar — real interaction read from Stitch's own
@@ -108,6 +117,7 @@ const EXTENSION_SECTIONS: SectionDef[] = [
   { id: 'thesis-detail',     label: 'Thesis Detail' },
   { id: 'evidence-methodology', label: 'Methodology' },
   { id: 'news-intelligence', label: 'News' },
+  { id: 'marketing-intelligence', label: 'Marketing' },
   { id: 'launch-strategy',   label: 'Launch' },
 ]
 
@@ -232,6 +242,7 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
         {m.review_narrative && (
           <ReportSection id="review-narrative" title="Customer Review Intelligence"><ReviewNarrative m={m} /></ReportSection>
         )}
+        <ReportSection id="marketing-intelligence" title="Marketing Intelligence"><MarketingIntelligence m={m} /></ReportSection>
         <ReportSection id="launch-strategy" title="Launch Strategy"><LaunchStrategy m={m} /></ReportSection>
 
         {/* ── Footer ──────────────────────────────────────────────────── */}

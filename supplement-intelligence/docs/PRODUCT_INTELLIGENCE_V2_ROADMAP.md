@@ -48,13 +48,15 @@ Confidence counts effective independent channels: signals sharing a channel tag 
 - Confidence display includes channel count ("confirmed by N independent channels").
 - Existing thin-corpus cross-validation logic is generalized into (not duplicated by) this mechanism.
 
-### M1.5 — Meta Ads Library provider (stub → real) `[ ]`
+### M1.5 — Meta Ads Library provider (stub → real) `[x]`
 **Blueprint refs:** §5, §6, §15. **Depends on:** M1.3 (tags as `paid-media`).
 Wire the Meta Ad Library API: active ad count per niche keyword set, advertiser count, and 90-day delta where obtainable. Honest nulls on failure; never blocks the analysis.
 **Acceptance criteria:**
 - Fires on the 3 benchmark queries with non-null ad counts.
 - Contributes as an independent `paid-media` channel in the concordance/confidence math (satisfies the two-channel gate alongside Amazon).
 - Rate-limit and failure paths return null; analysis completes regardless.
+
+**Completed 2026-07-12.** The provider itself (`lib/signal-engine/providers/meta-ads.ts`) was already a real, complete implementation when this milestone was picked up — not a stub — fetching real ad_count/advertiser_count/active_ad_pct from the Meta Ad Library `ads_archive` endpoint with defensive parsing and full honest-null coverage (credential gating, minimum-sample gate, non-200/error/malformed-JSON/network-throw responses all verified to return null via mocked-fetch tests). M1.3 already made it contribute as an independent `paid_media` channel. What this pass added: (1) the "90-day delta where obtainable" from the milestone's own goal text — implemented as `recent_ad_start_pct`, an honestly-disclosed single-request proxy (fraction of fetched ads started in the last 90 days), not a true count-over-time delta, since a real delta needs two requests separated by real time and no persistence layer exists for this provider; (2) `earliest_ad_start`/`latest_ad_start` (real observed dates) and `avg_active_ad_age_days`/`avg_concluded_ad_duration_days` (creative longevity, kept as two separate honest measurements — running vs. already-concluded ads — never blended into one number); (3) a new `MarketingIntelligence.tsx` extension-zone UI section, gated on `metaAdsProvenance` confirming meta-ads specifically contributed to `virality.sources` for the query (not merely that `virality` exists, since tiktok/reddit populate the same composite) — renders a "Not available from this provider" empty state otherwise, never an estimate. "Fires on the 3 benchmark queries" was not run live — `META_ADS_ACCESS_TOKEN` is unset in this environment (same constraint noted in the provider's own header comment); verified instead via 30 deterministic unit tests in `meta-ads.test.ts` (mocked fetch) plus 5 new tests for `metaAdsProvenance`'s gating logic. Verified: `tsc --noEmit` clean, 369/369 tests passing (24 files), `next build` clean.
 
 ### M1.6 — DataForSEO time series (search velocity) `[ ]`
 **Blueprint refs:** §2 Pillar 1, §4 stage 3, §5. **Depends on:** M1.3 (tags as `search-intent`).

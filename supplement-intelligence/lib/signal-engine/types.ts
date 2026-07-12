@@ -168,6 +168,25 @@ export interface ViralitySignal extends SignalScore {
   ad_count?:          number   // real count of ads found matching the query (bounded — see provider header comment)
   advertiser_count?:  number   // real distinct advertiser (page_id) count among those ads
   active_ad_pct?:     number   // 0–1 fraction of found ads still actively delivering
+
+  // Roadmap M1.5 additions (2026-07-12) — all derived from ad_delivery_start_time
+  // / ad_delivery_stop_time already present on every fetched ad, zero extra
+  // API cost. See providers/meta-ads.ts's header comment for exactly what
+  // each does and does not measure.
+  earliest_ad_start?:  string   // ISO date — oldest ad_delivery_start_time in the fetched page
+  latest_ad_start?:    string   // ISO date — newest ad_delivery_start_time in the fetched page
+  // Proxy for "90-day delta," not a true count-over-time delta (this
+  // provider makes one point-in-time request; a real delta needs two
+  // requests separated by real time, which no persistence layer exists for
+  // yet). Fraction of fetched ads whose start date falls within the last
+  // 90 days — a real, single-request signal for "how much of today's ad
+  // activity on this niche is newly launched."
+  recent_ad_start_pct?: number   // 0–1
+  // "Creative longevity" — kept as two separate, honest measurements
+  // rather than one blended number, because they answer different
+  // questions and blending them would imply a precision neither has alone:
+  avg_active_ad_age_days?:         number  // for currently-running ads only: now − start, real elapsed days
+  avg_concluded_ad_duration_days?: number  // for ads that have already stopped: stop − start, real total lifespan
 }
 
 export interface ReviewVelocitySignal extends SignalScore {

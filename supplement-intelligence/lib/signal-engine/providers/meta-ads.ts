@@ -48,6 +48,27 @@ import type {
 //   active_ad_pct     — fraction of returned ads with no ad_delivery_stop_time
 //                        (or a future one) — sustained current ad spend vs.
 //                        one-off/expired campaigns.
+//   earliest_ad_start / latest_ad_start — real min/max ad_delivery_start_time
+//                        across the fetched page, surfaced as-is.
+//   recent_ad_start_pct — fraction of fetched ads whose start date falls in
+//                        the last 90 days. NOT a true "count 90 days ago vs
+//                        now" delta — that needs two requests separated by
+//                        real time, and this provider makes one point-in-
+//                        time request per analysis with no persistence
+//                        layer behind it. This is the closest honest,
+//                        single-request proxy: how much of TODAY's ad
+//                        activity is newly launched.
+//   avg_active_ad_age_days — for ads still running: now − start, averaged.
+//                        Real elapsed time, not total lifespan (they
+//                        haven't stopped yet).
+//   avg_concluded_ad_duration_days — for ads that have already stopped:
+//                        stop − start, averaged. Real total campaign
+//                        lifespan — "creative longevity" — but only for the
+//                        subset that has actually concluded; kept separate
+//                        from avg_active_ad_age_days rather than blended,
+//                        because averaging "still running" with "already
+//                        over" durations would imply a precision neither
+//                        measurement alone has.
 //
 // Revealed economic preference: sustained ad spend on a niche means someone
 // believes their unit economics work — a real, independent (paid-media)
@@ -60,7 +81,8 @@ import type {
 //     require paginating every result, which this provider does not do
 //     (cost/latency tradeoff, matching the single-page-fetch pattern
 //     already used elsewhere in this codebase).
-//   → Both are left absent rather than estimated.
+//   - A true 90-day count delta — see recent_ad_start_pct above.
+//   → All three are left absent/proxied rather than estimated.
 //
 // ── Data quality gate ───────────────────────────────────────────────────
 //   Requires ad_count >= MIN_AD_SAMPLE (3) — a 1–2 ad match is too thin to
@@ -119,6 +141,63 @@ export function dataConfidence(adCount: number): number {
   if (adCount >= 20)            return 0.60
   if (adCount >= MIN_AD_SAMPLE) return 0.50
   return 0.40
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const NINETY_DAYS_MS = 90 * DAY_MS
+
+// Real min/max ad_delivery_start_time across the page — undefined when no
+// ad in the page has a parseable start date (never fabricated).
+export function computeAdStartRange(ads: MetaAd[]): { earliest?: string; latest?: string } {
+  const starts = ads
+    .map(a => a.ad_delivery_start_time)
+    .filter((s): s is string => !!s && !isNaN(Date.parse(s)))
+  if (starts.length === 0) return {}
+  const sorted = [...starts].sort()
+  return { earliest: sorted[0], latest: sorted[sorted.length - 1] }
+}
+
+// Fraction of ads with a parseable start date that started within the last
+// 90 days (relative to `now`, injectable for deterministic testing).
+// undefined when no ad has a parseable start date — absence, not zero.
+export function computeRecentAdStartPct(ads: MetaAd[], now: number): number | undefined {
+  const withStart = ads
+    .map(a => a.ad_delivery_start_time)
+    .filter((s): s is string => !!s && !isNaN(Date.parse(s)))
+  if (withStart.length === 0) return undefined
+  const recent = withStart.filter(s => now - Date.parse(s) <= NINETY_DAYS_MS)
+  return Math.round((recent.length / withStart.length) * 100) / 100
+}
+
+// Two separate averages, never blended — see header comment for why.
+export function computeAdDurations(
+  ads: MetaAd[],
+  now: number,
+): { avgActiveAgeDays?: number; avgConcludedDurationDays?: number } {
+  const activeAges: number[] = []
+  const concludedDurations: number[] = []
+
+  for (const ad of ads) {
+    const start = ad.ad_delivery_start_time ? Date.parse(ad.ad_delivery_start_time) : NaN
+    if (isNaN(start)) continue
+
+    const stop = ad.ad_delivery_stop_time ? Date.parse(ad.ad_delivery_stop_time) : NaN
+    const isStopped = !isNaN(stop) && stop <= now
+
+    if (isStopped) {
+      concludedDurations.push((stop - start) / DAY_MS)
+    } else {
+      activeAges.push((now - start) / DAY_MS)
+    }
+  }
+
+  const avg = (xs: number[]) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : undefined
+  const round1 = (n: number | undefined) => n === undefined ? undefined : Math.round(n * 10) / 10
+
+  return {
+    avgActiveAgeDays:         round1(avg(activeAges)),
+    avgConcludedDurationDays: round1(avg(concludedDurations)),
+  }
 }
 
 // ── Core provider class ──────────────────────────────────────────────────
@@ -205,15 +284,24 @@ export class MetaAdsProvider implements SignalProvider {
     const metaSignal = adCountToMetaSignal(adCount)
     const confidence = dataConfidence(adCount)
 
+    const { earliest, latest }              = computeAdStartRange(ads)
+    const recentAdStartPct                  = computeRecentAdStartPct(ads, now)
+    const { avgActiveAgeDays, avgConcludedDurationDays } = computeAdDurations(ads, now)
+
     console.log('Meta Ads signals computed', {
       query,
       ad_count:          adCount,          // real, bounded by PAGE_LIMIT — see header comment
       advertiser_count:  advertiserCount,  // real, distinct page_id values
       active_ad_pct:     `${Math.round(activeAdPct * 100)}%`,
+      earliest_ad_start: earliest ?? null,
+      latest_ad_start:   latest ?? null,
+      recent_ad_start_pct: recentAdStartPct !== undefined ? `${Math.round(recentAdStartPct * 100)}%` : null,
+      avg_active_ad_age_days: avgActiveAgeDays ?? null,
+      avg_concluded_ad_duration_days: avgConcludedDurationDays ?? null,
       score,
       meta_signal:       metaSignal,
       confidence:        Math.round(confidence * 100) + '%',
-      not_measured:      ['ad_spend', 'true_total_ad_count_beyond_one_page'],
+      not_measured:      ['ad_spend', 'true_total_ad_count_beyond_one_page', 'true_90_day_count_delta'],
     })
 
     const virality: ViralitySignal = {
@@ -223,6 +311,11 @@ export class MetaAdsProvider implements SignalProvider {
       ad_count:         adCount,
       advertiser_count: advertiserCount,
       active_ad_pct:    activeAdPct,
+      earliest_ad_start: earliest,
+      latest_ad_start:   latest,
+      recent_ad_start_pct: recentAdStartPct,
+      avg_active_ad_age_days: avgActiveAgeDays,
+      avg_concluded_ad_duration_days: avgConcludedDurationDays,
     }
 
     return {

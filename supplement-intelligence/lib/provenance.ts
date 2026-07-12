@@ -258,6 +258,18 @@ export function realFeeDataProvenance(signals?: AggregatedSignals | null): Prove
   return verified('Keepa', "Amazon's own published referral-fee percentage and FBA pick-and-pack fee for this product's category/size tier, mirrored directly by Keepa — not a Keepa-side model and not the model's own margin guess.")
 }
 
+// Marketing Intelligence (Roadmap M1.5) — real ad_count/advertiser_count/
+// active_ad_pct/ad-date fields, directly observed from the Meta Ad Library
+// API response, not a derived estimate or a model guess. `virality` is a
+// shared composite that tiktok/reddit/meta-ads can all populate (see
+// lib/scoring.ts's PROVIDER_CHANNEL), so this checks sources specifically
+// for 'meta-ads' — a query where only tiktok/reddit fired must not show
+// Meta Ad Library attribution it never earned.
+export function metaAdsProvenance(signals?: AggregatedSignals | null): Provenance | null {
+  if (!signals?.virality?.sources.includes('meta-ads')) return null
+  return verified('Meta Ad Library', 'Real ad count, distinct-advertiser count, and ad start/stop dates for ads matching this query, from the Meta Ad Library public archive API — directly observed facts, not estimated. Ad spend/budget is not exposed by this endpoint for non-political ads and is never shown.')
+}
+
 // "Bestseller Avg Units/Mo" — real via Keepa's own monthlySold field.
 export function unitsSoldProvenance(signals?: AggregatedSignals | null): Provenance | null {
   if (!signals?.revenue?.value.est_monthly_units_sold) return null
