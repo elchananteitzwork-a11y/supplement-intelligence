@@ -10,6 +10,7 @@ import { toEvidencePoint } from '@/lib/evidence/types'
 import { computeRankingDifficulty } from '@/lib/stage1/ranking-difficulty'
 import { computePpcEconomics } from '@/lib/stage1/ppc-economics'
 import { fetchRegulatoryIntelligence } from '@/lib/regulatory-engine'
+import { checkRateLimit, RESEARCH_LIMIT } from '@/lib/rate-limit'
 
 export const maxDuration = 120
 
@@ -39,9 +40,13 @@ function sanitizeQuery(q: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { data: { user }, error: authError } = await supabaseAuthClient().auth.getUser()
+    const sbAuth = supabaseAuthClient()
+    const { data: { user }, error: authError } = await sbAuth.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (!checkRateLimit(user.id, RESEARCH_LIMIT)) {
+      return NextResponse.json({ error: 'Too many requests — please wait a moment' }, { status: 429 })
     }
 
     const body = await req.json()
@@ -228,21 +233,17 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const { data: { user }, error: authError } = await supabaseAuthClient().auth.getUser()
+    const sbGet = supabaseAuthClient()
+    const { data: { user }, error: authError } = await sbGet.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
 
     const id = req.nextUrl.searchParams.get('id')
 
     // No id → return list of recent signals for the user
     if (!id) {
-      const { data, error } = await supabase
+      const { data, error } = await sbGet
         .from('market_signals')
         .select('id, query, quality_grade, pipeline_blocked, created_at')
         .eq('user_id', user.id)
@@ -252,7 +253,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data ?? [])
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await sbGet
       .from('market_signals')
       .select('*')
       .eq('id', id)

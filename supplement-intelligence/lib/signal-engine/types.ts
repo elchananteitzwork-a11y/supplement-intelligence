@@ -28,12 +28,36 @@ export interface DemandSignal extends SignalScore {
   // relative search interest for this exact query — a geographic demand-
   // concentration signal that doesn't exist anywhere else in this codebase.
   top_regions?: string[]
+  // CONFIRMED VIA LIVE CALL 2026-07-08: real monthlySoldHistory time-series
+  // decoded from Keepa's [keepaTimestamp, units, ...] array. YoY compares the
+  // same 3-month window last year vs today. Absent when < 14 months of history.
+  annual_growth_rate?: number   // YoY % change in units sold (positive = growing)
+  // 3-month rolling average vs 12-month rolling average — leading indicator of
+  // acceleration or deceleration before it shows up in BSR delta.
+  momentum_3m_pct?: number      // % deviation of last-3-month avg from last-12-month avg
 }
 
 export interface CompetitionSignal extends SignalScore {
   competing_brands?: string                 // e.g. "35–60" — Keepa: sellers-per-listing on the category's top bestsellers
   saturation?:       'Low' | 'Medium' | 'Medium-High' | 'High'
   barrier?:          'Low' | 'Medium' | 'High'
+  // Phase 1 / Phase 3 Keepa expansion (2026-07-08): deterministic fields derived
+  // from brand names and offer-count history in the Keepa /product response.
+  // All null-safe — absent rather than guessed when data is missing.
+  distinct_brand_count?:    number        // unique brands among relevant competitors
+  top_brand_review_share?:  number        // 0–1 fraction of total reviews held by most-reviewed brand
+  seller_count_trend?:      'Growing' | 'Stable' | 'Shrinking'  // 3-point offer-count trajectory
+  market_maturity?:         'Nascent' | 'Growing' | 'Mature' | 'Saturated'
+  // Sprint 2 additions (2026-07-08): all CONFIRMED VIA LIVE CALL on 5+ products.
+  // listedSince encodes as Keepa minutes; decoded via unix = 1293840000 + mins*60.
+  avg_listing_age_months?:  number        // median listing age of category products (months)
+  // outOfStockPercentage90[0] = Amazon price slot OOS% over 90 days.
+  // 0% = Amazon always in stock (direct competition); 68–99% = Amazon rarely sells (accessible).
+  amazon_oos_pct?:          number        // median Amazon OOS% across category products
+  // stats.buyBoxIsAmazon / buyBoxSellerId='ATVPDKIKX0DER' without buybox=1 parameter.
+  amazon_buybox_pct?:       number        // fraction of products where Amazon holds the buy box
+  // From variations[].length (numberOfVariations absent — use array length instead).
+  avg_variation_count?:     number        // median variation family size among competitors
 }
 
 export interface RevenueSignal extends SignalScore {
@@ -71,6 +95,19 @@ export interface RevenueSignal extends SignalScore {
   price_compression_pct?:   number   // e.g. -8.3 means prices dropped 8.3% vs. 12mo ago
   price_avg_90d?:           number   // avg price over last 90 days (dollars)
   price_avg_365d?:          number   // avg price over last 365 days (dollars)
+  // Fix 6 (v2.6.0): true when avgRevenue could not be computed (no relevant
+  // price×monthlySold pair and no fallback). score remains 0 (not null) so
+  // aggregateDimension() in engine.ts avoids NaN (score * confidence). UI
+  // should display "N/A" rather than "$0" when this flag is present.
+  revenue_estimate_unavailable?: boolean
+  // Sprint 2 additions (2026-07-08): CONFIRMED VIA LIVE CALL 5/5 products.
+  // isSNS is a direct boolean on the Keepa product response — no parameter needed.
+  // promotions[] contains type:"SNS" entries with discount amounts when enrolled.
+  sns_enrolled_pct?: number          // fraction of category products enrolled in Subscribe & Save
+  // Sprint 2 /category endpoint (1 token): soldByAmazonPercent + isFBAPercent
+  // confirmed live in earlier Keepa API audit. Used for market accessibility context.
+  category_fba_pct?: number          // from /category: % of category products FBA-fulfilled
+  category_amazon_seller_pct?: number // from /category: % sold directly by Amazon
 }
 
 export interface GrowthSignal extends SignalScore {
@@ -90,12 +127,22 @@ export interface SeasonalitySignal extends SignalScore {
   // 10 = perfectly perennial (ideal for subscription), 0 = heavily seasonal
   peak_months?: string[]                    // e.g. ["Nov", "Dec"]
   pattern?:     'Perennial' | 'Seasonal' | 'Event-driven'
+  // Raw seasonality coefficient from monthlySoldHistory analysis: 0 = perfectly
+  // flat after detrending, >0.5 = strongly seasonal. Absent when derived from
+  // BSR-based method (which cannot compute this). Present when monthlySoldHistory
+  // time series was available (CONFIRMED VIA LIVE CALL 2026-07-08, 5/5 products).
+  seasonal_coefficient?: number
 }
 
 export interface PricingSignal extends SignalScore {
   avg_price?:      string                   // e.g. "$28"
   price_range?:    string                   // e.g. "$18–$45"
   premium_viable?: boolean                  // can a premium brand win at 20%+ above avg?
+  // Phase 1 Keepa expansion (2026-07-08): additional price-channel fields derived
+  // from CSV indices 4 (LIST_PRICE) and 10 (NEW_FBA) and numberOfItems.
+  price_per_unit_range?: string             // e.g. "$0.25–$0.83/unit" — corrects for pack size
+  fba_price_floor?: string                  // e.g. "$22" — lowest FBA-fulfilled competitor price
+  list_price_discount_pct?: number          // avg % below list/MSRP; positive = commodity pressure
 }
 
 export interface ViralitySignal extends SignalScore {
@@ -109,6 +156,18 @@ export interface ViralitySignal extends SignalScore {
   video_count?:      number
   view_count?:       number
   hashtag?:          string   // e.g. "guthealth" — which hashtag this came from
+
+  // Meta Ad Library fields (providers/meta-ads.ts) — a distinct, real,
+  // paid-media corroboration source for this same `virality` composite
+  // (sustained ad spend on a category = revealed economic preference, not
+  // an attention proxy like TikTok views). engine.ts's generic aggregation
+  // already blends any provider that populates `virality`, so tiktok and
+  // meta-ads scores are averaged and both listed in `sources` — no
+  // aggregation-layer change was needed for this.
+  meta_signal?:       'High' | 'Medium' | 'Low'
+  ad_count?:          number   // real count of ads found matching the query (bounded — see provider header comment)
+  advertiser_count?:  number   // real distinct advertiser (page_id) count among those ads
+  active_ad_pct?:     number   // 0–1 fraction of found ads still actively delivering
 }
 
 export interface ReviewVelocitySignal extends SignalScore {
@@ -158,6 +217,10 @@ export interface ReviewVelocitySignal extends SignalScore {
     // without risking a wrong structured value being read as more
     // authoritative than the source text actually supports.
     ingredients_label?: string
+    // Sprint 3 additions (2026-07-08): CONFIRMED VIA LIVE CALL 5/5 products.
+    // listing_age_months decoded from Keepa listedSince field (keepa minutes).
+    listing_age_months?: number   // how old this product listing is in months
+    variation_count?:    number   // variation family size from Keepa variations[] array
   }[]
 }
 

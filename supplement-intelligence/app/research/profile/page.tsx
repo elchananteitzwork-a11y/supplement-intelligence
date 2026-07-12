@@ -2,9 +2,10 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import { AppShell } from '@/components/shell/AppShell'
 import { FounderProfileForm } from '@/components/research/FounderProfileForm'
 import { FounderProfileBanner } from '@/components/research/FounderProfileBanner'
+import { HardCard, PrimaryLinkButton, SecondaryButton, GhostButton } from '@/components/ui'
 import type { FounderProfile } from '@/lib/stage25/fit-layer'
 
 function FounderProfileContent() {
@@ -57,35 +58,26 @@ function FounderProfileContent() {
 
   if (loading) {
     return (
-      <main className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-500 text-sm animate-pulse">Loading…</p>
-      </main>
+      <div className="flex items-center justify-center py-24">
+        <p className="text-outline text-sm font-mono animate-pulse">Loading…</p>
+      </div>
     )
   }
 
   return (
-    <main className="max-w-xl mx-auto px-6 py-12">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-3 text-xs text-gray-500 mb-8">
-        <Link href="/research" className="hover:text-gray-300 transition-colors">Research</Link>
-        <span className="text-gray-700">/</span>
-        <span className="text-gray-400">Founder Profile</span>
-      </div>
-
-      <div className="space-y-2 mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">
+    <div className="max-w-xl space-y-8">
+      <div className="space-y-2 border-b-2 border-black pb-4">
+        <h1 className="text-headline-md text-black">
           {existing ? 'Founder Profile' : 'Set Up Founder Profile'}
         </h1>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-ink-variant">
           Your profile drives deterministic fit scoring for every investment thesis — capital adequacy,
           channel alignment, timeline viability, and execution gap analysis. No AI interprets your answers.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 text-xs text-red-400 bg-red-950/30 border border-red-800 rounded px-3 py-2">
-          {error}
-        </div>
+        <p className="text-xs text-verdict-negative bg-white border border-verdict-negative px-3 py-2">{error}</p>
       )}
 
       {/* Summary view — shown when profile exists and not editing */}
@@ -94,41 +86,25 @@ function FounderProfileContent() {
           <FounderProfileBanner profile={existing} />
 
           {/* What this profile affects */}
-          <div className="rounded-lg border border-gray-800 bg-gray-900/30 p-4 space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <HardCard className="space-y-2">
+            <p className="text-[11px] font-mono font-semibold text-outline uppercase tracking-wider">
               This profile personalizes
             </p>
-            <ul className="text-xs text-gray-400 space-y-1">
-              <li className="flex gap-2"><span className="text-indigo-400">→</span> Capital adequacy check on every thesis</li>
-              <li className="flex gap-2"><span className="text-indigo-400">→</span> Fit rank (1–5) based on channel, timeline, and execution</li>
-              <li className="flex gap-2"><span className="text-indigo-400">→</span> Execution gap identification before you commit capital</li>
-              <li className="flex gap-2"><span className="text-indigo-400">→</span> Founder Verdict in Investment Memos (separate from market verdict)</li>
-              <li className="flex gap-2"><span className="text-indigo-400">→</span> Unit economics breakeven adjusted to your actual capital position</li>
+            <ul className="text-xs text-ink-variant space-y-1">
+              <li className="flex gap-2"><span className="text-black">→</span> Capital adequacy check on every thesis</li>
+              <li className="flex gap-2"><span className="text-black">→</span> Fit rank (1–5) based on channel, timeline, and execution</li>
+              <li className="flex gap-2"><span className="text-black">→</span> Execution gap identification before you commit capital</li>
+              <li className="flex gap-2"><span className="text-black">→</span> Founder Verdict in Investment Memos (separate from market verdict)</li>
+              <li className="flex gap-2"><span className="text-black">→</span> Unit economics breakeven adjusted to your actual capital position</li>
             </ul>
-          </div>
+          </HardCard>
 
           <div className="flex gap-3">
-            <button
-              onClick={() => setEditing(true)}
-              className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:border-gray-500 hover:text-gray-100 transition-colors"
-            >
-              Edit profile
-            </button>
-            {returnTo && (
-              <Link
-                href={returnTo}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
-              >
-                ← Back
-              </Link>
-            )}
-            {!returnTo && (
-              <Link
-                href="/research"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
-              >
-                Continue to Research →
-              </Link>
+            <SecondaryButton onClick={() => setEditing(true)}>Edit profile</SecondaryButton>
+            {returnTo ? (
+              <PrimaryLinkButton href={returnTo}>← Back</PrimaryLinkButton>
+            ) : (
+              <PrimaryLinkButton href="/research">Continue to Research →</PrimaryLinkButton>
             )}
           </div>
         </div>
@@ -139,15 +115,10 @@ function FounderProfileContent() {
         <div className="space-y-4">
           {existing && (
             <div className="flex items-center justify-between">
-              <p className="text-xs text-indigo-400 bg-indigo-950/30 border border-indigo-800 rounded px-3 py-1.5">
+              <p className="text-xs text-ink-variant border border-black bg-white px-3 py-1.5">
                 Editing existing profile — changes take effect immediately across all future analyses
               </p>
-              <button
-                onClick={() => setEditing(false)}
-                className="text-xs text-gray-500 hover:text-gray-300 transition-colors ml-3"
-              >
-                Cancel
-              </button>
+              <GhostButton onClick={() => setEditing(false)} className="ml-3">Cancel</GhostButton>
             </div>
           )}
           <FounderProfileForm
@@ -157,18 +128,20 @@ function FounderProfileContent() {
           />
         </div>
       )}
-    </main>
+    </div>
   )
 }
 
 export default function FounderProfilePage() {
   return (
-    <Suspense fallback={
-      <main className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-500 text-sm animate-pulse">Loading…</p>
-      </main>
-    }>
-      <FounderProfileContent />
-    </Suspense>
+    <AppShell active="settings">
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-24">
+          <p className="text-outline text-sm font-mono animate-pulse">Loading…</p>
+        </div>
+      }>
+        <FounderProfileContent />
+      </Suspense>
+    </AppShell>
   )
 }

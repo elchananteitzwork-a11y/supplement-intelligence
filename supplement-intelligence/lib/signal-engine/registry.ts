@@ -3,7 +3,6 @@ import { KeepaProvider }             from './providers/keepa'
 import { GoogleTrendsProvider }      from './providers/google-trends'
 import { TikTokProvider }            from './providers/tiktok'
 import { RedditProvider }            from './providers/reddit'
-import { AmazonAdsProvider }         from './providers/amazon-ads'
 import { MetaAdsProvider }           from './providers/meta-ads'
 import { CompetitionSignalProvider } from './providers/competition'
 
@@ -18,7 +17,6 @@ const providers = [
   new GoogleTrendsProvider(),
   new TikTokProvider(),
   new RedditProvider(),
-  new AmazonAdsProvider(),
   new MetaAdsProvider(),
   new CompetitionSignalProvider(),
 ]

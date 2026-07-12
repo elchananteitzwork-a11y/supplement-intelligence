@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PRO-INTEL | Mobile Evidence Sheet</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;family=Inter:wght@400;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-low": "#f3f3f3",
+                    "primary-container": "#1b1b1b",
+                    "on-surface-variant": "#4c4546",
+                    "secondary-fixed": "#e2e2e2",
+                    "outline": "#7e7576",
+                    "on-surface": "#1a1c1c",
+                    "surface-container-high": "#e8e8e8",
+                    "on-primary-container": "#848484",
+                    "error": "#ba1a1a",
+                    "background": "#f9f9f9",
+                    "tertiary-container": "#1b1c1c",
+                    "surface-container": "#eeeeee",
+                    "surface-tint": "#5e5e5e",
+                    "secondary-fixed-dim": "#c6c6c6",
+                    "primary": "#000000",
+                    "surface-bright": "#f9f9f9",
+                    "on-primary-fixed-variant": "#474747",
+                    "outline-variant": "#cfc4c5",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#dfe0e0",
+                    "tertiary": "#000000",
+                    "on-background": "#1a1c1c",
+                    "surface": "#f9f9f9",
+                    "inverse-surface": "#2f3131",
+                    "surface-dim": "#dadada",
+                    "primary-fixed": "#e2e2e2",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "inverse-primary": "#c6c6c6",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "inverse-on-surface": "#f1f1f1",
+                    "error-container": "#ffdad6",
+                    "on-primary-fixed": "#1b1b1b",
+                    "tertiary-fixed": "#e4e2e2",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#848484",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-container": "#616363",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "secondary": "#5d5f5f",
+                    "surface-variant": "#e2e2e2",
+                    "surface-container-lowest": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "element-gap": "16px",
+                    "grid-unit": "8px",
+                    "gutter": "24px",
+                    "section-gap": "64px",
+                    "container-padding": "40px"
+            },
+            "fontFamily": {
+                    "label-mono": ["JetBrains Mono"],
+                    "verdict-sm": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .neo-brutal-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .bottom-sheet-transition {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        body {
+            background-color: #f9f9f9;
+            overflow: hidden;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex flex-col h-screen font-body-md text-on-background">
+<!-- Background Content (Dimmed) -->
+<div class="relative flex-1 overflow-y-auto px-gutter py-10 opacity-30 pointer-events-none">
+<header class="mb-8">
+<span class="font-label-mono text-label-mono uppercase tracking-widest text-secondary">Ingredient Intelligence</span>
+<h1 class="font-headline-xl-mobile text-headline-xl-mobile mt-2">MAGNESIUM GLYCINATE</h1>
+</header>
+<div class="grid grid-cols-1 gap-element-gap">
+<div class="p-gutter border border-primary bg-surface flex flex-col gap-4">
+<div class="flex justify-between items-center">
+<span class="font-label-mono text-label-mono uppercase">Trend Score</span>
+<span class="bg-primary text-on-primary px-2 py-1 font-verdict-sm text-verdict-sm">VERIFIED</span>
+</div>
+<div class="h-32 bg-surface-container-low border border-primary overflow-hidden">
+<!-- Placeholder for Sparkline -->
+<div class="w-full h-full bg-gradient-to-tr from-surface-container-highest to-surface-container-low opacity-50 flex items-center justify-center">
+<span class="font-label-mono text-xs text-secondary">[SIMULATED_GRAPH_LINE]</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-element-gap">
+<div class="p-gutter border border-primary bg-surface">
+<span class="font-label-mono text-label-mono text-secondary">CVR %</span>
+<div class="font-headline-md text-headline-md mt-1">4.21</div>
+</div>
+<div class="p-gutter border border-primary bg-surface">
+<span class="font-label-mono text-label-mono text-secondary">CTR %</span>
+<div class="font-headline-md text-headline-md mt-1">1.88</div>
+</div>
+</div>
+<div class="p-gutter border border-primary bg-surface">
+<h3 class="font-label-mono text-label-mono uppercase mb-4">Competitor Landscape</h3>
+<div class="space-y-3">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="flex-1 border-b border-surface-container-highest pb-1">Brand Alpha</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="flex-1 border-b border-surface-container-highest pb-1">Brand Beta</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Scrim Overlay -->
+<div class="fixed inset-0 bg-primary/20 backdrop-blur-[1px] z-40"></div>
+<!-- Draggable Bottom Sheet -->
+<div class="fixed bottom-0 left-0 right-0 bg-surface border-t-2 border-primary z-50 rounded-t-xl h-[55%] flex flex-col bottom-sheet-transition" id="bottom-sheet">
+<!-- Drag Handle -->
+<div class="w-full flex justify-center py-4 cursor-grab active:cursor-grabbing" id="sheet-header">
+<div class="w-12 h-1.5 bg-primary/20 rounded-full"></div>
+</div>
+<div class="px-gutter pb-gutter flex-1 overflow-y-auto">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-label-mono text-label-mono uppercase font-black tracking-tight">Intelligence Evidence</h2>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+<span class="font-label-mono text-label-mono text-secondary">LIVE FEED</span>
+</div>
+</div>
+<!-- Evidence Content -->
+<div class="space-y-6">
+<!-- Data Point: Search Volume -->
+<div class="border border-primary p-gutter bg-surface-container-lowest">
+<div class="flex items-start justify-between mb-3">
+<div class="font-label-mono text-[10px] text-secondary uppercase">Metric: Velocity</div>
+<span class="font-label-mono text-label-mono">11:02:45 UTC</span>
+</div>
+<p class="font-headline-md text-headline-md leading-none mb-2">Search volume increased 12% in 48h</p>
+<div class="mt-4 pt-4 border-t border-surface-container-highest flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'wght' 700;">database</span>
+<span class="font-label-mono text-label-mono font-bold">S&amp;P GLOBAL</span>
+</div>
+<span class="font-label-mono text-[10px] text-secondary">EVIDENCE_ID: 882-QX</span>
+</div>
+</div>
+<!-- Raw Value Terminal Style -->
+<div class="bg-primary text-on-primary p-gutter font-label-mono text-[11px] leading-tight neo-brutal-shadow">
+<div class="text-on-primary-container mb-2 border-b border-on-primary-container/30 pb-1 uppercase">Raw Data Extraction</div>
+<div class="space-y-1">
+<div class="flex justify-between"><span class="opacity-60">BASE_VAL:</span> <span>42,901</span></div>
+<div class="flex justify-between"><span class="opacity-60">DELTA_48H:</span> <span class="text-white">+5,148</span></div>
+<div class="flex justify-between"><span class="opacity-60">CONF_SCORE:</span> <span>0.982</span></div>
+<div class="flex justify-between"><span class="opacity-60">SAMPLE_SZ:</span> <span>2,401,992</span></div>
+</div>
+</div>
+<!-- Freshness Metadata -->
+<div class="grid grid-cols-2 gap-4">
+<div class="border border-primary p-4 bg-surface">
+<span class="font-label-mono text-[10px] text-secondary block mb-1">FRESHNESS</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span class="font-label-mono text-label-mono">4m ago</span>
+</div>
+</div>
+<div class="border border-primary p-4 bg-surface">
+<span class="font-label-mono text-[10px] text-secondary block mb-1">VALIDITY</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">verified_user</span>
+<span class="font-label-mono text-label-mono uppercase">Tier 1</span>
+</div>
+</div>
+</div>
+<!-- Image Insight -->
+<div class="relative h-40 border border-primary overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A macro laboratory photograph of magnesium glycinate powder crystals under harsh clinical lighting. The aesthetic is monochromatic with high contrast, showing microscopic structures and sharp edges. The lighting is cold and precise, emphasizing purity and technical analytical quality in a neo-brutalist clinical style." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBLzvQ1Zx0SyOpGRvFGfLfhjI-Cd3t_TjnwB9O7OxRf52YSzORc1DYFWXXXOOKOX3Vil1f9BMO_M29SXKbTzDyOGAKGZNgQB82j8a3JurCvmkfhxpAnhQ_Xj1p-COvL4ul_8dahaZlB4kz3sr2jNqmiWS8MBbbKr-XeyB3LcP1nbb11R9HvwCN2Q28LQJoVNS4aWBhJJ8FUE_v-Z6-v4ybvWdOQILD0aS_zOf0z4RqSk-wFW13xoZ6sPBBmX-E8GCQs0pu58qkqaF_C')"></div>
+<div class="absolute top-2 left-2 bg-primary text-on-primary px-2 py-0.5 font-label-mono text-[10px]">VISUAL_REFERENCE_ALPHA</div>
+</div>
+</div>
+</div>
+<!-- Action Button inside sheet -->
+<div class="p-gutter border-t border-surface-container-highest">
+<button class="w-full bg-primary text-on-primary py-4 font-label-mono font-bold uppercase tracking-tighter hover:bg-surface hover:text-primary hover:border-primary border border-transparent transition-all active:scale-95 duration-75">
+                Download Source PDF
+            </button>
+</div>
+</div>
+<!-- Bottom Nav Bar (Predicted Component Placeholder Logic) -->
+<nav class="fixed bottom-0 left-0 right-0 h-16 bg-surface border-t-2 border-primary z-[60] flex items-center justify-around px-gutter">
+<button class="flex flex-col items-center gap-1 text-secondary">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-mono text-[10px] uppercase">Dash</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">insights</span>
+<span class="font-label-mono text-[10px] uppercase font-bold">Intel</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-secondary">
+<span class="material-symbols-outlined">cyclone</span>
+<span class="font-label-mono text-[10px] uppercase">Life</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-secondary">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-label-mono text-[10px] uppercase">Data</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-secondary">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-mono text-[10px] uppercase">Cfg</span>
+</button>
+</nav>
+<script>
+        // Simple Interaction logic for bottom sheet drag simulation
+        const sheet = document.getElementById('bottom-sheet');
+        const header = document.getElementById('sheet-header');
+        let startY = 0;
+        let isDragging = false;
+
+        header.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            sheet.style.transition = 'none';
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const currentY = e.touches[0].clientY;
+            const deltaY = currentY - startY;
+            if (deltaY > 0) { // Only allow dragging down
+                sheet.style.transform = `translateY(${deltaY}px)`;
+            }
+        });
+
+        document.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            sheet.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+            
+            const currentY = e.changedTouches[0].clientY;
+            if (currentY - startY > 150) {
+                // Dismiss or stay? For this demo, let's snap back
+                sheet.style.transform = `translateY(0)`;
+            } else {
+                sheet.style.transform = `translateY(0)`;
+            }
+        });
+
+        // Mouse support for desktop testing
+        header.addEventListener('mousedown', (e) => {
+            startY = e.clientY;
+            isDragging = true;
+            sheet.style.transition = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const currentY = e.clientY;
+            const deltaY = currentY - startY;
+            if (deltaY > 0) {
+                sheet.style.transform = `translateY(${deltaY}px)`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            sheet.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+            sheet.style.transform = `translateY(0)`;
+        });
+    </script>
+</body></html>

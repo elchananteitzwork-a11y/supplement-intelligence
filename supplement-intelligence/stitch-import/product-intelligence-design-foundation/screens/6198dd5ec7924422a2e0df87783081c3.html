@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Micro-Interaction Spec Frame | Intelligence Terminal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .spinner {
+            animation: rotate 1s linear infinite;
+        }
+        @keyframes rotate {
+            100% { transform: rotate(360deg); }
+        }
+        .hard-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#616363",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#f1f1f1",
+                        "surface-container": "#eeeeee",
+                        "on-tertiary-container": "#848484",
+                        "outline": "#7e7576",
+                        "surface-bright": "#f9f9f9",
+                        "outline-variant": "#cfc4c5",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "tertiary": "#000000",
+                        "on-primary-container": "#848484",
+                        "on-primary-fixed-variant": "#474747",
+                        "error": "#ba1a1a",
+                        "surface": "#f9f9f9",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-background": "#1a1c1c",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#1a1c1c",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-primary-fixed": "#1b1b1b",
+                        "primary-fixed": "#e2e2e2",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#2f3131",
+                        "tertiary-fixed": "#e4e2e2",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-dim": "#dadada",
+                        "secondary-container": "#dfe0e0",
+                        "surface-variant": "#e2e2e2",
+                        "error-container": "#ffdad6",
+                        "on-secondary": "#ffffff",
+                        "inverse-primary": "#c6c6c6",
+                        "on-surface-variant": "#4c4546",
+                        "secondary": "#5d5f5f",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "primary-container": "#1b1b1b",
+                        "primary": "#000000",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-low": "#f3f3f3",
+                        "background": "#f9f9f9",
+                        "surface-container-highest": "#e2e2e2",
+                        "tertiary-container": "#1b1c1c",
+                        "on-error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "element-gap": "16px",
+                        "container-padding": "40px",
+                        "grid-unit": "8px",
+                        "section-gap": "64px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-[#F2F2F2] text-on-surface font-body-md text-body-md min-h-screen flex">
+<!-- Sidebar (Shared Component Anchor) -->
+<aside class="flex flex-col h-full overflow-y-auto h-screen w-64 border-r border-outline-variant bg-surface sticky top-0">
+<div class="px-gutter py-12">
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight">Intelligence</h1>
+<p class="font-label-mono text-label-mono text-on-surface-variant uppercase mt-1">Terminal v1.0</p>
+</div>
+<nav class="flex-grow">
+<div class="space-y-1">
+<a class="flex items-center px-gutter py-3 text-primary border-r-2 border-primary bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-label-md">Dashboard</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">analytics</span>
+<span class="font-label-md">Analytics</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">insert_chart</span>
+<span class="font-label-md">Market Intel</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">rebase_edit</span>
+<span class="font-label-md">Lifecycle</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">groups</span>
+<span class="font-label-md">Witnesses</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-label-md">Settings</span>
+</a>
+</div>
+</nav>
+<div class="p-gutter border-t border-outline-variant">
+<button class="w-full bg-primary text-on-primary font-bold py-3 uppercase tracking-wider hover:bg-white hover:text-black border border-black transition-all">
+                New Analysis
+            </button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-grow p-10 overflow-auto">
+<!-- Top Nav (Shared Component Anchor) -->
+<header class="flex justify-between items-center mb-10 w-full border-b border-outline-variant pb-6">
+<div>
+<h2 class="font-headline-md text-headline-md font-bold text-primary">Micro-Interaction Spec Frame</h2>
+<p class="font-label-mono text-label-mono text-on-surface-variant uppercase">Technical Reference Sheet // light_mode</p>
+</div>
+<div class="flex items-center gap-gutter">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:bg-surface-container-low p-2 transition-all">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:bg-surface-container-low p-2 transition-all">help_outline</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:bg-surface-container-low p-2 transition-all">account_circle</span>
+</div>
+</header>
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Left Column: Controls -->
+<div class="col-span-12 lg:col-span-8 space-y-section-gap">
+<!-- Buttons Section -->
+<section>
+<div class="mb-gutter flex items-center gap-2">
+<span class="w-2 h-2 bg-primary rounded-full"></span>
+<h3 class="font-label-mono text-label-mono uppercase tracking-widest text-on-surface-variant">01. Buttons &amp; Actions</h3>
+</div>
+<div class="bg-white border border-black p-gutter grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
+<!-- Primary States -->
+<div class="space-y-4">
+<span class="font-label-mono text-label-mono block mb-2 opacity-50"># PRIMARY_SOLID</span>
+<div class="space-y-4">
+<div class="flex items-center justify-between group">
+<span class="text-[10px] font-label-mono text-outline uppercase">Default</span>
+<button class="bg-black text-white font-bold py-2 px-6 uppercase border border-black">Label</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-label-mono text-outline uppercase">Hover</span>
+<button class="bg-white text-black font-bold py-2 px-6 uppercase border border-black">Label</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-label-mono text-outline uppercase">Focused</span>
+<button class="bg-black text-white font-bold py-2 px-6 uppercase border border-black ring-2 ring-slate-400">Label</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-label-mono text-outline uppercase">Disabled</span>
+<button class="bg-[#E0E0E0] text-on-surface-variant font-bold py-2 px-6 uppercase border border-outline-variant cursor-not-allowed" disabled="">Label</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-label-mono text-outline uppercase">Loading</span>
+<button class="bg-black text-white font-bold py-2 px-6 uppercase border border-black flex items-center gap-2">
+<span class="material-symbols-outlined spinner text-[18px]">progress_activity</span>
+                                        Label
+                                    </button>
+</div>
+</div>
+</div>
+<!-- Secondary States -->
+<div class="space-y-4 border-l border-outline-variant pl-12 hidden md:block">
+<span class="font-label-mono text-label-mono block mb-2 opacity-50"># SECONDARY_STRUCTURAL</span>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-label-mono text-outline uppercase">Default</span>
+<button class="bg-white text-black font-bold py-2 px-6 uppercase border border-black">Label</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-label-mono text-outline uppercase">Hover</span>
+<button class="bg-black text-white font-bold py-2 px-6 uppercase border border-black">Label</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-label-mono text-outline uppercase">Focused</span>
+<button class="bg-white text-black font-bold py-2 px-6 uppercase border border-black ring-2 ring-slate-400">Label</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-label-mono text-outline uppercase">Ghost / Minimal</span>
+<button class="bg-transparent text-black font-bold py-2 px-6 uppercase hover:bg-surface-container-low transition-colors">Label</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-label-mono text-outline uppercase">Ghost Focused</span>
+<button class="bg-transparent text-black font-bold py-2 px-6 uppercase ring-2 ring-slate-400">Label</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Inputs Section -->
+<section>
+<div class="mb-gutter flex items-center gap-2">
+<span class="w-2 h-2 bg-primary rounded-full"></span>
+<h3 class="font-label-mono text-label-mono uppercase tracking-widest text-on-surface-variant">02. Input Fields</h3>
+</div>
+<div class="bg-white border border-black p-gutter space-y-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<div class="space-y-2">
+<label class="font-label-mono text-label-mono uppercase">Default State</label>
+<input class="w-full bg-white border-2 border-black p-3 focus:outline-none placeholder-outline-variant font-body-md" placeholder="Enter query..." type="text"/>
+</div>
+<div class="space-y-2">
+<label class="font-label-mono text-label-mono uppercase">Focused (Active Engine)</label>
+<div class="relative">
+<input class="w-full bg-white border-2 border-black p-3 focus:outline-none font-body-md hard-shadow" type="text" value="System performance"/>
+</div>
+</div>
+</div>
+<div class="space-y-2 max-w-md">
+<label class="font-label-mono text-label-mono uppercase text-error">Error State</label>
+<input class="w-full bg-white border-2 border-error p-3 focus:outline-none font-body-md text-error" type="text" value="invalid_node_id"/>
+<p class="text-[12px] font-body-md text-[#A52A2A] mt-1 italic">This field is required</p>
+</div>
+</div>
+</section>
+<!-- Feedback System -->
+<section>
+<div class="mb-gutter flex items-center gap-2">
+<span class="w-2 h-2 bg-primary rounded-full"></span>
+<h3 class="font-label-mono text-label-mono uppercase tracking-widest text-on-surface-variant">03. Feedback Notifications</h3>
+</div>
+<div class="bg-white border border-black p-gutter overflow-hidden">
+<div class="flex items-center justify-between border border-black bg-white p-4 max-w-lg mx-auto hard-shadow">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">visibility</span>
+<span class="font-body-md">Watching ✓ — 4 of 10 slots</span>
+</div>
+<a class="font-label-mono text-label-mono text-primary font-bold underline hover:no-underline" href="#">Undo</a>
+</div>
+<div class="mt-12 grid grid-cols-3 gap-gutter text-center opacity-40 grayscale">
+<div class="border border-outline-variant p-4">
+<span class="material-symbols-outlined text-3xl">check_circle</span>
+<p class="font-label-mono mt-2">SUCCESS</p>
+</div>
+<div class="border border-outline-variant p-4">
+<span class="material-symbols-outlined text-3xl">error</span>
+<p class="font-label-mono mt-2">FAILURE</p>
+</div>
+<div class="border border-outline-variant p-4">
+<span class="material-symbols-outlined text-3xl">pending</span>
+<p class="font-label-mono mt-2">QUEUED</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Visual Tokens & Identity -->
+<div class="col-span-12 lg:col-span-4 space-y-gutter">
+<div class="bg-primary text-on-primary p-gutter">
+<h4 class="font-label-mono text-label-mono uppercase mb-4 text-outline-variant">Visual Essence</h4>
+<p class="font-body-lg text-body-lg leading-tight mb-6">NEO-BRUTALISM: RAW PRECISION FOR PRODUCT INTELLIGENCE.</p>
+<div class="space-y-3">
+<div class="flex justify-between items-center border-b border-white/20 pb-2">
+<span class="font-label-mono opacity-60">Borders</span>
+<span class="font-label-mono">2px Solid #000</span>
+</div>
+<div class="flex justify-between items-center border-b border-white/20 pb-2">
+<span class="font-label-mono opacity-60">Radius</span>
+<span class="font-label-mono">0px (None)</span>
+</div>
+<div class="flex justify-between items-center border-b border-white/20 pb-2">
+<span class="font-label-mono opacity-60">Shadows</span>
+<span class="font-label-mono">Hard Offset 2px</span>
+</div>
+</div>
+</div>
+<div class="bg-white border border-black p-gutter">
+<h4 class="font-label-mono text-label-mono uppercase mb-4">Semantic Palette</h4>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-1">
+<div class="h-10 bg-primary border border-black"></div>
+<span class="text-[10px] font-label-mono uppercase block">Primary</span>
+</div>
+<div class="space-y-1">
+<div class="h-10 bg-error border border-black"></div>
+<span class="text-[10px] font-label-mono uppercase block">Error</span>
+</div>
+<div class="space-y-1">
+<div class="h-10 bg-[#E0E0E0] border border-black"></div>
+<span class="text-[10px] font-label-mono uppercase block">Neutral</span>
+</div>
+<div class="space-y-1">
+<div class="h-10 bg-white border border-black"></div>
+<span class="text-[10px] font-label-mono uppercase block">Surface</span>
+</div>
+</div>
+</div>
+<div class="bg-[#e8e8e8] border border-black p-gutter">
+<h4 class="font-label-mono text-label-mono uppercase mb-4">Witness Integrity</h4>
+<div class="space-y-4">
+<div class="flex items-center gap-4">
+<div class="w-3 h-3 bg-primary rounded-full"></div>
+<span class="font-label-mono">Evidence Verified</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-3 h-3 border border-black rounded-full"></div>
+<span class="font-label-mono">Evidence Required</span>
+</div>
+</div>
+</div>
+<!-- Technical Imagery Placeholder -->
+<div class="h-48 border border-black relative grayscale hover:grayscale-0 transition-all cursor-crosshair">
+<div class="w-full h-full bg-cover bg-center" data-alt="A macro black and white photograph of an industrial computer circuit board from the 1980s, emphasizing brutalist hardware design with sharp angles and heavy solder. The lighting is harsh and high-contrast, casting deep black shadows across the grey metallic surface. The overall aesthetic is one of robust, unadorned technical precision." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB6Wavz4ED2w8TZ755aR6LLApaZRCQ9kvtODNaLbgusqotTYwulPfDkvvalbLDJnN4g5UtKdCJq5I-mL7YAvUoQ34R2ZBAFtIuGbZCsL6E4Z3x-9kNybxJWGCQfDliqD8z_AZSJewf4CluN_U1CyBEKkldGUlx4tK88lARF8DyJArTcc1BiIp7hHmRfD1-YKJYUFZWNN1FeePLMkcYVWcv-PGqqclm5o-XLk7evmVn14SELBnUN6uLYC5TA4cVaLD8WvbWCOc_fEleZ')"></div>
+<div class="absolute inset-0 bg-black/10 flex items-center justify-center">
+<span class="font-label-mono text-white bg-black px-2 py-1">HARDWARE_REF_01</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Spec Footer -->
+<footer class="mt-section-gap pt-gutter border-t border-outline-variant flex justify-between items-end">
+<div class="space-y-1">
+<p class="font-label-mono text-[10px] text-on-surface-variant uppercase">DOCUMENT_CLASS: COMPONENT_SPEC</p>
+<p class="font-label-mono text-[10px] text-on-surface-variant uppercase">AUTH: PRODUCT_INTELLIGENCE_CORE</p>
+<p class="font-label-mono text-[10px] text-on-surface-variant uppercase">TIMESTAMP: 2024.Q4.V1</p>
+</div>
+<div class="flex gap-2">
+<div class="w-8 h-8 border border-black flex items-center justify-center font-bold">1</div>
+<div class="w-8 h-8 border border-black flex items-center justify-center font-bold bg-black text-white">2</div>
+<div class="w-8 h-8 border border-black flex items-center justify-center font-bold">3</div>
+</div>
+</footer>
+</main>
+<!-- Floating Micro-Interaction Trigger Example -->
+<div class="fixed bottom-8 right-8 z-50 group cursor-pointer" id="toast-trigger">
+<div class="bg-black text-white p-4 flex items-center gap-3 transition-transform group-active:scale-95 border border-white">
+<span class="material-symbols-outlined">bolt</span>
+<span class="font-label-mono uppercase tracking-tighter">Test Toast</span>
+</div>
+</div>
+<script>
+        // Simple micro-interaction scripts
+        const toastTrigger = document.getElementById('toast-trigger');
+        toastTrigger.addEventListener('click', () => {
+            alert('Toast logic active: WATCHING ✓ — 4 of 10 slots');
+        });
+
+        // Hover effect persistence logic (purely for demonstration in spec sheet)
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => {
+                btn.style.transform = 'scale(0.98)';
+            });
+            btn.addEventListener('mouseup', () => {
+                btn.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body></html>

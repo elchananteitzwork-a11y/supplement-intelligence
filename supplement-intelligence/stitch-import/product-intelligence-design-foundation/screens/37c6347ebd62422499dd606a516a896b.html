@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEO_INTEL | BILLING_SYS_02</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #000000;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9f9;
+        }
+        .monochrome-border {
+            border: 1px solid #000000;
+        }
+        .hard-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .cursor-crosshair {
+            cursor: crosshair;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-variant": "#e2e2e2",
+                      "secondary-fixed-dim": "#c6c6c7",
+                      "on-tertiary-container": "#848484",
+                      "on-error-container": "#93000a",
+                      "primary-container": "#1b1b1b",
+                      "tertiary-fixed": "#e4e2e2",
+                      "on-secondary-fixed-variant": "#454747",
+                      "tertiary-container": "#1b1c1c",
+                      "outline-variant": "#cfc4c5",
+                      "on-primary-container": "#848484",
+                      "surface-dim": "#dadada",
+                      "primary-fixed": "#e2e2e2",
+                      "on-error": "#ffffff",
+                      "on-surface-variant": "#4c4546",
+                      "on-primary": "#ffffff",
+                      "surface-bright": "#f9f9f9",
+                      "secondary-container": "#dfe0e0",
+                      "on-tertiary": "#ffffff",
+                      "inverse-primary": "#c6c6c6",
+                      "secondary": "#5d5f5f",
+                      "on-secondary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed-variant": "#464747",
+                      "surface-container": "#eeeeee",
+                      "inverse-surface": "#2f3131",
+                      "on-secondary-container": "#616363",
+                      "tertiary-fixed-dim": "#c7c6c6",
+                      "surface-tint": "#5e5e5e",
+                      "surface-container-low": "#f3f3f3",
+                      "secondary-fixed": "#e2e2e2",
+                      "surface-container-highest": "#e2e2e2",
+                      "surface": "#f9f9f9",
+                      "primary-fixed-dim": "#c6c6c6",
+                      "outline": "#7e7576",
+                      "error-container": "#ffdad6",
+                      "error": "#ba1a1a",
+                      "on-primary-fixed-variant": "#474747",
+                      "on-surface": "#1a1c1c",
+                      "on-tertiary-fixed": "#1b1c1c",
+                      "inverse-on-surface": "#f1f1f1",
+                      "on-primary-fixed": "#1b1b1b",
+                      "surface-container-high": "#e8e8e8",
+                      "on-secondary-fixed": "#1a1c1c",
+                      "tertiary": "#000000",
+                      "primary": "#000000",
+                      "on-background": "#1a1c1c",
+                      "background": "#f9f9f9"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "element-gap": "16px",
+                      "grid-unit": "8px",
+                      "gutter": "24px",
+                      "section-gap": "64px",
+                      "container-padding": "40px"
+              },
+              "fontFamily": {
+                      "headline-xl-mobile": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "verdict-sm": ["Inter"],
+                      "body-md": ["Inter"],
+                      "label-mono": ["JetBrains Mono"],
+                      "headline-xl": ["Inter"],
+                      "body-lg": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                      "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-background">
+<!-- TopNavBar: Authority Source from JSON -->
+<nav class="bg-background dark:bg-background text-primary dark:text-primary-fixed w-full sticky top-0 z-50 border-b border-primary dark:border-primary-fixed flat no shadows flex justify-between items-center px-gutter py-4">
+<div class="font-headline-md text-headline-md font-black uppercase tracking-tighter text-primary dark:text-primary-fixed">
+            NEO_INTEL
+        </div>
+<div class="flex items-center gap-6">
+<div class="relative hidden md:block">
+<input class="bg-white border-2 border-black px-4 py-1 font-label-mono text-label-mono focus:outline-none hard-shadow w-64" placeholder="QUERY_DB..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined cursor-crosshair active:scale-95 text-on-surface-variant">ios_share</button>
+<button class="material-symbols-outlined cursor-crosshair active:scale-95 text-primary font-bold">settings</button>
+</div>
+</div>
+</nav>
+<div class="flex">
+<!-- SideNavBar: Authority Source from JSON -->
+<aside class="h-screen w-64 fixed left-0 top-0 flex flex-col bg-background dark:bg-background border-r-2 border-primary dark:border-primary-fixed hidden md:flex pt-20">
+<div class="px-6 mb-8">
+<div class="font-headline-md text-headline-md font-black text-primary dark:text-primary-fixed">INTEL_SYS_01</div>
+<div class="font-label-mono text-label-mono uppercase text-on-surface-variant">Terminal Active</div>
+</div>
+<nav class="flex-1 flex flex-col">
+<a class="text-primary dark:text-primary-fixed flex items-center gap-2 px-6 py-3 border-b border-surface-variant hover:invert transition-all duration-75 cursor-pointer font-label-mono text-label-mono uppercase" href="#">
+<span class="material-symbols-outlined">grid_view</span> Home
+                </a>
+<a class="text-primary dark:text-primary-fixed flex items-center gap-2 px-6 py-3 border-b border-surface-variant hover:invert transition-all duration-75 cursor-pointer font-label-mono text-label-mono uppercase" href="#">
+<span class="material-symbols-outlined">visibility</span> Watchlist
+                </a>
+<a class="text-primary dark:text-primary-fixed flex items-center gap-2 px-6 py-3 border-b border-surface-variant hover:invert transition-all duration-75 cursor-pointer font-label-mono text-label-mono uppercase" href="#">
+<span class="material-symbols-outlined">account_tree</span> Pipeline
+                </a>
+<a class="text-primary dark:text-primary-fixed flex items-center gap-2 px-6 py-3 border-b border-surface-variant hover:invert transition-all duration-75 cursor-pointer font-label-mono text-label-mono uppercase" href="#">
+<span class="material-symbols-outlined">notifications_active</span> Alerts
+                </a>
+<a class="bg-primary text-on-primary dark:bg-primary-fixed dark:text-on-primary-fixed flex items-center gap-2 px-6 py-3 font-label-mono text-label-mono uppercase" href="#">
+<span class="material-symbols-outlined">credit_card</span> Billing
+                </a>
+<a class="text-primary dark:text-primary-fixed flex items-center gap-2 px-6 py-3 border-b border-surface-variant hover:invert transition-all duration-75 cursor-pointer font-label-mono text-label-mono uppercase" href="#">
+<span class="material-symbols-outlined">database</span> Data Sources
+                </a>
+</nav>
+<div class="mt-auto px-6 py-8 border-t-2 border-primary">
+<button class="w-full bg-primary text-on-primary font-bold py-3 mb-6 hover:bg-white hover:text-black border border-black transition-colors uppercase font-label-mono text-label-mono">NEW_QUERY</button>
+<div class="space-y-2">
+<a class="flex items-center gap-2 font-label-mono text-label-mono uppercase text-on-surface-variant hover:text-primary" href="#">
+<span class="material-symbols-outlined text-sm">help_center</span> Support
+                    </a>
+<a class="flex items-center gap-2 font-label-mono text-label-mono uppercase text-on-surface-variant hover:text-primary" href="#">
+<span class="material-symbols-outlined text-sm">logout</span> Logout
+                    </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 p-container-padding">
+<div class="max-w-6xl mx-auto space-y-12">
+<!-- Section Header -->
+<header class="border-b-2 border-primary pb-4">
+<h1 class="font-headline-xl text-headline-xl uppercase tracking-tighter">Account Billing</h1>
+<p class="font-label-mono text-label-mono uppercase text-on-surface-variant mt-2">Manage subscription tiers and financial records</p>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- (1) Current Plan Card -->
+<div class="lg:col-span-5">
+<div class="bg-white monochrome-border p-6 h-full flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="font-label-mono text-label-mono uppercase bg-surface-variant px-2 py-1">Current Active Plan</span>
+<h2 class="font-headline-md text-headline-md mt-2 uppercase">Operator — $79/mo</h2>
+</div>
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+</div>
+<div class="space-y-8">
+<!-- Analyses Meter -->
+<div class="space-y-2">
+<div class="flex justify-between font-label-mono text-label-mono uppercase">
+<span>Analyses Usage</span>
+<span>7 / 15</span>
+</div>
+<div class="w-full h-4 bg-surface-variant border border-black overflow-hidden">
+<div class="bg-black h-full" style="width: 46.6%;"></div>
+</div>
+<p class="text-xs text-on-surface-variant font-label-mono">Resets in 12 days</p>
+</div>
+<!-- Watch Slots Meter -->
+<div class="space-y-2">
+<div class="flex justify-between font-label-mono text-label-mono uppercase">
+<span>Watch Slots</span>
+<span>4 / 10</span>
+</div>
+<div class="w-full h-4 bg-surface-variant border border-black overflow-hidden">
+<div class="bg-black h-full" style="width: 40%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-surface-variant flex items-center justify-between">
+<div class="font-label-mono text-label-mono text-on-surface-variant">
+<p>Next billing date: OCT 24, 2023</p>
+<p>Mastercard ending in •••• 4242</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">verified_user</span>
+</div>
+</div>
+</div>
+<!-- Payment Method & Invoice Quick View -->
+<div class="lg:col-span-7 space-y-8">
+<!-- Payment Method -->
+<div class="bg-white monochrome-border p-6">
+<h3 class="font-label-mono text-label-mono uppercase font-bold mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">payments</span> Payment Method
+                            </h3>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-8 bg-surface-variant border border-black flex items-center justify-center font-bold text-xs italic">MC</div>
+<div class="font-label-mono text-label-mono">
+<div class="uppercase">Mastercard •••• 4242</div>
+<div class="text-on-surface-variant text-[10px]">Expires 12/25</div>
+</div>
+</div>
+<button class="font-label-mono text-label-mono uppercase border border-black px-4 py-2 hover:bg-black hover:text-white transition-colors">Edit</button>
+</div>
+</div>
+<!-- Invoices List -->
+<div class="bg-white monochrome-border">
+<div class="p-4 border-b border-black flex justify-between items-center bg-surface-container-low">
+<h3 class="font-label-mono text-label-mono uppercase font-bold">Recent Invoices</h3>
+<a class="font-label-mono text-[10px] uppercase underline" href="#">View All</a>
+</div>
+<div class="divide-y divide-surface-variant">
+<!-- Row 1 -->
+<div class="p-4 flex items-center justify-between font-label-mono text-label-mono">
+<span class="w-24">SEP 24, 2023</span>
+<span class="flex-1 px-4 uppercase text-on-surface-variant">INV-0923-01</span>
+<span class="font-bold">$79.00</span>
+<a class="ml-4 material-symbols-outlined text-primary hover:scale-110 transition-transform" href="#">download</a>
+</div>
+<!-- Row 2 -->
+<div class="p-4 flex items-center justify-between font-label-mono text-label-mono">
+<span class="w-24">AUG 24, 2023</span>
+<span class="flex-1 px-4 uppercase text-on-surface-variant">INV-0823-01</span>
+<span class="font-bold">$79.00</span>
+<a class="ml-4 material-symbols-outlined text-primary hover:scale-110 transition-transform" href="#">download</a>
+</div>
+<!-- Row 3 -->
+<div class="p-4 flex items-center justify-between font-label-mono text-label-mono">
+<span class="w-24">JUL 24, 2023</span>
+<span class="flex-1 px-4 uppercase text-on-surface-variant">INV-0723-01</span>
+<span class="font-bold">$79.00</span>
+<a class="ml-4 material-symbols-outlined text-primary hover:scale-110 transition-transform" href="#">download</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- (2) 3-Tier Plan Table & Toggle -->
+<section class="space-y-8">
+<div class="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-primary pb-4">
+<div>
+<h2 class="font-headline-md text-headline-md uppercase">Upgrade or Switch Plan</h2>
+<p class="font-label-mono text-label-mono text-on-surface-variant mt-1">Select the operational scale that matches your workflow requirements</p>
+</div>
+<div class="flex items-center gap-4 bg-white border border-black p-1">
+<button class="px-6 py-2 font-label-mono text-label-mono uppercase transition-colors hover:bg-surface-variant">Monthly</button>
+<button class="px-6 py-2 font-label-mono text-label-mono uppercase bg-black text-white">Annual <span class="ml-2 text-[10px] bg-white text-black px-1">-2 Months</span></button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-0 border border-black divide-x divide-black bg-white">
+<!-- Starter Plan -->
+<div class="p-8 flex flex-col hover:bg-surface-container-low transition-colors group">
+<div class="mb-12">
+<span class="font-label-mono text-label-mono uppercase text-on-surface-variant">Tier 01</span>
+<h3 class="font-headline-md text-headline-md uppercase mt-1">Starter</h3>
+<div class="mt-4 flex items-baseline gap-1">
+<span class="text-4xl font-black">$29</span>
+<span class="font-label-mono text-label-mono uppercase text-on-surface-variant">/mo</span>
+</div>
+</div>
+<ul class="space-y-4 flex-1 font-label-mono text-label-mono uppercase">
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 border border-black"></span> 5 Analyses / Month
+                                </li>
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 border border-black"></span> 3 Watch Slots
+                                </li>
+<li class="flex items-center gap-2 text-on-tertiary-container">
+<span class="w-2 h-2 border border-surface-variant"></span> PDF Exports Disabled
+                                </li>
+<li class="flex items-center gap-2 text-on-tertiary-container">
+<span class="w-2 h-2 border border-surface-variant"></span> Standard Latency
+                                </li>
+</ul>
+<div class="mt-12 h-14 border border-black flex items-center justify-center font-bold uppercase font-label-mono text-label-mono text-primary opacity-50">Downgrade</div>
+</div>
+<!-- Operator Plan (Active) -->
+<div class="p-8 flex flex-col bg-surface-container border-x-4 border-black relative z-10">
+<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-1 font-label-mono text-[10px] uppercase tracking-widest">Active Deployment</div>
+<div class="mb-12">
+<span class="font-label-mono text-label-mono uppercase text-primary font-bold">Tier 02</span>
+<h3 class="font-headline-md text-headline-md uppercase mt-1">Operator</h3>
+<div class="mt-4 flex items-baseline gap-1">
+<span class="text-4xl font-black">$79</span>
+<span class="font-label-mono text-label-mono uppercase text-on-surface-variant">/mo</span>
+</div>
+</div>
+<ul class="space-y-4 flex-1 font-label-mono text-label-mono uppercase">
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 bg-black"></span> 15 Analyses / Month
+                                </li>
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 bg-black"></span> 10 Watch Slots
+                                </li>
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 bg-black"></span> Full Data Visualization
+                                </li>
+<li class="flex items-center gap-2 text-on-tertiary-container">
+<span class="w-2 h-2 border border-surface-variant"></span> Priority Queue Disabled
+                                </li>
+</ul>
+<div class="mt-12 h-14 bg-surface-variant border border-black flex items-center justify-center font-bold uppercase font-label-mono text-label-mono text-primary italic cursor-not-allowed">Current Plan</div>
+</div>
+<!-- Professional Plan -->
+<div class="p-8 flex flex-col hover:bg-surface-container-low transition-colors">
+<div class="mb-12">
+<span class="font-label-mono text-label-mono uppercase text-on-surface-variant">Tier 03</span>
+<h3 class="font-headline-md text-headline-md uppercase mt-1">Professional</h3>
+<div class="mt-4 flex items-baseline gap-1">
+<span class="text-4xl font-black">$199</span>
+<span class="font-label-mono text-label-mono uppercase text-on-surface-variant">/mo</span>
+</div>
+</div>
+<ul class="space-y-4 flex-1 font-label-mono text-label-mono uppercase">
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 bg-black"></span> 50 Analyses / Month
+                                </li>
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 bg-black"></span> 30 Watch Slots
+                                </li>
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 bg-black"></span> Unlimited Exports (CSV/PDF)
+                                </li>
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 bg-black"></span> Priority Data Feed (L1)
+                                </li>
+<li class="flex items-center gap-2">
+<span class="w-2 h-2 bg-black"></span> Team Collaboration Tools
+                                </li>
+</ul>
+<button class="mt-12 h-14 border-2 border-black flex items-center justify-center font-bold uppercase font-label-mono text-label-mono text-primary hover:bg-black hover:text-white transition-all active:scale-95">Upgrade Tier</button>
+</div>
+</div>
+</section>
+<!-- (3) One Primary Button: Change Plan -->
+<div class="flex justify-end pt-8">
+<button class="bg-primary text-on-primary font-black py-5 px-16 hover:bg-white hover:text-black border-2 border-black transition-all uppercase font-label-mono text-lg tracking-widest hard-shadow active:translate-x-0.5 active:translate-y-0.5 active:shadow-none">
+                        Change plan
+                    </button>
+</div>
+</div>
+</main>
+</div>
+<!-- Data State Atmospheric Shader Placeholder -->
+<div class="fixed bottom-0 right-0 p-8 z-[-1] opacity-20 pointer-events-none">
+
+</div>
+<script>
+        // Micro-interaction for hover states and button feedback
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('mousedown', () => {
+                if(!el.classList.contains('cursor-not-allowed')) {
+                    el.style.transform = 'scale(0.98)';
+                }
+            });
+            el.addEventListener('mouseup', () => {
+                el.style.transform = 'scale(1)';
+            });
+        });
+
+        // Toggle logic simulation
+        const toggleButtons = document.querySelectorAll('.bg-white.border.border-black.p-1 button');
+        toggleButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                toggleButtons.forEach(b => {
+                    b.classList.remove('bg-black', 'text-white');
+                    b.classList.add('hover:bg-surface-variant');
+                });
+                btn.classList.add('bg-black', 'text-white');
+                btn.classList.remove('hover:bg-surface-variant');
+            });
+        });
+    </script>
+</body></html>

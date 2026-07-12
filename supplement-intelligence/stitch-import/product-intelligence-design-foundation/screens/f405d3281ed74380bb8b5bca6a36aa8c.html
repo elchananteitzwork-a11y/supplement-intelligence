@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Intelligence Engine | Product Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=JetBrains+Mono:wght@500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-container": "#848484",
+                    "surface-tint": "#5e5e5e",
+                    "outline": "#7e7576",
+                    "error-container": "#ffdad6",
+                    "tertiary": "#000000",
+                    "surface-container-low": "#f3f3f3",
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-secondary-container": "#616363",
+                    "surface-container": "#eeeeee",
+                    "on-primary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-fixed": "#1b1b1b",
+                    "inverse-on-surface": "#f1f1f1",
+                    "secondary-fixed": "#e2e2e2",
+                    "surface": "#f9f9f9",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "primary": "#000000",
+                    "surface-container-highest": "#e2e2e2",
+                    "surface-bright": "#f9f9f9",
+                    "surface-variant": "#e2e2e2",
+                    "on-background": "#1a1c1c",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#1a1c1c",
+                    "background": "#f9f9f9",
+                    "outline-variant": "#cfc4c5",
+                    "inverse-primary": "#c6c6c6",
+                    "surface-container-high": "#e8e8e8",
+                    "primary-fixed": "#e2e2e2",
+                    "primary-container": "#1b1b1b",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "on-error": "#ffffff",
+                    "tertiary-container": "#1b1c1c",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "error": "#ba1a1a",
+                    "on-primary-container": "#848484",
+                    "on-secondary": "#ffffff",
+                    "secondary": "#5d5f5f",
+                    "tertiary-fixed": "#e4e2e2",
+                    "on-primary-fixed-variant": "#474747",
+                    "surface-dim": "#dadada",
+                    "on-tertiary": "#ffffff",
+                    "on-surface-variant": "#4c4546",
+                    "secondary-container": "#dfe0e0",
+                    "inverse-surface": "#2f3131"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "grid-unit": "8px",
+                    "section-gap": "64px",
+                    "gutter": "24px",
+                    "container-padding": "40px",
+                    "element-gap": "16px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "verdict-sm": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "label-mono": ["JetBrains Mono"],
+                    "headline-xl": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+            line-height: 1;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .shimmer-effect {
+            background: linear-gradient(90deg, transparent 25%, #e2e2e2 50%, transparent 75%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite linear;
+        }
+
+        .skeleton-bar {
+            background-color: #eeeeee;
+            height: 12px;
+            border-radius: 0px;
+        }
+
+        .neo-brutalist-border {
+            border: 1px solid #000000;
+        }
+
+        .hard-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e2e2e2;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden">
+<!-- Global Layout Container -->
+<div class="flex h-screen w-full">
+<!-- Predicted Component: SideNavBar -->
+<aside class="fixed left-0 top-0 bottom-0 z-50 flex flex-col h-full bg-surface dark:bg-inverse-surface h-screen w-[220px] transition-all duration-300 ease-in-out border-r border-primary dark:border-outline-variant">
+<!-- Brand Header -->
+<div class="px-gutter py-8 flex flex-col gap-2">
+<div class="font-headline-md text-headline-md font-bold uppercase tracking-tighter text-on-surface dark:text-inverse-on-surface">
+                    Intelligence Engine
+                </div>
+<div class="font-label-mono text-label-mono text-on-surface-variant opacity-60">
+                    Product Intelligence
+                </div>
+</div>
+<!-- Main Navigation -->
+<nav class="flex-1 overflow-y-auto px-2 py-4">
+<div class="flex flex-col gap-1">
+<!-- Home (Active) -->
+<div class="flex items-center gap-element-gap bg-primary text-on-primary dark:bg-inverse-primary dark:text-primary-container px-4 py-3 border-r-4 border-primary opacity-90 transition-all duration-150 ease-in-out">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-mono text-label-mono">Home</span>
+</div>
+<!-- Watchlist -->
+<div class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+<span class="font-label-mono text-label-mono">Watchlist</span>
+</div>
+<!-- Pipeline -->
+<div class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-label-mono text-label-mono">Pipeline</span>
+</div>
+<!-- Alerts -->
+<div class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="font-label-mono text-label-mono">Alerts</span>
+</div>
+<!-- Track Record -->
+<div class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="history_edu">history_edu</span>
+<span class="font-label-mono text-label-mono">Track Record</span>
+</div>
+<!-- Data Sources -->
+<div class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="database">database</span>
+<span class="font-label-mono text-label-mono">Data Sources</span>
+</div>
+</div>
+</nav>
+<!-- Footer Navigation -->
+<div class="p-2 border-t border-outline-variant">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-element-gap text-on-surface-variant px-4 py-2 hover:bg-surface-container-high transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-label-mono text-label-mono">Help</span>
+</div>
+<div class="flex items-center gap-element-gap text-on-surface-variant px-4 py-2 hover:bg-surface-container-high transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-mono text-label-mono">Settings</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[220px] flex-1 min-h-screen relative overflow-y-auto">
+<!-- Analysis Engine Canvas -->
+<div class="max-w-4xl mx-auto px-container-padding py-section-gap">
+<!-- Search Intent Header -->
+<header class="mb-12">
+<h1 class="font-headline-xl text-headline-xl mb-2 tracking-tighter">creatine gummies</h1>
+<p class="font-label-mono text-label-mono text-on-tertiary-container">
+                        Interpreted as: <span class="text-on-surface">creatine gummies</span> · Amazon US — <a class="underline hover:text-primary transition-colors" href="#">change</a>
+</p>
+</header>
+<!-- Core Verdict Loading State -->
+<div class="space-y-gutter">
+<!-- Verdict Skeleton Card -->
+<div class="bg-white neo-brutalist-border p-gutter flex flex-col gap-element-gap relative overflow-hidden">
+<!-- Top Row: Placeholder for Metadata/Status -->
+<div class="flex justify-between items-start">
+<div class="flex flex-col gap-2 w-full max-w-sm">
+<div class="skeleton-bar w-2/3"></div>
+<div class="skeleton-bar w-1/2 h-8"></div>
+</div>
+<!-- Empty Badge Slot -->
+<div class="w-32 h-10 border-2 border-dashed border-outline-variant bg-surface-container-low flex items-center justify-center">
+<span class="font-label-mono text-[10px] text-outline-variant">CALCULATING...</span>
+</div>
+</div>
+<!-- Analysis Summary Skeleton -->
+<div class="mt-4 space-y-3">
+<div class="skeleton-bar w-full"></div>
+<div class="skeleton-bar w-full"></div>
+<div class="skeleton-bar w-3/4"></div>
+</div>
+</div>
+<!-- Evidence Stream (Text Driven) -->
+<div class="bg-surface-container-low border border-outline-variant p-6 space-y-4">
+<h3 class="font-label-mono text-label-mono uppercase text-on-tertiary-container border-b border-outline-variant pb-2 mb-4">Live Evidence Stream</h3>
+<!-- Evidence Item 1 -->
+<div class="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
+<span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-md text-on-surface">Reading 27 bestsellers...</span>
+</div>
+<!-- Evidence Item 2 -->
+<div class="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500 delay-150">
+<span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-md text-on-surface">36 months of unit-sales history found</span>
+</div>
+<!-- Evidence Item 3 -->
+<div class="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500 delay-300">
+<span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-md text-on-surface">Search interest: accelerating for 8 quarters</span>
+</div>
+<!-- Shimmering Loading Evidence -->
+<div class="flex items-center gap-3">
+<!-- Hollow dot for active state -->
+<div class="w-4 h-4 rounded-full border-2 border-primary flex items-center justify-center">
+<div class="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+</div>
+<div class="relative py-1 px-2 overflow-hidden">
+<span class="font-body-md text-on-secondary-fixed-variant relative z-10">Checking paid-media activity...</span>
+<div class="absolute inset-0 shimmer-effect opacity-40"></div>
+</div>
+</div>
+<!-- Witness Dots Row -->
+<div class="flex gap-2 pt-6">
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+<div class="w-2 h-2 border border-primary rounded-full"></div>
+<div class="w-2 h-2 border border-primary rounded-full"></div>
+<div class="w-2 h-2 border border-primary rounded-full"></div>
+<div class="w-2 h-2 border border-primary rounded-full"></div>
+</div>
+</div>
+<!-- Secondary Analysis Grid (Bento Style Skeletons) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<!-- Competitor Landscape -->
+<div class="neo-brutalist-border p-6 bg-white space-y-4">
+<div class="font-label-mono text-label-mono uppercase opacity-40">Market Competition</div>
+<div class="space-y-2">
+<div class="skeleton-bar w-full h-4"></div>
+<div class="skeleton-bar w-full h-4"></div>
+<div class="skeleton-bar w-2/3 h-4"></div>
+</div>
+</div>
+<!-- Price Sensitivity -->
+<div class="neo-brutalist-border p-6 bg-white space-y-4">
+<div class="font-label-mono text-label-mono uppercase opacity-40">Price Elasticity</div>
+<div class="space-y-2">
+<div class="skeleton-bar w-full h-4"></div>
+<div class="skeleton-bar w-full h-4"></div>
+<div class="skeleton-bar w-2/3 h-4"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Ambient Background Element -->
+<div class="fixed bottom-0 right-0 p-gutter pointer-events-none opacity-5">
+<span class="font-label-mono text-[120px] font-black leading-none select-none">DATA_V.01</span>
+</div>
+</main>
+</div>
+<!-- Micro-interaction script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add slight staggered entrance to evidence lines
+            const lines = document.querySelectorAll('.animate-in');
+            lines.forEach((line, index) => {
+                line.style.animationDelay = `${index * 150}ms`;
+            });
+        });
+    </script>
+</body></html>

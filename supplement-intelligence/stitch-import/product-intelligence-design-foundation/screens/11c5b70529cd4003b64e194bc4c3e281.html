@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Check Your Email - PRODUCT INTELLIGENCE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-dim": "#dadada",
+                    "primary-container": "#1b1b1b",
+                    "surface-container-low": "#f3f3f3",
+                    "surface-container-high": "#e8e8e8",
+                    "on-background": "#1a1c1c",
+                    "inverse-surface": "#2f3131",
+                    "on-error-container": "#93000a",
+                    "on-secondary": "#ffffff",
+                    "primary": "#000000",
+                    "surface-container": "#eeeeee",
+                    "surface-bright": "#f9f9f9",
+                    "on-surface-variant": "#4c4546",
+                    "on-error": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#000000",
+                    "secondary-fixed": "#e2e2e2",
+                    "outline-variant": "#cfc4c5",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "tertiary-fixed": "#e4e2e2",
+                    "error-container": "#ffdad6",
+                    "inverse-on-surface": "#f1f1f1",
+                    "inverse-primary": "#c6c6c6",
+                    "on-surface": "#1a1c1c",
+                    "on-tertiary-container": "#848484",
+                    "on-primary-container": "#848484",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "background": "#f9f9f9",
+                    "on-secondary-container": "#616363",
+                    "outline": "#7e7576",
+                    "secondary": "#5d5f5f",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "surface-variant": "#e2e2e2",
+                    "error": "#ba1a1a",
+                    "on-primary-fixed-variant": "#474747",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-primary-fixed": "#1b1b1b",
+                    "surface": "#f9f9f9",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-container": "#1b1c1c",
+                    "surface-tint": "#5e5e5e",
+                    "primary-fixed": "#e2e2e2",
+                    "secondary-container": "#dfe0e0"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "container-padding": "40px",
+                    "grid-unit": "8px",
+                    "element-gap": "16px",
+                    "section-gap": "64px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "label-mono": ["JetBrains Mono"],
+                    "verdict-sm": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "headline-xl-mobile": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #F2F2F2;
+            color: #1a1c1c;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        .neo-card {
+            background-color: #FFFFFF;
+            border: 1px solid #000000;
+        }
+
+        .primary-btn {
+            background-color: #000000;
+            color: #FFFFFF;
+            font-weight: 800;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+        .primary-btn:hover {
+            background-color: #FFFFFF;
+            color: #000000;
+            box-shadow: 0 0 0 1px #000000;
+        }
+
+        .secondary-btn-disabled {
+            background-color: transparent;
+            border: 1px solid #cfc4c5;
+            color: #7e7576;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: not-allowed;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="w-full top-0 sticky z-50 bg-surface dark:bg-primary-container border-b-2 border-primary dark:border-outline flex justify-between items-center px-gutter py-4 max-w-full">
+<div class="flex items-center gap-4">
+<span class="text-headline-md font-headline-md font-black tracking-tighter text-primary dark:text-on-primary">PRODUCT INTELLIGENCE</span>
+</div>
+<!-- Desktop Nav -->
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-secondary dark:text-on-secondary-container text-body-md font-body-md hover:bg-surface-container-highest dark:hover:bg-surface-variant transition-colors px-2 py-1" href="#">Dashboard</a>
+<a class="text-secondary dark:text-on-secondary-container text-body-md font-body-md hover:bg-surface-container-highest dark:hover:bg-surface-variant transition-colors px-2 py-1" href="#">Analysis</a>
+<a class="text-secondary dark:text-on-secondary-container text-body-md font-body-md hover:bg-surface-container-highest dark:hover:bg-surface-variant transition-colors px-2 py-1" href="#">Reports</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="primary-btn px-6 py-2 text-label-mono font-label-mono active:scale-95 transition-transform duration-75">Sign In</button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow flex items-center justify-center px-gutter py-section-gap">
+<div class="neo-card w-full max-w-[400px] p-container-padding flex flex-col items-start gap-element-gap">
+<!-- Content -->
+<div class="space-y-4 w-full">
+<h1 class="text-headline-md font-headline-md text-primary">Check your email</h1>
+<p class="text-body-md font-body-md text-on-surface-variant leading-relaxed">
+                    We sent a link to <span class="font-bold text-primary">elan@example.com</span>. Please click the link in the message to sign in to your account.
+                </p>
+</div>
+<!-- Action Area -->
+<div class="w-full pt-4 space-y-6">
+<button class="secondary-btn-disabled w-full py-4 text-label-mono font-label-mono text-center" disabled="">
+                    Resend in 27s
+                </button>
+<div class="w-full flex justify-center">
+<a class="text-label-mono font-label-mono text-primary underline hover:text-secondary transition-colors" href="#">
+                        use a different email
+                    </a>
+</div>
+</div>
+<!-- Witness Decoration (Minimalist Structural Branding) -->
+<div class="flex gap-2 pt-8">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full mt-auto bg-surface-container-low dark:bg-primary-container border-t border-outline-variant dark:border-outline flex flex-col md:flex-row justify-between items-center px-gutter py-section-gap max-w-full">
+<div class="mb-4 md:mb-0">
+<span class="text-label-mono font-bold text-primary dark:text-on-primary">PRODUCT INTELLIGENCE</span>
+<p class="text-label-mono font-label-mono text-on-surface-variant dark:text-on-secondary-container mt-2">© 2024 Product Intelligence. All rights reserved.</p>
+</div>
+<div class="flex gap-8">
+<a class="text-on-surface-variant dark:text-on-secondary-container text-label-mono font-label-mono hover:text-primary dark:hover:text-on-primary transition-opacity duration-200" href="#">Pricing</a>
+<a class="text-primary dark:text-on-primary underline text-label-mono font-label-mono hover:text-primary dark:hover:text-on-primary transition-opacity duration-200" href="#">Sign in</a>
+<a class="text-on-surface-variant dark:text-on-secondary-container text-label-mono font-label-mono hover:text-primary dark:hover:text-on-primary transition-opacity duration-200" href="#">Data sources</a>
+<a class="text-on-surface-variant dark:text-on-secondary-container text-label-mono font-label-mono hover:text-primary dark:hover:text-on-primary transition-opacity duration-200" href="#">Legal</a>
+</div>
+</footer>
+<script>
+        // Simple countdown logic for the disabled button demo
+        let timeLeft = 27;
+        const resendBtn = document.querySelector('.secondary-btn-disabled');
+        
+        const countdown = setInterval(() => {
+            if (timeLeft > 0) {
+                timeLeft--;
+                resendBtn.textContent = `Resend in ${timeLeft}s`;
+            } else {
+                resendBtn.textContent = "Resend link";
+                resendBtn.classList.remove('secondary-btn-disabled', 'cursor-not-allowed');
+                resendBtn.classList.add('neo-card', 'hover:bg-surface-container-high', 'transition-colors', 'cursor-pointer');
+                resendBtn.removeAttribute('disabled');
+                clearInterval(countdown);
+            }
+        }, 1000);
+    </script>
+</body></html>

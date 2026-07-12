@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PRO-INTEL | Watchlist</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;family=Inter:wght@400;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "primary-container": "#1b1b1b",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "surface-variant": "#e2e2e2",
+                    "secondary": "#5d5f5f",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-primary": "#c6c6c6",
+                    "outline-variant": "#cfc4c5",
+                    "surface-container-highest": "#e2e2e2",
+                    "primary": "#000000",
+                    "on-error-container": "#93000a",
+                    "on-error": "#ffffff",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#e2e2e2",
+                    "outline": "#7e7576",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#5e5e5e",
+                    "on-background": "#1a1c1c",
+                    "tertiary": "#000000",
+                    "surface-container-low": "#f3f3f3",
+                    "on-tertiary-container": "#848484",
+                    "background": "#f9f9f9",
+                    "tertiary-container": "#1b1c1c",
+                    "secondary-fixed": "#e2e2e2",
+                    "on-secondary-container": "#616363",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed-variant": "#454747",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "surface-container-high": "#e8e8e8",
+                    "secondary-container": "#dfe0e0",
+                    "surface-container": "#eeeeee",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "tertiary-fixed": "#e4e2e2",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#f9f9f9",
+                    "on-primary-fixed-variant": "#474747",
+                    "surface-dim": "#dadada",
+                    "on-primary-fixed": "#1b1b1b",
+                    "inverse-surface": "#2f3131",
+                    "on-primary-container": "#848484",
+                    "inverse-on-surface": "#f1f1f1",
+                    "surface": "#f9f9f9",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "on-surface": "#1a1c1c",
+                    "on-surface-variant": "#4c4546"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "element-gap": "16px",
+                    "container-padding": "40px",
+                    "gutter": "24px",
+                    "grid-unit": "8px",
+                    "section-gap": "64px"
+            },
+            "fontFamily": {
+                    "label-mono": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "verdict-sm": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "headline-xl": ["Inter"]
+            },
+            "fontSize": {
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #f9f9f9;
+            color: #1a1c1c;
+        }
+        .neo-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .hard-border {
+            border: 1px solid #000000;
+        }
+        .heavy-border {
+            border: 2px solid #000000;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-background overflow-hidden">
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-full z-40 flex flex-col items-center py-gutter w-20 bg-background border-r-2 border-primary">
+<!-- Brand Logo -->
+<div class="mb-12">
+<span class="font-headline-md text-headline-md font-black uppercase text-primary text-center leading-none">P<br/>I</span>
+</div>
+<!-- Nav Items -->
+<nav class="flex flex-col gap-6 flex-1">
+<a class="group relative flex items-center justify-center w-12 h-12 transition-colors hover:bg-surface-container-high active:scale-95 duration-75 text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+</a>
+<a class="group relative flex items-center justify-center w-12 h-12 transition-colors hover:bg-surface-container-high active:scale-95 duration-75 text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+</a>
+<!-- Active State for Lifecycle (Watchlist Context) -->
+<a class="group relative flex items-center justify-center w-12 h-12 transition-colors bg-primary text-on-primary active:scale-95 duration-75" href="#">
+<span class="material-symbols-outlined" data-icon="cyclone">cyclone</span>
+<div class="absolute left-full ml-4 px-2 py-1 bg-primary text-on-primary font-label-mono text-[10px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">LIFECYCLE</div>
+</a>
+<a class="group relative flex items-center justify-center w-12 h-12 transition-colors hover:bg-surface-container-high active:scale-95 duration-75 text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="leaderboard">leaderboard</span>
+</a>
+</nav>
+<!-- Bottom Actions -->
+<div class="flex flex-col gap-6">
+<a class="flex items-center justify-center w-12 h-12 transition-colors hover:bg-surface-container-high text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</a>
+<div class="w-10 h-10 bg-surface-container-highest border border-primary overflow-hidden">
+<img class="w-full h-full object-cover grayscale" data-alt="A sharp, minimalist user profile portrait of a professional data analyst. High contrast, black and white photography, clean lighting, centered composition. The image feels technical and authoritative, fitting a high-end product intelligence platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDa-P9949iRJz8JbkvpPD6I4v1pcbA4BH8eA8guX6nlrEuXAWL-ZYMEQ8IHn8eWB5xDwU_IFz8K8ltzc4g2tq7gm1ZMMUL0j9JpR8Hz1hsvcCb1vpoENKZqxHTk3obERv8ExgbFjXsazE3Cx4QkIRWIqWqF6IVPKt-E2ng2tiy1mmKQzBuY5DckITc8PbMneAjBS7g0oZu8zRMGL-NBR_PQ1aoKEqjV7Y8w5P3_Rr1gl-reRDuqy5QGuRm_no0ym4IH4x4zHMCSHh0W"/>
+</div>
+</div>
+</aside>
+<!-- TopAppBar Shell -->
+<header class="fixed top-0 right-0 w-[calc(100%-80px)] h-16 z-30 flex justify-between items-center px-gutter bg-surface border-b-2 border-primary">
+<div class="flex items-center gap-gutter">
+<h1 class="font-headline-md text-headline-md font-black tracking-tighter text-primary">PRODUCT INTELLIGENCE ENGINE</h1>
+<div class="h-8 w-[2px] bg-primary/20"></div>
+<div class="relative group">
+<input class="w-64 bg-surface border-2 border-primary px-3 py-1 font-label-mono text-label-mono focus:ring-0 focus:outline-none neo-shadow transition-all" placeholder="SEARCH WATCHLIST..." type="text"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-secondary text-sm" data-icon="search">search</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<button class="font-label-mono text-label-mono text-secondary hover:text-primary transition-colors active:opacity-80">FILTERS</button>
+<button class="font-label-mono text-label-mono bg-primary text-on-primary px-4 py-2 font-bold uppercase active:opacity-80">EXPORT DATA</button>
+</div>
+<div class="flex items-center gap-4 border-l border-primary/10 pl-6">
+<span class="material-symbols-outlined text-secondary cursor-pointer hover:text-primary transition-colors" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-secondary cursor-pointer hover:text-primary transition-colors" data-icon="history">history</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-20 mt-16 h-[calc(100vh-64px)] overflow-y-auto bg-background relative flex items-center justify-center">
+<!-- Subtle Grid Background -->
+<div class="absolute inset-0 pointer-events-none opacity-[0.03]" style="background-image: radial-gradient(#000 1px, transparent 0); background-size: 24px 24px;">
+</div>
+<!-- Empty State Container -->
+<div class="relative z-10 max-w-lg w-full px-container-padding text-center flex flex-col items-center">
+<!-- Graphic Element: Terminal/Abstract Radar -->
+<div class="w-32 h-32 mb-element-gap relative flex items-center justify-center">
+<div class="absolute inset-0 border-2 border-primary/10 rounded-full animate-pulse"></div>
+<div class="absolute inset-4 border border-primary/5 rounded-full"></div>
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+<!-- Witness Dots (The system uses these to denote data status) -->
+<div class="absolute top-4 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full border border-primary bg-background"></div>
+<div class="absolute bottom-4 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full border border-primary bg-background"></div>
+<div class="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-primary bg-background"></div>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-primary bg-background"></div>
+</div>
+<div class="mb-gutter">
+<p class="font-label-mono text-label-mono text-secondary mb-2 uppercase tracking-[0.2em]">Status: Inactive</p>
+<h2 class="font-headline-md text-headline-md text-primary mb-4 max-w-sm mx-auto">
+                    Watch a market and we’ll re-check it on schedule — you’ll hear from us only when the evidence moves.
+                </h2>
+<div class="w-12 h-1 bg-primary mx-auto mb-8"></div>
+</div>
+<!-- Action Area -->
+<div class="flex flex-col items-center gap-4 w-full">
+<button class="w-full sm:w-auto px-12 py-4 bg-surface border border-primary text-primary font-label-mono text-label-mono font-bold uppercase transition-all hover:bg-primary hover:text-on-primary active:scale-95">
+                    Run an analysis
+                </button>
+<p class="font-label-mono text-[10px] text-secondary opacity-60">NO MARKETS CURRENTLY MONITORED</p>
+</div>
+<!-- Contextual Data Reference (Brutalist Decorative) -->
+<div class="mt-section-gap grid grid-cols-3 gap-gutter w-full max-w-md border-t border-primary/10 pt-gutter opacity-40">
+<div class="text-left">
+<span class="block font-label-mono text-[10px] text-secondary">LAST_SCAN</span>
+<span class="block font-label-mono text-label-mono text-primary">NULL</span>
+</div>
+<div class="text-left">
+<span class="block font-label-mono text-[10px] text-secondary">ACTIVE_THREADS</span>
+<span class="block font-label-mono text-label-mono text-primary">000</span>
+</div>
+<div class="text-left">
+<span class="block font-label-mono text-[10px] text-secondary">VERDICT_QUEUE</span>
+<span class="block font-label-mono text-label-mono text-primary">STBY</span>
+</div>
+</div>
+</div>
+<!-- Atmospheric Background Element -->
+<div class="absolute bottom-gutter right-gutter pointer-events-none">
+<span class="font-label-mono text-[80px] leading-none text-primary/[0.03] font-black select-none">EMPTY_STATE_01</span>
+</div>
+</main>
+<!-- FAB Suppression logic applied: No FAB on empty state/dashboard screens per design guidelines unless primary action aligns perfectly -->
+<script>
+        // Micro-interaction for the search bar shadow
+        const searchInput = document.querySelector('input[type="text"]');
+        if (searchInput) {
+            searchInput.addEventListener('focus', () => {
+                searchInput.classList.add('neo-shadow');
+            });
+            searchInput.addEventListener('blur', () => {
+                // Keep it for brand style but can toggle intensity here
+            });
+        }
+
+        // Simulating some terminal-style flicker on load for aesthetic
+        window.addEventListener('DOMContentLoaded', () => {
+            const labels = document.querySelectorAll('.font-label-mono');
+            labels.forEach((label, index) => {
+                setTimeout(() => {
+                    label.style.opacity = '1';
+                }, index * 50);
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PRO-INTEL | Mobile Alert Flow</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;family=Inter:wght@400;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-low": "#f3f3f3",
+                    "primary-container": "#1b1b1b",
+                    "on-surface-variant": "#4c4546",
+                    "secondary-fixed": "#e2e2e2",
+                    "outline": "#7e7576",
+                    "on-surface": "#1a1c1c",
+                    "surface-container-high": "#e8e8e8",
+                    "on-primary-container": "#848484",
+                    "error": "#ba1a1a",
+                    "background": "#f9f9f9",
+                    "tertiary-container": "#1b1c1c",
+                    "surface-container": "#eeeeee",
+                    "surface-tint": "#5e5e5e",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "primary": "#000000",
+                    "surface-bright": "#f9f9f9",
+                    "on-primary-fixed-variant": "#474747",
+                    "outline-variant": "#cfc4c5",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#dfe0e0",
+                    "tertiary": "#000000",
+                    "on-background": "#1a1c1c",
+                    "surface": "#f9f9f9",
+                    "inverse-surface": "#2f3131",
+                    "surface-dim": "#dadada",
+                    "primary-fixed": "#e2e2e2",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "inverse-primary": "#c6c6c6",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "inverse-on-surface": "#f1f1f1",
+                    "error-container": "#ffdad6",
+                    "on-primary-fixed": "#1b1b1b",
+                    "tertiary-fixed": "#e4e2e2",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#848484",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-container": "#616363",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "secondary": "#5d5f5f",
+                    "surface-variant": "#e2e2e2",
+                    "surface-container-lowest": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "element-gap": "16px",
+                    "grid-unit": "8px",
+                    "gutter": "24px",
+                    "section-gap": "64px",
+                    "container-padding": "40px"
+            },
+            "fontFamily": {
+                    "label-mono": ["JetBrains Mono"],
+                    "verdict-sm": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .neo-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .hard-shadow-active {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .lifecycle-arc {
+            stroke-dasharray: 4 2;
+        }
+        .pulse-animation {
+            animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-border {
+            0%, 100% { border-color: #000000; }
+            50% { border-color: #ba1a1a; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background font-body-md text-on-background min-h-screen pb-24">
+<!-- Top Navigation Anchor -->
+<header class="fixed top-0 left-0 right-0 h-16 bg-surface z-50 border-b-2 border-primary flex items-center justify-between px-gutter">
+<div class="flex flex-col">
+<span class="font-headline-md text-headline-md font-black tracking-tighter text-primary uppercase">PRO-INTEL</span>
+<span class="font-label-mono text-label-mono opacity-60">V2.0.4 / ALERTS</span>
+</div>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary">history</span>
+<span class="material-symbols-outlined text-primary">notifications</span>
+</div>
+</header>
+<main class="mt-20 px-4 space-y-6">
+<!-- Push Notification / Change Note -->
+<section class="relative">
+<div class="bg-primary text-on-primary p-4 border-2 border-primary neo-shadow flex items-start gap-4">
+<div class="bg-white p-2 rounded-full">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">priority_high</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<span class="font-label-mono text-label-mono uppercase tracking-widest text-on-primary-container">System Alert • Just Now</span>
+<span class="font-label-mono text-label-mono text-on-primary-container">ID: 982-A</span>
+</div>
+<p class="font-headline-md text-headline-md leading-none mb-1">Beef tallow moisturizer</p>
+<div class="flex items-center gap-2 font-label-mono text-label-mono">
+<span class="px-2 py-0.5 bg-secondary text-on-primary border border-white opacity-50">Emerging</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+<span class="px-2 py-0.5 bg-white text-primary font-bold">Window Open</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Diff View / Adaptive Canvas -->
+<section class="space-y-4">
+<div class="flex items-center justify-between">
+<h2 class="font-label-mono text-label-mono uppercase font-black text-primary">Analysis Diff View</h2>
+<span class="font-label-mono text-[10px] text-secondary">VIEWING: LAST 24H CHANGE</span>
+</div>
+<!-- Lifecycle Arc Context -->
+<div class="relative border-2 border-primary bg-white p-6 h-64 overflow-hidden">
+<!-- Dimmed background content -->
+<div class="absolute inset-0 opacity-40 flex flex-col items-center justify-center pointer-events-none">
+<div class="w-4/5 h-px bg-outline-variant relative">
+<div class="absolute -top-1 left-0 w-2 h-2 rounded-full border border-outline bg-surface"></div>
+<div class="absolute -top-1 left-1/4 w-2 h-2 rounded-full border border-outline bg-surface"></div>
+<div class="absolute -top-1 left-2/4 w-2 h-2 rounded-full border border-outline bg-surface"></div>
+<div class="absolute -top-1 left-3/4 w-2 h-2 rounded-full border border-outline bg-surface"></div>
+<div class="absolute -top-1 right-0 w-2 h-2 rounded-full border border-outline bg-surface"></div>
+</div>
+<div class="mt-4 font-label-mono text-[10px] uppercase text-outline flex justify-between w-4/5">
+<span>Nascent</span>
+<span>Emerging</span>
+<span>Critical</span>
+<span>Mainstream</span>
+</div>
+</div>
+<!-- Highlighted Movement -->
+<div class="relative h-full flex items-center justify-center">
+<svg class="w-full h-full absolute top-0 left-0 pointer-events-none" viewbox="0 0 300 150">
+<!-- Path Arrow -->
+<path class="lifecycle-arc" d="M 120 75 Q 160 40 220 75" fill="none" stroke="black" stroke-width="2"></path>
+<polygon fill="black" points="218,72 225,75 218,78"></polygon>
+</svg>
+<!-- Ghosted Before Dot -->
+<div class="absolute left-[35%] top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 opacity-30">
+<div class="w-4 h-4 rounded-full border-2 border-primary bg-white"></div>
+<span class="font-label-mono text-[10px] uppercase">Prev</span>
+</div>
+<!-- After Dot (Pulse) -->
+<div class="absolute left-[70%] top-1/2 -translate-y-1/2 flex flex-col items-center gap-1">
+<div class="w-6 h-6 rounded-full border-2 border-primary bg-primary flex items-center justify-center pulse-animation">
+<span class="w-2 h-2 bg-white rounded-full"></span>
+</div>
+<span class="font-label-mono text-[10px] uppercase font-bold">Current</span>
+</div>
+</div>
+<!-- Floating Badge -->
+<div class="absolute bottom-4 left-4 bg-primary text-on-primary px-3 py-1 border border-black font-label-mono text-[10px]">
+                    VELOCITY: +42% WOW
+                </div>
+</div>
+<!-- Concordance Data Table -->
+<div class="border-2 border-primary bg-white divide-y-2 divide-primary">
+<div class="bg-surface-container-low p-2 grid grid-cols-2">
+<span class="font-label-mono text-label-mono text-secondary">DATA POINT</span>
+<span class="font-label-mono text-label-mono text-secondary">CONCORDANCE</span>
+</div>
+<!-- Normal Row (Dimmed) -->
+<div class="p-3 grid grid-cols-2 items-center opacity-40">
+<span class="font-body-md font-bold uppercase">Volume (Search)</span>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</div>
+<!-- Highlighted Row: Search Intent -->
+<div class="p-3 grid grid-cols-2 items-center bg-yellow-50 relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="flex flex-col">
+<span class="font-body-md font-black uppercase">Search Intent</span>
+<span class="font-label-mono text-[10px] text-error font-bold">CRITICAL SHIFT DETECTED</span>
+</div>
+<div class="flex items-center gap-3">
+<!-- Before State -->
+<div class="flex gap-1 opacity-30">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+<!-- After State -->
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</div>
+</div>
+<!-- Normal Row (Dimmed) -->
+<div class="p-3 grid grid-cols-2 items-center opacity-40">
+<span class="font-body-md font-bold uppercase">Retail Listing</span>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="pt-4 flex flex-col gap-3">
+<button class="bg-primary text-on-primary py-4 font-label-mono font-black uppercase tracking-tighter neo-shadow active:scale-95 transition-transform duration-75">
+                Execute Full Deep-Dive
+            </button>
+<button class="border-2 border-primary bg-white text-primary py-3 font-label-mono font-bold uppercase tracking-tighter hover:bg-surface-container-high transition-colors">
+                Ignore for now
+            </button>
+</section>
+</main>
+<!-- Bottom Navigation Shell (Filter: Active on Top Level) -->
+<nav class="fixed bottom-0 left-0 right-0 h-16 bg-white border-t-2 border-primary z-50 flex items-center justify-around px-2">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center gap-1 flex-1 text-secondary opacity-60" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-mono text-[10px] uppercase">Home</span>
+</a>
+<!-- Watchlist -->
+<a class="flex flex-col items-center justify-center gap-1 flex-1 text-secondary opacity-60" href="#">
+<span class="material-symbols-outlined">visibility</span>
+<span class="font-label-mono text-[10px] uppercase">Watchlist</span>
+</a>
+<!-- Alerts (Active) -->
+<a class="flex flex-col items-center justify-center gap-1 flex-1 text-primary" href="#">
+<div class="relative flex flex-col items-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">notifications_active</span>
+<span class="font-label-mono text-[10px] uppercase font-black">Alerts</span>
+<div class="absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full"></div>
+</div>
+</a>
+<!-- Account -->
+<a class="flex flex-col items-center justify-center gap-1 flex-1 text-secondary opacity-60" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-mono text-[10px] uppercase">Account</span>
+</a>
+</nav>
+<!-- Micro-interaction Script -->
+<script>
+        // Simple haptic-style feedback on clicks
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('click', () => {
+                if (window.navigator.vibrate) {
+                    window.navigator.vibrate(10);
+                }
+            });
+        });
+
+        // Atmospheric noise overlay logic (simulated for Neo-Brutalism feel)
+        const addNoise = () => {
+            const noise = document.createElement('div');
+            noise.style.position = 'fixed';
+            noise.style.top = '0';
+            noise.style.left = '0';
+            noise.style.width = '100%';
+            noise.style.height = '100%';
+            noise.style.pointerEvents = 'none';
+            noise.style.zIndex = '9999';
+            noise.style.opacity = '0.02';
+            noise.style.backgroundImage = 'url("https://www.transparenttextures.com/patterns/p6.png")';
+            document.body.appendChild(noise);
+        }
+        window.onload = addNoise;
+    </script>
+</body></html>

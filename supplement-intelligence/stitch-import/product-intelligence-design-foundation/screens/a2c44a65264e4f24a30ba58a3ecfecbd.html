@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Intelligence Engine - Decision Queue</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for terminal feel */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #f9f9f9; }
+        ::-webkit-scrollbar-thumb { background: #000000; }
+        
+        .hard-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-surface": "#2f3131",
+                      "on-tertiary": "#ffffff",
+                      "on-surface-variant": "#4c4546",
+                      "on-primary-fixed-variant": "#474747",
+                      "on-primary-container": "#848484",
+                      "tertiary-container": "#1b1c1c",
+                      "on-primary-fixed": "#1b1b1b",
+                      "inverse-on-surface": "#f1f1f1",
+                      "on-secondary-fixed": "#1a1c1c",
+                      "surface-container-high": "#e8e8e8",
+                      "on-secondary": "#ffffff",
+                      "tertiary-fixed-dim": "#c7c6c6",
+                      "surface-dim": "#dadada",
+                      "on-tertiary-fixed": "#1b1c1c",
+                      "surface": "#f9f9f9",
+                      "on-surface": "#1a1c1c",
+                      "on-primary": "#ffffff",
+                      "tertiary": "#000000",
+                      "surface-bright": "#f9f9f9",
+                      "secondary-container": "#dfe0e0",
+                      "primary": "#000000",
+                      "on-secondary-container": "#616363",
+                      "error": "#ba1a1a",
+                      "on-background": "#1a1c1c",
+                      "inverse-primary": "#c6c6c6",
+                      "on-tertiary-container": "#848484",
+                      "surface-container-lowest": "#ffffff",
+                      "secondary-fixed-dim": "#c6c6c7",
+                      "primary-fixed-dim": "#c6c6c6",
+                      "primary-container": "#1b1b1b",
+                      "on-secondary-fixed-variant": "#454747",
+                      "on-error-container": "#93000a",
+                      "on-error": "#ffffff",
+                      "secondary-fixed": "#e2e2e2",
+                      "error-container": "#ffdad6",
+                      "surface-container-highest": "#e2e2e2",
+                      "surface-container-low": "#f3f3f3",
+                      "on-tertiary-fixed-variant": "#464747",
+                      "background": "#f9f9f9",
+                      "primary-fixed": "#e2e2e2",
+                      "surface-container": "#eeeeee",
+                      "outline-variant": "#cfc4c5",
+                      "outline": "#7e7576",
+                      "secondary": "#5d5f5f",
+                      "surface-tint": "#5e5e5e",
+                      "tertiary-fixed": "#e4e2e2",
+                      "surface-variant": "#e2e2e2"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "container-padding": "40px",
+                      "section-gap": "64px",
+                      "gutter": "24px",
+                      "grid-unit": "8px",
+                      "element-gap": "16px"
+              },
+              "fontFamily": {
+                      "verdict-sm": ["Inter"],
+                      "label-mono": ["JetBrains Mono"],
+                      "body-md": ["Inter"],
+                      "headline-xl-mobile": ["Inter"],
+                      "headline-xl": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "headline-md": ["Inter"]
+              },
+              "fontSize": {
+                      "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                      "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                      "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
+<!-- App Shell: SideNavBar -->
+<!-- Derived from JSON: style_shell_layout, style_component_shape, style_bg_color, style_separation_logic -->
+<aside class="fixed left-0 top-0 bottom-0 z-50 flex flex-col h-full h-screen w-[220px] transition-all duration-300 ease-in-out bg-surface border-r border-primary">
+<!-- Header Section -->
+<div class="p-4 flex flex-col gap-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">analytics</span>
+<h1 class="font-headline-md text-headline-md font-bold uppercase tracking-tighter text-on-surface">Intelligence Engine</h1>
+</div>
+<p class="font-label-mono text-label-mono text-on-surface-variant uppercase">Product Intelligence</p>
+</div>
+<!-- Search Icon (Top as requested) -->
+<div class="px-4 py-2">
+<div class="w-10 h-10 flex items-center justify-center border border-primary hover:bg-secondary-container cursor-pointer transition-colors">
+<span class="material-symbols-outlined">search</span>
+</div>
+</div>
+<!-- Navigation Tabs -->
+<nav class="mt-4 flex-grow flex flex-col">
+<!-- Active Tab: Home -->
+<!-- Using style_active_navigation from JSON -->
+<a class="flex items-center gap-element-gap bg-primary text-on-primary px-4 py-3 border-r-4 border-primary opacity-90 transition-all duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-mono text-label-mono">Home</span>
+</a>
+<!-- Inactive Tabs -->
+<!-- Using style_inactive_navigation from JSON -->
+<a class="flex items-center gap-element-gap text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+<span class="font-label-mono text-label-mono">Watchlist</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-label-mono text-label-mono">Pipeline</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-colors relative" href="#">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="font-label-mono text-label-mono">Alerts</span>
+<div class="absolute right-4 w-2 h-2 bg-error rounded-full"></div>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="history_edu">history_edu</span>
+<span class="font-label-mono text-label-mono">Track Record</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="database">database</span>
+<span class="font-label-mono text-label-mono">Data Sources</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-mono text-label-mono">Settings</span>
+</a>
+</nav>
+<!-- CTA and Footer -->
+<div class="p-4 border-t border-outline-variant flex flex-col gap-4">
+<button class="w-full bg-primary text-on-primary font-bold uppercase py-3 border border-primary hover:bg-white hover:text-primary transition-all">
+                New Analysis
+            </button>
+<div class="flex flex-col gap-2">
+<a class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span class="font-label-mono text-label-mono">Help</span>
+</a>
+<a class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">support_agent</span>
+<span class="font-label-mono text-label-mono">Support</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-[220px] min-h-screen flex flex-col items-center p-10">
+<div class="w-full max-w-[1200px] flex flex-col gap-12">
+<!-- (1) Global Search Field -->
+<section class="w-full flex justify-center">
+<div class="relative w-full max-w-[800px]">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary">search</span>
+<input class="w-full h-12 bg-white border-2 border-black px-12 font-label-mono text-label-mono focus:outline-none hard-shadow" placeholder="QUERY MARKET INTELLIGENCE..." type="text"/>
+</div>
+</section>
+<!-- (2) Section: Needs Attention -->
+<section class="flex flex-col gap-6">
+<div class="flex items-center gap-4">
+<div class="w-2 h-6 bg-primary"></div>
+<h2 class="font-headline-md text-headline-md uppercase tracking-tight">Needs Attention</h2>
+</div>
+<div class="flex flex-col gap-2">
+<!-- Row 1 -->
+<div class="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white border border-black group hover:bg-surface-container transition-colors">
+<div class="flex flex-col gap-1">
+<p class="font-body-md">
+<span class="font-bold">beef tallow moisturizer</span>
+<span class="text-on-surface-variant mx-1">moved</span>
+<span class="font-label-mono bg-surface-container px-1">Emerging</span>
+<span class="material-symbols-outlined align-middle mx-1">arrow_forward</span>
+<span class="font-label-mono bg-yellow-400 px-1 text-primary">Window Open</span>
+<span class="text-on-surface-variant italic ml-2">— Search intent crossed its threshold</span>
+</p>
+</div>
+<!-- Compact Verdict Card -->
+<div class="flex items-center gap-4 mt-2 md:mt-0">
+<span class="bg-yellow-400 text-primary px-3 py-1 font-verdict-sm text-verdict-sm border border-black uppercase">Window Open</span>
+<span class="font-label-mono text-label-mono uppercase tracking-widest opacity-50">Tallow</span>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black"></div>
+<div class="w-2 h-2 rounded-full border border-black"></div>
+</div>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white border border-black group hover:bg-surface-container transition-colors">
+<div class="flex flex-col gap-1">
+<p class="font-body-md">
+<span class="font-bold">magnesium glycinate</span>
+<span class="text-on-surface-variant mx-1">moved</span>
+<span class="font-label-mono bg-yellow-400 px-1">Window Open</span>
+<span class="material-symbols-outlined align-middle mx-1">arrow_forward</span>
+<span class="font-label-mono bg-green-500 px-1 text-white">Build Now</span>
+<span class="text-on-surface-variant italic ml-2">— Clinical trial consensus reached</span>
+</p>
+</div>
+<!-- Compact Verdict Card -->
+<div class="flex items-center gap-4 mt-2 md:mt-0">
+<span class="bg-green-500 text-white px-3 py-1 font-verdict-sm text-verdict-sm border border-black uppercase">Build Now</span>
+<span class="font-label-mono text-label-mono uppercase tracking-widest opacity-50">Mg-Gly</span>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- (3) Section: Decision Queue -->
+<section class="flex flex-col gap-6">
+<div class="flex items-center justify-between border-b-2 border-black pb-2">
+<div class="flex items-center gap-4">
+<div class="w-2 h-6 bg-primary"></div>
+<h2 class="font-headline-md text-headline-md uppercase tracking-tight">Decision Queue</h2>
+</div>
+<div class="flex gap-2">
+<button class="p-1 hover:bg-surface-container"><span class="material-symbols-outlined">view_module</span></button>
+<button class="p-1 border border-black bg-black text-white"><span class="material-symbols-outlined">view_list</span></button>
+</div>
+</div>
+<!-- Market Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+<!-- Market Card: Tongkat Ali -->
+<div class="bg-white border border-black flex flex-col hover:hard-shadow transition-all group">
+<div class="h-48 w-full bg-surface-container relative overflow-hidden">
+<img class="w-full h-full object-cover grayscale brightness-90 group-hover:scale-105 transition-transform duration-500" data-alt="A professional studio product shot of herbal supplement bottles with clean, monochromatic labeling, sitting on a dark stone surface. The lighting is dramatic and directional, creating high contrast. The aesthetic is pharmaceutical-grade and minimalist, emphasizing the 'Product Intelligence' theme with a black and white color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2mg2B5fEuzgSwXVdX-dYf3IxvUZFXXOY7UpBu2kZrgcdvRzsoDix0cJe3jHnwQoOoHr0NY4R10VigeYaVIdZoOyQy9mrooGVTFpbN_vChIe0uRDI2k5NB34CddphQmSEyYJND3Z8Ea_PCXS2mLEgQC3Q8otCBjyzis9pGFtI0i81faLI0ydxKYYeKM2MHOydUyrTuQa3lgnMP8hMpKCGDZj8LP0s4oD6nD3Gv82b8imtwHijcE4Rqa0jCHI_VOCsfGZn0OULN6M1e"/>
+<div class="absolute top-4 left-4">
+<span class="bg-green-500 text-white px-2 py-1 font-verdict-sm text-verdict-sm uppercase border border-black">Build Now</span>
+</div>
+</div>
+<div class="p-6 flex flex-col gap-4">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-bold text-headline-md leading-none">Tongkat Ali</h3>
+<p class="font-label-mono text-label-mono text-on-surface-variant uppercase mt-1">Herbal Supplements</p>
+</div>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 border-t border-outline-variant pt-4">
+<div>
+<p class="font-label-mono text-[10px] uppercase text-on-surface-variant">Growth (YoY)</p>
+<p class="font-bold text-lg">+142%</p>
+</div>
+<div>
+<p class="font-label-mono text-[10px] uppercase text-on-surface-variant">Search Vol</p>
+<p class="font-bold text-lg">820k</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Market Card: Mechanical Keyboards -->
+<div class="bg-white border border-black flex flex-col hover:hard-shadow transition-all group">
+<div class="h-48 w-full bg-surface-container relative overflow-hidden">
+<img class="w-full h-full object-cover grayscale brightness-90 group-hover:scale-105 transition-transform duration-500" data-alt="Macro photography of a high-end custom mechanical keyboard with white keys and a black aluminum chassis. The focus is sharp on the texture of the keys, while the background falls into a dark, moody blur. The lighting is cold and clinical, reinforcing a neo-brutalist high-contrast aesthetic. No colors are present, only shades of silver, white, and black." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiapbgYhLLzYRS43vI0oYUTghUJGfW8lcR1BNCuQlpDCktvOkMnJrRBybmjO9JtJjiGqSI5xsvhyqjjmHAKAa8HkOYSD3itCXWkSw9aWxcEU2MuLE5vqeT8LsLbNMellNf76bUWCe6eqYAgnrs9J4siR4GxpsWsNor5gHPmycg9i8EWerqIENnYwKWvCEmm6iWm3fX_n1q2DDzh3cjg8iy7uoy0fYFEbuGwBAy5P3SaMLMFOkPnvnec8u5p7okY-nsAvw9zuntJ96X"/>
+<div class="absolute top-4 left-4">
+<span class="bg-primary text-on-primary px-2 py-1 font-verdict-sm text-verdict-sm uppercase border border-black">Monitor</span>
+</div>
+</div>
+<div class="p-6 flex flex-col gap-4">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-bold text-headline-md leading-none">Mechanical Keyboards</h3>
+<p class="font-label-mono text-label-mono text-on-surface-variant uppercase mt-1">Computing Peripherals</p>
+</div>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black"></div>
+<div class="w-2 h-2 rounded-full border border-black"></div>
+<div class="w-2 h-2 rounded-full border border-black"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 border-t border-outline-variant pt-4">
+<div>
+<p class="font-label-mono text-[10px] uppercase text-on-surface-variant">Growth (YoY)</p>
+<p class="font-bold text-lg">+22%</p>
+</div>
+<div>
+<p class="font-label-mono text-[10px] uppercase text-on-surface-variant">Search Vol</p>
+<p class="font-bold text-lg">4.2M</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Market Card: Air Purifiers -->
+<div class="bg-white border border-black flex flex-col hover:hard-shadow transition-all group">
+<div class="h-48 w-full bg-surface-container relative overflow-hidden">
+<img class="w-full h-full object-cover grayscale brightness-90 group-hover:scale-105 transition-transform duration-500" data-alt="A minimalist architectural shot of a sleek, cylindrical industrial air purifier in a white-walled room. The object has a matte black finish and sharp geometric vents. The composition is off-center, creating a sense of tension and modernity. The image is strictly monochromatic, with high-key lighting that emphasizes the structural integrity and functional beauty of the product." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqZ7TEflKOlcJgFoC7JR1vR1INDeB_DvIlSzPWVdxJf2driO2Z2anJOKErufs2-3ev_uOZrTrNZ9vaxdKznRic2xY2IBXIPs-Te5uR4Y7L60xG6jmVNW_cqo6gEGF-svap3lzbbY6NmVKFDGe-xXaFhz87Whzls_o_vBBcqCILpjNLgws2-WRQYSVWr_8m4H0CN1maoYnhI8E6XBdWQlUgyGln3aUeZPvl9VnINnQCqemqi8NGFUioPcnwpEI5H5ZLQhpEtqr4Enb9"/>
+<div class="absolute top-4 left-4">
+<span class="bg-primary text-on-primary px-2 py-1 font-verdict-sm text-verdict-sm uppercase border border-black">Monitor</span>
+</div>
+</div>
+<div class="p-6 flex flex-col gap-4">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-bold text-headline-md leading-none">Air Purifiers</h3>
+<p class="font-label-mono text-label-mono text-on-surface-variant uppercase mt-1">Home Appliances</p>
+</div>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black bg-black"></div>
+<div class="w-2 h-2 rounded-full border border-black"></div>
+<div class="w-2 h-2 rounded-full border border-black"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 border-t border-outline-variant pt-4">
+<div>
+<p class="font-label-mono text-[10px] uppercase text-on-surface-variant">Growth (YoY)</p>
+<p class="font-bold text-lg">+15%</p>
+</div>
+<div>
+<p class="font-label-mono text-[10px] uppercase text-on-surface-variant">Search Vol</p>
+<p class="font-bold text-lg">12.5M</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Data Stats (Optional Extra) -->
+<section class="grid grid-cols-2 md:grid-cols-4 border border-black bg-white">
+<div class="p-6 border-r border-black">
+<p class="font-label-mono text-label-mono uppercase text-on-surface-variant">Analyzed Today</p>
+<p class="font-headline-md text-headline-md">1,242</p>
+</div>
+<div class="p-6 border-r border-black">
+<p class="font-label-mono text-label-mono uppercase text-on-surface-variant">System Latency</p>
+<p class="font-headline-md text-headline-md">14ms</p>
+</div>
+<div class="p-6 border-r border-black">
+<p class="font-label-mono text-label-mono uppercase text-on-surface-variant">Pipeline Depth</p>
+<p class="font-headline-md text-headline-md">8.4k</p>
+</div>
+<div class="p-6">
+<p class="font-label-mono text-label-mono uppercase text-on-surface-variant">Status</p>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+<p class="font-headline-md text-headline-md">ACTIVE</p>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Micro-interaction Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Ripple effect/hard shadow shift on buttons
+            const buttons = document.querySelectorAll('button, a');
+            buttons.forEach(btn => {
+                btn.addEventListener('mousedown', () => {
+                    btn.classList.add('translate-x-[1px]', 'translate-y-[1px]');
+                });
+                btn.addEventListener('mouseup', () => {
+                    btn.classList.remove('translate-x-[1px]', 'translate-y-[1px]');
+                });
+            });
+
+            // Log activity for simulation
+            console.log("Intelligence Engine: Decision Queue Loaded.");
+        });
+    </script>
+</body></html>

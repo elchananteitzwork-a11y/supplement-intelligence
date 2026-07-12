@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PRO-INTEL Mobile Watchlist</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: JetBrains Mono & Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-low": "#f3f3f3",
+                    "primary-container": "#1b1b1b",
+                    "on-surface-variant": "#4c4546",
+                    "secondary-fixed": "#e2e2e2",
+                    "outline": "#7e7576",
+                    "on-surface": "#1a1c1c",
+                    "surface-container-high": "#e8e8e8",
+                    "on-primary-container": "#848484",
+                    "error": "#ba1a1a",
+                    "background": "#f9f9f9",
+                    "tertiary-container": "#1b1c1c",
+                    "surface-container": "#eeeeee",
+                    "surface-tint": "#5e5e5e",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "primary": "#000000",
+                    "surface-bright": "#f9f9f9",
+                    "on-primary-fixed-variant": "#474747",
+                    "outline-variant": "#cfc4c5",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#dfe0e0",
+                    "tertiary": "#000000",
+                    "on-background": "#1a1c1c",
+                    "surface": "#f9f9f9",
+                    "inverse-surface": "#2f3131",
+                    "surface-dim": "#dadada",
+                    "primary-fixed": "#e2e2e2",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "inverse-primary": "#c6c6c6",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "inverse-on-surface": "#f1f1f1",
+                    "error-container": "#ffdad6",
+                    "on-primary-fixed": "#1b1b1b",
+                    "tertiary-fixed": "#e4e2e2",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#848484",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-container": "#616363",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "secondary": "#5d5f5f",
+                    "surface-variant": "#e2e2e2",
+                    "surface-container-lowest": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "element-gap": "16px",
+                    "grid-unit": "8px",
+                    "gutter": "24px",
+                    "section-gap": "64px",
+                    "container-padding": "40px"
+            },
+            "fontFamily": {
+                    "label-mono": ["JetBrains Mono"],
+                    "verdict-sm": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f9f9f9;
+            color: #1a1c1c;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .neo-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .hard-shadow-input {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        /* Sparkline Animation Placeholder */
+        .sparkline-svg {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: dash 2s linear forwards;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: 0; }
+        }
+        /* Mobile structure specifically for small screens as requested */
+        .mobile-canvas {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            position: relative;
+            background: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md">
+<div class="mobile-canvas border-x border-primary overflow-x-hidden">
+<!-- Top App Bar (From Shared Components Logic) -->
+<header class="fixed top-0 w-full max-w-[480px] h-16 z-30 flex justify-between items-center px-gutter bg-surface border-b-2 border-primary">
+<h1 class="font-headline-md text-headline-md font-black tracking-tighter text-primary">WATCHLIST</h1>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary">history</span>
+<span class="material-symbols-outlined text-primary">notifications</span>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow pt-20 pb-24 px-4">
+<!-- Summary Engine Status -->
+<div class="mb-6 p-4 border border-primary bg-white">
+<div class="flex justify-between items-center mb-2">
+<span class="font-label-mono text-label-mono text-secondary uppercase">Intelligence Feed</span>
+<span class="font-label-mono text-label-mono text-primary font-bold">V2.0.4</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-green-600"></div>
+<span class="font-label-mono text-label-mono font-bold">ALL SYSTEMS NOMINAL</span>
+</div>
+</div>
+<!-- Watchlist Rows -->
+<div class="flex flex-col gap-0 border-t border-primary">
+<!-- Row 1: Normal -->
+<div class="relative bg-white border-b border-primary overflow-hidden group">
+<div class="flex items-center p-4 gap-3 bg-white relative z-10">
+<div class="bg-green-600 text-white px-2 py-1 font-verdict-sm text-verdict-sm uppercase">BUY</div>
+<div class="flex-grow">
+<h3 class="font-label-mono text-label-mono font-bold uppercase truncate">ALPHA_GEN_X</h3>
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<svg class="w-12 h-6" viewbox="0 0 48 24">
+<path class="sparkline-svg" d="M0 20 L10 15 L20 18 L30 10 L40 12 L48 5" fill="none" stroke="black" stroke-width="2"></path>
+</svg>
+<span class="material-symbols-outlined text-green-600">north_east</span>
+</div>
+</div>
+</div>
+<!-- Row 2: Swiped (State Requested) -->
+<div class="relative bg-white border-b border-primary overflow-hidden">
+<!-- The Action Button (Revealed behind) -->
+<div class="absolute inset-0 flex justify-end">
+<button class="bg-error text-white font-label-mono text-label-mono font-bold px-6 flex items-center justify-center h-full uppercase">
+                            Unwatch
+                        </button>
+</div>
+<!-- Swiped Layer -->
+<div class="flex items-center p-4 gap-3 bg-white relative z-10 -translate-x-24 transition-transform">
+<div class="bg-red-600 text-white px-2 py-1 font-verdict-sm text-verdict-sm uppercase">SELL</div>
+<div class="flex-grow">
+<h3 class="font-label-mono text-label-mono font-bold uppercase truncate">BETA_CORE_9</h3>
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<svg class="w-12 h-6" viewbox="0 0 48 24">
+<path class="sparkline-svg" d="M0 5 L12 12 L24 8 L36 18 L48 22" fill="none" stroke="black" stroke-width="2"></path>
+</svg>
+<span class="material-symbols-outlined text-red-600">south_east</span>
+</div>
+</div>
+</div>
+<!-- Row 3: Normal -->
+<div class="relative bg-white border-b border-primary overflow-hidden group">
+<div class="flex items-center p-4 gap-3 bg-white relative z-10">
+<div class="bg-yellow-500 text-black px-2 py-1 font-verdict-sm text-verdict-sm uppercase">HOLD</div>
+<div class="flex-grow">
+<h3 class="font-label-mono text-label-mono font-bold uppercase truncate">DELTA_PRIME</h3>
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<svg class="w-12 h-6" viewbox="0 0 48 24">
+<path class="sparkline-svg" d="M0 12 L10 12 L20 14 L30 11 L40 13 L48 12" fill="none" stroke="black" stroke-width="2"></path>
+</svg>
+<span class="material-symbols-outlined text-secondary">trending_flat</span>
+</div>
+</div>
+</div>
+<!-- Row 4: Normal -->
+<div class="relative bg-white border-b border-primary overflow-hidden group">
+<div class="flex items-center p-4 gap-3 bg-white relative z-10">
+<div class="bg-green-600 text-white px-2 py-1 font-verdict-sm text-verdict-sm uppercase">BUY</div>
+<div class="flex-grow">
+<h3 class="font-label-mono text-label-mono font-bold uppercase truncate">OMEGA_FLUX</h3>
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<svg class="w-12 h-6" viewbox="0 0 48 24">
+<path class="sparkline-svg" d="M0 18 L15 10 L30 15 L48 2" fill="none" stroke="black" stroke-width="2"></path>
+</svg>
+<span class="material-symbols-outlined text-green-600">north_east</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Area -->
+<div class="mt-8">
+<button class="w-full bg-primary text-white font-label-mono text-label-mono font-bold py-4 uppercase border-2 border-primary hover:bg-white hover:text-primary transition-colors">
+                    + Add New Instrument
+                </button>
+</div>
+<!-- Informational Block -->
+<div class="mt-12 space-y-4">
+<h4 class="font-label-mono text-label-mono font-black uppercase text-secondary">Analysis Notes</h4>
+<div class="p-4 border-l-4 border-primary bg-surface-container">
+<p class="font-body-md text-body-md italic">"Market volatility in ALPHA_GEN_X is trending within confidence intervals. Witness dots indicate 3/5 verified data points for current BUY verdict."</p>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 w-full max-w-[480px] h-16 bg-surface flex items-center justify-around border-t-2 border-primary z-40">
+<a class="flex flex-col items-center justify-center flex-1 h-full text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-mono text-[10px] uppercase">Home</span>
+</a>
+<!-- ACTIVE TAB -->
+<a class="flex flex-col items-center justify-center flex-1 h-full bg-primary text-on-primary" href="#">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-label-mono text-[10px] uppercase">Watchlist</span>
+</a>
+<a class="flex flex-col items-center justify-center flex-1 h-full text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-label-mono text-[10px] uppercase">Alerts</span>
+</a>
+<a class="flex flex-col items-center justify-center flex-1 h-full text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-mono text-[10px] uppercase">Account</span>
+</a>
+</nav>
+<!-- FAB (Suppressed on this specific screen as per hierarchy but adding if alignment is perfect - here it's not strictly necessary but adds 'engine' feel) -->
+<button class="fixed right-6 bottom-24 w-14 h-14 bg-primary text-white flex items-center justify-center neo-shadow z-50 active:scale-95 duration-75">
+<span class="material-symbols-outlined">insights</span>
+</button>
+</div>
+<script>
+        // Micro-interaction for swipe effect (Visual only for this demo)
+        document.querySelectorAll('.relative.group').forEach(item => {
+            item.addEventListener('touchstart', (e) => {
+                // Potential for JS based swiping logic
+            });
+        });
+
+        // Atmospheric micro-effect: Pulsing active system dot
+        const systemDot = document.querySelector('.bg-green-600.w-2.h-2');
+        if(systemDot) {
+            setInterval(() => {
+                systemDot.style.opacity = systemDot.style.opacity === '0.5' ? '1' : '0.5';
+            }, 1000);
+        }
+    </script>
+</body></html>

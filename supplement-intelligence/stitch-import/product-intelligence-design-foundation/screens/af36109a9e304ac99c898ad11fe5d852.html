@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#e2e2e2",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-tertiary-container": "#848484",
+                        "on-error-container": "#93000a",
+                        "primary-container": "#1b1b1b",
+                        "tertiary-fixed": "#e4e2e2",
+                        "on-secondary-fixed-variant": "#454747",
+                        "tertiary-container": "#1b1c1c",
+                        "outline-variant": "#cfc4c5",
+                        "on-primary-container": "#848484",
+                        "surface-dim": "#dadada",
+                        "primary-fixed": "#e2e2e2",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#4c4546",
+                        "on-primary": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "secondary-container": "#dfe0e0",
+                        "on-tertiary": "#ffffff",
+                        "inverse-primary": "#c6c6c6",
+                        "secondary": "#5d5f5f",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "surface-container": "#eeeeee",
+                        "inverse-surface": "#2f3131",
+                        "on-secondary-container": "#616363",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-low": "#f3f3f3",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface": "#f9f9f9",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "outline": "#7e7576",
+                        "error-container": "#ffdad6",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed-variant": "#474747",
+                        "on-surface": "#1a1c1c",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-primary-fixed": "#1b1b1b",
+                        "surface-container-high": "#e8e8e8",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "tertiary": "#000000",
+                        "primary": "#000000",
+                        "on-background": "#1a1c1c",
+                        "background": "#f9f9f9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "element-gap": "16px",
+                        "grid-unit": "8px",
+                        "gutter": "24px",
+                        "section-gap": "64px",
+                        "container-padding": "40px"
+                    },
+                    "fontFamily": {
+                        "headline-xl-mobile": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "verdict-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "headline-xl": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+        }
+        body {
+            background-color: #f9f9f9;
+            color: #1a1c1c;
+        }
+        .neo-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .active-dot::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #000;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .inactive-dot::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border: 1px solid #000;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        /* Custom scrollbar for high-density UI */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #f9f9f9; }
+        ::-webkit-scrollbar-thumb { background: #000; }
+    </style>
+</head>
+<body class="font-body-md text-body-md overflow-hidden">
+<!-- Sidebar Navigation Shell -->
+<aside class="h-screen w-64 fixed left-0 top-0 flex flex-col border-r-2 border-primary bg-background z-50">
+<div class="flex flex-col h-full py-8">
+<!-- Header Brand -->
+<div class="px-gutter mb-12">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-8 h-8 bg-primary text-on-primary flex items-center justify-center font-black">NI</div>
+<h1 class="font-headline-md text-headline-md font-black text-primary uppercase tracking-tighter">INTEL_SYS_01</h1>
+</div>
+<p class="font-label-mono text-label-mono uppercase opacity-60">Terminal Active</p>
+</div>
+<!-- Main Nav -->
+<nav class="flex-grow">
+<ul class="flex flex-col">
+<li class="cursor-pointer hover:invert transition-all duration-75 text-primary flex items-center gap-2 px-4 py-3 border-b border-surface-variant">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="font-label-mono text-label-mono uppercase">Home</span>
+</li>
+<li class="cursor-pointer hover:invert transition-all duration-75 text-primary flex items-center gap-2 px-4 py-3 border-b border-surface-variant">
+<span class="material-symbols-outlined">visibility</span>
+<span class="font-label-mono text-label-mono uppercase">Watchlist</span>
+</li>
+<li class="cursor-pointer hover:invert transition-all duration-75 text-primary flex items-center gap-2 px-4 py-3 border-b border-surface-variant">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-mono text-label-mono uppercase">Pipeline</span>
+</li>
+<li class="cursor-pointer hover:invert transition-all duration-75 text-primary flex items-center gap-2 px-4 py-3 border-b border-surface-variant">
+<span class="material-symbols-outlined">notifications_active</span>
+<span class="font-label-mono text-label-mono uppercase">Alerts</span>
+</li>
+<li class="cursor-pointer hover:invert transition-all duration-75 text-primary flex items-center gap-2 px-4 py-3 border-b border-surface-variant">
+<span class="material-symbols-outlined">query_stats</span>
+<span class="font-label-mono text-label-mono uppercase">Track Record</span>
+</li>
+<li class="cursor-pointer hover:invert transition-all duration-75 text-primary flex items-center gap-2 px-4 py-3 border-b border-surface-variant">
+<span class="material-symbols-outlined">database</span>
+<span class="font-label-mono text-label-mono uppercase">Data Sources</span>
+</li>
+</ul>
+</nav>
+<!-- CTA -->
+<div class="px-4 mb-8">
+<button class="w-full bg-primary text-on-primary py-3 font-label-mono text-label-mono uppercase font-bold hover:bg-white hover:text-black border-2 border-black transition-colors cursor-pointer">
+                    NEW_QUERY
+                </button>
+</div>
+<!-- Footer Nav -->
+<ul class="flex flex-col mt-auto">
+<li class="cursor-pointer hover:invert transition-all duration-75 text-primary flex items-center gap-2 px-4 py-3 border-b border-surface-variant">
+<span class="material-symbols-outlined">help_center</span>
+<span class="font-label-mono text-label-mono uppercase">Support</span>
+</li>
+<!-- Settings active state -->
+<li class="bg-primary text-on-primary flex items-center gap-2 px-4 py-3 cursor-pointer">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-mono text-label-mono uppercase">Settings</span>
+</li>
+</ul>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 min-h-screen bg-background p-10 overflow-y-auto h-screen">
+<header class="max-w-6xl mx-auto mb-12 flex justify-between items-end border-b-2 border-black pb-4">
+<div>
+<h2 class="font-headline-xl text-headline-xl uppercase">Terminal Settings</h2>
+<p class="font-label-mono text-label-mono uppercase opacity-50 mt-1">Configuring system instance NEO_INTEL_ALPHA</p>
+</div>
+<div class="text-right">
+<p class="font-label-mono text-label-mono uppercase">Last Sync: 2023-11-24 14:02 UTC</p>
+</div>
+</header>
+<div class="max-w-6xl mx-auto grid grid-cols-12 gap-gutter items-start">
+<!-- Anchor Sidebar (Internal Content Navigation) -->
+<nav class="col-span-3 sticky top-10 flex flex-col gap-4 border-l border-black pl-6 py-2">
+<a class="font-label-mono text-label-mono uppercase font-bold hover:pl-2 transition-all" href="#account">01 Account</a>
+<a class="font-label-mono text-label-mono uppercase opacity-40 hover:opacity-100 hover:pl-2 transition-all" href="#notifications">02 Notifications</a>
+<a class="font-label-mono text-label-mono uppercase opacity-40 hover:opacity-100 hover:pl-2 transition-all" href="#defaults">03 Defaults</a>
+<a class="font-label-mono text-label-mono uppercase opacity-40 hover:opacity-100 hover:pl-2 transition-all" href="#privacy">04 Data &amp; Privacy</a>
+</nav>
+<!-- Settings Sections -->
+<div class="col-span-9 flex flex-col gap-section-gap pb-24">
+<!-- 01 Account -->
+<section class="scroll-mt-10" id="account">
+<div class="flex items-center gap-4 mb-8">
+<span class="font-label-mono text-label-mono px-2 py-1 bg-black text-white uppercase">01</span>
+<h3 class="font-headline-md text-headline-md uppercase">Account Identity</h3>
+</div>
+<div class="bg-white border border-black p-gutter flex flex-col gap-6">
+<div class="grid grid-cols-2 gap-8">
+<div class="flex flex-col gap-1">
+<label class="font-label-mono text-label-mono uppercase opacity-50">Full Name</label>
+<p class="font-body-lg text-body-lg font-bold">ANALYST_042</p>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-mono text-label-mono uppercase opacity-50">Email Vector</label>
+<p class="font-body-lg text-body-lg font-bold">lead_analyst@neointel.internal</p>
+</div>
+</div>
+<div class="pt-6 border-t border-surface-variant flex items-center justify-between">
+<span class="font-label-mono text-label-mono opacity-60">Permanent account termination cannot be undone.</span>
+<a class="text-error font-label-mono text-label-mono uppercase font-black hover:underline cursor-crosshair" href="#">Delete account</a>
+</div>
+</div>
+</section>
+<!-- 02 Notifications -->
+<section class="scroll-mt-10" id="notifications">
+<div class="flex items-center gap-4 mb-8">
+<span class="font-label-mono text-label-mono px-2 py-1 bg-black text-white uppercase">02</span>
+<h3 class="font-headline-md text-headline-md uppercase">Signal Routing</h3>
+</div>
+<div class="bg-white border border-black overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container font-label-mono text-label-mono uppercase">
+<tr>
+<th class="py-4 px-6 border-b border-black">Trigger Event</th>
+<th class="py-4 px-6 border-b border-black text-center">In-App</th>
+<th class="py-4 px-6 border-b border-black text-center">Email</th>
+<th class="py-4 px-6 border-b border-black text-center">Push</th>
+</tr>
+</thead>
+<tbody class="font-body-md">
+<tr class="hover:bg-surface-bright border-b border-surface-variant">
+<td class="py-4 px-6 font-bold uppercase">Stage Transitions</td>
+<td class="py-4 px-6 text-center">
+<button class="material-symbols-outlined text-primary cursor-pointer" data-weight="fill">check_box</button>
+</td>
+<td class="py-4 px-6 text-center">
+<button class="material-symbols-outlined text-primary cursor-pointer" data-weight="fill">check_box</button>
+</td>
+<td class="py-4 px-6 text-center">
+<button class="material-symbols-outlined opacity-30 cursor-pointer">check_box_outline_blank</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright border-b border-surface-variant">
+<td class="py-4 px-6 font-bold uppercase">Kill-Criteria Triggers</td>
+<td class="py-4 px-6 text-center">
+<button class="material-symbols-outlined text-primary cursor-pointer" data-weight="fill">check_box</button>
+</td>
+<td class="py-4 px-6 text-center">
+<button class="material-symbols-outlined text-primary cursor-pointer" data-weight="fill">check_box</button>
+</td>
+<td class="py-4 px-6 text-center">
+<button class="material-symbols-outlined text-primary cursor-pointer" data-weight="fill">check_box</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-bright">
+<td class="py-4 px-6 font-bold uppercase">Weekly "nothing moved" summary</td>
+<td class="py-4 px-6 text-center">
+<button class="material-symbols-outlined opacity-30 cursor-pointer">check_box_outline_blank</button>
+</td>
+<td class="py-4 px-6 text-center">
+<button class="material-symbols-outlined opacity-30 cursor-pointer">check_box_outline_blank</button>
+</td>
+<td class="py-4 px-6 text-center">
+<button class="material-symbols-outlined opacity-30 cursor-pointer">check_box_outline_blank</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- 03 Defaults -->
+<section class="scroll-mt-10" id="defaults">
+<div class="flex items-center gap-4 mb-8">
+<span class="font-label-mono text-label-mono px-2 py-1 bg-black text-white uppercase">03</span>
+<h3 class="font-headline-md text-headline-md uppercase">Operational Defaults</h3>
+</div>
+<div class="grid grid-cols-2 gap-gutter">
+<div class="bg-white border border-black p-6 flex flex-col gap-4">
+<label class="font-label-mono text-label-mono uppercase opacity-50">Marketplace Hub</label>
+<div class="relative">
+<select class="w-full bg-white border-2 border-black rounded-none px-4 py-3 appearance-none focus:outline-none focus:ring-0 font-bold uppercase">
+<option>Amazon US</option>
+<option>Amazon UK</option>
+<option>Amazon DE</option>
+<option>Amazon JP</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="bg-white border border-black p-6 flex flex-col gap-4">
+<label class="font-label-mono text-label-mono uppercase opacity-50">Home Surface Preference</label>
+<div class="flex flex-col gap-2">
+<label class="flex items-center gap-3 cursor-pointer">
+<input checked="" class="w-4 h-4 text-black border-black focus:ring-0" name="surface" type="radio"/>
+<span class="font-bold uppercase">Global Dashboard</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer opacity-50">
+<input class="w-4 h-4 text-black border-black focus:ring-0" name="surface" type="radio"/>
+<span class="font-bold uppercase">Custom Watchlist</span>
+</label>
+</div>
+</div>
+<div class="bg-white border border-black p-6 flex flex-col gap-4 col-span-2">
+<label class="font-label-mono text-label-mono uppercase opacity-50">Explanation Density</label>
+<div class="flex items-center gap-8">
+<div class="flex-grow bg-surface-variant h-2 relative">
+<div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-8 bg-black border-2 border-black"></div>
+</div>
+<div class="w-32 text-right font-bold uppercase">Medium Density</div>
+</div>
+<p class="font-label-mono text-[10px] uppercase opacity-60">System will balance technical raw data with summarized analytical insights.</p>
+</div>
+</div>
+</section>
+<!-- 04 Privacy -->
+<section class="scroll-mt-10" id="privacy">
+<div class="flex items-center gap-4 mb-8">
+<span class="font-label-mono text-label-mono px-2 py-1 bg-black text-white uppercase">04</span>
+<h3 class="font-headline-md text-headline-md uppercase">Data &amp; Privacy</h3>
+</div>
+<div class="bg-white border border-black p-gutter flex flex-col gap-8">
+<div class="flex items-start justify-between gap-12">
+<div class="flex-grow">
+<h4 class="font-bold uppercase mb-2">Export Data Ledger</h4>
+<p class="opacity-60">Download a full archival record of every analysis conducted and ledger entry recorded during this session period. Format: .JSONL / .CSV</p>
+</div>
+<button class="bg-white text-black border-black border px-6 py-3 font-label-mono text-label-mono uppercase font-black hover:bg-black hover:text-white transition-colors cursor-pointer shrink-0">
+                                Export all my analyses and ledger entries
+                            </button>
+</div>
+<div class="pt-6 border-t border-surface-variant flex items-center justify-between">
+<div class="flex gap-4">
+<div class="flex items-center gap-2 active-dot font-label-mono text-[10px] uppercase">Telemetry Active</div>
+<div class="flex items-center gap-2 inactive-dot font-label-mono text-[10px] uppercase">Beta Monitoring</div>
+</div>
+<a class="font-label-mono text-label-mono uppercase font-bold flex items-center gap-2 group" href="#">
+                                System Governance Policy 
+                                <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_right_alt</span>
+</a>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<script>
+        // Smooth scroll for anchor links and active state update
+        document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                target.scrollIntoView({ behavior: 'smooth' });
+                
+                // Update active styles
+                document.querySelectorAll('nav a').forEach(a => a.classList.add('opacity-40'));
+                document.querySelectorAll('nav a').forEach(a => a.classList.remove('font-bold'));
+                this.classList.remove('opacity-40');
+                this.classList.add('font-bold');
+            });
+        });
+
+        // Toggle simulation for checkboxes
+        document.querySelectorAll('tbody button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const isChecked = this.innerText === 'check_box';
+                if (isChecked) {
+                    this.innerText = 'check_box_outline_blank';
+                    this.classList.add('opacity-30');
+                    this.removeAttribute('style'); // Remove font-variation-settings for 'fill'
+                } else {
+                    this.innerText = 'check_box';
+                    this.classList.remove('opacity-30');
+                    this.style.fontVariationSettings = "'FILL' 1";
+                }
+            });
+        });
+
+        // Intersection Observer for scroll-spy effect
+        const sections = document.querySelectorAll('section');
+        const navLinks = document.querySelectorAll('nav[class*="col-span-3"] a');
+
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.5
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    navLinks.forEach(link => {
+                        link.classList.add('opacity-40');
+                        link.classList.remove('font-bold');
+                        if (link.getAttribute('href') === `#${id}`) {
+                            link.classList.remove('opacity-40');
+                            link.classList.add('font-bold');
+                        }
+                    });
+                }
+            });
+        }, observerOptions);
+
+        sections.forEach(section => observer.observe(section));
+    </script>
+</body></html>

@@ -1,17 +1,16 @@
 import Link from 'next/link'
+import { PrimaryLinkButton } from '@/components/ui'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="text-center">
-        <p className="font-serif text-7xl italic text-white/[0.12] mb-5">404</p>
-        <h1 className="font-serif text-xl font-medium mb-2">Page not found</h1>
-        <p className="text-zinc-500 text-sm mb-8">
+    <div className="min-h-screen bg-surface flex items-center justify-center px-4 font-sans">
+      <div className="text-center space-y-5">
+        <p className="text-headline-xl text-outline-variant">404</p>
+        <h1 className="text-headline-md text-black">Page not found</h1>
+        <p className="text-sm text-ink-variant">
           The page you&apos;re looking for doesn&apos;t exist.
         </p>
-        <Link href="/dashboard" className="btn-primary">
-          Go to dashboard
-        </Link>
+        <PrimaryLinkButton href="/dashboard">Go to dashboard</PrimaryLinkButton>
       </div>
     </div>
   )

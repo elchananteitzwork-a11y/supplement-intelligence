@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PRO-INTEL | Mobile Intelligence Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&amp;family=Inter:wght@400;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-low": "#f3f3f3",
+                    "primary-container": "#1b1b1b",
+                    "on-surface-variant": "#4c4546",
+                    "secondary-fixed": "#e2e2e2",
+                    "outline": "#7e7576",
+                    "on-surface": "#1a1c1c",
+                    "surface-container-high": "#e8e8e8",
+                    "on-primary-container": "#848484",
+                    "error": "#ba1a1a",
+                    "background": "#f9f9f9",
+                    "tertiary-container": "#1b1c1c",
+                    "surface-container": "#eeeeee",
+                    "surface-tint": "#5e5e5e",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "primary": "#000000",
+                    "surface-bright": "#f9f9f9",
+                    "on-primary-fixed-variant": "#474747",
+                    "outline-variant": "#cfc4c5",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#dfe0e0",
+                    "tertiary": "#000000",
+                    "on-background": "#1a1c1c",
+                    "surface": "#f9f9f9",
+                    "inverse-surface": "#2f3131",
+                    "surface-dim": "#dadada",
+                    "primary-fixed": "#e2e2e2",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "inverse-primary": "#c6c6c6",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "inverse-on-surface": "#f1f1f1",
+                    "error-container": "#ffdad6",
+                    "on-primary-fixed": "#1b1b1b",
+                    "tertiary-fixed": "#e4e2e2",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#848484",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-container": "#616363",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "secondary": "#5d5f5f",
+                    "surface-variant": "#e2e2e2",
+                    "surface-container-lowest": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "element-gap": "16px",
+                    "grid-unit": "8px",
+                    "gutter": "24px",
+                    "section-gap": "64px",
+                    "container-padding": "40px"
+            },
+            "fontFamily": {
+                    "label-mono": ["JetBrains Mono"],
+                    "verdict-sm": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f9f9f9;
+            color: #1a1c1c;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .neo-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .arc-container {
+            position: relative;
+            height: 120px;
+            overflow: hidden;
+        }
+        .arc-svg {
+            stroke-dasharray: 500;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 2s ease-in-out;
+        }
+        /* Custom scrollbar for data lists */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- TOP APP BAR (MOBILE) -->
+<header class="fixed top-0 left-0 w-full h-16 z-50 bg-surface border-b-2 border-primary flex items-center justify-between px-gutter">
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-headline-md font-black tracking-tighter text-primary">PRO-INTEL</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity">search</button>
+<button class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity">notifications</button>
+</div>
+</header>
+<main class="pt-20 pb-24 px-4 max-w-md mx-auto">
+<!-- SECTION 1: NEEDS ATTENTION -->
+<section class="mb-8">
+<div class="flex justify-between items-end mb-4">
+<h2 class="font-label-mono text-label-mono uppercase tracking-widest text-secondary">NEEDS ATTENTION [3]</h2>
+<span class="font-label-mono text-[10px] text-outline">LATEST UPDATE: 04:02 GMT</span>
+</div>
+<div class="space-y-4">
+<!-- Change Note Card 1 -->
+<div class="bg-surface border-2 border-primary p-4 active:scale-[0.98] transition-transform">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label-mono text-[10px] bg-primary text-on-primary px-2 py-0.5 uppercase">Status Shift</span>
+<span class="material-symbols-outlined text-sm">trending_up</span>
+</div>
+<p class="font-headline-md text-sm mb-3">beef tallow moisturizer moved Emerging → Window Open</p>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<span class="font-label-mono text-[10px] text-secondary">EVIDENCE VERIFIED • HIGH CONFIDENCE</span>
+</div>
+</div>
+<!-- Change Note Card 2 -->
+<div class="bg-surface border-2 border-primary p-4 active:scale-[0.98] transition-transform">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label-mono text-[10px] bg-primary text-on-primary px-2 py-0.5 uppercase">Critical Alert</span>
+<span class="material-symbols-outlined text-sm text-error">warning</span>
+</div>
+<p class="font-headline-md text-sm mb-3">magnesium spray saturation threshold exceeded</p>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<span class="font-label-mono text-[10px] text-secondary">WAITING FOR CROSS-CHANNEL SIGNALS</span>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 2: LIFECYCLE ARC VISUALIZATION -->
+<section class="mb-8 bg-surface-container-low border-2 border-primary p-4">
+<h2 class="font-label-mono text-label-mono uppercase tracking-widest text-secondary mb-6 text-center">Market Lifecycle Arc</h2>
+<div class="arc-container flex items-center justify-center">
+<!-- Simple Neo-Brutalist Arc Visualization -->
+<svg class="w-full h-full" viewbox="0 0 200 100">
+<path d="M 20 90 A 80 80 0 0 1 180 90" fill="none" stroke="black" stroke-width="2"></path>
+<!-- Market Dots -->
+<circle cx="40" cy="55" fill="black" r="4"></circle> <!-- Emerging -->
+<circle cx="100" cy="15" fill="black" r="5"></circle> <!-- Peak -->
+<circle cx="160" cy="55" fill="white" r="4" stroke="black" stroke-width="1.5"></circle> <!-- Decline -->
+<!-- Labels -->
+<text fill="#5d5f5f" font-family="JetBrains Mono" font-size="6" text-anchor="middle" x="20" y="98">STASIS</text>
+<text fill="black" font-family="JetBrains Mono" font-size="6" font-weight="bold" text-anchor="middle" x="100" y="8">PEAK WINDOW</text>
+<text fill="#5d5f5f" font-family="JetBrains Mono" font-size="6" text-anchor="middle" x="180" y="98">SATURATED</text>
+</svg>
+<!-- Floating Indicator Label -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-primary px-2 py-1 flex items-center gap-2">
+<span class="w-2 h-2 bg-error"></span>
+<span class="font-label-mono text-[9px] font-bold">14 MARKETS AT PEAK</span>
+</div>
+</div>
+</section>
+<!-- SECTION 3: RECENT ANALYSES -->
+<section>
+<div class="flex justify-between items-end mb-4">
+<h2 class="font-label-mono text-label-mono uppercase tracking-widest text-secondary">RECENT ANALYSES</h2>
+<button class="font-label-mono text-[10px] underline">VIEW ALL</button>
+</div>
+<div class="border-t-2 border-primary divide-y border-x-2 border-b-2">
+<!-- Analysis Item 1 -->
+<div class="flex items-center justify-between p-4 bg-white hover:bg-surface-container-high transition-colors">
+<div>
+<p class="font-headline-md text-sm uppercase">Colostrum Powder</p>
+<p class="font-label-mono text-[10px] text-outline">Category: Bio-Optimization</p>
+</div>
+<div class="bg-[#e2f3e8] border border-green-800 text-green-800 px-2 py-1 font-verdict-sm text-[10px] uppercase">
+                        Window Open
+                    </div>
+</div>
+<!-- Analysis Item 2 -->
+<div class="flex items-center justify-between p-4 bg-white hover:bg-surface-container-high transition-colors">
+<div>
+<p class="font-headline-md text-sm uppercase">Red Light Panels</p>
+<p class="font-label-mono text-[10px] text-outline">Category: Tech-Wellness</p>
+</div>
+<div class="bg-primary text-on-primary px-2 py-1 font-verdict-sm text-[10px] uppercase">
+                        Saturated
+                    </div>
+</div>
+<!-- Analysis Item 3 -->
+<div class="flex items-center justify-between p-4 bg-white hover:bg-surface-container-high transition-colors">
+<div>
+<p class="font-headline-md text-sm uppercase">Functional Cocoa</p>
+<p class="font-label-mono text-[10px] text-outline">Category: Nutrition</p>
+</div>
+<div class="bg-[#fff4e5] border border-orange-800 text-orange-800 px-2 py-1 font-verdict-sm text-[10px] uppercase">
+                        Emerging
+                    </div>
+</div>
+<!-- Analysis Item 4 -->
+<div class="flex items-center justify-between p-4 bg-white hover:bg-surface-container-high transition-colors">
+<div>
+<p class="font-headline-md text-sm uppercase">Sleep Tape</p>
+<p class="font-label-mono text-[10px] text-outline">Category: Sleep Hygiene</p>
+</div>
+<div class="bg-[#fceaea] border border-error text-error px-2 py-1 font-verdict-sm text-[10px] uppercase">
+                        Declining
+                    </div>
+</div>
+</div>
+</section>
+<!-- CTA BUTTON -->
+<div class="mt-8">
+<button class="w-full bg-primary text-on-primary font-label-mono font-bold py-4 neo-shadow hover:bg-white hover:text-primary border-2 border-primary transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none uppercase">
+                New Market Analysis
+            </button>
+</div>
+</main>
+<!-- BOTTOM NAV BAR (MOBILE) -->
+<nav class="fixed bottom-0 left-0 w-full h-16 bg-surface border-t-2 border-primary z-50 flex items-center justify-around px-gutter">
+<!-- Home (Active) -->
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-mono text-[10px] uppercase">Home</span>
+</a>
+<!-- Watchlist -->
+<a class="flex flex-col items-center gap-1 text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">visibility</span>
+<span class="font-label-mono text-[10px] uppercase">Watchlist</span>
+</a>
+<!-- Alerts -->
+<a class="flex flex-col items-center gap-1 text-secondary hover:text-primary transition-colors relative" href="#">
+<span class="material-symbols-outlined text-[24px]">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full"></span>
+<span class="font-label-mono text-[10px] uppercase">Alerts</span>
+</a>
+<!-- Account -->
+<a class="flex flex-col items-center gap-1 text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">person</span>
+<span class="font-label-mono text-[10px] uppercase">Account</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction: Active state feedback for cards
+        document.querySelectorAll('.active\\:scale-\\[0\\.98\\]').forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.style.opacity = '0.8';
+            });
+            card.addEventListener('touchend', () => {
+                card.style.opacity = '1';
+            });
+        });
+    </script>
+</body></html>

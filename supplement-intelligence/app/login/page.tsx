@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { HardShadowSearchInput, PrimaryButton, GhostButton } from '@/components/ui'
 
 type Mode = 'signin' | 'signup' | 'forgot'
 
@@ -55,38 +56,27 @@ export default function LoginPage() {
     }
   }
 
-  const inputCls = "w-full bg-white border-2 border-black px-4 py-3 text-sm font-sans text-black placeholder-[#7e7576] focus:outline-none transition-transform duration-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:shadow-none focus:translate-x-[2px] focus:translate-y-[2px]"
-  const labelCls = "block text-[11px] font-mono text-[#4c4546] mb-1.5 uppercase tracking-wider"
-
   const EmailConfirm = ({ title, body }: { title: string; body: React.ReactNode }) => (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 font-sans" style={{ background: '#f9f9f9' }}>
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center mb-2">
-          <Link href="/" className="font-sans text-sm font-black uppercase tracking-tight text-black">
-            Intelligence Lab
-          </Link>
-        </div>
-        <div className="border border-black bg-white p-8 text-center space-y-5">
+    <div className="min-h-screen flex flex-col font-sans bg-surface text-ink">
+      <header className="w-full border-b-2 border-black px-gutter py-4">
+        <span className="text-headline-md font-black tracking-tighter text-black">PRODUCT INTELLIGENCE</span>
+      </header>
+      <main className="flex-grow flex items-center justify-center px-gutter">
+        <div className="w-full max-w-[400px] bg-white border border-black p-gutter text-center space-y-5">
           <div className="w-12 h-12 border-2 border-black flex items-center justify-center mx-auto">
             <svg className="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
           <div>
-            <p className="font-sans font-black text-black text-lg uppercase tracking-tight">{title}</p>
-            <p className="text-sm text-[#4c4546] mt-1.5 leading-relaxed">{body}</p>
+            <p className="text-headline-md text-black">{title}</p>
+            <p className="text-body-md text-secondary mt-1.5">{body}</p>
           </div>
-          <button
-            onClick={() => { setResetSent(false); setAwaitingConfirm(false); switchMode('signin') }}
-            className="text-xs font-mono uppercase tracking-wider text-[#4c4546] hover:text-black transition-colors border-b border-black"
-          >
+          <GhostButton onClick={() => { setResetSent(false); setAwaitingConfirm(false); switchMode('signin') }}>
             ← Back to sign in
-          </button>
+          </GhostButton>
         </div>
-        <p className="text-center">
-          <Link href="/" className="text-xs font-mono uppercase tracking-wider text-[#4c4546] hover:text-black transition-colors">← Back to home</Link>
-        </p>
-      </div>
+      </main>
     </div>
   )
 
@@ -105,98 +95,84 @@ export default function LoginPage() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
-      <div className="relative w-full max-w-sm space-y-6">
-        {/* Brand */}
-        <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 group">
-            <span className="font-sans text-sm font-black uppercase tracking-tight text-black">
-              Intelligence Lab
-            </span>
-          </Link>
+    <div className="min-h-screen flex flex-col font-sans bg-surface text-ink">
+      <header className="w-full sticky top-0 border-b-2 border-black px-gutter py-4 flex justify-between items-center bg-surface">
+        <div className="flex items-center gap-8">
+          <span className="text-headline-md font-black tracking-tighter text-black">PRODUCT INTELLIGENCE</span>
+          <div className="hidden md:flex gap-6">
+            <Link href="/dashboard" className="text-ink-variant hover:bg-surface-container-highest transition-colors py-1 px-2 text-sm">Dashboard</Link>
+            <Link href="/analyze" className="text-ink-variant hover:bg-surface-container-highest transition-colors py-1 px-2 text-sm">Analysis</Link>
+            <Link href="/research/history" className="text-ink-variant hover:bg-surface-container-highest transition-colors py-1 px-2 text-sm">Reports</Link>
+          </div>
         </div>
+        <span className="text-black font-bold border-b-2 border-black py-1 text-sm">Sign In</span>
+      </header>
 
-        {/* Card */}
-        <div className="border border-black bg-white p-8">
-          <form onSubmit={submit} className="space-y-5">
-            <div>
-              <p className="font-sans font-black text-lg text-black mb-1 uppercase tracking-tight">
-                {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Reset password'}
-              </p>
-              <p className="text-sm text-[#4c4546]">
-                {mode === 'signin' ? 'Enter your credentials to continue.' : mode === 'signup' ? 'Sign up for beta access.' : "Enter your email and we'll send a reset link."}
-              </p>
-            </div>
+      <main className="flex-grow flex items-center justify-center px-gutter py-section-gap">
+        <div className="w-full max-w-[400px] bg-white border border-black p-gutter space-y-element-gap">
+          <h1 className="text-headline-md text-black tracking-tight">
+            {mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Save your analyses and watch markets' : 'Reset your password'}
+          </h1>
 
-            <div>
-              <label htmlFor="email" className={labelCls}>Email address</label>
-              <input
+          <form onSubmit={submit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-label-mono font-mono text-secondary uppercase block" htmlFor="email">Work Email</label>
+              <HardShadowSearchInput
                 id="email" type="email" required autoFocus autoComplete="email"
                 value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className={inputCls}
+                placeholder="name@company.com"
               />
             </div>
 
             {mode !== 'forgot' && (
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="password" className="text-[11px] font-mono text-[#4c4546] uppercase tracking-wider">Password</label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-label-mono font-mono text-secondary uppercase block" htmlFor="password">Password</label>
                   {mode === 'signin' && (
-                    <button type="button" onClick={() => switchMode('forgot')} className="text-[11px] font-mono uppercase tracking-wider text-[#4c4546] hover:text-black transition-colors">
-                      Forgot password?
+                    <button type="button" onClick={() => switchMode('forgot')} className="text-[11px] font-mono uppercase text-outline hover:text-black transition-colors">
+                      Forgot?
                     </button>
                   )}
                 </div>
-                <input
+                <HardShadowSearchInput
                   id="password" type="password" required
                   autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                   minLength={6}
                   value={password} onChange={e => setPassword(e.target.value)}
                   placeholder={mode === 'signin' ? '••••••••' : 'Min. 6 characters'}
-                  className={inputCls}
                 />
               </div>
             )}
 
             {error && (
-              <div className="text-sm text-[#93000a] bg-[#ffdad6] border border-[#ba1a1a] px-3 py-2.5">
+              <div className="text-sm text-error-on-container bg-error-container border border-error px-3 py-2.5">
                 {error}
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading || !email.trim() || (mode !== 'forgot' && password.length < 6)}
-              className="w-full py-3.5 text-sm font-black uppercase tracking-widest text-white bg-black border-2 border-black hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  {mode === 'signin' ? 'Signing in…' : mode === 'signup' ? 'Creating account…' : 'Sending link…'}
-                </span>
-              ) : mode === 'signin' ? 'Sign in →' : mode === 'signup' ? 'Create account →' : 'Send reset link →'}
-            </button>
+            <PrimaryButton type="submit" disabled={loading || !email.trim() || (mode !== 'forgot' && password.length < 6)} className="w-full py-4">
+              {loading ? 'Working…' : mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Email me a reset link'}
+            </PrimaryButton>
 
-            <p className="text-xs font-mono text-[#4c4546] text-center uppercase tracking-wide">
+            <p className="text-center text-body-md text-secondary">
               {mode === 'forgot' ? (
-                <>Remember your password?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-black underline">Sign in</button></>
+                <>Remember your password?{' '}<button type="button" onClick={() => switchMode('signin')} className="underline hover:text-black">Sign in</button></>
               ) : mode === 'signin' ? (
-                <>Don&apos;t have an account?{' '}<button type="button" onClick={() => switchMode('signup')} className="text-black underline">Sign up</button></>
+                <>Don&apos;t have an account?{' '}<button type="button" onClick={() => switchMode('signup')} className="underline hover:text-black">Sign up</button></>
               ) : (
-                <>Already have an account?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-black underline">Sign in</button></>
+                <>Already have an account?{' '}<button type="button" onClick={() => switchMode('signin')} className="underline hover:text-black">Sign in</button></>
               )}
             </p>
           </form>
         </div>
+      </main>
 
-        <p className="text-center">
-          <Link href="/" className="text-xs font-mono uppercase tracking-wider text-[#4c4546] hover:text-black transition-colors">← Back to home</Link>
-        </p>
-      </div>
+      <footer className="w-full border-t border-outline-variant bg-surface-container-low px-gutter py-section-gap flex flex-col md:flex-row justify-between items-center">
+        <span className="text-label-mono font-bold text-black">PRODUCT INTELLIGENCE</span>
+        <nav className="flex flex-wrap justify-center gap-8 mt-4 md:mt-0">
+          <Link href="/" className="text-label-mono font-mono text-ink-variant hover:text-black transition-colors uppercase">← Back to home</Link>
+        </nav>
+      </footer>
     </div>
   )
 }

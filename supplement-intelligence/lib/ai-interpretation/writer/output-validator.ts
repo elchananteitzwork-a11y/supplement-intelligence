@@ -13,7 +13,7 @@ function wordCount(text: string): number {
 
 // ── Step 2: Format validation ─────────────────────────────────────────────
 // Spec §12 Step 2 ranges:
-//   Causal paragraph:    60–160 words
+//   Causal paragraph:    60–120 words
 //   Risk sentence:       10–35 words
 //   Thesis headline:     8–25 words
 //   Full thesis:         80–200 words
@@ -22,7 +22,7 @@ export function validateFormatCausalParagraph(output: string): ValidationStepRes
   if (!output || output.trim().length === 0) return { passed: false, error: 'Output is empty' }
   const wc = wordCount(output)
   if (wc < 60)  return { passed: false, error: `Too short: ${wc} words (min 60)` }
-  if (wc > 160) return { passed: false, error: `Too long: ${wc} words (max 160)` }
+  if (wc > 120) return { passed: false, error: `Too long: ${wc} words (max 120)` }
   if (!/[.!?]$/.test(output.trim())) return { passed: false, error: 'Output does not end with sentence terminator' }
   return { passed: true }
 }

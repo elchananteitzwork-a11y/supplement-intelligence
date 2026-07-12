@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Intelligence Engine | creatine gummies</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=JetBrains+Mono:wght@500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-container": "#848484",
+                        "surface-tint": "#5e5e5e",
+                        "outline": "#7e7576",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#000000",
+                        "surface-container-low": "#f3f3f3",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-secondary-container": "#616363",
+                        "surface-container": "#eeeeee",
+                        "on-primary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed": "#1b1b1b",
+                        "inverse-on-surface": "#f1f1f1",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface": "#f9f9f9",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "primary": "#000000",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface-bright": "#f9f9f9",
+                        "surface-variant": "#e2e2e2",
+                        "on-background": "#1a1c1c",
+                        "on-error-container": "#93000a",
+                        "on-surface": "#1a1c1c",
+                        "background": "#f9f9f9",
+                        "outline-variant": "#cfc4c5",
+                        "inverse-primary": "#c6c6c6",
+                        "surface-container-high": "#e8e8e8",
+                        "primary-fixed": "#e2e2e2",
+                        "primary-container": "#1b1b1b",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#1b1c1c",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "error": "#ba1a1a",
+                        "on-primary-container": "#848484",
+                        "on-secondary": "#ffffff",
+                        "secondary": "#5d5f5f",
+                        "tertiary-fixed": "#e4e2e2",
+                        "on-primary-fixed-variant": "#474747",
+                        "surface-dim": "#dadada",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#4c4546",
+                        "secondary-container": "#dfe0e0",
+                        "inverse-surface": "#2f3131"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "grid-unit": "8px",
+                        "section-gap": "64px",
+                        "gutter": "24px",
+                        "container-padding": "40px",
+                        "element-gap": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "verdict-sm": ["Inter"],
+                        "headline-xl-mobile": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "headline-xl": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                        "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                        "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hard-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .lifecycle-arc {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 70;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .animate-pulse-dot {
+            animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md">
+<!-- Sidebar Navigation Shell -->
+<nav class="fixed left-0 top-0 bottom-0 z-50 flex flex-col h-full bg-surface dark:bg-inverse-surface border-r border-primary dark:border-outline-variant w-[220px] transition-all duration-300 ease-in-out">
+<div class="p-6 flex flex-col gap-2">
+<h1 class="font-headline-md text-headline-md font-bold uppercase tracking-tighter text-on-surface dark:text-inverse-on-surface">Intelligence Engine</h1>
+<p class="font-label-mono text-label-mono opacity-60 uppercase">Product Intelligence</p>
+</div>
+<div class="flex-1 px-2 py-4 flex flex-col gap-1">
+<a class="flex items-center gap-element-gap bg-primary text-on-primary dark:bg-inverse-primary dark:text-primary-container px-4 py-3 border-r-4 border-primary" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-mono text-label-mono uppercase">Home</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors" href="#">
+<span class="material-symbols-outlined">visibility</span>
+<span class="font-label-mono text-label-mono uppercase">Watchlist</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-mono text-label-mono uppercase">Pipeline</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-label-mono text-label-mono uppercase">Alerts</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors" href="#">
+<span class="material-symbols-outlined">history_edu</span>
+<span class="font-label-mono text-label-mono uppercase">Track Record</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors" href="#">
+<span class="material-symbols-outlined">database</span>
+<span class="font-label-mono text-label-mono uppercase">Data Sources</span>
+</a>
+<a class="flex items-center gap-element-gap text-on-surface-variant dark:text-on-secondary-fixed-variant px-4 py-3 hover:bg-surface-container-high dark:hover:bg-tertiary-container transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-mono text-label-mono uppercase">Settings</span>
+</a>
+</div>
+<div class="mt-auto p-4 flex flex-col gap-4 border-t border-outline-variant">
+<button class="w-full bg-primary text-on-primary py-3 font-label-mono text-label-mono uppercase font-bold tracking-widest hover:bg-white hover:text-black border-2 border-black transition-all">
+                New Analysis
+            </button>
+<div class="flex flex-col gap-2 opacity-60">
+<a class="flex items-center gap-2 px-2 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span class="font-label-mono text-[10px] uppercase">Help</span>
+</a>
+<a class="flex items-center gap-2 px-2 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">support_agent</span>
+<span class="font-label-mono text-[10px] uppercase">Support</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="ml-[220px] min-h-screen p-container-padding flex flex-col gap-gutter">
+<!-- Header Section -->
+<header class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="bg-[#F59E0B] text-black px-3 py-1 font-verdict-sm text-verdict-sm uppercase tracking-tighter">
+                    PRELIMINARY — 3 of 6 sources in
+                </div>
+</div>
+<div>
+<h1 class="font-headline-xl text-headline-xl text-primary leading-none">creatine gummies</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-2">creatine gummies</p>
+</div>
+</header>
+<!-- Bento Grid Analysis Area -->
+<div class="grid grid-cols-12 gap-gutter items-start">
+<!-- Left Col: Status & Witnessing -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-gutter">
+<!-- Lifecycle Arc Card -->
+<div class="bg-white border-2 border-black p-6 flex flex-col items-center gap-6 relative overflow-hidden">
+<div class="absolute top-4 left-4 font-label-mono text-[10px] uppercase text-on-tertiary-container tracking-widest">Signal Lifecycle</div>
+<div class="relative mt-4">
+<svg class="w-48 h-48 transform -rotate-90">
+<circle cx="96" cy="96" fill="transparent" r="80" stroke="#E2E2E2" stroke-width="12"></circle>
+<circle class="lifecycle-arc" cx="96" cy="96" fill="transparent" r="80" stroke="#000000" stroke-width="12"></circle>
+</svg>
+<!-- Dot on Window Open -->
+<div class="absolute top-[18px] right-[40px] w-4 h-4 bg-primary rounded-full border-2 border-white animate-pulse-dot"></div>
+</div>
+<div class="text-center">
+<span class="font-label-mono text-label-mono uppercase font-bold text-primary">Window Open</span>
+<p class="text-[11px] font-label-mono text-on-tertiary-container mt-1 uppercase">Stage 3 / 6 — Verification</p>
+</div>
+<!-- Witness Dots -->
+<div class="flex gap-2 py-4 border-t border-outline-variant w-full justify-center">
+<div class="w-3 h-3 bg-primary rounded-full"></div>
+<div class="w-3 h-3 bg-primary rounded-full"></div>
+<div class="w-3 h-3 bg-primary rounded-full"></div>
+<div class="w-3 h-3 border border-primary rounded-full"></div>
+<div class="w-3 h-3 border border-primary rounded-full"></div>
+<div class="w-3 h-3 border border-primary rounded-full"></div>
+</div>
+</div>
+<!-- Source Monitoring -->
+<div class="bg-white border border-black p-6 flex flex-col gap-4">
+<h3 class="font-label-mono text-label-mono font-bold uppercase tracking-widest border-b border-black pb-2">Data Integrity</h3>
+<div class="flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md">Retail Velocity Tracking</span>
+<span class="font-label-mono text-label-mono text-on-tertiary-container uppercase">Pending</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md">Social Sentiment Analysis</span>
+<span class="bg-black text-white px-2 py-1 text-[10px] font-bold">VERIFIED</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md">Supply Chain Logistics</span>
+<span class="bg-black text-white px-2 py-1 text-[10px] font-bold">VERIFIED</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md">Formulation Stability Patent</span>
+<span class="bg-black text-white px-2 py-1 text-[10px] font-bold">VERIFIED</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md">Influencer Pipeline</span>
+<span class="font-label-mono text-label-mono text-on-tertiary-container uppercase">Polling...</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Col: Resolving Evidence -->
+<div class="col-span-12 lg:col-span-8 flex flex-col gap-6">
+<div class="bg-white border border-black p-8">
+<div class="flex justify-between items-center mb-8">
+<h2 class="font-headline-md text-headline-md uppercase tracking-tight">Resolving Evidence</h2>
+<div class="flex gap-2">
+<button class="material-symbols-outlined border border-black p-2 hover:bg-black hover:text-white transition-all">filter_list</button>
+<button class="material-symbols-outlined border border-black p-2 hover:bg-black hover:text-white transition-all">download</button>
+</div>
+</div>
+<div class="space-y-6">
+<!-- Evidence Line 1 -->
+<div class="group">
+<div class="flex gap-4 items-start">
+<div class="font-label-mono text-[11px] text-on-tertiary-container py-1 w-16">09:42:01</div>
+<div class="flex-1 border-b border-surface-container-highest pb-6 group-hover:border-black transition-colors">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+<span class="font-label-mono text-label-mono font-bold uppercase">Retail Intake</span>
+</div>
+<p class="font-body-md text-body-md leading-relaxed text-on-surface">Significant SKU expansion noted across tier-1 supplement retailers. Creatine in gummy format showing 140% higher week-over-week search volume compared to traditional mono-hydrate powders.</p>
+<div class="mt-3 flex gap-4 text-[11px] font-label-mono text-on-tertiary-container">
+<span>SOURCE: INTERNAL_POS_AGGREGATOR</span>
+<span>CONFIDENCE: 0.94</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Evidence Line 2 -->
+<div class="group">
+<div class="flex gap-4 items-start">
+<div class="font-label-mono text-[11px] text-on-tertiary-container py-1 w-16">08:12:44</div>
+<div class="flex-1 border-b border-surface-container-highest pb-6 group-hover:border-black transition-colors">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+<span class="font-label-mono text-label-mono font-bold uppercase">Manufacturing Signal</span>
+</div>
+<p class="font-body-md text-body-md leading-relaxed text-on-surface">Pectin-based cold-press facilities in Ohio report shift in production priority to creatine-infused confections. Order volume suggests preparation for national Q4 push.</p>
+<div class="mt-3 flex gap-4 text-[11px] font-label-mono text-on-tertiary-container">
+<span>SOURCE: LOGISTICS_WHISPER</span>
+<span>CONFIDENCE: 0.88</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Evidence Line 3 -->
+<div class="group">
+<div class="flex gap-4 items-start">
+<div class="font-label-mono text-[11px] text-on-tertiary-container py-1 w-16">Yesterday</div>
+<div class="flex-1 border-b border-surface-container-highest pb-6 group-hover:border-black transition-colors">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-2 h-2 bg-primary rounded-full"></div>
+<span class="font-label-mono text-label-mono font-bold uppercase">IP Identification</span>
+</div>
+<p class="font-body-md text-body-md leading-relaxed text-on-surface">Patent filing 2024-00129B identified regarding "Thermal Stabilization of Creatine Monohydrate in Hydrocolloid Matrices". This solves the primary degradation issue in gummy formats.</p>
+<div class="mt-3 flex gap-4 text-[11px] font-label-mono text-on-tertiary-container">
+<span>SOURCE: USPTO_MONITOR</span>
+<span>CONFIDENCE: 1.00</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Pending Evidence placeholder -->
+<div class="flex gap-4 items-start opacity-30">
+<div class="font-label-mono text-[11px] text-on-tertiary-container py-1 w-16">--:--:--</div>
+<div class="flex-1 pb-6 italic">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-2 h-2 border border-primary rounded-full"></div>
+<span class="font-label-mono text-label-mono uppercase">Social Validation Pipeline</span>
+</div>
+<p class="font-body-md text-body-md">Awaiting demographic clustering and creator engagement metrics...</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Analysis Summary -->
+<div class="bg-secondary-container p-8 border border-black">
+<h4 class="font-label-mono text-label-mono font-bold uppercase mb-4 tracking-widest">Interim Synthesis</h4>
+<p class="font-body-lg text-body-lg italic leading-relaxed">"The transition of creatine from a utility-focused powder to a convenience-focused confection signals a broader market democratization. Preliminary data suggests that the gummy format is effectively capturing a 'non-traditional' fitness demographic that avoids traditional supplementation rituals."</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Contextual Search Shadow Denoter -->
+<div class="fixed bottom-8 right-8 w-64">
+<div class="relative">
+<input class="w-full bg-white border-2 border-black p-4 font-label-mono text-label-mono uppercase hard-shadow focus:outline-none focus:ring-0" placeholder="Probe deeper..." type="text"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2">search</span>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Track Record | Product Intelligence Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e8e8e8",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-secondary-container": "#616363",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "surface-container-low": "#f3f3f3",
+                        "on-surface-variant": "#4c4546",
+                        "surface": "#f9f9f9",
+                        "tertiary-container": "#1b1c1c",
+                        "secondary": "#5d5f5f",
+                        "tertiary-fixed": "#e4e2e2",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary-container": "#dfe0e0",
+                        "on-primary-container": "#848484",
+                        "surface-variant": "#e2e2e2",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-container": "#848484",
+                        "on-primary-fixed-variant": "#474747",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2f3131",
+                        "outline-variant": "#cfc4c5",
+                        "background": "#f9f9f9",
+                        "on-secondary-fixed-variant": "#454747",
+                        "surface-dim": "#dadada",
+                        "error-container": "#ffdad6",
+                        "surface-container": "#eeeeee",
+                        "primary": "#000000",
+                        "primary-container": "#1b1b1b",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "tertiary": "#000000",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#1a1c1c",
+                        "primary-fixed": "#e2e2e2",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#5e5e5e",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-surface": "#1a1c1c",
+                        "inverse-primary": "#c6c6c6",
+                        "outline": "#7e7576",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "surface-bright": "#f9f9f9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0px",
+                        "lg": "0px",
+                        "xl": "0px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "element-gap": "16px",
+                        "container-padding": "40px",
+                        "section-gap": "64px",
+                        "grid-unit": "8px"
+                    },
+                    "fontFamily": {
+                        "verdict-sm": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-xl-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                        "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: #F2F2F2; }
+        .hard-shadow { box-shadow: 2px 2px 0px 0px #000000; }
+        .neo-border { border: 1px solid #000000; }
+        .neo-border-heavy { border: 2px solid #000000; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .active-dot { width: 8px; height: 8px; background-color: #000; border-radius: 50%; }
+        .hollow-dot { width: 8px; height: 8px; border: 1px solid #000; border-radius: 50%; }
+    </style>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- TopNavBar (JSON Mapping) -->
+<header class="flex justify-between items-center px-gutter w-full sticky top-0 z-50 bg-surface dark:bg-surface border-b-2 border-primary dark:border-on-surface-variant h-16">
+<div class="font-headline-md text-headline-md font-black text-primary dark:text-on-surface uppercase tracking-tighter">
+            PRODUCT INTELLIGENCE
+        </div>
+<div class="flex items-center gap-element-gap">
+<button class="cursor-pointer active:scale-95 bg-surface neo-border px-4 py-2 font-label-mono text-label-mono uppercase hover:bg-primary hover:text-on-primary transition-colors">
+                Filters
+            </button>
+<button class="cursor-pointer active:scale-95 bg-primary text-on-primary px-4 py-2 font-label-mono text-label-mono uppercase hover:bg-surface hover:text-primary neo-border transition-colors">
+                Export
+            </button>
+</div>
+</header>
+<div class="flex">
+<!-- SideNavBar (JSON Mapping) -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-surface-container dark:bg-surface-container border-r-2 border-primary dark:border-on-surface-variant flex flex-col z-40">
+<div class="p-6">
+<div class="font-headline-md text-headline-md font-black text-primary dark:text-on-surface">Intelligence Engine</div>
+<div class="font-label-mono text-label-mono text-secondary mt-1">V2.4.1</div>
+</div>
+<nav class="flex-grow">
+<!-- Active Nav: Track Record -->
+<div class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer">
+<span class="material-symbols-outlined">home</span> Home
+                </div>
+<div class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer">
+<span class="material-symbols-outlined">visibility</span> Watchlist
+                </div>
+<div class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer">
+<span class="material-symbols-outlined">account_tree</span> Pipeline
+                </div>
+<div class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer">
+<span class="material-symbols-outlined">notifications</span> Alerts
+                </div>
+<!-- ACTIVE -->
+<div class="bg-primary text-on-primary dark:bg-on-surface dark:text-surface flex items-center gap-4 px-4 py-3 font-bold uppercase font-label-mono text-label-mono cursor-pointer">
+<span class="material-symbols-outlined">insights</span> Track Record
+                </div>
+<div class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer">
+<span class="material-symbols-outlined">database</span> Data Sources
+                </div>
+<div class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer">
+<span class="material-symbols-outlined">settings</span> Settings
+                </div>
+</nav>
+<div class="border-t border-primary/10 mt-auto">
+<div class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer">
+<span class="material-symbols-outlined">help</span> Support
+                </div>
+<div class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer">
+<span class="material-symbols-outlined">logout</span> Log Out
+                </div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 p-container-padding w-full max-w-7xl mx-auto">
+<!-- (a) Headline Calibration Stats -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-element-gap mb-section-gap">
+<div class="bg-white neo-border p-6 flex flex-col justify-between">
+<div>
+<div class="font-label-mono text-label-mono text-secondary mb-2 uppercase">Window Open Calls</div>
+<div class="font-headline-xl text-headline-xl tabular-nums tracking-tighter">78%</div>
+<div class="font-body-md text-on-surface mt-2">A real window existed in 78% of re-measured cases, n = 41</div>
+</div>
+<a class="font-label-mono text-[10px] text-secondary underline mt-4 uppercase" href="#">Methodology</a>
+</div>
+<div class="bg-white neo-border p-6 flex flex-col justify-between">
+<div>
+<div class="font-label-mono text-label-mono text-secondary mb-2 uppercase">Build Now Calls</div>
+<div class="font-headline-xl text-headline-xl tabular-nums tracking-tighter">71%</div>
+<div class="font-body-md text-on-surface mt-2">New entrants gained traction in 71% of cases, n = 17</div>
+</div>
+<a class="font-label-mono text-[10px] text-secondary underline mt-4 uppercase" href="#">Methodology</a>
+</div>
+<div class="bg-white neo-border p-6 flex flex-col justify-between">
+<div>
+<div class="font-label-mono text-label-mono text-secondary mb-2 uppercase">Avoid Calls</div>
+<div class="font-headline-xl text-headline-xl tabular-nums tracking-tighter">89%</div>
+<div class="font-body-md text-on-surface mt-2">89% saw price compression within 2 quarters, n = 28</div>
+</div>
+<a class="font-label-mono text-[10px] text-secondary underline mt-4 uppercase" href="#">Methodology</a>
+</div>
+</section>
+<!-- (c) Verdict Timeline: Magnesium Glycinate -->
+<section class="mb-section-gap">
+<div class="flex items-center gap-2 mb-gutter">
+<h2 class="font-headline-md text-headline-md uppercase">Verdict Timeline: Magnesium Glycinate</h2>
+<div class="active-dot"></div>
+</div>
+<div class="bg-white neo-border p-container-padding relative overflow-hidden">
+<!-- Background Grid Pattern -->
+<div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 24px 24px;"></div>
+<div class="relative flex items-center justify-between z-10">
+<!-- Connecting Line -->
+<div class="absolute top-1/2 left-0 w-full h-[1px] bg-primary/20 -translate-y-1/2"></div>
+<!-- Feb: WATCH_CLOSELY -->
+<div class="flex flex-col items-center gap-4 relative">
+<div class="font-label-mono text-label-mono bg-surface neo-border px-2 py-1 mb-2">FEB</div>
+<div class="w-4 h-4 rounded-full bg-white neo-border z-10 flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+</div>
+<div class="bg-white neo-border p-4 w-48 text-center hard-shadow">
+<span class="bg-[#FCD34D] text-black px-2 py-0.5 font-verdict-sm text-verdict-sm uppercase">Watch Closely</span>
+<p class="text-[11px] mt-2 font-label-mono leading-tight">Initial signaling detected in premium tier.</p>
+</div>
+</div>
+<!-- April: BUILD_NOW -->
+<div class="flex flex-col items-center gap-4 relative">
+<div class="font-label-mono text-label-mono bg-surface neo-border px-2 py-1 mb-2">APR</div>
+<div class="w-4 h-4 rounded-full bg-white neo-border z-10 flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+</div>
+<div class="bg-white neo-border p-4 w-48 text-center hard-shadow">
+<span class="bg-primary text-white px-2 py-0.5 font-verdict-sm text-verdict-sm uppercase">Build Now</span>
+<p class="text-[11px] mt-2 font-label-mono leading-tight">Supply chain validation complete. High velocity.</p>
+</div>
+</div>
+<!-- June: BUILD_IF_DIFFERENTIATED -->
+<div class="flex flex-col items-center gap-4 relative">
+<div class="font-label-mono text-label-mono bg-surface neo-border px-2 py-1 mb-2">JUN</div>
+<div class="w-4 h-4 rounded-full bg-white neo-border z-10 flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+</div>
+<div class="bg-white neo-border p-4 w-48 text-center hard-shadow">
+<span class="bg-secondary text-white px-2 py-0.5 font-verdict-sm text-verdict-sm uppercase">Differentiate</span>
+<p class="text-[11px] mt-2 font-label-mono leading-tight">Market saturation at 60%. Novel formats required.</p>
+</div>
+</div>
+<!-- Today -->
+<div class="flex flex-col items-center gap-4 relative">
+<div class="font-label-mono text-label-mono bg-primary text-on-primary neo-border px-2 py-1 mb-2">TODAY</div>
+<div class="w-4 h-4 rounded-full bg-primary z-10"></div>
+<div class="bg-white neo-border-heavy p-4 w-48 text-center hard-shadow">
+<span class="bg-error text-white px-2 py-0.5 font-verdict-sm text-verdict-sm uppercase">Avoid</span>
+<p class="text-[11px] mt-2 font-label-mono leading-tight">Price compression phase. Return on Ad Spend &lt; 1.2.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- (b) Outcomes Table -->
+<section>
+<div class="flex justify-between items-end mb-gutter">
+<h2 class="font-headline-md text-headline-md uppercase">Recent Outcomes</h2>
+<div class="font-label-mono text-label-mono text-secondary">Displaying 1-5 of 124 recorded verdicts</div>
+</div>
+<div class="bg-white neo-border overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container border-b neo-border">
+<tr>
+<th class="p-4 font-label-mono text-label-mono text-secondary uppercase">Date</th>
+<th class="p-4 font-label-mono text-label-mono text-secondary uppercase">Market</th>
+<th class="p-4 font-label-mono text-label-mono text-secondary uppercase">Verdict At Time</th>
+<th class="p-4 font-label-mono text-label-mono text-secondary uppercase">What Happened Since</th>
+<th class="p-4 font-label-mono text-label-mono text-secondary uppercase text-right">Outcome Mark</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-highest">
+<tr class="hover:bg-surface transition-colors">
+<td class="p-4 font-label-mono text-secondary">2023.10.14</td>
+<td class="p-4 font-bold uppercase">Pet Wearables (GPS)</td>
+<td class="p-4">
+<span class="bg-primary text-white px-2 py-0.5 font-verdict-sm text-verdict-sm uppercase">Build Now</span>
+</td>
+<td class="p-4 font-body-md text-on-surface">3 new entrants secured &gt;$2M in revenue within 4 months of the call.</td>
+<td class="p-4 text-right">
+<span class="font-label-mono text-label-mono border border-primary px-2 py-1 uppercase">Held</span>
+</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="p-4 font-label-mono text-secondary">2023.11.02</td>
+<td class="p-4 font-bold uppercase">Mushroom Coffee</td>
+<td class="p-4">
+<span class="bg-error text-white px-2 py-0.5 font-verdict-sm text-verdict-sm uppercase">Avoid</span>
+</td>
+<td class="p-4 font-body-md text-on-surface">Category CPCs spiked 400% in 90 days; margin collapse verified.</td>
+<td class="p-4 text-right">
+<span class="font-label-mono text-label-mono border border-primary px-2 py-1 uppercase">Held</span>
+</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="p-4 font-label-mono text-secondary">2023.12.18</td>
+<td class="p-4 font-bold uppercase">Collagen Gummies</td>
+<td class="p-4">
+<span class="bg-secondary text-white px-2 py-0.5 font-verdict-sm text-verdict-sm uppercase">Differentiate</span>
+</td>
+<td class="p-4 font-body-md text-on-surface">Generic entrants stalled; vegan-formulated variants gained 12% share.</td>
+<td class="p-4 text-right">
+<span class="font-label-mono text-label-mono border border-primary/20 px-2 py-1 uppercase text-secondary">Partially Held</span>
+</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="p-4 font-label-mono text-secondary">2024.01.05</td>
+<td class="p-4 font-bold uppercase">AI Smart Mirrors</td>
+<td class="p-4">
+<span class="bg-[#FCD34D] text-black px-2 py-0.5 font-verdict-sm text-verdict-sm uppercase">Watch Closely</span>
+</td>
+<td class="p-4 font-body-md text-on-surface">Tech obsolescence faster than predicted; pivot to software-only model.</td>
+<td class="p-4 text-right">
+<span class="font-label-mono text-label-mono border border-error px-2 py-1 uppercase text-error">Missed</span>
+</td>
+</tr>
+<tr class="hover:bg-surface transition-colors">
+<td class="p-4 font-label-mono text-secondary">2024.01.29</td>
+<td class="p-4 font-bold uppercase">Liposomal Vitamin C</td>
+<td class="p-4">
+<span class="bg-primary text-white px-2 py-0.5 font-verdict-sm text-verdict-sm uppercase">Build Now</span>
+</td>
+<td class="p-4 font-body-md text-on-surface">Search volume increased 22% monthly; ad efficient scaling proven.</td>
+<td class="p-4 text-right">
+<span class="font-label-mono text-label-mono border border-primary px-2 py-1 uppercase">Held</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</main>
+</div>
+<script>
+        // Simple hover effect for table rows to enhance "terminal" feel
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.style.transform = 'translateX(4px)';
+                row.style.transition = 'transform 0.1s ease-out';
+            });
+            row.addEventListener('mouseleave', () => {
+                row.style.transform = 'translateX(0px)';
+            });
+        });
+    </script>
+</body></html>

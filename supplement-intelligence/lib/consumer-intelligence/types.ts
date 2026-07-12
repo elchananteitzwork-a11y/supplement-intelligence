@@ -104,4 +104,21 @@ export interface ConsumerIntelligenceReport {
 
   confidence:  number   // 0-1, driven by review volume — see analyze.ts
   generatedAt: string
+
+  // ── Milestone 7 (Review Engine narrative layer) ──────────────────────────
+  // Raw, unprocessed Amazon review text (helpful + critical corpora,
+  // deduped) — the SAME real data already collected above for the
+  // deterministic theme-clustering pipeline, exposed here so a caller can
+  // ALSO feed it to lib/review-narrative (which wraps lib/review-engine)
+  // for AI-synthesized narrative commentary, without a second, duplicate,
+  // separately-billed review-collection call. This is raw input data, not
+  // LLM output — it does not conflict with this file's "nothing here is
+  // LLM-generated" rule above. Optional and absent whenever no Amazon
+  // reviews were collected; never populated with TikTok comments (their
+  // rating=3/synthetic shape isn't a real review and would corrupt
+  // ReviewEngine's own rating-distribution logic).
+  rawReviewsForNarrative?: {
+    id: string; asin: string; title: string; body: string
+    rating: number; verified: boolean; helpful_votes: number; date: string
+  }[]
 }

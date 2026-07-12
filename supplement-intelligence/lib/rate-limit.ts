@@ -55,3 +55,6 @@ export const REVIEWS_COMPETITIVE_LIMIT = 3
 
 /** Manufacturing estimate (Apify + AI) */
 export const MANUFACTURING_LIMIT       = 5
+
+/** Research market-signal (signal engine + keyword engine + regulatory) */
+export const RESEARCH_LIMIT            = 5

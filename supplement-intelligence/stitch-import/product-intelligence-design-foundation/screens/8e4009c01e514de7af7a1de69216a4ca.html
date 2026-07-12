@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Evidence Drawer - INTEL_ENGINE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+        }
+        /* Custom scrollbar for neo-brutalist feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #000;
+            border: 2px solid #f1f1f1;
+        }
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+        .hard-shadow {
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+        }
+        .dimmed-overlay {
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-background font-body-md text-on-background overflow-hidden h-screen w-screen flex">
+<!-- Tailwind Configuration Inclusion -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#ffffff",
+                        "tertiary": "#000000",
+                        "inverse-on-surface": "#f1f1f1",
+                        "error": "#ba1a1a",
+                        "on-surface": "#1a1c1c",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#5d5f5f",
+                        "on-tertiary-container": "#848484",
+                        "on-secondary-fixed-variant": "#454747",
+                        "primary-container": "#1b1b1b",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-background": "#1a1c1c",
+                        "on-surface-variant": "#4c4546",
+                        "primary-fixed": "#e2e2e2",
+                        "surface-container": "#eeeeee",
+                        "surface-dim": "#dadada",
+                        "on-primary-container": "#848484",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#1b1c1c",
+                        "surface-container-low": "#f3f3f3",
+                        "tertiary-fixed": "#e4e2e2",
+                        "secondary-fixed": "#e2e2e2",
+                        "outline": "#7e7576",
+                        "inverse-surface": "#2f3131",
+                        "primary": "#000000",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-variant": "#e2e2e2",
+                        "on-primary-fixed-variant": "#474747",
+                        "inverse-primary": "#c6c6c6",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "on-secondary-container": "#616363",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "surface": "#f9f9f9",
+                        "outline-variant": "#cfc4c5",
+                        "surface-tint": "#5e5e5e",
+                        "background": "#f9f9f9",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#dfe0e0",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "surface-bright": "#f9f9f9",
+                        "surface-container-highest": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "element-gap": "16px",
+                        "section-gap": "64px",
+                        "gutter": "24px",
+                        "grid-unit": "8px",
+                        "container-padding": "40px"
+                    },
+                    "fontFamily": {
+                        "verdict-sm": ["Inter"],
+                        "headline-xl-mobile": ["Inter"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "headline-xl": ["Inter"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                        "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<!-- SideNavBar (Shared Component) -->
+<nav class="fixed left-0 top-0 h-full w-[220px] transition-all duration-300 bg-background border-r-2 border-primary flex flex-col py-grid-unit z-40">
+<div class="px-gutter mb-12">
+<h1 class="font-headline-md text-headline-md font-black text-primary uppercase tracking-tighter">INTEL_ENGINE</h1>
+<p class="font-label-mono text-label-mono text-secondary">V2.04.1_STABLE</p>
+</div>
+<div class="flex-grow space-y-2 px-4">
+<a class="flex items-center gap-3 px-4 py-3 bg-primary text-on-primary font-bold border-r-4 border-tertiary" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-mono text-label-mono">Home</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined">visibility</span>
+<span class="font-label-mono text-label-mono">Watchlist</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-mono text-label-mono">Pipeline</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-label-mono text-label-mono">Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-mono text-label-mono">Settings</span>
+</a>
+</div>
+<div class="px-4 mt-auto space-y-2">
+<button class="w-full bg-primary text-on-primary py-3 font-bold uppercase tracking-widest text-xs mb-6">New Analysis</button>
+<a class="flex items-center gap-3 px-4 py-2 text-secondary hover:text-primary font-label-mono text-label-mono" href="#">
+<span class="material-symbols-outlined">help</span> Help
+            </a>
+<a class="flex items-center gap-3 px-4 py-2 text-secondary hover:text-primary font-label-mono text-label-mono" href="#">
+<span class="material-symbols-outlined">logout</span> Logout
+            </a>
+</div>
+</nav>
+<!-- Main Workspace -->
+<div class="flex-1 ml-[220px] flex flex-col relative h-full">
+<!-- TopAppBar (Shared Component) -->
+<header class="flex justify-between items-center w-full px-gutter h-[64px] sticky top-0 bg-white border-b-2 border-primary z-30">
+<div class="flex items-center gap-8">
+<span class="font-headline-md text-headline-md font-bold text-primary uppercase">PRODUCT_INTEL</span>
+<div class="relative">
+<input class="pl-10 pr-4 py-1.5 border-2 border-primary w-64 font-body-md hard-shadow focus:outline-none" placeholder="Search Markets..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary">search</span>
+</div>
+</div>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="text-secondary-fixed-dim hover:text-primary font-body-md transition-all" href="#">Dashboard</a>
+<a class="text-primary border-b-2 border-primary pb-1 font-body-md" href="#">Market Alpha</a>
+<a class="text-secondary-fixed-dim hover:text-primary font-body-md transition-all" href="#">Evidence</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="bg-primary text-on-primary px-4 py-1 font-bold text-xs hover:bg-white hover:text-primary border-2 border-primary transition-all">EXPORT_DATA</button>
+<div class="flex gap-2">
+<span class="material-symbols-outlined p-1 hover:bg-surface-container transition-all cursor-pointer">share</span>
+<span class="material-symbols-outlined p-1 hover:bg-surface-container transition-all cursor-pointer">download</span>
+</div>
+<div class="w-8 h-8 border-2 border-primary bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a corporate data analyst in a minimalist environment with clean studio lighting and neutral gray background. Professional attire, focused expression, high-contrast black and white photography style with sharp focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6SMbPfExOtLAsid_svjO6jRr-YrR5WVxByEeLp-pkCMlrzJMzwzdr6UL_Br6YLytmrfuBW6-ITR-cIhmt0K3K7RYPgwy4Riy5rcHFCsEqCdWfsDY4HzYCZzcyvXrRO5a5OY8lYyE8MOWvaUYqQtGn7c0moK7c4UrEqduQ5nNNNx3s16SezmT5EnKXCBqXzekKrjZAaWgczbLH11cI1WGgzPr1S_FanGXCyoV_4tC-zRf2EL-btmBJPkSfidTqIAn_TBoD4iSVt6mn"/>
+</div>
+</div>
+</header>
+<!-- Main Content Area (Dimmed) -->
+<main class="flex-1 p-container-padding overflow-y-auto dimmed-overlay transition-opacity duration-500">
+<!-- Background Content: Magnesium Glycinate Overview -->
+<div class="max-w-4xl opacity-50 pointer-events-none">
+<div class="flex items-center gap-4 mb-6">
+<span class="bg-primary text-on-primary px-3 py-1 font-verdict-sm text-verdict-sm">VERDICT: ALPHA</span>
+<h2 class="font-headline-xl text-headline-md">Magnesium Glycinate</h2>
+</div>
+<div class="grid grid-cols-12 gap-gutter mb-section-gap">
+<!-- Key Metric Card -->
+<div class="col-span-4 border-2 border-primary bg-white p-6 space-y-4">
+<p class="font-label-mono text-label-mono uppercase">Unit Growth</p>
+<p class="font-headline-xl text-[48px] font-black">+23% <span class="text-body-md font-normal block">YoY Market Segment</span></p>
+</div>
+<!-- Narrative Box -->
+<div class="col-span-8 border-2 border-primary bg-white p-6">
+<p class="font-label-mono text-label-mono uppercase mb-4">Executive Summary</p>
+<p class="font-body-lg text-body-lg leading-relaxed">High-conviction signal detected in the chelated mineral category. Unit velocity is outpacing general supplement trends by 3.2x, driven by sleep-aid and anxiety-reduction use cases. Evidence suggests sustained penetration among Gen Z demographics.</p>
+</div>
+</div>
+<div class="space-y-4">
+<h3 class="font-label-mono text-label-mono uppercase border-b-2 border-primary pb-2">Top Performance Factors</h3>
+<div class="grid grid-cols-3 gap-4">
+<div class="border border-primary p-4 bg-white">
+<span class="material-symbols-outlined text-green-600 mb-2">check_circle</span>
+<p class="font-bold">Bioavailability Claims</p>
+<p class="text-xs text-secondary mt-1">Found in 84% of top 20 listings.</p>
+</div>
+<div class="border border-primary p-4 bg-white">
+<span class="material-symbols-outlined text-green-600 mb-2">check_circle</span>
+<p class="font-bold">Negative Reviews (Low)</p>
+<p class="text-xs text-secondary mt-1">Digestive distress reports -12% YoY.</p>
+</div>
+<div class="border border-primary p-4 bg-white">
+<span class="material-symbols-outlined text-primary mb-2">radio_button_unchecked</span>
+<p class="font-bold">Price Stability</p>
+<p class="text-xs text-secondary mt-1">Average unit price: $24.50 (± $0.80).</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Right Side Drawer -->
+<aside class="fixed right-0 top-0 h-full w-[480px] bg-white border-l-2 border-primary z-50 flex flex-col shadow-[-10px_0px_30px_rgba(0,0,0,0.1)]">
+<!-- Drawer Header -->
+<div class="p-6 border-b-2 border-primary flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">data_exploration</span>
+<h3 class="font-headline-md text-[18px] uppercase font-black">+23% YoY unit growth</h3>
+</div>
+<button class="material-symbols-outlined hover:rotate-90 transition-transform duration-200">close</button>
+</div>
+<!-- Drawer Scrollable Content -->
+<div class="flex-1 overflow-y-auto p-6 space-y-8">
+<!-- Mini Chart Section -->
+<section>
+<p class="font-label-mono text-label-mono uppercase mb-4 text-secondary">Historical Velocity (12 Mo)</p>
+<div class="h-32 w-full border border-outline-variant bg-surface-container-lowest relative group">
+<!-- Simple visual representation of a line chart with SVG -->
+<svg class="w-full h-full px-2 pt-4 overflow-visible" viewbox="0 0 400 100">
+<path d="M0,80 L40,75 L80,78 L120,65 L160,55 L200,60 L240,45 L280,40 L320,35 L360,25 L400,20" fill="none" stroke="#5d5f5f" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+<circle cx="400" cy="20" fill="#000" r="4"></circle>
+</svg>
+<div class="absolute bottom-2 right-4 text-[10px] font-label-mono text-primary font-bold">Trend: Accelerating</div>
+</div>
+</section>
+<!-- Data Table Section -->
+<section>
+<p class="font-label-mono text-label-mono uppercase mb-4 text-secondary">Raw Monthly Values</p>
+<table class="w-full text-left border-t border-primary">
+<thead class="bg-surface-container">
+<tr class="font-label-mono text-label-mono">
+<th class="py-2 px-3 font-medium">Month</th>
+<th class="py-2 px-3 font-medium text-right">Units Sold</th>
+<th class="py-2 px-3 font-medium text-right">YoY %</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="tabular-nums text-xs">
+<td class="py-2 px-3 font-medium">May 2024</td>
+<td class="py-2 px-3 text-right">184,202</td>
+<td class="py-2 px-3 text-right font-bold text-green-600">+23.1%</td>
+</tr>
+<tr class="tabular-nums text-xs">
+<td class="py-2 px-3 font-medium">Apr 2024</td>
+<td class="py-2 px-3 text-right">179,110</td>
+<td class="py-2 px-3 text-right text-green-600">+21.8%</td>
+</tr>
+<tr class="tabular-nums text-xs">
+<td class="py-2 px-3 font-medium">Mar 2024</td>
+<td class="py-2 px-3 text-right">176,450</td>
+<td class="py-2 px-3 text-right text-green-600">+19.4%</td>
+</tr>
+<tr class="tabular-nums text-xs">
+<td class="py-2 px-3 font-medium">Feb 2024</td>
+<td class="py-2 px-3 text-right">162,300</td>
+<td class="py-2 px-3 text-right text-green-600">+18.1%</td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- Methodology Box -->
+<section>
+<div class="border border-primary p-4 bg-surface-container-low">
+<p class="font-body-md text-sm italic">"Computed as the median of 27 bestsellers' year-over-year unit growth from Amazon monthly-sales history."</p>
+</div>
+</section>
+<!-- Labeled Metadata Rows -->
+<section class="space-y-3 pt-4 border-t border-outline-variant">
+<div class="flex justify-between items-center text-xs">
+<span class="font-label-mono text-secondary uppercase">Sample</span>
+<span class="font-bold">27 products</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="font-label-mono text-secondary uppercase">Source</span>
+<span class="font-bold flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">database</span> Keepa</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="font-label-mono text-secondary uppercase">Updated</span>
+<span class="font-bold">2 hours ago</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="font-label-mono text-secondary uppercase">Channel</span>
+<span class="font-bold">Amazon market</span>
+</div>
+</section>
+<!-- Footer Ghost Link -->
+<div class="pt-6">
+<a class="flex items-center gap-2 text-primary font-label-mono text-xs hover:underline group" href="#">
+                        Open in Evidence Explorer 
+                        <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Drawer Actions -->
+<div class="p-6 bg-surface-container mt-auto border-t-2 border-primary flex gap-4">
+<button class="flex-1 bg-primary text-on-primary font-black uppercase py-3 text-xs hard-shadow active:translate-y-[1px] active:translate-x-[1px] active:shadow-none transition-all">Download Audit Trail</button>
+</div>
+</aside>
+</div>
+<!-- Micro-interaction script for the drawer -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const closeBtn = document.querySelector('aside button.material-symbols-outlined');
+            const drawer = document.querySelector('aside');
+            const overlay = document.querySelector('main');
+
+            closeBtn.addEventListener('click', () => {
+                drawer.style.transform = 'translateX(100%)';
+                overlay.classList.remove('dimmed-overlay');
+                overlay.style.opacity = '1';
+                setTimeout(() => {
+                    overlay.querySelector('.opacity-50').classList.remove('opacity-50', 'pointer-events-none');
+                }, 300);
+            });
+
+            // Initial transition state
+            drawer.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+        });
+    </script>
+</body></html>

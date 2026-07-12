@@ -2,6 +2,7 @@
 
 import type { InvestmentThesis } from '@/lib/stage2/types'
 import type { FounderFitAnnotation } from '@/lib/stage2/types'
+import { WitnessDots } from '@/components/ui'
 
 interface Props {
   thesis: InvestmentThesis & { id: string }
@@ -11,42 +12,34 @@ interface Props {
   onToggle?: () => void
 }
 
-const FIT_RANK_COLORS: Record<number, string> = {
-  5: 'text-[#008a00] border-[#008a00]',
-  4: 'text-[#008a00] border-[#008a00]',
-  3: 'text-[#a67c00] border-[#a67c00]',
-  2: 'text-[#a67c00] border-[#a67c00]',
-  1: 'text-[#d32f2f] border-[#d32f2f]',
-}
-
 const CAPITAL_COLORS: Record<string, string> = {
-  sufficient:   'text-[#008a00]',
-  tight:        'text-[#a67c00]',
-  insufficient: 'text-[#d32f2f]',
+  sufficient:   'text-verdict-positive',
+  tight:        'text-verdict-caution-text',
+  insufficient: 'text-verdict-negative',
 }
 
 const CHANNEL_COLORS: Record<string, string> = {
-  strong:  'text-[#008a00]',
-  partial: 'text-[#a67c00]',
-  weak:    'text-[#d32f2f]',
+  strong:  'text-verdict-positive',
+  partial: 'text-verdict-caution-text',
+  weak:    'text-verdict-negative',
 }
 
 const TIMELINE_COLORS: Record<string, string> = {
-  feasible:   'text-[#008a00]',
-  stretched:  'text-[#a67c00]',
-  infeasible: 'text-[#d32f2f]',
+  feasible:   'text-verdict-positive',
+  stretched:  'text-verdict-caution-text',
+  infeasible: 'text-verdict-negative',
 }
 
 const COMPLEXITY_COLORS: Record<string, string> = {
-  low:    'text-[#008a00]',
-  medium: 'text-[#a67c00]',
-  high:   'text-[#d32f2f]',
+  low:    'text-verdict-positive',
+  medium: 'text-verdict-caution-text',
+  high:   'text-verdict-negative',
 }
 
 const PAIN_INTENSITY_COLORS: Record<string, string> = {
-  severe:   'text-[#d32f2f]',
-  moderate: 'text-[#a67c00]',
-  mild:     'text-[#7e7576]',
+  severe:   'text-verdict-negative',
+  moderate: 'text-verdict-caution-text',
+  mild:     'text-outline',
 }
 
 function AiSynthesisBadge() {
@@ -58,22 +51,20 @@ function AiSynthesisBadge() {
 }
 
 export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
-  const fitColor = fit ? (FIT_RANK_COLORS[fit.fit_rank] ?? FIT_RANK_COLORS[3]) : ''
-
   return (
     <div className="border border-black bg-white overflow-hidden font-sans">
       {/* Header — always visible */}
       <button
-        className="w-full text-left px-5 py-4 hover:bg-[#f3f3f3] transition-colors"
+        className="w-full text-left px-5 py-4 hover:bg-surface-container-low transition-colors"
         onClick={onToggle}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-mono text-[#7e7576]">#{rank}</span>
+              <span className="text-xs font-mono text-outline">#{rank}</span>
               {fit && (
-                <span className={`text-xs font-bold px-2 py-0.5 border ${fitColor}`}>
-                  Fit {fit.fit_rank}/5
+                <span className="flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 border border-black">
+                  Fit <WitnessDots filled={fit.fit_rank} total={5} size="sm" />
                 </span>
               )}
               <span className={`text-xs px-2 py-0.5 border border-black font-mono uppercase ${
@@ -82,15 +73,15 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
                 {thesis.quick_economics_check.launch_complexity} complexity
               </span>
               {thesis.quick_economics_check.margin_viable ? (
-                <span className="text-xs px-2 py-0.5 border border-[#008a00] text-[#008a00] font-mono uppercase">margin viable</span>
+                <span className="text-xs px-2 py-0.5 border border-verdict-positive text-verdict-positive font-mono uppercase">margin viable</span>
               ) : (
-                <span className="text-xs px-2 py-0.5 border border-[#d32f2f] text-[#d32f2f] font-mono uppercase">margin risk</span>
+                <span className="text-xs px-2 py-0.5 border border-verdict-negative text-verdict-negative font-mono uppercase">margin risk</span>
               )}
             </div>
             <h3 className="text-base font-bold text-black leading-snug">
               {thesis.product_angle}
             </h3>
-            <p className="text-xs text-[#4c4546]">{thesis.target_customer}</p>
+            <p className="text-xs text-ink-variant">{thesis.target_customer}</p>
           </div>
           <span className="text-black text-lg mt-0.5 font-bold">{expanded ? '−' : '+'}</span>
         </div>
@@ -102,11 +93,11 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
           {/* Differentiation */}
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-mono font-semibold text-[#7e7576] uppercase tracking-wider">Differentiation</p>
+              <p className="text-xs font-mono font-semibold text-outline uppercase tracking-wider">Differentiation</p>
               <AiSynthesisBadge />
             </div>
             <p className="text-sm text-black">{thesis.differentiation}</p>
-            <p className="text-xs text-[#7e7576] italic">
+            <p className="text-xs text-outline italic">
               Evidence: {thesis.differentiation_source}
             </p>
           </div>
@@ -114,7 +105,7 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
           {/* Customer pain */}
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-mono font-semibold text-[#7e7576] uppercase tracking-wider">Customer Pain</p>
+              <p className="text-xs font-mono font-semibold text-outline uppercase tracking-wider">Customer Pain</p>
               <AiSynthesisBadge />
             </div>
             <p className="text-sm text-black">{thesis.customer_pain.problem}</p>
@@ -122,34 +113,34 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
               <span className={PAIN_INTENSITY_COLORS[thesis.customer_pain.pain_intensity]}>
                 {thesis.customer_pain.pain_intensity} intensity
               </span>
-              <span className="text-[#7e7576]">·</span>
-              <span className="text-[#4c4546]">{thesis.customer_pain.frequency}</span>
-              <span className="text-[#7e7576]">·</span>
-              <span className="text-[#7e7576] italic">{thesis.customer_pain.evidence_source}</span>
+              <span className="text-outline">·</span>
+              <span className="text-ink-variant">{thesis.customer_pain.frequency}</span>
+              <span className="text-outline">·</span>
+              <span className="text-outline italic">{thesis.customer_pain.evidence_source}</span>
             </div>
           </div>
 
           {/* Economics */}
-          <div className="border border-black bg-[#f3f3f3] p-3 space-y-2">
+          <div className="border border-black bg-surface-container-low p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-mono font-semibold text-[#7e7576] uppercase tracking-wider">Quick Economics</p>
+              <p className="text-xs font-mono font-semibold text-outline uppercase tracking-wider">Quick Economics</p>
               <AiSynthesisBadge />
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <span className="text-[#7e7576]">Price target</span>
+                <span className="text-outline">Price target</span>
                 <p className="text-black font-mono">{thesis.quick_economics_check.price_point_estimate}</p>
               </div>
               <div>
-                <span className="text-[#7e7576]">Min capital</span>
+                <span className="text-outline">Min capital</span>
                 <p className="text-black font-mono">{(() => { const c = thesis.quick_economics_check.min_capital_required; return c >= 1000 ? `$${(c / 1000).toFixed(0)}k` : `$${Math.round(c)}` })()}</p>
               </div>
             </div>
-            <p className="text-xs text-[#4c4546]">{thesis.quick_economics_check.margin_note}</p>
+            <p className="text-xs text-ink-variant">{thesis.quick_economics_check.margin_note}</p>
             {thesis.quick_economics_check.complexity_drivers.length > 0 && (
               <div className="flex flex-wrap gap-1 pt-1">
                 {thesis.quick_economics_check.complexity_drivers.map(d => (
-                  <span key={d} className="text-[10px] bg-white border border-black text-[#4c4546] px-1.5 py-0.5 font-mono">
+                  <span key={d} className="text-[10px] bg-white border border-black text-ink-variant px-1.5 py-0.5 font-mono">
                     {d}
                   </span>
                 ))}
@@ -160,21 +151,21 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
           {/* Supporting evidence */}
           {thesis.supporting_evidence?.length > 0 && (
             <div className="space-y-1">
-              <p className="text-xs font-mono font-semibold text-[#7e7576] uppercase tracking-wider">Evidence Citations</p>
+              <p className="text-xs font-mono font-semibold text-outline uppercase tracking-wider">Evidence Citations</p>
               <ul className="space-y-1">
                 {thesis.supporting_evidence.map((ev, i) => (
                   <li key={i} className="flex items-start gap-2 text-xs">
                     <span className={`mt-0.5 text-[10px] px-1 py-0 border font-mono shrink-0 ${
                       ev.source_type === 'primary_measurement'
-                        ? 'border-[#008a00] text-[#008a00] bg-white'
+                        ? 'border-verdict-positive text-verdict-positive bg-white'
                         : ev.source_type === 'provider_model'
                         ? 'border-black text-black bg-white'
-                        : 'border-[#7e7576] text-[#7e7576] bg-white'
+                        : 'border-outline text-outline bg-white'
                     }`}>
                       {ev.source_type === 'primary_measurement' ? 'M' : ev.source_type === 'provider_model' ? 'P' : 'C'}
                     </span>
-                    <span className="text-[#4c4546]">{ev.value}</span>
-                    <span className="text-[#7e7576] shrink-0">· {ev.source}</span>
+                    <span className="text-ink-variant">{ev.value}</span>
+                    <span className="text-outline shrink-0">· {ev.source}</span>
                   </li>
                 ))}
               </ul>
@@ -183,35 +174,35 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
 
           {/* Founder fit detail */}
           {fit && (
-            <div className="border border-black bg-[#f3f3f3] p-3 space-y-3">
-              <p className="text-xs font-mono font-semibold text-[#7e7576] uppercase tracking-wider">
+            <div className="border border-black bg-surface-container-low p-3 space-y-3">
+              <p className="text-xs font-mono font-semibold text-outline uppercase tracking-wider">
                 Your Fit · Score {fit.fit_rank}/5
               </p>
 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <span className="text-[#7e7576]">Capital</span>
+                  <span className="text-outline">Capital</span>
                   <p className={CAPITAL_COLORS[fit.capital_fit.level]}>{fit.capital_fit.level}</p>
                 </div>
                 <div>
-                  <span className="text-[#7e7576]">Channel</span>
+                  <span className="text-outline">Channel</span>
                   <p className={CHANNEL_COLORS[fit.channel_fit.level]}>{fit.channel_fit.level}</p>
                 </div>
                 <div>
-                  <span className="text-[#7e7576]">Timeline</span>
+                  <span className="text-outline">Timeline</span>
                   <p className={TIMELINE_COLORS[fit.timeline_fit.level]}>{fit.timeline_fit.level}</p>
                 </div>
               </div>
 
-              <p className="text-xs text-[#4c4546]">{fit.capital_fit.note}</p>
+              <p className="text-xs text-ink-variant">{fit.capital_fit.note}</p>
 
               {fit.advantages.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-mono font-semibold text-[#008a00] uppercase tracking-wider mb-1">Your advantages</p>
+                  <p className="text-[10px] font-mono font-semibold text-verdict-positive uppercase tracking-wider mb-1">Your advantages</p>
                   <ul className="space-y-0.5">
                     {fit.advantages.map((a, i) => (
-                      <li key={i} className="text-xs text-[#4c4546] flex gap-1.5">
-                        <span className="text-[#008a00]">+</span>{a}
+                      <li key={i} className="text-xs text-ink-variant flex gap-1.5">
+                        <span className="text-verdict-positive">+</span>{a}
                       </li>
                     ))}
                   </ul>
@@ -220,11 +211,11 @@ export function ThesisCard({ thesis, fit, rank, expanded, onToggle }: Props) {
 
               {fit.gaps.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-mono font-semibold text-[#d32f2f] uppercase tracking-wider mb-1">Gaps to bridge</p>
+                  <p className="text-[10px] font-mono font-semibold text-verdict-negative uppercase tracking-wider mb-1">Gaps to bridge</p>
                   <ul className="space-y-0.5">
                     {fit.gaps.map((g, i) => (
-                      <li key={i} className="text-xs text-[#4c4546] flex gap-1.5">
-                        <span className="text-[#d32f2f]">−</span>{g}
+                      <li key={i} className="text-xs text-ink-variant flex gap-1.5">
+                        <span className="text-verdict-negative">−</span>{g}
                       </li>
                     ))}
                   </ul>

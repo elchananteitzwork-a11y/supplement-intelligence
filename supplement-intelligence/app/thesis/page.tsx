@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter }            from 'next/navigation'
-import Link                     from 'next/link'
+import { AppShell }             from '@/components/shell/AppShell'
+import { HardCard, HardShadowSearchTextarea, PrimaryButton, GhostButton, GhostLinkButton } from '@/components/ui'
 import { useThesis }            from '@/hooks/useThesis'
 import type { ThesisDepth, MarketThesis } from '@/lib/thesis-engine'
-import { IconCheck }            from '@/components/icons'
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -15,39 +15,29 @@ const DEPTHS: { value: ThesisDepth; label: string; hint: string }[] = [
   { value: 'deep',        label: 'Deep',     hint: '2–5 min  · extended review scan' },
 ]
 
-const PROVIDER_SHORT: Record<string, string> = {
-  keepa:          'Keepa',
-  google_trends:  'Trends',
-  reddit:         'Reddit',
-  tiktok:         'TikTok',
-  amazon_reviews: 'Reviews',
-  meta_ads:       'Meta',
-  amazon_ads:     'AMZ Ads',
-}
-
 const SIGNAL_STRENGTH_COLOR: Record<string, string> = {
-  STRONG:       'text-emerald-400',
-  POSITIVE:     'text-emerald-300',
-  MIXED:        'text-amber-400',
-  WEAK:         'text-red-400',
-  INSUFFICIENT: 'text-zinc-500',
+  STRONG:       'text-verdict-positive',
+  POSITIVE:     'text-verdict-positive',
+  MIXED:        'text-verdict-caution-text',
+  WEAK:         'text-verdict-negative',
+  INSUFFICIENT: 'text-outline',
 }
 
 const TIMING_VERDICT_COLOR: Record<string, string> = {
-  ENTER_NOW:    'text-emerald-400',
-  WATCH_CLOSELY:'text-amber-400',
-  MONITOR:      'text-zinc-400',
-  LATE:         'text-orange-400',
-  CLOSED:       'text-red-400',
+  ENTER_NOW:     'text-verdict-positive',
+  WATCH_CLOSELY: 'text-verdict-caution-text',
+  MONITOR:       'text-outline',
+  LATE:          'text-verdict-caution-text',
+  CLOSED:        'text-verdict-negative',
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 function ProgressBar({ pct }: { pct: number }) {
   return (
-    <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+    <div className="w-full h-1.5 bg-outline-variant overflow-hidden">
       <div
-        className="h-full bg-brass rounded-full transition-all duration-700 ease-out"
+        className="h-full bg-black transition-all duration-700 ease-out"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -61,19 +51,19 @@ function ProviderPill({
   state: 'active' | 'done' | 'failed' | 'pending'
 }) {
   const styles = {
-    active:  'bg-white/[0.06] border-brass/50      text-brass',
-    done:    'bg-white/[0.06] border-white/[0.12]  text-zinc-400',
-    failed:  'bg-white/[0.06] border-red-900       text-zinc-600',
-    pending: 'bg-white/[0.03] border-white/[0.07]  text-zinc-700',
+    active:  'bg-white border-black text-black font-bold',
+    done:    'bg-surface-container-low border-black text-ink-variant',
+    failed:  'bg-white border-outline-variant text-outline',
+    pending: 'bg-white border-outline-variant text-outline',
   }
   const icons = {
-    active:  <span className="inline-block w-1.5 h-1.5 rounded-full bg-brass animate-pulse"/>,
-    done:    <IconCheck className="w-2.5 h-2.5 text-zinc-500" />,
-    failed:  <span className="text-zinc-700 leading-none">—</span>,
-    pending: <span className="inline-block w-1.5 h-1.5 rounded-full bg-white/[0.15]"/>,
+    active:  <span className="inline-block w-1.5 h-1.5 rounded-full bg-black animate-pulse"/>,
+    done:    <span className="inline-block w-1.5 h-1.5 rounded-full bg-black"/>,
+    failed:  <span className="text-outline leading-none">—</span>,
+    pending: <span className="inline-block w-1.5 h-1.5 rounded-full border border-outline-variant"/>,
   }
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${styles[state]}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 border font-mono uppercase ${styles[state]}`}>
       {icons[state]}
       {label}
     </span>
@@ -82,15 +72,15 @@ function ProviderPill({
 
 function SectionPip({ label, ready }: { label: string; ready: boolean }) {
   return (
-    <div className={`flex items-center gap-1.5 text-xs ${ready ? 'text-zinc-400' : 'text-zinc-700'}`}>
-      <div className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-brass' : 'bg-white/[0.1]'}`}/>
+    <div className={`flex items-center gap-1.5 text-xs font-mono ${ready ? 'text-ink' : 'text-outline'}`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-black' : 'border border-outline-variant'}`}/>
       {label}
     </div>
   )
 }
 
 function ConfidenceBadge({ label, value }: { label: string; value: number }) {
-  const color = value >= 0.75 ? 'text-emerald-400' : value >= 0.55 ? 'text-amber-400' : 'text-zinc-500'
+  const color = value >= 0.75 ? 'text-verdict-positive' : value >= 0.55 ? 'text-verdict-caution-text' : 'text-outline'
   return (
     <span className={`text-xs font-mono ${color}`}>
       {label} ({Math.round(value * 100)}%)
@@ -104,185 +94,175 @@ function ThesisDisplay({ thesis }: { thesis: MarketThesis }) {
   const { verdict, timing, market_failures, difficulty, product_thesis, risks } = thesis
 
   return (
-    <div className="space-y-4 animate-in">
+    <div className="space-y-4">
 
       {/* ── Verdict ── */}
-      <div className="card p-5">
-        <div className="flex items-start justify-between gap-4 mb-3">
+      <HardCard className="space-y-3">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="label mb-1">Verdict</p>
-            <h2 className="font-serif text-lg font-medium leading-snug">{verdict.headline}</h2>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-outline mb-1">Verdict</p>
+            <h2 className="text-headline-md text-black leading-snug">{verdict.headline}</h2>
           </div>
           <div className="shrink-0 text-right">
-            <p className="font-serif font-medium text-3xl text-brass">
+            <p className="font-mono font-black text-3xl text-black">
               {verdict.opportunity_score}
             </p>
-            <p className="text-xs text-zinc-500 mt-0.5">/ 100</p>
+            <p className="text-xs text-outline mt-0.5">/ 100</p>
           </div>
         </div>
-        <p className={`text-sm font-semibold mb-2 ${SIGNAL_STRENGTH_COLOR[verdict.signal_strength] ?? 'text-zinc-400'}`}>
+        <p className={`text-sm font-bold ${SIGNAL_STRENGTH_COLOR[verdict.signal_strength] ?? 'text-ink-variant'}`}>
           {verdict.signal_strength}
         </p>
-        <p className="text-sm text-zinc-300 leading-relaxed mb-3">{verdict.summary}</p>
-        <blockquote className="border-l-2 border-brass/40 pl-3">
-          <p className="font-serif italic text-sm text-zinc-300">{verdict.one_liner}</p>
+        <p className="text-sm text-ink-variant leading-relaxed">{verdict.summary}</p>
+        <blockquote className="border-l-2 border-black pl-3">
+          <p className="italic text-sm text-ink-variant">{verdict.one_liner}</p>
         </blockquote>
-        <div className="mt-3">
-          <ConfidenceBadge label={verdict.confidence.label} value={verdict.confidence.value}/>
-        </div>
-      </div>
+        <ConfidenceBadge label={verdict.confidence.label} value={verdict.confidence.value}/>
+      </HardCard>
 
       {/* ── Timing ── */}
-      <div className="card p-5">
-        <p className="label mb-2">Timing</p>
-        <div className="flex items-center gap-3 mb-2">
-          <span className={`font-bold text-sm ${TIMING_VERDICT_COLOR[timing.timing_verdict] ?? 'text-zinc-400'}`}>
+      <HardCard className="space-y-2">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-outline">Timing</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className={`font-bold text-sm ${TIMING_VERDICT_COLOR[timing.timing_verdict] ?? 'text-ink-variant'}`}>
             {timing.timing_verdict.replace(/_/g, ' ')}
           </span>
-          <span className="text-zinc-700">·</span>
-          <span className="text-sm text-zinc-400">{timing.phase_label}</span>
-          <span className="text-zinc-700">·</span>
-          <span className="text-xs text-zinc-500 capitalize">
+          <span className="text-outline">·</span>
+          <span className="text-sm text-ink-variant">{timing.phase_label}</span>
+          <span className="text-outline">·</span>
+          <span className="text-xs text-outline capitalize">
             Window {timing.window_estimate.direction}
           </span>
         </div>
-        <p className="text-sm text-zinc-400 leading-relaxed">{timing.summary}</p>
-        <p className="text-xs text-zinc-500 mt-2">{timing.window_estimate.explanation}</p>
+        <p className="text-sm text-ink-variant leading-relaxed">{timing.summary}</p>
+        <p className="text-xs text-outline">{timing.window_estimate.explanation}</p>
         {/* Real, routed signals — not a synthesized re-statement of them */}
         {timing.signals.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 pt-1">
             {timing.signals.map((sig, i) => (
-              <span key={i} className="text-xs px-2 py-1 rounded bg-white/[0.06] text-zinc-400">
+              <span key={i} className="text-xs px-2 py-1 border border-black text-ink-variant bg-white">
                 {sig.description}
               </span>
             ))}
           </div>
         )}
-        <div className="mt-3">
-          <ConfidenceBadge label={timing.confidence.label} value={timing.confidence.value}/>
-        </div>
-      </div>
+        <ConfidenceBadge label={timing.confidence.label} value={timing.confidence.value}/>
+      </HardCard>
 
       {/* ── Market Failures ── */}
-      <div className="card p-5">
-        <p className="label mb-3">Market Failures</p>
-        <p className="text-sm text-zinc-400 mb-4">{market_failures.headline}</p>
+      <HardCard className="space-y-3">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-outline">Market Failures</p>
+        <p className="text-sm text-ink-variant">{market_failures.headline}</p>
         <div className="space-y-3">
           {market_failures.failures.map(f => (
-            <div key={f.id} className="border border-white/[0.07] rounded-lg p-3">
+            <div key={f.id} className="border border-black p-3">
               <div className="flex items-start justify-between gap-2 mb-1">
-                <h4 className="text-sm font-semibold">{f.title}</h4>
+                <h4 className="text-sm font-bold text-black">{f.title}</h4>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className={`text-xs ${f.severity === 'High' ? 'text-red-400' : f.severity === 'Medium' ? 'text-amber-400' : 'text-zinc-500'}`}>
+                  <span className={`text-xs font-mono ${f.severity === 'High' ? 'text-verdict-negative' : f.severity === 'Medium' ? 'text-verdict-caution-text' : 'text-outline'}`}>
                     {f.severity}
                   </span>
-                  <span className="text-xs text-zinc-600">·</span>
-                  <span className="text-xs text-zinc-500 capitalize">{f.tier}</span>
+                  <span className="text-xs text-outline">·</span>
+                  <span className="text-xs text-outline capitalize">{f.tier}</span>
                 </div>
               </div>
-              <p className="text-xs text-zinc-400 mb-2">{f.description}</p>
-              <p className="text-xs text-brass/90">{f.opportunity}</p>
+              <p className="text-xs text-ink-variant mb-2">{f.description}</p>
+              <p className="text-xs text-black">{f.opportunity}</p>
             </div>
           ))}
         </div>
-        <div className="mt-3">
-          <ConfidenceBadge label={market_failures.confidence.label} value={market_failures.confidence.value}/>
-        </div>
-      </div>
+        <ConfidenceBadge label={market_failures.confidence.label} value={market_failures.confidence.value}/>
+      </HardCard>
 
       {/* ── Difficulty ── */}
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <p className="label">Difficulty</p>
-          <span className="text-sm font-bold text-zinc-300">{difficulty.overall_label}</span>
+      <HardCard className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-outline">Difficulty</p>
+          <span className="text-sm font-bold text-ink">{difficulty.overall_label}</span>
         </div>
-        <p className="text-xs text-zinc-500 mb-3">Primary challenge: {difficulty.primary_challenge}</p>
+        <p className="text-xs text-outline">Primary challenge: {difficulty.primary_challenge}</p>
         <div className="grid grid-cols-2 gap-2">
           {difficulty.dimensions.map(dim => (
-            <div key={dim.name} className="bg-white/[0.04] rounded-lg p-2.5">
+            <div key={dim.name} className="border border-black p-2.5 bg-surface-container-low">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wide">{dim.name}</span>
+                <span className="text-[10px] text-outline uppercase tracking-wide">{dim.name}</span>
                 <span className={`text-[10px] font-bold uppercase tracking-wide ${
-                  dim.label === 'EASY' ? 'text-emerald-400' :
-                  dim.label === 'MEDIUM' ? 'text-amber-400' : 'text-red-400'
+                  dim.label === 'EASY' ? 'text-verdict-positive' :
+                  dim.label === 'MEDIUM' ? 'text-verdict-caution-text' : 'text-verdict-negative'
                 }`}>{dim.label}</span>
               </div>
-              <p className="text-[11px] text-zinc-400 leading-snug">{dim.explanation}</p>
+              <p className="text-[11px] text-ink-variant leading-snug">{dim.explanation}</p>
             </div>
           ))}
         </div>
-        <div className="mt-3">
-          <ConfidenceBadge label={difficulty.confidence.label} value={difficulty.confidence.value}/>
-        </div>
-      </div>
+        <ConfidenceBadge label={difficulty.confidence.label} value={difficulty.confidence.value}/>
+      </HardCard>
 
       {/* ── Product Thesis ── */}
-      <div className="card p-5">
-        <p className="label mb-2">Product Thesis</p>
-        <p className="text-sm font-semibold mb-1">{product_thesis.headline}</p>
-        <p className="text-sm text-zinc-400 mb-3">{product_thesis.summary}</p>
-        <div className="bg-white/[0.04] rounded-lg p-3 mb-3">
-          <p className="text-xs text-zinc-500 mb-1">Positioning angle</p>
-          <p className="text-sm italic text-zinc-300">"{product_thesis.positioning_angle}"</p>
+      <HardCard className="space-y-3">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-outline">Product Thesis</p>
+        <p className="text-sm font-bold text-black">{product_thesis.headline}</p>
+        <p className="text-sm text-ink-variant">{product_thesis.summary}</p>
+        <div className="border border-black bg-surface-container-low p-3">
+          <p className="text-xs text-outline mb-1">Positioning angle</p>
+          <p className="text-sm italic text-ink-variant">&quot;{product_thesis.positioning_angle}&quot;</p>
         </div>
-        <div className="bg-white/[0.04] rounded-lg p-3 mb-3">
-          <p className="text-xs text-zinc-500 mb-1">Differentiation: {product_thesis.differentiation.vector}</p>
-          <p className="text-xs text-zinc-400">{product_thesis.differentiation.description}</p>
-          <p className="text-xs text-zinc-600 mt-1">Moat: {product_thesis.differentiation.moat}</p>
+        <div className="border border-black bg-surface-container-low p-3">
+          <p className="text-xs text-outline mb-1">Differentiation: {product_thesis.differentiation.vector}</p>
+          <p className="text-xs text-ink-variant">{product_thesis.differentiation.description}</p>
+          <p className="text-xs text-outline mt-1">Moat: {product_thesis.differentiation.moat}</p>
         </div>
         {product_thesis.pricing_position && (
-          <p className="text-xs text-zinc-500 mb-3">Pricing position: {product_thesis.pricing_position}</p>
+          <p className="text-xs text-outline">Pricing position: {product_thesis.pricing_position}</p>
         )}
-        <p className="label mb-2">Next Steps</p>
+        <p className="text-[10px] font-mono uppercase tracking-wider text-outline pt-1">Next Steps</p>
         <div className="space-y-2">
           {product_thesis.recommended_steps.map((step, i) => (
             <div key={i} className="flex gap-2.5 text-sm">
-              <span className="font-mono text-xs text-zinc-600 pt-0.5 w-4 shrink-0">{i + 1}.</span>
+              <span className="font-mono text-xs text-outline pt-0.5 w-4 shrink-0">{i + 1}.</span>
               <div>
-                <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full mr-1.5 mb-0.5 ${
-                  step.priority === 'immediate'   ? 'bg-emerald-400/10 text-emerald-400' :
-                  step.priority === 'short_term'  ? 'bg-amber-400/10  text-amber-400'   :
-                                                    'bg-white/[0.06]      text-zinc-500'
+                <span className={`inline-block text-[10px] px-1.5 py-0.5 border mr-1.5 mb-0.5 font-mono uppercase ${
+                  step.priority === 'immediate'   ? 'border-verdict-positive text-verdict-positive' :
+                  step.priority === 'short_term'  ? 'border-verdict-caution-text text-verdict-caution-text' :
+                                                    'border-black text-outline'
                 }`}>
                   {step.priority.replace('_', ' ')}
                 </span>
-                <span className="text-zinc-300">{step.action}</span>
-                <p className="text-xs text-zinc-600 mt-0.5">{step.rationale}</p>
+                <span className="text-ink-variant">{step.action}</span>
+                <p className="text-xs text-outline mt-0.5">{step.rationale}</p>
               </div>
             </div>
           ))}
         </div>
-        <div className="mt-3">
-          <ConfidenceBadge label={product_thesis.confidence.label} value={product_thesis.confidence.value}/>
-        </div>
-      </div>
+        <ConfidenceBadge label={product_thesis.confidence.label} value={product_thesis.confidence.value}/>
+      </HardCard>
 
       {/* ── Risks ── */}
       {risks.length > 0 && (
-        <div className="card p-5">
-          <p className="label mb-3">Risks</p>
+        <HardCard className="space-y-3">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-outline">Risks</p>
           <div className="space-y-2">
             {risks.map((risk, i) => (
               <div key={i} className="flex gap-3 text-sm">
-                <span className={`text-xs font-semibold mt-0.5 shrink-0 ${
-                  risk.severity === 'High'   ? 'text-red-400' :
-                  risk.severity === 'Medium' ? 'text-amber-400' : 'text-zinc-500'
+                <span className={`text-xs font-bold mt-0.5 shrink-0 ${
+                  risk.severity === 'High'   ? 'text-verdict-negative' :
+                  risk.severity === 'Medium' ? 'text-verdict-caution-text' : 'text-outline'
                 }`}>{risk.severity}</span>
                 <div>
-                  <p className="text-zinc-300 font-medium">{risk.title}</p>
-                  <p className="text-xs text-zinc-500">{risk.description}</p>
+                  <p className="text-ink font-medium">{risk.title}</p>
+                  <p className="text-xs text-outline">{risk.description}</p>
                   {risk.mitigation && (
-                    <p className="text-xs text-zinc-600 mt-0.5">Mitigation: {risk.mitigation}</p>
+                    <p className="text-xs text-outline mt-0.5">Mitigation: {risk.mitigation}</p>
                   )}
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </HardCard>
       )}
 
       {/* ── Meta ── */}
-      <div className="text-xs text-zinc-700 pb-8">
+      <div className="text-xs font-mono text-outline pb-8">
         {thesis.category_name && <span className="mr-3">{thesis.category_name}</span>}
         <span className="mr-3">v{thesis.analysis_version}</span>
         <span>{thesis.providers_succeeded.join(', ')}</span>
@@ -345,158 +325,147 @@ export default function ThesisPage() {
   // ── STREAMING ──────────────────────────────────────────────────────────
   if (status === 'streaming') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-md card p-8 animate-in">
+      <AppShell active="thesis">
+        <div className="max-w-md mx-auto py-12">
+          <HardCard>
+            {/* header */}
+            <p className="text-xs text-outline mb-1 truncate">Analyzing</p>
+            <p className="font-bold text-base mb-5 truncate text-black">&quot;{query}&quot;</p>
 
-          {/* header */}
-          <p className="text-xs text-zinc-500 mb-1 truncate">Analyzing</p>
-          <p className="font-semibold text-base mb-5 truncate">"{query}"</p>
-
-          {/* progress bar */}
-          <ProgressBar pct={progress} />
-          <div className="flex items-center justify-between mt-2 mb-6">
-            <p className="text-sm text-zinc-400">{statusMessage}</p>
-            <span className="font-mono text-xs text-zinc-600">{progress}%</span>
-          </div>
-
-          {/* provider pills */}
-          <div className="mb-4">
-            <p className="text-xs text-zinc-600 mb-2">Data sources</p>
-            <div className="flex flex-wrap gap-1.5">
-              {trackedProviders.map(p => {
-                const pState =
-                  completedProviders.includes(p.id as never) ? 'done' :
-                  failedProviders.includes(p.id as never)    ? 'failed' :
-                  activeProviders.includes(p.id as never)    ? 'active' :
-                  'pending'
-                return <ProviderPill key={p.id} label={p.label} state={pState}/>
-              })}
+            {/* progress bar */}
+            <ProgressBar pct={progress} />
+            <div className="flex items-center justify-between mt-2 mb-6">
+              <p className="text-sm text-ink-variant">{statusMessage}</p>
+              <span className="font-mono text-xs text-outline">{progress}%</span>
             </div>
-          </div>
 
-          {/* section pips */}
-          {synthesizing && (
-            <div className="border-t border-white/[0.07] pt-4 mt-2">
-              <p className="text-xs text-zinc-600 mb-2">Sections</p>
-              <div className="grid grid-cols-2 gap-y-1.5 gap-x-3">
-                {SECTIONS.map(s => (
-                  <SectionPip
-                    key={s.key}
-                    label={s.label}
-                    ready={sectionsReady.includes(s.key as never)}
-                  />
-                ))}
+            {/* provider pills */}
+            <div className="mb-4">
+              <p className="text-xs font-mono uppercase text-outline mb-2">Data sources</p>
+              <div className="flex flex-wrap gap-1.5">
+                {trackedProviders.map(p => {
+                  const pState =
+                    completedProviders.includes(p.id as never) ? 'done' :
+                    failedProviders.includes(p.id as never)    ? 'failed' :
+                    activeProviders.includes(p.id as never)    ? 'active' :
+                    'pending'
+                  return <ProviderPill key={p.id} label={p.label} state={pState}/>
+                })}
               </div>
             </div>
-          )}
+
+            {/* section pips */}
+            {synthesizing && (
+              <div className="border-t border-black/10 pt-4 mt-2">
+                <p className="text-xs font-mono uppercase text-outline mb-2">Sections</p>
+                <div className="grid grid-cols-2 gap-y-1.5 gap-x-3">
+                  {SECTIONS.map(s => (
+                    <SectionPip
+                      key={s.key}
+                      label={s.label}
+                      ready={sectionsReady.includes(s.key as never)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </HardCard>
         </div>
-      </div>
+      </AppShell>
     )
   }
 
   // ── ERROR ──────────────────────────────────────────────────────────────
   if (status === 'error' && !needsLogin) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-md card p-8 text-center animate-in">
-          <p className="text-sm font-semibold text-red-400 mb-2">Analysis failed</p>
-          <p className="text-sm text-zinc-400 mb-6">{error}</p>
-          <button onClick={reset} className="btn-dark w-full">
-            Try again
-          </button>
+      <AppShell active="thesis">
+        <div className="max-w-md mx-auto py-12">
+          <HardCard className="text-center">
+            <p className="text-sm font-bold text-verdict-negative mb-2">Analysis failed</p>
+            <p className="text-sm text-ink-variant mb-6">{error}</p>
+            <PrimaryButton onClick={reset} className="w-full">Try again</PrimaryButton>
+          </HardCard>
         </div>
-      </div>
+      </AppShell>
     )
   }
 
   // ── COMPLETE ───────────────────────────────────────────────────────────
   if (status === 'complete' && thesis) {
     return (
-      <div className="min-h-screen py-10 px-4">
+      <AppShell active="thesis">
         <div className="max-w-xl mx-auto">
-
           {/* nav */}
-          <div className="flex items-center justify-between mb-6">
-            <button onClick={reset} className="btn-ghost text-xs -ml-2">
-              ← New Analysis
-            </button>
-            <Link href="/dashboard" className="btn-ghost text-xs -mr-2">
-              Dashboard
-            </Link>
+          <div className="flex items-center justify-between mb-6 border-b-2 border-black pb-4">
+            <GhostButton onClick={reset}>← New Analysis</GhostButton>
+            <GhostLinkButton href="/dashboard">Dashboard</GhostLinkButton>
           </div>
 
           <ThesisDisplay thesis={thesis}/>
         </div>
-      </div>
+      </AppShell>
     )
   }
 
   // ── FORM ───────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen py-16 px-4">
-      <div className="max-w-xl mx-auto animate-in">
-
-        <Link href="/dashboard" className="btn-ghost text-xs -ml-2 mb-6 inline-flex">
-          ← Dashboard
-        </Link>
-
-        <h1 className="font-serif text-2xl font-medium mb-1">Market Thesis</h1>
-        <p className="text-sm text-zinc-400 mb-8">
-          Enter a supplement idea or category to get a structured market intelligence report.
-        </p>
+    <AppShell active="thesis">
+      <div className="max-w-xl space-y-6">
+        <div className="space-y-1 border-b-2 border-black pb-4">
+          <h1 className="text-headline-md text-black">Market Thesis</h1>
+          <p className="text-sm text-ink-variant">
+            Enter a supplement idea or category to get a structured market intelligence report.
+          </p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
 
           {/* query */}
-          <div className="card p-6 space-y-3">
-            <label className="block text-sm font-medium">
+          <HardCard className="space-y-3">
+            <label className="block text-sm font-bold text-ink">
               Supplement idea or category
-              <span className="text-red-400 ml-1">*</span>
+              <span className="text-verdict-negative ml-1">*</span>
             </label>
-            <textarea
+            <HardShadowSearchTextarea
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder={`"magnesium for sleep"\n"cortisol support for women 35+"\n"gut health probiotics"`}
-              className="field resize-none h-24 text-sm leading-relaxed"
+              className="h-24 text-sm leading-relaxed"
               maxLength={500}
               required
               autoFocus
             />
-            <p className="text-xs text-zinc-600 text-right">{query.length}/500</p>
-          </div>
+            <p className="text-xs text-outline text-right">{query.length}/500</p>
+          </HardCard>
 
           {/* depth */}
-          <div className="card p-5">
-            <p className="text-sm font-medium mb-3">Analysis depth</p>
+          <HardCard>
+            <p className="text-sm font-bold text-ink mb-3">Analysis depth</p>
             <div className="grid grid-cols-3 gap-2">
               {DEPTHS.map(d => (
                 <button
                   key={d.value}
                   type="button"
                   onClick={() => setDepth(d.value)}
-                  className={`text-left p-3 rounded-lg border text-sm transition-colors ${
+                  className={`text-left p-3 border text-sm transition-colors ${
                     depth === d.value
-                      ? 'border-brass/50 bg-brass/5 text-white'
-                      : 'border-white/[0.07] bg-white/[0.03] text-zinc-400 hover:border-white/[0.1]'
+                      ? 'border-2 border-black bg-surface-container-low text-black'
+                      : 'border-black bg-white text-ink-variant hover:bg-surface-container-low'
                   }`}
                 >
-                  <span className="block font-medium mb-0.5">{d.label}</span>
-                  <span className="block text-[10px] text-zinc-600">{d.hint}</span>
+                  <span className="block font-bold mb-0.5">{d.label}</span>
+                  <span className="block text-[10px] text-outline">{d.hint}</span>
                 </button>
               ))}
             </div>
-          </div>
+          </HardCard>
 
-          <button
-            type="submit"
-            disabled={!query.trim()}
-            className="btn-white w-full py-3 text-base"
-          >
+          <PrimaryButton type="submit" disabled={!query.trim()} className="w-full py-3 text-base">
             Generate Market Thesis →
-          </button>
+          </PrimaryButton>
 
         </form>
       </div>
-    </div>
+    </AppShell>
   )
 }

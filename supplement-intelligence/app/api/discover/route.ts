@@ -201,6 +201,16 @@ export async function POST(req: Request) {
     })
   }
 
+  // Fix 5 (v2.6.0): 'none' means the classifier determined the product is
+  // outside all supported categories. Return a clear 400 instead of forcing
+  // into 'supplements' and running a nonsense opportunity discovery.
+  if (resolvedCategoryId === 'none') {
+    return err(
+      'This product appears to be outside the currently supported categories (Supplements, Beauty & Skincare, Pet Products, Fitness & Sports, Home & Lifestyle). Please try a product in one of these areas.',
+      400,
+    )
+  }
+
   const module = categoryRegistry.resolve(resolvedCategoryId)
 
   const normalizedQuery = normalizeQuery(input)

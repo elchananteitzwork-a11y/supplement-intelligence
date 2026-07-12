@@ -1,5 +1,6 @@
 import type { MemoData, BuildDecision } from '@/types/index'
 import { checkKeywordIntent, checkKeywordProductSignals, checkKeywordSemanticRelevance, keywordSpecificity } from '@/lib/keyword-engine/relevance-guard'
+import { computeConfidenceAssessment } from '@/lib/confidence'
 
 // ── Grounded Opportunity Score — Decision Engine v2 (2026-06-28) ───────────
 //
@@ -134,7 +135,74 @@ export interface EvidenceBreadth {
 // 2.4.0 and must be re-evaluated before being compared to 2.5.0 results.
 // The Technical Specification (Section 6.1) has always specified 65/40;
 // this change aligns the engine to that contract.
-export const SCORING_ENGINE_VERSION = '2.5.0'
+//
+// 2.6.0: Competition signal now relevance-gated. Safety gate and economics
+// gate wired into main path. BUILD_NOW guard requires ≥2 verified dimensions.
+// Category boundary check added (Fix 5).
+//
+// 2.7.0 (calibration): Five targeted changes to fix over-permissiveness found
+// in a 100-product audit. (1) Competition scoring replaced: sellers-per-listing
+// (always 1–6 for private-label, always scored 9) replaced with review-barrier
+// + relevant-competitor density hybrid — scores now range 1–9 based on real
+// market crowdedness. (2) SKIP ceiling raised from 40 to 45 to restore a
+// meaningful SKIP path after competition fixes cascade through market accessibility.
+// (3) BUILD_NOW threshold raised from 65 to 70; evidence gate now requires
+// demand verified AND (market accessibility OR profitability) verified — blocks
+// false BUILD_NOW from TikTok+Google Trends alone. (4) Economics gate COGS
+// assumption corrected from 50% to 35% (achievable at 2k–5k unit MOQ, the
+// right planning horizon). (5) Safety gate allowlist added for well-established
+// OTC ingredients — absent openFDA check no longer fires VALIDATE_FURTHER for
+// zinc/collagen/probiotic/whey/etc.
+//
+// 2.8.0 (V2 Blueprint §8 / Non-Negotiable Design Principle 8, "No BUILD_NOW
+// without independent confirmation" — Roadmap M1.4, gate half): Channel
+// Independence Gate added. BUILD_NOW now additionally requires the demand
+// dimension to be confirmed by ≥2 distinct evidence channels (via
+// lib/confidence's independence math, generalizing the existing thin-corpus
+// cross-validation check above into a systematic rule) — a query where
+// demand is backed by a single channel (e.g. Keepa alone) is capped to
+// VALIDATE_FURTHER regardless of score. Weights, thresholds, and every
+// other gate are unchanged. See computeChannelIndependenceGateTier below.
+// Legacy memos scored under 2.7.0 or earlier may show BUILD_NOW where 2.8.0
+// would now cap to VALIDATE_FURTHER for single-channel-demand queries —
+// re-evaluate before comparing across versions, same as every prior bump.
+//
+// 2.9.0 (V2 Blueprint §6 — scoring honesty pass, Roadmap M1.2, Milestone 4):
+// Manufacturing Feasibility removed from BASE_WEIGHTS. Rationale: nearly
+// every supplement is manufacturable by dozens of Alibaba suppliers with
+// customization, so this dimension returned a similar answer for almost
+// every query — near-zero variance, near-zero discriminating power. Its
+// former 5% weight redistributes automatically to the remaining six
+// dimensions via scoreFromCandidates's existing totalWeight normalization
+// — no separate rebalancing logic needed. manufacturing_estimate (supplier
+// data) and m.scores.manufacturing (the AI's qualitative level) are
+// unaffected — both remain as report enrichment; the Manufacturing tab in
+// components/MemoDisplay.tsx was never coupled to the weighted candidate.
+// Two other scoring-honesty items were checked and found already correct,
+// requiring no change: seasonality has never been wired into BASE_WEIGHTS
+// (never scored), and qualitative()-sourced AI-judgment candidates have
+// always been pushed at weight 0 (never contributed to the weighted
+// score) — see the Phase 1 implementation audit for both findings. The
+// unused Amazon Ads provider stub (always enabled=false, never fired) was
+// also deleted this milestone, unrelated to the weight formula itself.
+// Legacy memos scored under 2.8.0 or earlier included Manufacturing
+// Feasibility's weight in the blend; re-evaluate before comparing scores
+// across this version boundary, same as every prior bump.
+//
+// 2.10.0 (V2 Blueprint §2 Pillar 1 — DataForSEO historical time-series,
+// Roadmap M1.6, Milestone 6): computeDemand now applies a small ±0.5
+// second-derivative nuance from lib/keyword-engine/acceleration.ts (real
+// slope + acceleration computed from the same monthly_history already
+// fetched — zero new provider cost) on top of the existing ±1 growth_pct
+// bump: +0.5 when search is 'accelerating', −0.5 when 'declining'; no
+// change for 'decelerating'/'stable'. BASE_WEIGHTS is untouched — this
+// refines how demand's own rawScore is computed, the same category of
+// change as the pre-existing growth_pct bump and Demand Breadth Boost.
+// Also surfaced in demand's sourceLabel (e.g. "search accelerating (+52%
+// recent)") for report-level transparency. Legacy memos scored under 2.9.0
+// or earlier did not have this nuance applied; re-evaluate before
+// comparing scores across this version boundary, same as every prior bump.
+export const SCORING_ENGINE_VERSION = '2.10.0'
 
 export interface GroundedScore {
   score:       number   // 0-100
@@ -146,8 +214,18 @@ export interface GroundedScore {
   // Present only when decision === 'CATEGORY_CREATION_CANDIDATE' — which
   // broader query the score below was actually computed from.
   categoryCreationContext?: { broadQuery: string }
+  // Non-empty when a gate overrode the score-threshold verdict — explains
+  // why a high score can still produce VALIDATE_FURTHER or SKIP.
+  verdictOverrideReasons?: string[]
 }
 
+// manufacturing removed (Milestone 4 / scoring honesty pass, 2.9.0) — see
+// the qualitative()-only manufacturing candidate in assembleDimensions
+// below. Remaining weights sum to 95, not 100; scoreFromCandidates already
+// normalizes by totalWeight (only the subset with weight > 0 is ever used),
+// so removing manufacturing here redistributes its former 5% to the other
+// six dimensions automatically — no separate rebalancing step needed, the
+// exact same mechanism that already handles any other excluded dimension.
 const BASE_WEIGHTS = {
   demand:              22,
   marketAccessibility: 18,
@@ -155,8 +233,7 @@ const BASE_WEIGHTS = {
   consumerPain:         18,
   virality:             10,
   subscription:          7,
-  manufacturing:         5,
-} // sums to 100 — only the subset with weight > 0 on a given memo is ever used
+}
 
 // ── Provider → Channel registry ─────────────────────────────────────────────
 // The single canonical map: every provider that can EVER feed a composite or
@@ -181,6 +258,13 @@ const PROVIDER_CHANNEL: Record<string, ChannelType> = {
   'google-trends':        'search_seo',
   tiktok:                 'social_community',
   reddit:                 'social_community',
+  // Meta Ad Library indexes ads running on Facebook/Instagram — both social
+  // platforms. This codebase's channel taxonomy (5 types) predates the V2
+  // Blueprint's separate 7-channel model, which has a dedicated paid-media
+  // channel distinct from social — that split is Roadmap M1.3, not yet
+  // implemented. social_community is the closest existing fit without
+  // introducing a new channel type this milestone didn't authorize.
+  'meta-ads':             'social_community',
   'apify-alibaba':        'manufacturing_supply',
   openfda:                'regulatory_safety',
 }
@@ -234,7 +318,7 @@ function detectContributingProviders(m: MemoData): string[] {
   }
   if (se?.virality) {
     for (const src of se.virality.sources) {
-      if (src === 'tiktok' || src === 'reddit') found.add(src)
+      if (src === 'tiktok' || src === 'reddit' || src === 'meta-ads') found.add(src)
     }
   }
   if (m.keyword_intelligence?.top_buying?.length || m.keyword_intelligence?.opportunity?.length) {
@@ -242,7 +326,24 @@ function detectContributingProviders(m: MemoData): string[] {
   }
   if (m.consumer_intelligence) found.add('apify-amazon-reviews')
   if (hasRealRecallOrAdverseEvent(m)) found.add('openfda')
-  if (m.manufacturing_estimate) found.add('apify-alibaba')
+  // DEFECT FIX (2026-07-10, live E2E audit): only credit apify-alibaba when
+  // the attached estimate actually came from a real provider. The
+  // manufacturing-engine's ai_synthesis fallback (see lib/manufacturing-engine/
+  // types.ts ProviderId) produces an estimate object with data_source
+  // 'ai_synthesis' and no supplier data — crediting it here counted an
+  // AI-synthesized estimate as real provider evidence, inflating
+  // evidence_breadth_pct, distinct_channel_types, and (since Milestone 2)
+  // the manufacturing_supply channel witness inside dimension confidence.
+  // Proven live: analysis 58af9656 recorded contributing_providers including
+  // apify-alibaba while its memo carried data_source 'ai_synthesis'.
+  // Scores are unaffected (manufacturing has weight 0 since 2.9.0 and the
+  // COGS sub-signal already gates on realistic_unit_cost presence) — this is
+  // a disclosure/confidence-honesty fix only, so SCORING_ENGINE_VERSION is
+  // deliberately NOT bumped (the version-bump rule covers score-formula
+  // changes; old and new scores remain directly comparable).
+  if (m.manufacturing_estimate && m.manufacturing_estimate.data_source !== 'ai_synthesis') {
+    found.add('apify-alibaba')
+  }
 
   return Array.from(found)
 }
@@ -351,6 +452,19 @@ export function computeDemand(m: MemoData): RealResult {
     let score = searchVolumeToScore(topKeyword.monthly_searches)
     if (typeof topKeyword.growth_pct === 'number' && topKeyword.growth_pct > 20) score = Math.min(10, score + 1)
     if (typeof topKeyword.growth_pct === 'number' && topKeyword.growth_pct < -20) score = Math.max(0, score - 1)
+    // Milestone 6 (SCORING_ENGINE_VERSION 2.10.0): a SMALL, disclosed
+    // second-derivative nuance on top of the growth_pct bump above —
+    // growth_pct alone answers "is it bigger than a year ago," this
+    // answers "is that growth rate itself speeding up or slowing down
+    // right now" (see lib/keyword-engine/acceleration.ts). Deliberately
+    // half the magnitude of the growth_pct bump (±0.5 vs ±1) so it refines
+    // rather than double-counts the same underlying trend; 'decelerating'
+    // and 'stable' apply no adjustment — growth_pct already covers them
+    // reasonably. BASE_WEIGHTS is untouched; this only changes how
+    // demand's own rawScore is computed, the same category of change as
+    // the growth_pct bump and Demand Breadth Boost already here.
+    if (topKeyword.search_direction === 'accelerating') score = Math.min(10, score + 0.5)
+    if (topKeyword.search_direction === 'declining')    score = Math.max(0, score - 0.5)
     const breadthBoost = computeDemandBreadthBoost(validKeywords)
     score = Math.min(10, score + breadthBoost)
     const sourceNote = breadthBoost > 0 ? ` (+${breadthBoost} breadth boost, ${validKeywords.length} valid keywords)` : ''
@@ -360,7 +474,12 @@ export function computeDemand(m: MemoData): RealResult {
     const semNote = semSkipped.length > 0
       ? ` · sem-rejected ${semSkipped.map(k => `"${k.keyword}"`).join('; ')}`
       : ''
-    return { rawScore: score, sourceLabel: `dataforseo${sourceNote}${navNote}${semNote}` }
+    const directionNote = topKeyword.search_direction
+      ? ` · search ${topKeyword.search_direction}${
+          typeof topKeyword.recent_growth_pct === 'number' ? ` (${topKeyword.recent_growth_pct > 0 ? '+' : ''}${topKeyword.recent_growth_pct}% recent)` : ''
+        }`
+      : ''
+    return { rawScore: score, sourceLabel: `dataforseo${sourceNote}${navNote}${semNote}${directionNote}` }
   }
   if (se?.demand) {
     const sub = se.demand.value.primary_signal
@@ -758,6 +877,33 @@ function manufacturingFeasibilityScore(m: MemoData): RealResult {
 
 // ── Safety Gate — deterministic decision override, never additive ─────────
 
+// Well-established OTC supplement ingredients with decades of safety history
+// and no realistic FDA adverse-event or recall risk. When news_intelligence
+// is absent or openfda failed for these, the gate returns null instead of
+// VALIDATE_FURTHER — absence of a check is not the same as a safety concern
+// for products whose safety is already well-understood at the population level.
+//
+// Scope: ingredient/product vocabulary only. Novel compounds, biologics, or
+// any ingredient with a pending regulatory action are intentionally excluded.
+// The gate still fires for actual FDA signals (Class I recalls, adverse events)
+// regardless of this allowlist.
+const SAFE_INGREDIENT_KEYWORDS: readonly string[] = [
+  'zinc', 'vitamin c', 'vitamin d', 'vitamin k', 'vitamin b', 'vitamin e', 'vitamin a',
+  'magnesium', 'calcium', 'iron', 'potassium', 'selenium', 'copper', 'chromium',
+  'collagen', 'protein powder', 'whey protein', 'casein protein', 'mass gainer',
+  'creatine', 'omega-3', 'fish oil', 'krill oil', 'cod liver',
+  'probiotic', 'prebiotic', 'lactobacillus', 'bifidobacterium',
+  'biotin', 'folate', 'folic acid', 'coq10', 'melatonin',
+  'elderberry', 'turmeric', 'ginger', 'garlic', 'green tea extract',
+  'multivitamin', 'electrolyte', 'bcaa', 'amino acid',
+  'ashwagandha', 'rhodiola', "lion's mane", 'reishi', 'cordyceps',
+]
+
+function matchesSafeAllowlist(m: MemoData): boolean {
+  const query = ((m.product_query ?? '') + ' ' + (m.category_name ?? '')).toLowerCase()
+  return SAFE_INGREDIENT_KEYWORDS.some(kw => query.includes(kw))
+}
+
 function computeSafetyGateTier(m: MemoData): BuildDecision | null {
   // openFDA's check failing/timing out must never read the same as "checked,
   // clean" — that would give false reassurance exactly when the safety check
@@ -766,8 +912,17 @@ function computeSafetyGateTier(m: MemoData): BuildDecision | null {
   // Also treat completely absent news_intelligence the same way: if the entire
   // news pipeline never ran we cannot confirm the product is clean, so require
   // validation rather than implicitly granting a clean bill of health.
-  if (!m.news_intelligence) return 'VALIDATE_FURTHER'
-  if (m.news_intelligence.failedProviders?.includes('openfda')) return 'VALIDATE_FURTHER'
+  //
+  // Exception (v2.7.0): well-established OTC supplement ingredients that match
+  // the SAFE_INGREDIENT_KEYWORDS allowlist are not flagged for missing data —
+  // their safety profile is known at the population level, so absence of an
+  // openFDA check is uninformative rather than concerning.
+  if (!m.news_intelligence) {
+    return matchesSafeAllowlist(m) ? null : 'VALIDATE_FURTHER'
+  }
+  if (m.news_intelligence.failedProviders?.includes('openfda')) {
+    return matchesSafeAllowlist(m) ? null : 'VALIDATE_FURTHER'
+  }
 
   const items = m.news_intelligence?.items ?? []
   const recalls = items.filter(i => i.provider === 'openfda' && i.recall_classification)
@@ -782,6 +937,75 @@ function computeSafetyGateTier(m: MemoData): BuildDecision | null {
   if (hasClassII || adverseEvents.length >= 2) return 'VALIDATE_FURTHER'
 
   return null
+}
+
+// ── Economics structural break gate (v2.7.0) ─────────────────────────────────
+// Mirrors the KS3 formula in lib/stage3/kill-switches.ts but wired into the
+// main BuildDecision path. Returns VALIDATE_FURTHER when the optimistic gross
+// margin is below 35% — meaning the product cannot be viable even under
+// realistic manufacturing assumptions. Only fires when real fee data is
+// present; absent data → null (no gate, not a false VALIDATE_FURTHER).
+//
+// COGS calibration (v2.7.0): changed from 50% to 35% of price.
+// At 50%, the gate fired for nearly every supplement at $30–$40 (GM ≈ 20%)
+// because 50% COGS is a worst-case single-unit drop-ship assumption, not
+// the right planning horizon for a "should I build this brand" decision.
+// At 2,000–5,000 unit MOQ (a reasonable first production run), branded
+// supplement COGS typically falls to 25–40% of ASP — making 35% an
+// optimistic-but-achievable target, not a fantasy. Products that genuinely
+// cannot hit 35% GM at any price point still trigger the gate.
+function computeEconomicsGateTier(m: MemoData): { decision: BuildDecision | null; reason?: string } {
+  const priceFloor = realisticPrice(m)
+  if (priceFloor === null || priceFloor <= 0) return { decision: null }
+
+  const referralPct = m.signal_evidence?.revenue?.value.avg_referral_fee_pct
+  const fbaFee       = parseDollarString(m.signal_evidence?.revenue?.value.avg_fba_pick_pack_fee)
+
+  if (typeof referralPct !== 'number' || fbaFee === null) return { decision: null }
+
+  const optimisticCogs = priceFloor * 0.35
+  const maxGM = (priceFloor - priceFloor * (referralPct / 100) - fbaFee - optimisticCogs) / priceFloor
+
+  if (maxGM < 0.35) {
+    const gmPct = Math.round(maxGM * 100)
+    return {
+      decision: 'VALIDATE_FURTHER',
+      reason: `Economics gate: max gross margin at $${Math.round(priceFloor)} avg price is ~${gmPct}% (referral ${referralPct}%, FBA $${fbaFee.toFixed(2)}, COGS est. 35% at target MOQ) — below the 35% viability floor. Validate pricing or COGS assumptions before committing.`,
+    }
+  }
+  return { decision: null }
+}
+
+// ── Channel Independence Gate (Milestone 3 / V2 Blueprint §8, Non-Negotiable
+// Design Principle 8: "No BUILD_NOW without independent confirmation") ────
+//
+// Generalizes the spirit of the existing thin-corpus demand cross-
+// validation check above (Scenario B in assembleDimensions — "thin review
+// corpus AND cross-validated demand") into a systematic rule applied to
+// every analysis, not just the consumerPain-weight-exclusion decision:
+// BUILD_NOW requires the demand dimension ITSELF to be confirmed by at
+// least 2 distinct real evidence channels (e.g. Amazon marketplace +
+// search, or Amazon + social) via lib/confidence's independence math
+// (Milestone 2) — not merely "≥2 dimensions verified" (profitability and
+// manufacturing confirming doesn't corroborate demand), and not merely
+// "≥2 providers" when they share one channel (two Amazon-scraper providers
+// are one witness, not two — see lib/confidence/independence.ts's
+// same-channel max-reliability rollup). A query where only Keepa fires
+// (one channel: amazon_marketplace) cannot produce BUILD_NOW regardless of
+// score.
+//
+// Caps the DECISION only, exactly like the safety and economics gates
+// below — never touches the score itself, never redistributes weight,
+// never fires when demand wasn't verified at all (that case is already
+// SKIP/VALIDATE_FURTHER via other paths, so this gate has nothing to add).
+export function computeChannelIndependenceGateTier(
+  candidates: ScoreDimension[],
+  evidenceBreadth: EvidenceBreadth,
+): BuildDecision | null {
+  const assessment = computeConfidenceAssessment({ dimensions: candidates, evidenceBreadth })
+  const demand = assessment.dimensions.find(d => d.key === 'demand')
+  if (!demand || demand.confidence === null) return null
+  return demand.confirmingChannelCount < 2 ? 'VALIDATE_FURTHER' : null
 }
 
 const DECISION_RANK: Record<BuildDecision, number> = {
@@ -892,15 +1116,26 @@ function assembleDimensions(m: MemoData): { candidates: ScoreDimension[]; gateTi
     candidates.push(qualitative('subscription', 'Subscription / Retention Fit', m.scores.subscription?.level ?? legacyScoreToLevel(m.scores.subscription?.score), 'AI judgment — review sample too thin for a real repurchase-language rate'))
   }
 
+  // Manufacturing Feasibility — removed from weighted scoring (Milestone 4 /
+  // scoring honesty pass, SCORING_ENGINE_VERSION 2.9.0). Rationale: nearly
+  // every supplement is manufacturable by dozens of Alibaba suppliers with
+  // customization, so this dimension returned a similar answer for almost
+  // every query — near-zero variance, near-zero discriminating power (see
+  // V2 Blueprint critique, "signals with little or no predictive value").
+  // Always pushed as qualitative (weight 0) now, never weighted, regardless
+  // of whether real Apify supplier data was found. manufacturing_estimate
+  // (supplier list, unit costs, lead times) remains fully intact as report
+  // enrichment — components/MemoDisplay.tsx's Manufacturing tab reads
+  // m.manufacturing_estimate and m.scores.manufacturing directly and was
+  // never coupled to this weighted candidate; nothing there changes.
   const manufacturing = manufacturingFeasibilityScore(m)
-  if (manufacturing.rawScore !== null) {
-    candidates.push({ key: 'manufacturing', label: 'Manufacturing Feasibility', weight: BASE_WEIGHTS.manufacturing, rawScore: manufacturing.rawScore, source: 'verified', sourceLabel: manufacturing.sourceLabel })
-  } else {
-    // Weight deliberately set to 0 (qualitative) — this dimension's 5% share is
-    // redistributed to the remaining real dimensions. Disclosed explicitly in the
-    // source label so the UI can surface this fact without reading scoring internals.
-    candidates.push(qualitative('manufacturing', 'Manufacturing Feasibility', m.scores.manufacturing?.level ?? legacyScoreToLevel(m.scores.manufacturing?.score), 'Supplier data unavailable — Apify manufacturing scrape returned no results for this product (5% weight excluded, redistributed to other dimensions)'))
-  }
+  const manufacturingLevel = manufacturing.rawScore !== null
+    ? legacyScoreToLevel(manufacturing.rawScore)
+    : (m.scores.manufacturing?.level ?? legacyScoreToLevel(m.scores.manufacturing?.score))
+  candidates.push(qualitative(
+    'manufacturing', 'Manufacturing Feasibility', manufacturingLevel,
+    'Not scored — manufacturing feasibility has near-zero discriminating power for supplements (most categories are equally manufacturable) and no longer contributes to the opportunity score. Shown for reference only.',
+  ))
 
   return { candidates, gateTiers }
 }
@@ -913,14 +1148,37 @@ function scoreFromCandidates(candidates: ScoreDimension[]): { score: number; wei
   const dimensions = candidates.map(c => ({ ...c, weight: c.weight / totalWeight }))
   const weightedAvg = dimensions.reduce((s, d) => s + (d.rawScore ?? 0) * d.weight, 0)
   const score = Math.max(0, Math.min(100, Math.round(weightedAvg * 10)))
-  const rawDecision: BuildDecision = score >= 65 ? 'BUILD_NOW' : score >= 40 ? 'VALIDATE_FURTHER' : 'SKIP'
-  // Weight re-normalization inflates a single strong dimension to score ≥ 65.
-  // A single verified signal (e.g. search volume alone) is insufficient basis
-  // for a BUILD_NOW recommendation when 6 of 7 composites are missing.
-  // Require at least 2 independent verified dimensions before BUILD_NOW fires.
-  const verifiedCount = candidates.filter(c => c.source === 'verified').length
+
+  // v2.7.0: thresholds raised from (65/40) to (70/45).
+  // BUILD_NOW: stricter because weight re-normalization inflates scores when
+  // most dimensions are missing — a product scoring 65 with only 2 verified
+  // dimensions may be no more compelling than a 55 with 5.
+  // SKIP: ceiling raised from 40 to 45 to reclaim the SKIP path that
+  // disappeared when competition always scored 9 (inflating all scores ≥ 46).
+  const rawDecision: BuildDecision = score >= 70 ? 'BUILD_NOW' : score >= 45 ? 'VALIDATE_FURTHER' : 'SKIP'
+
+  // SKIP protection: a product with strong demand (≥7) or strong virality (≥8)
+  // should not be dismissed even at a low blended score — the individual signal
+  // carries founder-relevant information that the blend obscures. Upgrade to
+  // VALIDATE_FURTHER so the evidence is surfaced rather than buried.
+  const demandRaw   = candidates.find(c => c.key === 'demand')?.rawScore ?? 0
+  const viralityRaw = candidates.find(c => c.key === 'virality')?.rawScore ?? 0
+  const skipProtected = rawDecision === 'SKIP' && (demandRaw >= 7 || viralityRaw >= 8)
+  const guardedDecision: BuildDecision = skipProtected ? 'VALIDATE_FURTHER' : rawDecision
+
+  // BUILD_NOW evidence gate: demand must be verified (not qualitative) AND at
+  // least one business-viability dimension (market accessibility or profitability)
+  // must be verified with a positive weight. This prevents BUILD_NOW from firing
+  // on weight re-normalization alone (e.g. TikTok + Google Trends always verified,
+  // but neither measures whether this market can be entered or is economically viable).
+  const demandVerified  = candidates.some(c => c.key === 'demand'             && c.source === 'verified' && c.weight > 0)
+  const accessVerified  = candidates.some(c => c.key === 'marketAccessibility' && c.source === 'verified' && c.weight > 0)
+  const profitVerified  = candidates.some(c => c.key === 'profitability'       && c.source === 'verified' && c.weight > 0)
+  const evidenceForBuildNow = demandVerified && (accessVerified || profitVerified)
+
   const weightedDecision: BuildDecision =
-    rawDecision === 'BUILD_NOW' && verifiedCount < 2 ? 'VALIDATE_FURTHER' : rawDecision
+    guardedDecision === 'BUILD_NOW' && !evidenceForBuildNow ? 'VALIDATE_FURTHER' : guardedDecision
+
   return { score, weightedDecision, dimensions }
 }
 
@@ -969,7 +1227,12 @@ export function computeGroundedScore(m: MemoData): GroundedScore {
     // real evidence — a broader category's accessibility/safety profile
     // doesn't answer whether THIS exact product clears those bars.
     const safetyTier = computeSafetyGateTier(m)
-    const gatedDecision = mostConservative([weightedDecision, ...gateTiers, safetyTier])
+    const economicsGate = computeEconomicsGateTier(m)
+    const gatedDecision = mostConservative([weightedDecision, ...gateTiers, safetyTier, economicsGate.decision])
+
+    const overrideReasons: string[] = []
+    if (safetyTier !== null) overrideReasons.push(`Safety gate overrode score-threshold verdict (${safetyTier}).`)
+    if (economicsGate.reason) overrideReasons.push(economicsGate.reason)
 
     // A VALIDATE_FURTHER gate (e.g. Class II recall, adverse events) must
     // remain visible even for category creation candidates — safety validation
@@ -988,6 +1251,7 @@ export function computeGroundedScore(m: MemoData): GroundedScore {
       insufficientEvidence: false,
       evidenceBreadth,
       categoryCreationContext: { broadQuery: broadEvidence.broadQuery },
+      verdictOverrideReasons: overrideReasons.length ? overrideReasons : undefined,
     }
   }
 
@@ -1020,7 +1284,19 @@ export function computeGroundedScore(m: MemoData): GroundedScore {
 
   const { score, weightedDecision, dimensions } = scoreFromCandidates(candidates)
   const safetyTier = computeSafetyGateTier(m)
-  const decision = mostConservative([weightedDecision, ...gateTiers, safetyTier])
+  const economicsGate = computeEconomicsGateTier(m)
+  const channelIndependenceTier = computeChannelIndependenceGateTier(candidates, evidenceBreadth)
+  const decision = mostConservative([weightedDecision, ...gateTiers, safetyTier, economicsGate.decision, channelIndependenceTier])
+
+  const overrideReasons: string[] = []
+  if (safetyTier !== null) overrideReasons.push(`Safety gate overrode score-threshold verdict (${safetyTier}).`)
+  if (economicsGate.reason) overrideReasons.push(economicsGate.reason)
+  if (channelIndependenceTier !== null) {
+    overrideReasons.push(
+      'Channel independence gate: demand is confirmed by fewer than 2 independent evidence channels — ' +
+      'capped below BUILD_NOW until a second channel (e.g. search, social, or science) corroborates demand.',
+    )
+  }
 
   return {
     score,
@@ -1029,6 +1305,7 @@ export function computeGroundedScore(m: MemoData): GroundedScore {
     groundedPct: 100,
     insufficientEvidence: false,
     evidenceBreadth,
+    verdictOverrideReasons: overrideReasons.length ? overrideReasons : undefined,
   }
 }
 

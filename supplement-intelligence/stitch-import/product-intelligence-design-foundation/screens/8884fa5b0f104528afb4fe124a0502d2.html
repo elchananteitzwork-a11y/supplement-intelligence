@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Product Intelligence - Opportunity Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .hard-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#616363",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#f1f1f1",
+                        "surface-container": "#eeeeee",
+                        "on-tertiary-container": "#848484",
+                        "outline": "#7e7576",
+                        "surface-bright": "#f9f9f9",
+                        "outline-variant": "#cfc4c5",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "tertiary": "#000000",
+                        "on-primary-container": "#848484",
+                        "on-primary-fixed-variant": "#474747",
+                        "error": "#ba1a1a",
+                        "surface": "#f9f9f9",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-background": "#1a1c1c",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#1a1c1c",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-primary-fixed": "#1b1b1b",
+                        "primary-fixed": "#e2e2e2",
+                        "on-primary": "#ffffff",
+                        "inverse-surface": "#2f3131",
+                        "tertiary-fixed": "#e4e2e2",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-dim": "#dadada",
+                        "secondary-container": "#dfe0e0",
+                        "surface-variant": "#e2e2e2",
+                        "error-container": "#ffdad6",
+                        "on-secondary": "#ffffff",
+                        "inverse-primary": "#c6c6c6",
+                        "on-surface-variant": "#4c4546",
+                        "secondary": "#5d5f5f",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "primary-container": "#1b1b1b",
+                        "primary": "#000000",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-low": "#f3f3f3",
+                        "background": "#f9f9f9",
+                        "surface-container-highest": "#e2e2e2",
+                        "tertiary-container": "#1b1c1c",
+                        "on-error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "element-gap": "16px",
+                        "container-padding": "40px",
+                        "grid-unit": "8px",
+                        "section-gap": "64px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-xl-mobile": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "verdict-sm": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                        "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden">
+<div class="flex h-screen w-full overflow-hidden">
+<!-- SideNavBar -->
+<aside class="flex flex-col h-full overflow-y-auto bg-surface border-r border-outline-variant w-64">
+<div class="p-gutter">
+<div class="font-headline-md text-headline-md text-primary tracking-tight mb-grid-unit">Intelligence</div>
+<div class="text-label-mono font-label-mono text-on-surface-variant uppercase tracking-widest opacity-60">Terminal v1.0</div>
+</div>
+<nav class="flex-1 mt-element-gap">
+<div class="space-y-1">
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">analytics</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-primary border-r-2 border-primary bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">insert_chart</span>
+<span class="font-label-md text-label-md">Market Intel</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">rebase_edit</span>
+<span class="font-label-md text-label-md">Lifecycle</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">groups</span>
+<span class="font-label-md text-label-md">Witnesses</span>
+</a>
+<a class="flex items-center px-gutter py-3 text-on-surface-variant hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</div>
+</nav>
+<div class="p-gutter mt-auto">
+<button class="w-full bg-primary text-on-primary py-3 font-bold uppercase text-label-mono tracking-tighter hover:bg-surface hover:text-primary border border-primary transition-all">
+                    New Analysis
+                </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-full overflow-hidden bg-background">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center px-gutter py-4 w-full border-b border-outline-variant bg-surface">
+<div class="flex items-center gap-element-gap">
+<div class="font-headline-md text-headline-md font-bold text-primary">Product Intelligence</div>
+<div class="relative ml-4">
+<input class="bg-white border-2 border-black px-4 py-2 w-80 font-label-mono hard-shadow focus:outline-none" placeholder="Magnesium Glycinate" type="text" value="Magnesium Glycinate"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer scale-98 active:opacity-80">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer scale-98 active:opacity-80">help_outline</span>
+<div class="w-8 h-8 bg-surface-container-highest border border-black rounded-full flex items-center justify-center cursor-pointer">
+<span class="material-symbols-outlined">account_circle</span>
+</div>
+</div>
+</header>
+<!-- Opportunity Canvas -->
+<div class="flex-1 overflow-y-auto p-container-padding no-scrollbar">
+<!-- Hero Header -->
+<div class="flex justify-between items-start mb-12">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 font-verdict-sm text-verdict-sm border border-black">PRELIMINARY</span>
+<span class="text-label-mono font-label-mono uppercase tracking-widest text-on-surface-variant">Opportunity Overview</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-primary leading-tight">Magnesium Glycinate</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-2 max-w-2xl">
+                            A highly bioavailable mineral supplement showing atypical variance across tracked verification nodes.
+                        </p>
+</div>
+<div class="text-right">
+<div class="font-label-mono text-label-mono uppercase text-on-surface-variant mb-1">Status Code</div>
+<div class="font-headline-md text-headline-md font-black">PF-402 // PARTIAL</div>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Main Signal Card -->
+<div class="col-span-8 border border-black bg-white p-gutter">
+<div class="flex justify-between items-center mb-6">
+<h2 class="font-headline-md text-headline-md uppercase">Evidence Concordance</h2>
+<div class="font-label-mono text-label-mono text-on-surface-variant">2 of 5 sources confirm demand</div>
+</div>
+<div class="space-y-4">
+<!-- Concordance Rows -->
+<div class="flex items-center justify-between py-3 border-b border-surface-container-highest">
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-primary border border-black"></div>
+<span class="font-label-mono text-label-mono uppercase">Search Intent</span>
+</div>
+<span class="text-body-md font-bold">84% YoY Growth (Verified)</span>
+</div>
+<div class="flex items-center justify-between py-3 border-b border-surface-container-highest">
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 rounded-full border border-black"></div>
+<span class="font-label-mono text-label-mono uppercase">Retail Velocity</span>
+</div>
+<span class="text-body-md text-on-surface-variant">Data Pending (Amazon API latency)</span>
+</div>
+<div class="flex items-center justify-between py-3 border-b border-surface-container-highest">
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 rounded-full border border-black"></div>
+<span class="font-label-mono text-label-mono uppercase text-error">Paid Media</span>
+</div>
+<span class="text-body-md text-error font-bold italic">No signal — Meta Ads Library returned no data</span>
+</div>
+<div class="flex items-center justify-between py-3 border-b border-surface-container-highest">
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-primary border border-black"></div>
+<span class="font-label-mono text-label-mono uppercase">Social Sentiment</span>
+</div>
+<span class="text-body-md font-bold">Positive (Reddit/TikTok Aggregation)</span>
+</div>
+<div class="flex items-center justify-between py-3">
+<div class="flex items-center gap-4">
+<div class="w-2 h-2 rounded-full border border-black"></div>
+<span class="font-label-mono text-label-mono uppercase">Regulatory Clearance</span>
+</div>
+<span class="text-body-md text-on-surface-variant">Queue #4,821 - Est. 48h</span>
+</div>
+</div>
+</div>
+<!-- Secondary Insights Column -->
+<div class="col-span-4 space-y-gutter">
+<!-- Mini Card: Market Cap -->
+<div class="border border-black bg-white p-6">
+<div class="font-label-mono text-label-mono uppercase text-on-surface-variant mb-4">Market Potential</div>
+<div class="font-headline-md text-headline-md mb-2">$42.8M</div>
+<div class="h-1 bg-surface-container-highest w-full mt-4">
+<div class="h-full bg-primary" style="width: 24%"></div>
+</div>
+<p class="text-label-mono text-[10px] mt-2 text-on-surface-variant">CONCESSION: BASED ON PARTIAL SIGNAL</p>
+</div>
+<!-- Mini Card: Witness Logic -->
+<div class="border border-black bg-primary text-on-primary p-6">
+<div class="font-label-mono text-label-mono uppercase opacity-60 mb-4">Intelligence Verdict</div>
+<div class="font-headline-md text-headline-md leading-tight mb-4">INCONCLUSIVE DATASET</div>
+<p class="text-body-md opacity-80 mb-6">
+                                The system cannot generate a definitive 'Buy' or 'Build' signal due to the failure in the Meta Ads Library node. 
+                            </p>
+<button class="w-full bg-white text-primary py-2 font-bold uppercase text-label-mono">
+                                Manual Retry
+                            </button>
+</div>
+</div>
+<!-- Visual Data Layer -->
+<div class="col-span-12 border border-black bg-white h-80 relative overflow-hidden">
+<div class="absolute top-6 left-6 z-10 flex flex-col gap-1">
+<div class="font-label-mono text-label-mono uppercase">Trend Decomposition</div>
+<div class="text-body-md text-on-surface-variant">Linear projection interrupted by data drop.</div>
+</div>
+<!-- Placeholder for Trend Graph -->
+<div class="w-full h-full flex items-end px-12 pb-12 gap-4">
+<div class="flex-1 bg-surface-container-high border border-black" style="height: 40%"></div>
+<div class="flex-1 bg-surface-container-high border border-black" style="height: 55%"></div>
+<div class="flex-1 bg-surface-container-high border border-black" style="height: 70%"></div>
+<div class="flex-1 bg-surface-container-high border border-black" style="height: 65%"></div>
+<div class="flex-1 bg-surface-container-high border border-black" style="height: 85%"></div>
+<div class="flex-1 bg-surface-container-high border border-black" style="height: 95%"></div>
+<div class="flex-1 bg-surface-container-high border border-black" style="height: 90%"></div>
+<div class="flex-1 border-2 border-dashed border-error relative" style="height: 100%">
+<div class="absolute inset-0 flex items-center justify-center bg-error/5">
+<span class="text-error font-label-mono text-[10px] rotate-90 whitespace-nowrap">SIGNAL TERMINATED</span>
+</div>
+</div>
+<div class="flex-1 border border-outline-variant bg-surface" style="height: 0%"></div>
+<div class="flex-1 border border-outline-variant bg-surface" style="height: 0%"></div>
+</div>
+</div>
+<!-- Bottom Grid Details -->
+<div class="col-span-6 border border-black bg-white p-gutter">
+<div class="font-label-mono text-label-mono uppercase mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">info</span>
+                            Source Authentication
+                        </div>
+<table class="w-full border-collapse">
+<thead>
+<tr class="bg-surface-container font-label-mono text-label-mono text-left">
+<th class="p-3">PROVIDER</th>
+<th class="p-3">RELIABILITY</th>
+<th class="p-3">LATENCY</th>
+</tr>
+</thead>
+<tbody class="text-body-md">
+<tr class="border-b border-surface-container-highest">
+<td class="p-3 font-bold">Google Trends</td>
+<td class="p-3">High</td>
+<td class="p-3">22ms</td>
+</tr>
+<tr class="border-b border-surface-container-highest">
+<td class="p-3 font-bold">Reddit API</td>
+<td class="p-3">Med</td>
+<td class="p-3">412ms</td>
+</tr>
+<tr>
+<td class="p-3 font-bold text-error">Meta Library</td>
+<td class="p-3 text-error">N/A</td>
+<td class="p-3 text-error">TIMEOUT</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="col-span-6 flex flex-col gap-gutter">
+<div class="flex-1 border border-black bg-white p-gutter flex items-center justify-center relative overflow-hidden group">
+<!-- Visual Asset -->
+<div class="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]"></div>
+<div class="text-center z-10">
+<div class="font-label-mono text-label-mono uppercase mb-2">Primary Competitor</div>
+<div class="font-headline-md text-headline-md tracking-tighter">THORNE HEALTH</div>
+<div class="text-body-md text-on-surface-variant">Market Share: 18.2%</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const rows = document.querySelectorAll('tr, .flex-1.bg-surface-container-high');
+            rows.forEach(row => {
+                row.addEventListener('mouseenter', () => {
+                    row.style.borderColor = '#000';
+                });
+            });
+        });
+    </script>
+</body></html>

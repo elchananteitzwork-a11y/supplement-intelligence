@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Intelligence Terminal - Decision Queue</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&family=Geist:wght@400;600;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #101113;
+            color: #dde5da;
+            overflow: hidden;
+        }
+        /* Custom Scrollbar for Terminal Aesthetic */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #101113;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2A2C30;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3d4a3e;
+        }
+        .arc-container {
+            position: relative;
+            width: 100%;
+            height: 4px;
+            background: #232529;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .decision-arc {
+            height: 100%;
+            position: absolute;
+            top: 0;
+            transition: all 0.5s ease;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-background": "#dde5da",
+                      "secondary-fixed": "#d4e3ff",
+                      "surface": "#0e150f",
+                      "error": "#ffb4ab",
+                      "on-primary-fixed-variant": "#005226",
+                      "on-primary-container": "#004820",
+                      "primary-fixed": "#77fc9e",
+                      "on-primary-fixed": "#00210b",
+                      "tertiary-fixed-dim": "#ffb4ac",
+                      "surface-container-lowest": "#09100a",
+                      "on-surface": "#dde5da",
+                      "primary-fixed-dim": "#59df84",
+                      "surface-bright": "#343b34",
+                      "outline": "#879486",
+                      "on-tertiary-container": "#751d1a",
+                      "surface-container": "#1a211b",
+                      "inverse-on-surface": "#2b322b",
+                      "on-error": "#690005",
+                      "on-secondary-container": "#95baf3",
+                      "tertiary": "#ffb4ac",
+                      "on-secondary-fixed": "#001c3a",
+                      "secondary-fixed-dim": "#a5c8ff",
+                      "outline-variant": "#2A2C30",
+                      "surface-tint": "#59df84",
+                      "on-tertiary": "#620f0e",
+                      "on-tertiary-fixed-variant": "#822622",
+                      "on-secondary-fixed-variant": "#1e4879",
+                      "primary": "#34C069",
+                      "tertiary-container": "#ff857a",
+                      "on-error-container": "#ffdad6",
+                      "surface-container-highest": "#2f372f",
+                      "background": "#101113",
+                      "surface-container-low": "#161d17",
+                      "error-container": "#93000a",
+                      "surface-variant": "#17181B",
+                      "secondary-container": "#214a7b",
+                      "surface-dim": "#101113",
+                      "surface-container-high": "#1E2023",
+                      "tertiary-fixed": "#ffdad6",
+                      "on-primary": "#003918",
+                      "inverse-surface": "#dde5da",
+                      "primary-container": "#34c069",
+                      "on-tertiary-fixed": "#410002",
+                      "secondary": "#a5c8ff",
+                      "on-surface-variant": "#bccabb",
+                      "on-secondary": "#00315e",
+                      "inverse-primary": "#006d35"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0px",
+                      "lg": "0px",
+                      "xl": "0px",
+                      "full": "0px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "xs": "4px",
+                      "xl": "32px",
+                      "gutter": "16px",
+                      "base": "4px",
+                      "lg": "24px",
+                      "margin-desktop": "32px",
+                      "margin-mobile": "16px",
+                      "sm": "8px"
+              },
+              "fontFamily": {
+                      "label-md": ["JetBrains Mono"],
+                      "body-sm": ["Inter"],
+                      "body-md": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "label-sm": ["JetBrains Mono"],
+                      "headline-sm": ["Geist"],
+                      "headline-lg": ["Geist"],
+                      "headline-md": ["Geist"]
+              },
+              "fontSize": {
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                      "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "label-sm": ["10px", {"lineHeight": "12px", "fontWeight": "500"}],
+                      "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md overflow-hidden flex h-screen">
+<!-- Sidebar Component (Derived from JSON) -->
+<aside class="flex flex-col h-full overflow-y-auto w-64 border-r border-outline-variant bg-surface-dim">
+<div class="px-lg py-xl">
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight">Intelligence</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant opacity-60">Terminal v1.0</p>
+</div>
+<nav class="flex-1 px-md space-y-xs">
+<a class="flex items-center gap-md px-md py-sm font-label-md text-label-md transition-colors duration-200 text-primary border-r-2 border-primary bg-surface-container-high" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm font-label-md text-label-md transition-colors duration-200 text-on-surface-variant hover:bg-surface-container" href="#">
+<span class="material-symbols-outlined text-[20px]">analytics</span>
+<span>Analytics</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm font-label-md text-label-md transition-colors duration-200 text-on-surface-variant hover:bg-surface-container" href="#">
+<span class="material-symbols-outlined text-[20px]">insert_chart</span>
+<span>Market Intel</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm font-label-md text-label-md transition-colors duration-200 text-on-surface-variant hover:bg-surface-container" href="#">
+<span class="material-symbols-outlined text-[20px]">rebase_edit</span>
+<span>Lifecycle</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm font-label-md text-label-md transition-colors duration-200 text-on-surface-variant hover:bg-surface-container" href="#">
+<span class="material-symbols-outlined text-[20px]">groups</span>
+<span>Witnesses</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm font-label-md text-label-md transition-colors duration-200 text-on-surface-variant hover:bg-surface-container" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="p-md border-t border-outline-variant">
+<button class="w-full bg-primary-container text-on-primary-container px-md py-sm font-label-md text-label-md hover:opacity-90 active:scale-[0.98] transition-all">
+                New Analysis
+            </button>
+</div>
+</aside>
+<main class="flex-1 flex flex-col min-w-0 bg-background overflow-hidden">
+<!-- Top Navigation Component (Derived from JSON) -->
+<header class="flex justify-between items-center px-lg py-sm w-full border-b border-outline-variant bg-surface-dim z-10">
+<div class="flex items-center gap-lg">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="bg-background border border-outline-variant pl-xl pr-md py-xs font-label-sm text-label-sm w-64 focus:ring-2 focus:ring-outline outline-none transition-all" placeholder="Search Command..." type="text"/>
+</div>
+<div class="hidden md:flex gap-md">
+<span class="font-headline-sm text-headline-sm text-primary font-bold">Decision Queue</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-xs transition-all">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-low p-xs transition-all">help_outline</button>
+<div class="h-8 w-8 bg-surface-container border border-outline-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">account_circle</span>
+</div>
+</div>
+</header>
+<!-- Scrollable Content Canvas -->
+<div class="flex-1 overflow-y-auto p-xl space-y-xl">
+<!-- Global Stats Bar -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<div class="bg-surface-variant border border-outline-variant p-md">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Active Markets</p>
+<p class="font-headline-md text-headline-md text-on-surface">142</p>
+</div>
+<div class="bg-surface-variant border border-outline-variant p-md">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Urgency Index</p>
+<p class="font-headline-md text-headline-md text-primary">High</p>
+</div>
+<div class="bg-surface-variant border border-outline-variant p-md">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Data Velocity</p>
+<p class="font-headline-md text-headline-md text-on-surface">2.4 TB/s</p>
+</div>
+<div class="bg-surface-variant border border-outline-variant p-md">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">System Health</p>
+<p class="font-headline-md text-headline-md text-primary">Optimal</p>
+</div>
+</section>
+<!-- Decision Queue Table (Expanded Rows) -->
+<section class="bg-surface-variant border border-outline-variant">
+<div class="px-md py-sm border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+<h2 class="font-label-md text-label-md font-bold uppercase tracking-widest text-on-surface-variant">Queue Manifest</h2>
+<div class="flex gap-sm">
+<span class="font-label-sm text-label-sm bg-primary/10 text-primary px-xs py-[2px] border border-primary/20">AUTO-SORT: URGENCY</span>
+<span class="font-label-sm text-label-sm bg-surface-container border border-outline-variant px-xs py-[2px]">SYNC: ACTIVE</span>
+</div>
+</div>
+<div class="divide-y divide-[#232529]">
+<!-- Market Row 1: Berberine Supplement -->
+<div class="group hover:bg-[#1E2023] transition-colors p-md flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-md">
+<div class="w-2 h-10 bg-primary"></div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Berberine Supplement</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Metabolic Health Segment | High Velocity</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-label-sm text-label-sm text-on-surface-variant">URGENCY</p>
+<p class="font-label-md text-label-md text-primary">IMMEDIATE (0.98)</p>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-xl">
+<div class="space-y-xs">
+<p class="font-label-sm text-label-sm text-on-surface-variant">TIMING / QUALITY / VERDICT</p>
+<div class="arc-container">
+<div class="decision-arc bg-primary" style="left: 85%; width: 12%;" title="Timing: Late Cycle | Quality: High | Verdict: Buy"></div>
+</div>
+<div class="flex justify-between font-label-sm text-[9px] text-on-surface-variant">
+<span>EARLY</span>
+<span>OPTIMAL</span>
+<span>LATE</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="p-xs border border-outline-variant bg-background">
+<span class="material-symbols-outlined text-primary text-[20px]">trending_up</span>
+</div>
+<div class="flex-1">
+<p class="font-label-sm text-label-sm text-on-surface-variant">Price Delta</p>
+<p class="font-label-md text-label-md text-on-surface">+12.4% <span class="text-primary opacity-50 ml-sm">Forecast Valid</span></p>
+</div>
+</div>
+<div class="flex justify-end items-center gap-sm">
+<button class="px-md py-xs border border-outline-variant font-label-md text-label-md hover:bg-surface-container transition-all">DEFER</button>
+<button class="px-md py-xs bg-primary text-on-primary-fixed font-label-md text-label-md hover:opacity-90 transition-all">EXECUTE</button>
+</div>
+</div>
+</div>
+<!-- Market Row 2: Alpha-GPC -->
+<div class="group hover:bg-[#1E2023] transition-colors p-md flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-md">
+<div class="w-2 h-10 bg-primary"></div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Alpha-GPC</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Nootropics / Cognitive | Strategic Alpha</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-label-sm text-label-sm text-on-surface-variant">URGENCY</p>
+<p class="font-label-md text-label-md text-primary">CRITICAL (0.92)</p>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-xl">
+<div class="space-y-xs">
+<p class="font-label-sm text-label-sm text-on-surface-variant">TIMING / QUALITY / VERDICT</p>
+<div class="arc-container">
+<div class="decision-arc bg-primary" style="left: 42%; width: 20%;" title="Timing: Mid-Window | Quality: Exceptional | Verdict: Buy"></div>
+</div>
+<div class="flex justify-between font-label-sm text-[9px] text-on-surface-variant">
+<span>EARLY</span>
+<span>OPTIMAL</span>
+<span>LATE</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="p-xs border border-outline-variant bg-background">
+<span class="material-symbols-outlined text-primary text-[20px]">bolt</span>
+</div>
+<div class="flex-1">
+<p class="font-label-sm text-label-sm text-on-surface-variant">Alpha Score</p>
+<p class="font-label-md text-label-md text-on-surface">84.2/100 <span class="text-primary opacity-50 ml-sm">High Confidence</span></p>
+</div>
+</div>
+<div class="flex justify-end items-center gap-sm">
+<button class="px-md py-xs border border-outline-variant font-label-md text-label-md hover:bg-surface-container transition-all">DEFER</button>
+<button class="px-md py-xs bg-primary text-on-primary-fixed font-label-md text-label-md hover:opacity-90 transition-all">EXECUTE</button>
+</div>
+</div>
+</div>
+<!-- Market Row 3: Magnesium Glycinate -->
+<div class="group hover:bg-[#1E2023] transition-colors p-md flex flex-col gap-md opacity-80">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-md">
+<div class="w-2 h-10 bg-secondary"></div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Magnesium Glycinate</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Standardized Staples | Low Volatility</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-label-sm text-label-sm text-on-surface-variant">URGENCY</p>
+<p class="font-label-md text-label-md text-on-surface-variant">STABLE (0.45)</p>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-xl">
+<div class="space-y-xs">
+<p class="font-label-sm text-label-sm text-on-surface-variant">TIMING / QUALITY / VERDICT</p>
+<div class="arc-container">
+<div class="decision-arc bg-secondary" style="left: 15%; width: 35%;" title="Timing: Early | Quality: Baseline | Verdict: Watch"></div>
+</div>
+<div class="flex justify-between font-label-sm text-[9px] text-on-surface-variant">
+<span>EARLY</span>
+<span>OPTIMAL</span>
+<span>LATE</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="p-xs border border-outline-variant bg-background">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">view_in_ar</span>
+</div>
+<div class="flex-1">
+<p class="font-label-sm text-label-sm text-on-surface-variant">Market Saturation</p>
+<p class="font-label-md text-label-md text-on-surface">12% <span class="text-on-surface-variant opacity-50 ml-sm">Room for Growth</span></p>
+</div>
+</div>
+<div class="flex justify-end items-center gap-sm">
+<button class="px-md py-xs border border-outline-variant font-label-md text-label-md hover:bg-surface-container transition-all">DEFER</button>
+<button class="px-md py-xs border border-outline-variant font-label-md text-label-md hover:bg-surface-container transition-all">MONITOR</button>
+</div>
+</div>
+</div>
+<!-- Market Row 4: Creatine Gummies -->
+<div class="group hover:bg-[#1E2023] transition-colors p-md flex flex-col gap-md opacity-70">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-md">
+<div class="w-2 h-10 bg-error"></div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Creatine Gummies</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Novelty Delivery Systems | Speculative</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-label-sm text-label-sm text-on-surface-variant">URGENCY</p>
+<p class="font-label-md text-label-md text-error">AVOID (0.12)</p>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-xl">
+<div class="space-y-xs">
+<p class="font-label-sm text-label-sm text-on-surface-variant">TIMING / QUALITY / VERDICT</p>
+<div class="arc-container">
+<div class="decision-arc bg-error" style="left: 92%; width: 5%;" title="Timing: Past Peak | Quality: Low | Verdict: Sell"></div>
+</div>
+<div class="flex justify-between font-label-sm text-[9px] text-on-surface-variant">
+<span>EARLY</span>
+<span>OPTIMAL</span>
+<span>LATE</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="p-xs border border-outline-variant bg-background">
+<span class="material-symbols-outlined text-error text-[20px]">warning</span>
+</div>
+<div class="flex-1">
+<p class="font-label-sm text-label-sm text-on-surface-variant">Signal Decay</p>
+<p class="font-label-md text-label-md text-error">-42.1% <span class="text-error opacity-50 ml-sm">Trend Exhausted</span></p>
+</div>
+</div>
+<div class="flex justify-end items-center gap-sm">
+<button class="px-md py-xs border border-outline-variant font-label-md text-label-md hover:bg-surface-container transition-all">DISMISS</button>
+<button class="px-md py-xs border border-error/50 text-error font-label-md text-label-md hover:bg-error/10 transition-all">LIQUIDATE</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Terminal Utility -->
+<footer class="grid grid-cols-1 md:grid-cols-3 gap-gutter mt-xl">
+<div class="md:col-span-2 bg-surface-variant border border-outline-variant p-md font-label-sm text-label-sm">
+<p class="text-on-surface-variant mb-xs">// SYSTEM_LOG: Analysis complete for manifest_id: 88249-X</p>
+<p class="text-primary">> Thread initialized... verifying market proxies... success.</p>
+<p class="text-on-surface-variant opacity-50">> Awaiting executive decision on Berberine Supplement.</p>
+</div>
+<div class="flex items-center justify-end gap-md">
+<div class="text-right">
+<p class="font-label-sm text-label-sm text-on-surface-variant">LAST UPDATED</p>
+<p class="font-label-md text-label-md">14:22:01 UTC</p>
+</div>
+<button class="h-10 w-10 flex items-center justify-center border border-outline-variant bg-surface-container hover:bg-surface-container-high transition-all">
+<span class="material-symbols-outlined">refresh</span>
+</button>
+</div>
+</footer>
+</div>
+</main>
+<script>
+        // Micro-interaction for hover states
+        document.querySelectorAll('.group').forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.querySelector('.decision-arc')?.classList.add('scale-y-125');
+            });
+            row.addEventListener('mouseleave', () => {
+                row.querySelector('.decision-arc')?.classList.remove('scale-y-125');
+            });
+        });
+
+        // Simple ticker simulation
+        setInterval(() => {
+            const timeElement = document.querySelector('footer p.font-label-md');
+            const now = new Date();
+            if (timeElement) {
+                timeElement.innerText = now.toUTCString().split(' ')[4] + ' UTC';
+            }
+        }, 1000);
+    </script>
+</body></html>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Product Intelligence - Market Comparison</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-error-container": "#93000a",
+                    "on-error": "#ffffff",
+                    "primary-container": "#1b1b1b",
+                    "error-container": "#ffdad6",
+                    "secondary-fixed": "#e2e2e2",
+                    "on-background": "#1a1c1c",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "on-tertiary-container": "#848484",
+                    "inverse-primary": "#c6c6c6",
+                    "tertiary-fixed": "#e4e2e2",
+                    "surface-variant": "#e2e2e2",
+                    "surface-tint": "#5e5e5e",
+                    "secondary": "#5d5f5f",
+                    "surface-container": "#eeeeee",
+                    "outline-variant": "#cfc4c5",
+                    "outline": "#7e7576",
+                    "surface-container-low": "#f3f3f3",
+                    "surface-container-highest": "#e2e2e2",
+                    "primary-fixed": "#e2e2e2",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "background": "#f9f9f9",
+                    "on-secondary": "#ffffff",
+                    "surface-container-high": "#e8e8e8",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "surface": "#f9f9f9",
+                    "surface-dim": "#dadada",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "on-tertiary": "#ffffff",
+                    "on-surface-variant": "#4c4546",
+                    "inverse-surface": "#2f3131",
+                    "tertiary-container": "#1b1c1c",
+                    "on-primary-fixed": "#1b1b1b",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-primary-fixed-variant": "#474747",
+                    "on-primary-container": "#848484",
+                    "surface-bright": "#f9f9f9",
+                    "secondary-container": "#dfe0e0",
+                    "primary": "#000000",
+                    "on-secondary-container": "#616363",
+                    "tertiary": "#000000",
+                    "on-primary": "#ffffff",
+                    "on-surface": "#1a1c1c"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0",
+                    "lg": "0",
+                    "xl": "0",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "grid-unit": "8px",
+                    "element-gap": "16px",
+                    "section-gap": "64px",
+                    "gutter": "24px",
+                    "container-padding": "40px"
+            },
+            "fontFamily": {
+                    "verdict-sm": ["Inter"],
+                    "label-mono": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #f9f9f9; color: #1a1c1c; font-family: 'Inter', sans-serif; }
+        .hard-shadow { box-shadow: 2px 2px 0px 0px #000000; }
+        .neo-border { border: 1px solid #000000; }
+        .neo-border-thick { border: 2px solid #000000; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .filled-icon { font-variation-settings: 'FILL' 1; }
+        .chart-container { position: relative; height: 120px; width: 100%; }
+        .witness-dot { width: 8px; height: 8px; border-radius: 9999px; }
+        .witness-filled { background-color: #000000; }
+        .witness-hollow { border: 1px solid #000000; background-color: transparent; }
+        .arc-path { fill: none; stroke: #e2e2e2; stroke-width: 4; stroke-linecap: round; }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-full flex flex-col z-40 bg-surface-container dark:bg-surface-container h-screen w-64 border-r-2 border-primary">
+<div class="p-gutter">
+<h1 class="font-headline-md text-headline-md font-black text-primary uppercase tracking-tighter">Intelligence</h1>
+<p class="font-label-mono text-label-mono opacity-50">V2.4.1 ENGINE</p>
+</div>
+<nav class="flex-1 mt-8">
+<a class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all" href="#">
+<span class="material-symbols-outlined">home</span> Home
+            </a>
+<a class="bg-primary text-on-primary flex items-center gap-4 px-4 py-3 font-bold uppercase font-label-mono text-label-mono cursor-pointer active:translate-x-1" href="#">
+<span class="material-symbols-outlined">insights</span> Compare
+            </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all" href="#">
+<span class="material-symbols-outlined">visibility</span> Watchlist
+            </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all" href="#">
+<span class="material-symbols-outlined">account_tree</span> Pipeline
+            </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all" href="#">
+<span class="material-symbols-outlined">notifications</span> Alerts
+            </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all" href="#">
+<span class="material-symbols-outlined">database</span> Data Sources
+            </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all" href="#">
+<span class="material-symbols-outlined">settings</span> Settings
+            </a>
+</nav>
+<div class="p-4 border-t border-outline">
+<a class="flex items-center gap-4 px-4 py-2 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all" href="#">
+<span class="material-symbols-outlined">help</span> Support
+            </a>
+<a class="flex items-center gap-4 px-4 py-2 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all" href="#">
+<span class="material-symbols-outlined">logout</span> Log Out
+            </a>
+</div>
+</aside>
+<main class="ml-64 min-h-screen">
+<!-- TopNavBar Shell -->
+<header class="flex justify-between items-center px-gutter w-full sticky top-0 z-50 bg-surface h-16 border-b-2 border-primary">
+<div class="flex items-center gap-4">
+<span class="font-label-mono text-label-mono font-bold">CROSS-MARKET ANALYSIS</span>
+<div class="relative">
+<input class="bg-white neo-border-thick h-10 px-4 w-64 hard-shadow font-label-mono text-label-mono focus:outline-none" placeholder="Compare markets..." type="text"/>
+</div>
+</div>
+<div class="flex gap-4">
+<button class="bg-white neo-border px-4 py-1 font-label-mono text-label-mono font-bold uppercase hover:bg-black hover:text-white transition-colors">Filters</button>
+<button class="bg-black text-white px-4 py-1 font-label-mono text-label-mono font-bold uppercase hover:bg-white hover:text-black neo-border transition-colors">Export</button>
+</div>
+</header>
+<div class="p-container-padding">
+<!-- (1) Header Callout -->
+<section class="w-full neo-border-thick p-6 bg-white mb-section-gap">
+<h2 class="font-headline-md text-headline-md leading-tight">
+                    Of these three: <span class="bg-primary text-on-primary px-2">creatine gummies</span> has the wider window; magnesium glycinate has better economics but 6–18 months less time; berberine's window has closed.
+                </h2>
+</section>
+<!-- Main Comparison Grid Structure -->
+<div class="grid grid-cols-3 gap-gutter items-start">
+<!-- (2) Three Column Layout Start -->
+<!-- MARKET 1: Creatine Gummies -->
+<div class="flex flex-col gap-8">
+<!-- (3) Verdict Card -->
+<div class="neo-border bg-white p-6 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-mono text-label-mono opacity-60">MARKET 01</span>
+<div class="witness-dot witness-filled"></div>
+</div>
+<h3 class="font-label-mono text-[10px] uppercase tracking-[0.2em] mb-1">Creatine Gummies</h3>
+<div class="text-[32px] font-black uppercase leading-none tracking-tighter text-green-600">VIABLE</div>
+<p class="font-body-md text-body-md mt-4 opacity-70">High probability window open for next 24 months. Supply chain fragmentation remains high.</p>
+</div>
+<!-- Market Specific Content continues below in shared rows -->
+</div>
+<!-- MARKET 2: Magnesium Glycinate -->
+<div class="flex flex-col gap-8">
+<div class="neo-border bg-white p-6 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-mono text-label-mono opacity-60">MARKET 02</span>
+<div class="witness-dot witness-filled"></div>
+</div>
+<h3 class="font-label-mono text-[10px] uppercase tracking-[0.2em] mb-1">Magnesium Glycinate</h3>
+<div class="text-[32px] font-black uppercase leading-none tracking-tighter text-yellow-600">SATURATING</div>
+<p class="font-body-md text-body-md mt-4 opacity-70">Competitive intensity increasing. Margin compression anticipated in Q4.</p>
+</div>
+</div>
+<!-- MARKET 3: Berberine -->
+<div class="flex flex-col gap-8">
+<div class="neo-border bg-white p-6 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-mono text-label-mono opacity-60">MARKET 03</span>
+<div class="witness-dot witness-hollow"></div>
+</div>
+<h3 class="font-label-mono text-[10px] uppercase tracking-[0.2em] mb-1">Berberine</h3>
+<div class="text-[32px] font-black uppercase leading-none tracking-tighter text-red-600">CLOSED</div>
+<p class="font-body-md text-body-md mt-4 opacity-70">Incumbent dominance established. Entry costs exceed LTV projections.</p>
+</div>
+</div>
+</div>
+<!-- (4) Shared Lifecycle Arc -->
+<div class="w-full bg-white neo-border p-8 my-12">
+<div class="flex justify-between items-center mb-6">
+<span class="font-label-mono text-label-mono font-bold uppercase tracking-widest">Market Lifecycle Positioning</span>
+<div class="flex gap-4">
+<div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-green-600"></div><span class="text-[10px] font-label-mono uppercase">Entry</span></div>
+<div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-yellow-600"></div><span class="text-[10px] font-label-mono uppercase">Peak</span></div>
+<div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-600"></div><span class="text-[10px] font-label-mono uppercase">Exit</span></div>
+</div>
+</div>
+<div class="relative h-24 flex items-center px-12">
+<div class="absolute left-12 right-12 h-[2px] bg-neutral-200"></div>
+<!-- Arcs & Dots -->
+<div class="relative w-full flex justify-between items-center">
+<!-- Creatine (Early) -->
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-green-600 neo-border border-white ring-2 ring-black"></div>
+<span class="absolute -bottom-8 font-label-mono text-[10px] text-center">CREATINE<br/>GUMMIES</span>
+</div>
+<!-- Mag Glycinate (Mid-Peak) -->
+<div class="flex flex-col items-center ml-[20%]">
+<div class="w-4 h-4 rounded-full bg-yellow-600 neo-border border-white ring-2 ring-black"></div>
+<span class="absolute -bottom-8 font-label-mono text-[10px] text-center">MAGNESIUM<br/>GLYCINATE</span>
+</div>
+<!-- Berberine (Late) -->
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 rounded-full bg-red-600 neo-border border-white ring-2 ring-black"></div>
+<span class="absolute -bottom-8 font-label-mono text-[10px] text-center">BERBERINE</span>
+</div>
+</div>
+</div>
+<div class="mt-12 flex justify-between opacity-30 font-label-mono text-[10px]">
+<span>EMERGING</span>
+<span>MATURE</span>
+<span>DECLINING</span>
+</div>
+</div>
+<!-- (5) Concordance Strips -->
+<div class="my-section-gap">
+<h4 class="font-label-mono text-label-mono font-bold mb-4 bg-black text-white inline-block px-2">CHANNEL CONCORDANCE</h4>
+<div class="flex flex-col gap-[1px] bg-black neo-border">
+<!-- Amazon -->
+<div class="grid grid-cols-3 bg-white">
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">AMAZON</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-green-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 14% <div class="w-2 h-2 rounded-full bg-green-600"></div>
+</div>
+</div>
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">AMAZON</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-yellow-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 04% <div class="w-2 h-2 rounded-full bg-yellow-600"></div>
+</div>
+</div>
+<div class="p-4 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">AMAZON</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-red-600">
+<span class="material-symbols-outlined text-sm">arrow_downward</span> 12% <div class="w-2 h-2 rounded-full bg-red-600"></div>
+</div>
+</div>
+</div>
+<!-- Search -->
+<div class="grid grid-cols-3 bg-white">
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">SEARCH</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-green-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 42% <div class="w-2 h-2 rounded-full bg-green-600"></div>
+</div>
+</div>
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">SEARCH</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-green-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 21% <div class="w-2 h-2 rounded-full bg-green-600"></div>
+</div>
+</div>
+<div class="p-4 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">SEARCH</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-neutral-400">
+<span class="material-symbols-outlined text-sm">remove</span> 00% <div class="w-2 h-2 border border-neutral-400"></div>
+</div>
+</div>
+</div>
+<!-- Paid -->
+<div class="grid grid-cols-3 bg-white">
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">PAID</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-green-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 08% <div class="w-2 h-2 rounded-full bg-green-600"></div>
+</div>
+</div>
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">PAID</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-red-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 66% <div class="w-2 h-2 rounded-full bg-red-600"></div>
+</div>
+</div>
+<div class="p-4 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">PAID</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-red-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 81% <div class="w-2 h-2 rounded-full bg-red-600"></div>
+</div>
+</div>
+</div>
+<!-- Social -->
+<div class="grid grid-cols-3 bg-white">
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">SOCIAL</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-green-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 112% <div class="w-2 h-2 rounded-full bg-green-600"></div>
+</div>
+</div>
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">SOCIAL</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-yellow-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 15% <div class="w-2 h-2 rounded-full bg-yellow-600"></div>
+</div>
+</div>
+<div class="p-4 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">SOCIAL</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-red-600">
+<span class="material-symbols-outlined text-sm">arrow_downward</span> 05% <div class="w-2 h-2 rounded-full bg-red-600"></div>
+</div>
+</div>
+</div>
+<!-- Science -->
+<div class="grid grid-cols-3 bg-white">
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">SCIENCE</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-green-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 02% <div class="w-2 h-2 rounded-full bg-green-600"></div>
+</div>
+</div>
+<div class="p-4 border-r border-neutral-100 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">SCIENCE</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-green-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 09% <div class="w-2 h-2 rounded-full bg-green-600"></div>
+</div>
+</div>
+<div class="p-4 flex items-center justify-between">
+<span class="font-label-mono text-[10px] opacity-40 uppercase">SCIENCE</span>
+<div class="flex items-center gap-2 font-label-mono font-bold text-green-600">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 01% <div class="w-2 h-2 rounded-full bg-green-600"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- (6) Gap Charts -->
+<div class="my-section-gap grid grid-cols-3 gap-gutter">
+<div class="bg-white neo-border p-6 flex flex-col h-64">
+<h5 class="font-label-mono text-[10px] uppercase mb-4 opacity-50">36-Month Opportunity Trajectory</h5>
+<div class="flex-1 border-l-2 border-b-2 border-neutral-200 relative">
+<!-- Chart Mock SVG -->
+<svg class="absolute inset-0 w-full h-full" preserveaspectratio="none">
+<!-- Demand Line -->
+<path d="M0 80 Q 50 70, 100 40 T 300 10" fill="none" stroke="black" stroke-width="2"></path>
+<!-- Supply Line -->
+<path d="M0 90 Q 80 85, 150 75 T 300 65" fill="none" stroke="#ccc" stroke-width="2"></path>
+<!-- Opportunity Shading -->
+<path d="M0 80 Q 50 70, 100 40 T 300 10 L 300 65 T 150 75 Q 80 85, 0 90 Z" fill="black" fill-opacity="0.05"></path>
+</svg>
+<div class="absolute bottom-2 right-2 font-label-mono text-[8px] opacity-40">T +36M</div>
+</div>
+</div>
+<div class="bg-white neo-border p-6 flex flex-col h-64">
+<h5 class="font-label-mono text-[10px] uppercase mb-4 opacity-50">36-Month Opportunity Trajectory</h5>
+<div class="flex-1 border-l-2 border-b-2 border-neutral-200 relative">
+<svg class="absolute inset-0 w-full h-full" preserveaspectratio="none">
+<path d="M0 50 Q 100 45, 150 30 T 300 20" fill="none" stroke="black" stroke-width="2"></path>
+<path d="M0 90 Q 100 70, 200 40 T 300 25" fill="none" stroke="#ccc" stroke-width="2"></path>
+<path d="M0 50 Q 100 45, 150 30 T 300 20 L 300 25 T 200 40 Q 100 70, 0 90 Z" fill="black" fill-opacity="0.05"></path>
+</svg>
+</div>
+</div>
+<div class="bg-white neo-border p-6 flex flex-col h-64">
+<h5 class="font-label-mono text-[10px] uppercase mb-4 opacity-50">36-Month Opportunity Trajectory</h5>
+<div class="flex-1 border-l-2 border-b-2 border-neutral-200 relative">
+<svg class="absolute inset-0 w-full h-full" preserveaspectratio="none">
+<path d="M0 30 Q 150 35, 300 45" fill="none" stroke="black" stroke-width="2"></path>
+<path d="M0 40 Q 150 38, 300 42" fill="none" stroke="#ccc" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+</div>
+<!-- (7) Numbers Grid -->
+<div class="my-section-gap">
+<table class="w-full text-left neo-border bg-white">
+<thead class="bg-surface-container font-label-mono text-label-mono uppercase">
+<tr>
+<th class="p-4 border-b border-neutral-200">METRIC</th>
+<th class="p-4 border-b border-neutral-200">CREATINE</th>
+<th class="p-4 border-b border-neutral-200">MAGNESIUM</th>
+<th class="p-4 border-b border-neutral-200">BERBERINE</th>
+</tr>
+</thead>
+<tbody class="font-label-mono">
+<tr class="border-b border-neutral-100">
+<td class="p-4 opacity-40 uppercase text-[10px]">Units / Mo</td>
+<td class="p-4">12,400</td>
+<td class="p-4 font-black">28,900</td>
+<td class="p-4">18,200</td>
+</tr>
+<tr class="border-b border-neutral-100">
+<td class="p-4 opacity-40 uppercase text-[10px]">YoY Growth</td>
+<td class="p-4 font-black">114%</td>
+<td class="p-4">32%</td>
+<td class="p-4">-12%</td>
+</tr>
+<tr class="border-b border-neutral-100">
+<td class="p-4 opacity-40 uppercase text-[10px]">Margin Headroom</td>
+<td class="p-4">44%</td>
+<td class="p-4 font-black">62%</td>
+<td class="p-4">18%</td>
+</tr>
+<tr class="border-b border-neutral-100">
+<td class="p-4 opacity-40 uppercase text-[10px]">Median Moat</td>
+<td class="p-4 font-black">4.2/5</td>
+<td class="p-4">2.1/5</td>
+<td class="p-4">1.4/5</td>
+</tr>
+<tr>
+<td class="p-4 opacity-40 uppercase text-[10px]">Median Price</td>
+<td class="p-4">$34.99</td>
+<td class="p-4">$28.40</td>
+<td class="p-4 font-black">$42.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- (8) Ending Row -->
+<div class="grid grid-cols-3 gap-gutter pt-8">
+<div class="flex gap-4">
+<button class="bg-black text-white px-6 py-3 font-label-mono text-label-mono font-bold uppercase flex-1 hover:bg-white hover:text-black neo-border transition-colors">Watch Market</button>
+<button class="text-black font-label-mono text-label-mono uppercase underline px-4 py-3 hover:opacity-50 transition-opacity">Open Report</button>
+</div>
+<div class="flex gap-4">
+<button class="bg-black text-white px-6 py-3 font-label-mono text-label-mono font-bold uppercase flex-1 hover:bg-white hover:text-black neo-border transition-colors">Watch Market</button>
+<button class="text-black font-label-mono text-label-mono uppercase underline px-4 py-3 hover:opacity-50 transition-opacity">Open Report</button>
+</div>
+<div class="flex gap-4">
+<button class="bg-black text-white px-6 py-3 font-label-mono text-label-mono font-bold uppercase flex-1 hover:bg-white hover:text-black neo-border transition-colors">Watch Market</button>
+<button class="text-black font-label-mono text-label-mono uppercase underline px-4 py-3 hover:opacity-50 transition-opacity">Open Report</button>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interactions for hovering over grid cells
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.classList.add('bg-neutral-50');
+            });
+            row.addEventListener('mouseleave', () => {
+                row.classList.remove('bg-neutral-50');
+            });
+        });
+
+        // Search input shadow interaction
+        const searchInput = document.querySelector('input[type="text"]');
+        if (searchInput) {
+            searchInput.addEventListener('focus', () => {
+                searchInput.classList.remove('hard-shadow');
+                searchInput.style.boxShadow = '4px 4px 0px 0px #000000';
+            });
+            searchInput.addEventListener('blur', () => {
+                searchInput.style.boxShadow = '2px 2px 0px 0px #000000';
+            });
+        }
+    </script>
+</body></html>

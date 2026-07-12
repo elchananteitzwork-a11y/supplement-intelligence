@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PRO-INTEL | Watchlist</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "primary-container": "#1b1b1b",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "surface-variant": "#e2e2e2",
+                    "secondary": "#5d5f5f",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-primary": "#c6c6c6",
+                    "outline-variant": "#cfc4c5",
+                    "surface-container-highest": "#e2e2e2",
+                    "primary": "#000000",
+                    "on-error-container": "#93000a",
+                    "on-error": "#ffffff",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#e2e2e2",
+                    "outline": "#7e7576",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#5e5e5e",
+                    "on-background": "#1a1c1c",
+                    "tertiary": "#000000",
+                    "surface-container-low": "#f3f3f3",
+                    "on-tertiary-container": "#848484",
+                    "background": "#f9f9f9",
+                    "tertiary-container": "#1b1c1c",
+                    "secondary-fixed": "#e2e2e2",
+                    "on-secondary-container": "#616363",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed-variant": "#454747",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "surface-container-high": "#e8e8e8",
+                    "secondary-container": "#dfe0e0",
+                    "surface-container": "#eeeeee",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "tertiary-fixed": "#e4e2e2",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#f9f9f9",
+                    "on-primary-fixed-variant": "#474747",
+                    "surface-dim": "#dadada",
+                    "on-primary-fixed": "#1b1b1b",
+                    "inverse-surface": "#2f3131",
+                    "on-primary-container": "#848484",
+                    "inverse-on-surface": "#f1f1f1",
+                    "surface": "#f9f9f9",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "on-surface": "#1a1c1c",
+                    "on-surface-variant": "#4c4546"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "element-gap": "16px",
+                    "container-padding": "40px",
+                    "gutter": "24px",
+                    "grid-unit": "8px",
+                    "section-gap": "64px"
+            },
+            "fontFamily": {
+                    "label-mono": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "verdict-sm": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "headline-xl": ["Inter"]
+            },
+            "fontSize": {
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .hard-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .sparkline-canvas {
+            filter: drop-shadow(0px 1px 0px rgba(0,0,0,0.1));
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary selection:text-on-primary">
+<!-- NAVIGATION SHELL: SideNav -->
+<aside class="fixed left-0 top-0 h-full z-40 flex flex-col items-center py-gutter bg-background border-r-2 border-primary w-20">
+<div class="mb-12">
+<span class="font-headline-md text-headline-md font-black uppercase text-primary">PI</span>
+</div>
+<nav class="flex flex-col gap-6 items-center flex-1">
+<button class="w-12 h-12 flex items-center justify-center transition-colors hover:bg-surface-container-high bg-primary text-on-primary active:scale-95 duration-75">
+<span class="material-symbols-outlined">dashboard</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center transition-colors hover:bg-surface-container-high text-secondary active:scale-95 duration-75">
+<span class="material-symbols-outlined">insights</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center transition-colors hover:bg-surface-container-high text-secondary active:scale-95 duration-75">
+<span class="material-symbols-outlined">cyclone</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center transition-colors hover:bg-surface-container-high text-secondary active:scale-95 duration-75">
+<span class="material-symbols-outlined">leaderboard</span>
+</button>
+</nav>
+<div class="mt-auto flex flex-col gap-6 items-center">
+<button class="w-12 h-12 flex items-center justify-center transition-colors hover:bg-surface-container-high text-secondary active:scale-95 duration-75">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-8 h-8 bg-surface-container-highest border border-primary overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A minimalist black and white headshot portrait of a professional data analyst, high contrast lighting, neutral background, studio setting, brutalist photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBIxdUmJNlguyevBVN5yWhCtYvaAWJ0NA87xdwSrdjw8NpLEfKL0_5ED43ayOyq7RqvUz9hkXvow7FmDlN_L5djWhmafqp7T6I_m1tBR75aqy07Qp1m0B5DH8W8FlGxrYfbzAb9Ybw4OZG-uRGjRx6VW8IJf1TWApRzJbWwqZFELFet6tvS3h-Cn8xj613b2y-5uxH-VdbNLIGsdAtt5idGz1Z0ZT833--G-nIIdN6mo2yirlyKQTJBhenpn0AY02v0jqu8yHFaeYiF"/>
+</div>
+</div>
+</aside>
+<!-- TOP BAR -->
+<header class="fixed top-0 right-0 w-[calc(100%-80px)] h-16 z-30 flex justify-between items-center px-gutter bg-surface border-b-2 border-primary">
+<div class="flex items-center gap-6">
+<h1 class="font-headline-md text-headline-md font-black tracking-tighter text-primary">WATCHLIST</h1>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-secondary text-[18px]">search</span>
+<input class="pl-10 pr-4 py-1 bg-white border-2 border-primary hard-shadow font-label-mono text-label-mono focus:outline-none w-64" placeholder="QUERY ENGINE..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="px-4 py-2 bg-white border border-primary font-label-mono text-label-mono font-bold hover:bg-primary hover:text-on-primary transition-colors uppercase active:opacity-80">Filters</button>
+<button class="px-4 py-2 bg-primary text-on-primary font-label-mono text-label-mono font-bold hover:bg-white hover:text-primary border border-primary transition-colors uppercase active:opacity-80">Export Data</button>
+<div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
+<button class="material-symbols-outlined text-secondary hover:text-primary">notifications</button>
+<button class="material-symbols-outlined text-secondary hover:text-primary">history</button>
+</div>
+</header>
+<!-- MAIN CONTENT -->
+<main class="ml-20 mt-16 p-container-padding">
+<!-- HEADER SECTION -->
+<div class="flex justify-between items-end mb-grid-unit * 4 pb-4 border-b border-surface-variant">
+<div>
+<p class="font-label-mono text-label-mono text-secondary mb-1">SYSTEM_STATUS: LIVE_FEED</p>
+<h2 class="font-headline-xl text-headline-xl leading-none">MARKET_INTEL</h2>
+</div>
+<div class="flex flex-col items-end">
+<p class="font-label-mono text-label-mono text-secondary mb-1 uppercase">Sort strategy</p>
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container border border-primary">
+<span class="font-label-mono text-label-mono font-bold">BY URGENCY</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</div>
+</div>
+</div>
+<!-- WATCHLIST ROWS -->
+<div class="space-y-0 border-t border-primary">
+<!-- ROW 1: MAGNESIUM GLYCINATE -->
+<div class="grid grid-cols-[120px_1fr_180px_140px_120px_1fr_40px] items-center gap-gutter py-4 border-b border-primary hover:bg-white transition-colors group">
+<!-- Verdict -->
+<div class="bg-primary text-on-primary px-2 py-1 text-center font-verdict-sm text-verdict-sm uppercase">Saturating</div>
+<!-- Market Name -->
+<div class="font-headline-md text-headline-md tracking-tight uppercase">magnesium glycinate</div>
+<!-- Stage -->
+<div class="flex items-center gap-2 font-label-mono text-label-mono">
+<span class="text-secondary uppercase">Contested</span>
+<span class="material-symbols-outlined text-error font-bold">south_east</span>
+<span class="text-error uppercase">Closing</span>
+</div>
+<!-- Sparkline (Mini Gap Chart) -->
+<div class="h-8 w-full flex flex-col justify-between relative overflow-hidden">
+<div class="absolute inset-0 bg-error/5"></div>
+<!-- Simplified Visual Sparkline with SVG -->
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 140 32">
+<path d="M0 25 L20 22 L40 28 L60 15 L80 18 L100 5 L120 8 L140 2" fill="none" stroke="black" stroke-width="2"></path>
+<path d="M0 30 L20 28 L40 31 L60 25 L80 27 L100 20 L120 22 L140 18" fill="none" stroke="#93000a" stroke-dasharray="2 1" stroke-width="1"></path>
+</svg>
+</div>
+<!-- Witness Dots -->
+<div class="flex gap-1.5 justify-center">
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 border border-primary rounded-full"></div>
+</div>
+<!-- Change Note -->
+<div class="font-label-mono text-label-mono text-secondary">
+                    Search volume increased 12% in 48h
+                </div>
+<!-- Menu -->
+<button class="material-symbols-outlined text-secondary hover:text-primary">more_horiz</button>
+</div>
+<!-- ROW 2: CREATINE GUMMIES -->
+<div class="grid grid-cols-[120px_1fr_180px_140px_120px_1fr_40px] items-center gap-gutter py-4 border-b border-primary hover:bg-white transition-colors group">
+<!-- Verdict -->
+<div class="bg-[#2E7D32] text-white px-2 py-1 text-center font-verdict-sm text-verdict-sm uppercase">Viable</div>
+<!-- Market Name -->
+<div class="font-headline-md text-headline-md tracking-tight uppercase">creatine gummies</div>
+<!-- Stage -->
+<div class="flex items-center gap-2 font-label-mono text-label-mono">
+<span class="text-secondary uppercase">Emerging</span>
+<span class="material-symbols-outlined text-[#2E7D32] font-bold">north_east</span>
+<span class="text-[#2E7D32] uppercase">Scaling</span>
+</div>
+<!-- Sparkline -->
+<div class="h-8 w-full flex flex-col justify-between relative overflow-hidden">
+<div class="absolute inset-0 bg-green-50"></div>
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 140 32">
+<path d="M0 30 L30 25 L60 28 L90 10 L120 5 L140 0" fill="none" stroke="black" stroke-width="2"></path>
+<path d="M0 31 L30 30 L60 31 L90 25 L120 28 L140 25" fill="none" stroke="#2E7D32" stroke-dasharray="2 1" stroke-width="1"></path>
+</svg>
+</div>
+<!-- Witness Dots -->
+<div class="flex gap-1.5 justify-center">
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 border border-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 border border-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 border border-primary rounded-full"></div>
+</div>
+<!-- Change Note -->
+<div class="font-label-mono text-label-mono text-secondary">
+                    First-mover advantage detected in Tier 2 channels
+                </div>
+<!-- Menu -->
+<button class="material-symbols-outlined text-secondary hover:text-primary">more_horiz</button>
+</div>
+<!-- ROW 3: BERBERINE SUPPLEMENT -->
+<div class="grid grid-cols-[120px_1fr_180px_140px_120px_1fr_40px] items-center gap-gutter py-4 border-b border-primary hover:bg-white transition-colors group">
+<!-- Verdict -->
+<div class="bg-error text-white px-2 py-1 text-center font-verdict-sm text-verdict-sm uppercase">Closed</div>
+<!-- Market Name -->
+<div class="font-headline-md text-headline-md tracking-tight uppercase">berberine supplement</div>
+<!-- Stage -->
+<div class="flex items-center gap-2 font-label-mono text-label-mono">
+<span class="text-secondary uppercase">Saturated</span>
+<span class="material-symbols-outlined text-error font-bold">trending_flat</span>
+<span class="text-error uppercase">Plateau</span>
+</div>
+<!-- Sparkline -->
+<div class="h-8 w-full flex flex-col justify-between relative overflow-hidden">
+<div class="absolute inset-0 bg-surface-container"></div>
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 140 32">
+<path d="M0 5 L30 8 L60 5 L90 6 L120 4 L140 5" fill="none" stroke="black" stroke-width="2"></path>
+<path d="M0 15 L30 14 L60 16 L90 15 L120 16 L140 15" fill="none" stroke="#7e7576" stroke-dasharray="2 1" stroke-width="1"></path>
+</svg>
+</div>
+<!-- Witness Dots -->
+<div class="flex gap-1.5 justify-center">
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+</div>
+<!-- Change Note -->
+<div class="font-label-mono text-label-mono text-secondary">
+                    Quiet since May 30
+                </div>
+<!-- Menu -->
+<button class="material-symbols-outlined text-secondary hover:text-primary">more_horiz</button>
+</div>
+<!-- ROW 4: ALPHA-GPC -->
+<div class="grid grid-cols-[120px_1fr_180px_140px_120px_1fr_40px] items-center gap-gutter py-4 border-b border-primary hover:bg-white transition-colors group">
+<!-- Verdict -->
+<div class="bg-primary text-on-primary px-2 py-1 text-center font-verdict-sm text-verdict-sm uppercase">Saturating</div>
+<!-- Market Name -->
+<div class="font-headline-md text-headline-md tracking-tight uppercase">alpha-gpc</div>
+<!-- Stage -->
+<div class="flex items-center gap-2 font-label-mono text-label-mono">
+<span class="text-secondary uppercase">Established</span>
+<span class="material-symbols-outlined text-secondary font-bold">trending_up</span>
+<span class="text-primary uppercase">Infill</span>
+</div>
+<!-- Sparkline -->
+<div class="h-8 w-full flex flex-col justify-between relative overflow-hidden">
+<div class="absolute inset-0 bg-surface-container"></div>
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 140 32">
+<path d="M0 20 L20 15 L40 18 L60 12 L80 15 L100 10 L120 12 L140 11" fill="none" stroke="black" stroke-width="2"></path>
+<path d="M0 25 L140 25" fill="none" stroke="#cfc4c5" stroke-dasharray="4 2" stroke-width="1"></path>
+</svg>
+</div>
+<!-- Witness Dots -->
+<div class="flex gap-1.5 justify-center">
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 bg-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 border border-primary rounded-full"></div>
+<div class="w-2.5 h-2.5 border border-primary rounded-full"></div>
+</div>
+<!-- Change Note -->
+<div class="font-label-mono text-label-mono text-secondary">
+                    CPM inflation stabilized at 4.2% MoM
+                </div>
+<!-- Menu -->
+<button class="material-symbols-outlined text-secondary hover:text-primary">more_horiz</button>
+</div>
+</div>
+<!-- FOOTER INFO / DATA DENSITY STATS -->
+<div class="mt-section-gap grid grid-cols-4 gap-gutter">
+<div class="border border-primary p-4 bg-white">
+<p class="font-label-mono text-label-mono text-secondary mb-2 uppercase">Integrity Score</p>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-md text-headline-md">98.4</span>
+<span class="font-label-mono text-label-mono text-[#2E7D32]">+0.2</span>
+</div>
+</div>
+<div class="border border-primary p-4 bg-white">
+<p class="font-label-mono text-label-mono text-secondary mb-2 uppercase">Signals Tracked</p>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-md text-headline-md">14,802</span>
+<span class="font-label-mono text-label-mono text-secondary">LIVE</span>
+</div>
+</div>
+<div class="border border-primary p-4 bg-white">
+<p class="font-label-mono text-label-mono text-secondary mb-2 uppercase">Latency</p>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-md text-headline-md">14ms</span>
+<span class="font-label-mono text-label-mono text-[#2E7D32]">NOMINAL</span>
+</div>
+</div>
+<div class="border border-primary p-4 bg-white">
+<p class="font-label-mono text-label-mono text-secondary mb-2 uppercase">System Uptime</p>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-md text-headline-md">99.99</span>
+<span class="font-label-mono text-label-mono text-secondary">%</span>
+</div>
+</div>
+</div>
+</main>
+<!-- ATMOSPHERIC ELEMENT: Subtle Scanline Effect -->
+<div class="fixed inset-0 pointer-events-none opacity-[0.03] z-50 overflow-hidden">
+<div class="w-full h-full" style="background: repeating-linear-gradient(0deg, #000, #000 1px, transparent 1px, transparent 2px);"></div>
+</div>
+<script>
+        // Simple micro-interactions
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.classList.add('scale-95');
+            });
+            button.addEventListener('mouseup', () => {
+                button.classList.remove('scale-95');
+            });
+            button.addEventListener('mouseleave', () => {
+                button.classList.remove('scale-95');
+            });
+        });
+
+        // Search shadow interaction
+        const searchInput = document.querySelector('input[type="text"]');
+        if(searchInput) {
+            searchInput.addEventListener('focus', () => {
+                searchInput.parentElement.style.transform = 'translate(-1px, -1px)';
+                searchInput.style.boxShadow = '3px 3px 0px 0px #000000';
+            });
+            searchInput.addEventListener('blur', () => {
+                searchInput.parentElement.style.transform = 'translate(0px, 0px)';
+                searchInput.style.boxShadow = '2px 2px 0px 0px #000000';
+            });
+        }
+    </script>
+</body></html>

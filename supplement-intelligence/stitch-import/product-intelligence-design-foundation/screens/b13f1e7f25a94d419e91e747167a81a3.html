@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e8e8e8",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-secondary-container": "#616363",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "surface-container-low": "#f3f3f3",
+                        "on-surface-variant": "#4c4546",
+                        "surface": "#f9f9f9",
+                        "tertiary-container": "#1b1c1c",
+                        "secondary": "#5d5f5f",
+                        "tertiary-fixed": "#e4e2e2",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary-container": "#dfe0e0",
+                        "on-primary-container": "#848484",
+                        "surface-variant": "#e2e2e2",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-container": "#848484",
+                        "on-primary-fixed-variant": "#474747",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2f3131",
+                        "outline-variant": "#cfc4c5",
+                        "background": "#f9f9f9",
+                        "on-secondary-fixed-variant": "#454747",
+                        "surface-dim": "#dadada",
+                        "error-container": "#ffdad6",
+                        "surface-container": "#eeeeee",
+                        "primary": "#000000",
+                        "primary-container": "#1b1b1b",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "tertiary": "#000000",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#1a1c1c",
+                        "primary-fixed": "#e2e2e2",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#5e5e5e",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-surface": "#1a1c1c",
+                        "inverse-primary": "#c6c6c6",
+                        "outline": "#7e7576",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "surface-bright": "#f9f9f9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "element-gap": "16px",
+                        "container-padding": "40px",
+                        "section-gap": "64px",
+                        "grid-unit": "8px"
+                    },
+                    "fontFamily": {
+                        "verdict-sm": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-xl-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                        "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #f2f2f2;
+            color: #1a1c1c;
+        }
+        .neo-border { border: 1px solid #000000; }
+        .neo-border-heavy { border: 2px solid #000000; }
+        .hard-shadow { box-shadow: 2px 2px 0px 0px #000000; }
+        .witness-dot { width: 8px; height: 8px; border-radius: 9999px; }
+        .witness-filled { background-color: #000000; }
+        .witness-hollow { border: 1px solid #000000; }
+        
+        /* Hide scrollbar for clean dashboard feel */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #000000; }
+    </style>
+</head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- TopNavBar (The Anchor) -->
+<header class="flex justify-between items-center px-gutter w-full sticky top-0 z-50 bg-surface dark:bg-surface h-16 border-b-2 border-primary dark:border-on-surface-variant">
+<div class="flex items-center gap-8">
+<span class="font-headline-md text-headline-md font-black text-primary dark:text-on-surface uppercase tracking-tighter">PRODUCT INTELLIGENCE</span>
+<div class="relative hidden md:block">
+<input class="w-96 h-10 px-4 neo-border-heavy hard-shadow bg-white font-label-mono text-label-mono focus:outline-none" placeholder="Search engine ledger..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="px-4 py-2 bg-white neo-border text-primary font-label-mono text-label-mono uppercase hover:bg-primary hover:text-on-primary transition-colors cursor-pointer active:scale-95">Filters</button>
+<button class="px-4 py-2 bg-primary text-on-primary font-label-mono text-label-mono uppercase hover:bg-white hover:text-primary neo-border transition-colors cursor-pointer active:scale-95">Export</button>
+</div>
+</header>
+<div class="flex">
+<!-- SideNavBar (The Blueprint) -->
+<nav class="fixed left-0 top-0 h-full flex flex-col z-40 bg-surface-container dark:bg-surface-container h-screen w-64 border-r-2 border-primary dark:border-on-surface-variant pt-16">
+<div class="p-6">
+<div class="font-headline-md text-headline-md font-black text-primary dark:text-on-surface">Intelligence Engine</div>
+<div class="font-label-mono text-label-mono text-secondary">V2.4.1</div>
+</div>
+<div class="flex-1 overflow-y-auto pt-4">
+<a class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer active:translate-x-1" href="#">
+<span class="material-symbols-outlined">home</span> Home
+                </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer active:translate-x-1" href="#">
+<span class="material-symbols-outlined">visibility</span> Watchlist
+                </a>
+<a class="bg-primary text-on-primary dark:bg-on-surface dark:text-surface flex items-center gap-4 px-4 py-3 font-bold uppercase font-label-mono text-label-mono cursor-pointer active:translate-x-1" href="#">
+<span class="material-symbols-outlined">account_tree</span> Pipeline
+                </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer active:translate-x-1" href="#">
+<span class="material-symbols-outlined">notifications</span> Alerts
+                </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer active:translate-x-1" href="#">
+<span class="material-symbols-outlined">insights</span> Track Record
+                </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer active:translate-x-1" href="#">
+<span class="material-symbols-outlined">database</span> Data Sources
+                </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary dark:text-on-secondary-container uppercase font-label-mono text-label-mono hover:bg-secondary-container transition-all cursor-pointer active:translate-x-1" href="#">
+<span class="material-symbols-outlined">settings</span> Settings
+                </a>
+</div>
+<div class="mt-auto border-t border-primary p-2">
+<a class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container" href="#">
+<span class="material-symbols-outlined">help</span> Support
+                </a>
+<a class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono hover:bg-secondary-container" href="#">
+<span class="material-symbols-outlined">logout</span> Log Out
+                </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="ml-64 w-full p-container-padding">
+<!-- Page Header -->
+<div class="mb-section-gap flex flex-col md:flex-row md:items-end justify-between">
+<div>
+<h1 class="font-headline-xl text-headline-xl uppercase">Ledger Index</h1>
+<p class="font-label-mono text-label-mono text-secondary mt-2">Immutable verification records for global product markets.</p>
+</div>
+<div class="flex gap-element-gap mt-6 md:mt-0">
+<div class="flex items-center gap-2 font-label-mono text-label-mono bg-white px-3 py-1 neo-border">
+<span class="witness-dot witness-filled"></span>
+<span class="uppercase">Live Updates</span>
+</div>
+<div class="font-label-mono text-label-mono text-secondary px-3 py-1 bg-surface-container neo-border">
+                        System Load: 12%
+                    </div>
+</div>
+</div>
+<!-- Filter Section -->
+<div class="flex flex-wrap gap-4 mb-element-gap items-center">
+<span class="font-label-mono text-label-mono uppercase font-bold text-primary">Filters:</span>
+<button class="bg-primary text-on-primary px-3 py-1 font-label-mono text-label-mono uppercase neo-border flex items-center gap-2">
+                    Market: All <span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+<button class="bg-white text-primary px-3 py-1 font-label-mono text-label-mono uppercase neo-border flex items-center gap-2 hover:bg-surface-container transition-colors">
+                    Date Range <span class="material-symbols-outlined text-[14px]">calendar_today</span>
+</button>
+<button class="bg-white text-primary px-3 py-1 font-label-mono text-label-mono uppercase neo-border flex items-center gap-2 hover:bg-surface-container transition-colors">
+                    Verdict <span class="material-symbols-outlined text-[14px]">filter_list</span>
+</button>
+<button class="bg-white text-primary px-3 py-1 font-label-mono text-label-mono uppercase neo-border flex items-center gap-2 hover:bg-surface-container transition-colors">
+                    Version v2.7 <span class="material-symbols-outlined text-[14px]">bolt</span>
+</button>
+<button class="ml-auto text-secondary font-label-mono text-label-mono uppercase underline hover:text-primary transition-colors">Clear All</button>
+</div>
+<!-- Table Container -->
+<div class="bg-white neo-border overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container border-b neo-border">
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase font-bold">Date / Timestamp</th>
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase font-bold">Market Entity</th>
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase font-bold">Verdict</th>
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase font-bold">Confidence</th>
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase font-bold">Engine</th>
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase font-bold">Integrity Hash</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-highest">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-label-mono text-label-mono">2026.07.10 | 09:42</td>
+<td class="px-6 py-4 font-bold uppercase tracking-tight">Magnesium Glycinate</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-green-500 text-white font-verdict-sm text-verdict-sm uppercase">Verified</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-1">
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-hollow"></div>
+</div>
+</td>
+<td class="px-6 py-4 font-label-mono text-label-mono text-secondary">v2.7.04</td>
+<td class="px-6 py-4 flex items-center gap-2 text-secondary group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span class="font-label-mono text-[10px]">RECORDED JULY 10, 2026 — NEVER MODIFIED</span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-label-mono text-label-mono">2026.07.10 | 08:15</td>
+<td class="px-6 py-4 font-bold uppercase tracking-tight">Creatine Gummies</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-yellow-500 text-black font-verdict-sm text-verdict-sm uppercase">Purity Alert</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-1">
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-hollow"></div>
+<div class="witness-dot witness-hollow"></div>
+<div class="witness-dot witness-hollow"></div>
+</div>
+</td>
+<td class="px-6 py-4 font-label-mono text-label-mono text-secondary">v2.7.04</td>
+<td class="px-6 py-4 flex items-center gap-2 text-secondary group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span class="font-label-mono text-[10px]">RECORDED JULY 10, 2026 — NEVER MODIFIED</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-label-mono text-label-mono">2026.07.09 | 23:12</td>
+<td class="px-6 py-4 font-bold uppercase tracking-tight">Berberine HCL</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-green-500 text-white font-verdict-sm text-verdict-sm uppercase">Verified</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-1">
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+</div>
+</td>
+<td class="px-6 py-4 font-label-mono text-label-mono text-secondary">v2.7.01</td>
+<td class="px-6 py-4 flex items-center gap-2 text-secondary group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span class="font-label-mono text-[10px]">RECORDED JULY 09, 2026 — NEVER MODIFIED</span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-label-mono text-label-mono">2026.07.09 | 19:55</td>
+<td class="px-6 py-4 font-bold uppercase tracking-tight">Alpha-GPC</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-red-600 text-white font-verdict-sm text-verdict-sm uppercase">Contaminated</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-1">
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+</div>
+</td>
+<td class="px-6 py-4 font-label-mono text-label-mono text-secondary">v2.7.01</td>
+<td class="px-6 py-4 flex items-center gap-2 text-secondary group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span class="font-label-mono text-[10px]">RECORDED JULY 09, 2026 — NEVER MODIFIED</span>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-label-mono text-label-mono">2026.07.08 | 14:20</td>
+<td class="px-6 py-4 font-bold uppercase tracking-tight">Ashwagandha KSM-66</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-green-500 text-white font-verdict-sm text-verdict-sm uppercase">Verified</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-1">
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-hollow"></div>
+<div class="witness-dot witness-hollow"></div>
+</div>
+</td>
+<td class="px-6 py-4 font-label-mono text-label-mono text-secondary">v2.6.98</td>
+<td class="px-6 py-4 flex items-center gap-2 text-secondary group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span class="font-label-mono text-[10px]">RECORDED JULY 08, 2026 — NEVER MODIFIED</span>
+</td>
+</tr>
+<!-- Row 6 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-label-mono text-label-mono">2026.07.08 | 11:04</td>
+<td class="px-6 py-4 font-bold uppercase tracking-tight">L-Theanine</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-green-500 text-white font-verdict-sm text-verdict-sm uppercase">Verified</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-1">
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-hollow"></div>
+</div>
+</td>
+<td class="px-6 py-4 font-label-mono text-label-mono text-secondary">v2.6.98</td>
+<td class="px-6 py-4 flex items-center gap-2 text-secondary group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span class="font-label-mono text-[10px]">RECORDED JULY 08, 2026 — NEVER MODIFIED</span>
+</td>
+</tr>
+<!-- Row 7 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 font-label-mono text-label-mono">2026.07.07 | 16:30</td>
+<td class="px-6 py-4 font-bold uppercase tracking-tight">Whey Isolate v4</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-yellow-500 text-black font-verdict-sm text-verdict-sm uppercase">Low Efficacy</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-1">
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-hollow"></div>
+<div class="witness-dot witness-hollow"></div>
+</div>
+</td>
+<td class="px-6 py-4 font-label-mono text-label-mono text-secondary">v2.6.95</td>
+<td class="px-6 py-4 flex items-center gap-2 text-secondary group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span class="font-label-mono text-[10px]">RECORDED JULY 07, 2026 — NEVER MODIFIED</span>
+</td>
+</tr>
+<!-- Row 8 -->
+<tr class="hover:bg-surface-container-low transition-colors group border-b-0">
+<td class="px-6 py-4 font-label-mono text-label-mono">2026.07.07 | 10:11</td>
+<td class="px-6 py-4 font-bold uppercase tracking-tight">Bacopa Monnieri</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-green-500 text-white font-verdict-sm text-verdict-sm uppercase">Verified</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-1">
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+<div class="witness-dot witness-filled"></div>
+</div>
+</td>
+<td class="px-6 py-4 font-label-mono text-label-mono text-secondary">v2.6.95</td>
+<td class="px-6 py-4 flex items-center gap-2 text-secondary group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span class="font-label-mono text-[10px]">RECORDED JULY 07, 2026 — NEVER MODIFIED</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Footer -->
+<div class="mt-8 flex justify-between items-center font-label-mono text-label-mono text-secondary">
+<div class="flex items-center gap-4">
+<span>Show Rows: </span>
+<select class="bg-transparent border-none focus:ring-0 cursor-pointer font-bold text-primary">
+<option>10</option>
+<option selected="">25</option>
+<option>50</option>
+</select>
+</div>
+<div class="flex gap-4 items-center">
+<button class="hover:text-primary transition-colors"><span class="material-symbols-outlined">chevron_left</span></button>
+<span class="text-primary font-bold">1 / 442</span>
+<button class="hover:text-primary transition-colors"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+<!-- Stats Grid (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mt-section-gap">
+<div class="bg-white p-6 neo-border flex flex-col justify-between h-32">
+<div class="font-label-mono text-label-mono uppercase text-secondary">Verification Velocity</div>
+<div class="font-headline-md text-headline-md">1.2s <span class="text-green-500 text-sm">AVG</span></div>
+</div>
+<div class="bg-white p-6 neo-border flex flex-col justify-between h-32">
+<div class="font-label-mono text-label-mono uppercase text-secondary">Purity Delta</div>
+<div class="font-headline-md text-headline-md">+0.04%</div>
+</div>
+<div class="bg-white p-6 neo-border flex flex-col justify-between h-32">
+<div class="font-label-mono text-label-mono uppercase text-secondary">Total Ledger Entries</div>
+<div class="font-headline-md text-headline-md">849,211</div>
+</div>
+<div class="bg-primary p-6 neo-border flex flex-col justify-between h-32 text-on-primary">
+<div class="font-label-mono text-label-mono uppercase opacity-70">Integrity Protocol</div>
+<div class="font-headline-md text-headline-md">SECURED</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Floating Action Button (Contextual Suppression Logic Applied: Only visible if relevant) -->
+<!-- Not visible on table view based on "Task-Focused" rule -->
+<script>
+        // Micro-interaction for table rows
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('click', () => {
+                // Flash effect for "immutable recorded" feeling
+                row.classList.add('bg-primary', 'text-white');
+                setTimeout(() => {
+                    row.classList.remove('bg-primary', 'text-white');
+                }, 100);
+            });
+        });
+
+        // Search input hard shadow focus effect
+        const searchInput = document.querySelector('input[type="text"]');
+        if(searchInput) {
+            searchInput.addEventListener('focus', () => {
+                searchInput.style.boxShadow = '4px 4px 0px 0px #000000';
+            });
+            searchInput.addEventListener('blur', () => {
+                searchInput.style.boxShadow = '2px 2px 0px 0px #000000';
+            });
+        }
+    </script>
+</body></html>

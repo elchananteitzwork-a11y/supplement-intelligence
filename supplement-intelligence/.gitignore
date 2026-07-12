@@ -23,3 +23,7 @@ yarn-debug.log*
 yarn-error.log*
 .vercel
 .env*
+
+# Google Cloud SDK — installed locally for Stitch MCP OAuth, never commit
+.gcloud-sdk/
+.gcloud-python/

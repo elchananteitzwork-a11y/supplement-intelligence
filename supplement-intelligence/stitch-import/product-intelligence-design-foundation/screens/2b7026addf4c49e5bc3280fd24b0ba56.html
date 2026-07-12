@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Product Intelligence | Should you build it?</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-dim": "#dadada",
+                    "primary-container": "#1b1b1b",
+                    "surface-container-low": "#f3f3f3",
+                    "surface-container-high": "#e8e8e8",
+                    "on-background": "#1a1c1c",
+                    "inverse-surface": "#2f3131",
+                    "on-error-container": "#93000a",
+                    "on-secondary": "#ffffff",
+                    "primary": "#000000",
+                    "surface-container": "#eeeeee",
+                    "surface-bright": "#f9f9f9",
+                    "on-surface-variant": "#4c4546",
+                    "on-error": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#000000",
+                    "secondary-fixed": "#e2e2e2",
+                    "outline-variant": "#cfc4c5",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "tertiary-fixed": "#e4e2e2",
+                    "error-container": "#ffdad6",
+                    "inverse-on-surface": "#f1f1f1",
+                    "inverse-primary": "#c6c6c6",
+                    "on-surface": "#1a1c1c",
+                    "on-tertiary-container": "#848484",
+                    "on-primary-container": "#848484",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "background": "#f9f9f9",
+                    "on-secondary-container": "#616363",
+                    "outline": "#7e7576",
+                    "secondary": "#5d5f5f",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "surface-variant": "#e2e2e2",
+                    "error": "#ba1a1a",
+                    "on-primary-fixed-variant": "#474747",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-primary-fixed": "#1b1b1b",
+                    "surface": "#f9f9f9",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-container": "#1b1c1c",
+                    "surface-tint": "#5e5e5e",
+                    "primary-fixed": "#e2e2e2",
+                    "secondary-container": "#dfe0e0",
+                    "verdict-green": "#008a00",
+                    "verdict-red": "#d32f2f",
+                    "verdict-yellow": "#fbc02d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "container-padding": "40px",
+                    "grid-unit": "8px",
+                    "element-gap": "16px",
+                    "section-gap": "64px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "label-mono": ["JetBrains Mono"],
+                    "verdict-sm": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "headline-xl-mobile": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f9f9f9;
+            color: #1a1c1c;
+            -webkit-font-smoothing: antialiased;
+        }
+        .neo-border {
+            border: 1px solid #000000;
+        }
+        .neo-border-heavy {
+            border: 2px solid #000000;
+        }
+        .hard-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        .witness-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 9999px;
+            display: inline-block;
+        }
+        .witness-dot-filled {
+            background-color: #000000;
+        }
+        .witness-dot-hollow {
+            border: 1px solid #000000;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="w-full top-0 sticky bg-surface z-50 border-b-2 border-primary">
+<nav class="flex justify-between items-center w-full px-gutter py-4 max-w-full">
+<div class="text-headline-md font-headline-md font-black tracking-tighter text-primary">
+                PRODUCT INTELLIGENCE
+            </div>
+<div class="hidden md:flex gap-element-gap items-center">
+<a class="text-primary font-bold border-b-2 border-primary transition-colors hover:bg-surface-container-highest py-1 px-2" href="#">Dashboard</a>
+<a class="text-secondary transition-colors hover:bg-surface-container-highest py-1 px-2" href="#">Analysis</a>
+<a class="text-secondary transition-colors hover:bg-surface-container-highest py-1 px-2" href="#">Reports</a>
+</div>
+<button class="bg-primary text-on-primary font-bold px-6 py-2 uppercase hover:bg-white hover:text-primary neo-border transition-colors duration-200 active:scale-95">
+                Sign In
+            </button>
+</nav>
+</header>
+<main class="flex-grow">
+<!-- Hero Section -->
+<section class="max-w-[720px] mx-auto text-center pt-24 pb-32">
+<h1 class="text-headline-xl font-headline-xl text-primary mb-4">
+                Should you build it?
+            </h1>
+<p class="text-body-lg font-body-lg text-secondary mb-12">
+                One question. Six independent evidence sources. A verdict you can defend.
+            </p>
+<div class="relative group">
+<input autofocus="" class="w-full h-[56px] neo-border-heavy hard-shadow px-6 text-body-lg font-body-lg focus:outline-none focus:ring-0 placeholder:text-surface-dim transition-all" placeholder="magnesium glycinate…" type="text"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+<span class="text-label-mono font-label-mono text-surface-dim hidden md:block">PRESS ENTER TO QUERY</span>
+<span class="material-symbols-outlined text-primary">search</span>
+</div>
+</div>
+</section>
+<!-- Verdict Cards Section -->
+<section class="max-w-[1200px] mx-auto px-gutter pb-section-gap">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Card 1: BUILD NOW -->
+<div class="bg-white neo-border p-6 flex flex-col h-full">
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="text-label-mono font-label-mono text-secondary block mb-1">MARKET</span>
+<span class="text-headline-md font-headline-md">Nootropics</span>
+</div>
+<div class="bg-verdict-green text-white px-3 py-1 font-black text-verdict-sm uppercase">
+                            BUILD NOW
+                        </div>
+</div>
+<div class="mb-6">
+<span class="text-label-mono font-label-mono text-secondary block mb-1">WINDOW</span>
+<span class="text-body-md font-bold uppercase">Expansion — Early</span>
+</div>
+<div class="mb-6">
+<div class="flex gap-1 mb-2">
+<span class="witness-dot witness-dot-filled"></span>
+<span class="witness-dot witness-dot-filled"></span>
+<span class="witness-dot witness-dot-filled"></span>
+<span class="witness-dot witness-dot-filled"></span>
+<span class="witness-dot witness-dot-hollow"></span>
+</div>
+<span class="text-label-mono font-label-mono text-secondary">4 of 5 witnesses agree</span>
+</div>
+<div class="mt-auto">
+<span class="text-label-mono font-label-mono text-secondary block mb-1">THESIS</span>
+<p class="text-body-md font-body-md text-primary leading-relaxed">
+                            Strong demand signals across Reddit and Amazon. Supply is fragmented with low brand loyalty. Margins support a premium entry.
+                        </p>
+</div>
+</div>
+<!-- Card 2: MONITOR -->
+<div class="bg-white neo-border p-6 flex flex-col h-full">
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="text-label-mono font-label-mono text-secondary block mb-1">MARKET</span>
+<span class="text-headline-md font-headline-md">Vertical Keyboards</span>
+</div>
+<div class="bg-verdict-yellow text-primary px-3 py-1 font-black text-verdict-sm uppercase">
+                            MONITOR
+                        </div>
+</div>
+<div class="mb-6">
+<span class="text-label-mono font-label-mono text-secondary block mb-1">WINDOW</span>
+<span class="text-body-md font-bold uppercase">Niche — Opening</span>
+</div>
+<div class="mb-6">
+<div class="flex gap-1 mb-2">
+<span class="witness-dot witness-dot-filled"></span>
+<span class="witness-dot witness-dot-filled"></span>
+<span class="witness-dot witness-dot-filled"></span>
+<span class="witness-dot witness-dot-hollow"></span>
+<span class="witness-dot witness-dot-hollow"></span>
+</div>
+<span class="text-label-mono font-label-mono text-secondary">3 of 5 witnesses agree</span>
+</div>
+<div class="mt-auto">
+<span class="text-label-mono font-label-mono text-secondary block mb-1">THESIS</span>
+<p class="text-body-md font-body-md text-primary leading-relaxed">
+                            Growing interest in ergonomic workstations. Early adopter sentiment is high but total addressable market remains small. Wait for broader search trend.
+                        </p>
+</div>
+</div>
+<!-- Card 3: AVOID -->
+<div class="bg-white neo-border p-6 flex flex-col h-full">
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="text-label-mono font-label-mono text-secondary block mb-1">MARKET</span>
+<span class="text-headline-md font-headline-md">Fidget Spinners</span>
+</div>
+<div class="bg-verdict-red text-white px-3 py-1 font-black text-verdict-sm uppercase">
+                            AVOID
+                        </div>
+</div>
+<div class="mb-6">
+<span class="text-label-mono font-label-mono text-secondary block mb-1">WINDOW</span>
+<span class="text-body-md font-bold uppercase">Decline — Closing</span>
+</div>
+<div class="mb-6">
+<div class="flex gap-1 mb-2">
+<span class="witness-dot witness-dot-filled"></span>
+<span class="witness-dot witness-dot-hollow"></span>
+<span class="witness-dot witness-dot-hollow"></span>
+<span class="witness-dot witness-dot-hollow"></span>
+<span class="witness-dot witness-dot-hollow"></span>
+</div>
+<span class="text-label-mono font-label-mono text-secondary">1 of 5 witnesses agree</span>
+</div>
+<div class="mt-auto">
+<span class="text-label-mono font-label-mono text-secondary block mb-1">THESIS</span>
+<p class="text-body-md font-body-md text-primary leading-relaxed">
+                            Market saturation has peaked. Search volume is down 80% year-over-year. Retail inventory is being liquidated.
+                        </p>
+</div>
+</div>
+</div>
+<div class="mt-12 text-center">
+<p class="text-label-mono font-label-mono text-on-surface-variant">
+                    Track record requires time. Our ledger began July 2026; first quarterly re-measurements land October 2026.
+                </p>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full mt-section-gap bg-surface-container-low border-t border-outline-variant">
+<div class="flex flex-col md:flex-row justify-between items-center w-full px-gutter py-section-gap max-w-full">
+<div class="text-label-mono font-bold text-primary mb-6 md:mb-0">
+                PRODUCT INTELLIGENCE
+            </div>
+<div class="flex flex-wrap justify-center gap-8">
+<a class="text-label-mono font-label-mono text-on-surface-variant hover:text-primary transition-opacity duration-200" href="#">Pricing</a>
+<a class="text-label-mono font-label-mono text-on-surface-variant hover:text-primary transition-opacity duration-200" href="#">Sign in</a>
+<a class="text-label-mono font-label-mono text-on-surface-variant hover:text-primary transition-opacity duration-200" href="#">Data sources</a>
+<a class="text-label-mono font-label-mono text-on-surface-variant hover:text-primary transition-opacity duration-200" href="#">Legal</a>
+</div>
+<div class="text-label-mono font-label-mono text-secondary mt-8 md:mt-0">
+                © 2024 Product Intelligence. All rights reserved.
+            </div>
+</div>
+</footer>
+<script>
+        // Simple interactive handling for the search input
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('scale-[1.01]');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('scale-[1.01]');
+        });
+
+        // Hover effects for cards
+        const cards = document.querySelectorAll('.neo-border');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.classList.add('bg-surface-bright');
+            });
+            card.addEventListener('mouseleave', () => {
+                card.classList.remove('bg-surface-bright');
+            });
+        });
+    </script>
+</body></html>

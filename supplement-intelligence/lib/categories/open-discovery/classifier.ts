@@ -106,10 +106,14 @@ beauty — skincare, cosmetics, haircare, makeup, fragrance, personal care (non-
 pets — pet food, pet treats, pet supplements, pet accessories, pet health products
 fitness — sports equipment, gym accessories, sportswear, athletic gear, sports nutrition (pre/post-workout), fitness tools
 home — kitchen gadgets, home organization, cleaning products, home decor, candles, small appliances, lifestyle goods
+none — the query is clearly outside ALL of the above categories (e.g. electronics, software, musical instruments, vehicles, industrial goods)
 
-Output ONLY the category ID — no explanation, no other words. Choose the single most relevant category.`
+Output ONLY the category ID — no explanation, no other words.`
 
-async function classifyWithLLM(input: string): Promise<KnownCategoryId> {
+// Fix 5 (v2.6.0): returns 'none' for products clearly outside all supported
+// categories, rather than defaulting to 'supplements'. The caller in route.ts
+// intercepts 'none' before categoryRegistry.resolve() and returns a 400.
+async function classifyWithLLM(input: string): Promise<KnownCategoryId | 'none'> {
   const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   try {
     const msg = await ai.messages.create({
@@ -119,18 +123,21 @@ async function classifyWithLLM(input: string): Promise<KnownCategoryId> {
       messages:   [{ role: 'user', content: input.trim() }],
     })
     const raw = (msg.content[0].type === 'text' ? msg.content[0].text : '').trim().toLowerCase()
+    if (raw === 'none') return 'none'
     if ((VALID_CATEGORY_IDS as readonly string[]).includes(raw)) {
       return raw as KnownCategoryId
     }
   } catch {
     // Fall through to default
   }
-  // Default: supplements (our primary category)
+  // Default: supplements (our primary category — only reached on LLM error)
   return 'supplements'
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
+// Returns a KnownCategoryId or 'none' (unsupported product).
+// 'none' must be intercepted by the caller before categoryRegistry.resolve().
 export async function classifyQuery(input: string): Promise<string> {
   const scores = scoreByKeywords(input)
   const keywordResult = pickBestKeywordMatch(scores)
@@ -139,7 +146,7 @@ export async function classifyQuery(input: string): Promise<string> {
     return keywordResult
   }
 
-  // Ambiguous — use LLM for accurate classification
+  // Ambiguous — use LLM for accurate classification (may return 'none')
   return classifyWithLLM(input)
 }
 

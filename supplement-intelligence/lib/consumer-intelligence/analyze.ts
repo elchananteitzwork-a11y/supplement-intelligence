@@ -415,6 +415,16 @@ export async function analyzeConsumerIntelligence(
     dataSource,
     confidence,
     generatedAt: new Date().toISOString(),
+
+    // Milestone 7: raw Amazon review text (helpful + critical, deduped —
+    // the full real corpus, not the helpful-only/TikTok-filtered pool used
+    // for sentiment/repurchase above) for optional AI narrative synthesis
+    // downstream. Uncleaned (cleanReviewText not applied) — ReviewEngine
+    // does its own truncation/whitespace normalization on raw text.
+    rawReviewsForNarrative: amazonReviews.map(r => ({
+      id: r.id, asin: r.asin, title: r.title, body: r.body,
+      rating: r.rating, verified: r.verified, helpful_votes: r.helpful_votes, date: r.date,
+    })),
   }
 }
 

@@ -24,6 +24,17 @@ export interface KeywordMetric {
    *  the volume/trend/seasonality charts and the 12-month forecast. */
   monthly_history?: KeywordMonthlyPoint[]
 
+  // ── Additive (Milestone 6 / SCORING_ENGINE_VERSION 2.10.0) — deterministic
+  // arithmetic over monthly_history (see acceleration.ts), zero new provider
+  // cost. Null when monthly_history has fewer than 9 real data points —
+  // never estimated from a thinner sample.
+  /** Recent-window growth rate ("slope") — middle-third vs newest-third of monthly_history, %. */
+  recent_growth_pct?: number | null
+  /** Change in growth rate between the early and recent windows (2nd derivative), percentage points. */
+  acceleration_pct?:  number | null
+  /** Deterministic classification from acceleration.ts's threshold rules — never AI judgment. */
+  search_direction?:  'accelerating' | 'stable' | 'decelerating' | 'declining' | null
+
   /** Real when DataForSEO supplies it; otherwise a disclosed rule-based
    *  fallback (see cluster.ts classifyIntent) — search_intent_source says which. */
   search_intent?:        SearchIntent | null

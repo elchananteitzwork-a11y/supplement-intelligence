@@ -1,6 +1,7 @@
 import type { KeywordProvider, KeywordIntelligence, KeywordMetric } from './types'
 import { checkKeywordRelevance } from './relevance-guard'
 import { cacheGet, cacheSet } from '../provider-cache'
+import { computeSearchAcceleration } from './acceleration'
 
 // ── DataForSEO Labs — Related Keywords (live) ──────────────────────────────
 //
@@ -103,6 +104,25 @@ function broadenedCandidates(seedKeyword: string): string[] {
   // ever-more-aggressive stripping to manufacture a result.
   if (words.length >= 4) {
     candidates.push(words.slice(2).join(' '))
+  }
+
+  // FIRST-N-WORDS STRATEGY (found 2026-07-07, pipeline audit): the strategies
+  // above all keep the TAIL of the phrase and discard words from the front.
+  // The inverse failure pattern also exists: a 5+ word phrase with a specific
+  // tail (a dose, a format variant, a SKU qualifier) where the real graph
+  // coverage lives in the first 3 words.
+  // CONFIRMED VIA LIVE CALL 2026-07-07:
+  //   "Vitamin D3 K2 2000IU combo capsules" (full) -> 0 items across 4 candidates
+  //   "vitamin d3 k2" (first 3)             -> 7 items, 33,100/mo real volume
+  //   "Creatine monohydrate gummies raspberry daily dose" -> 0 across all candidates
+  //   "creatine monohydrate gummies" (first 3) -> 8 items, 14,800/mo real volume
+  // Only fires on 5+ word phrases (4-word phrases are already covered by the
+  // 2-words-dropped candidate above; 3-word phrases must not collapse to a
+  // single-word stub). The Keyword Relevance Guard still runs on every result
+  // from this candidate — broad keywords that drift from the specific query are
+  // rejected there, not here.
+  if (words.length >= 5) {
+    candidates.push(words.slice(0, 3).join(' '))
   }
 
   return candidates
@@ -212,6 +232,12 @@ function toMetric(data: DfsKeywordData): KeywordMetric | null {
   const lowBid  = data.keyword_info?.low_top_of_page_bid
   const highBid = data.keyword_info?.high_top_of_page_bid
 
+  const monthlyHistory = toMonthlyHistory(data.keyword_info?.monthly_searches ?? [])
+  // Milestone 6: slope + acceleration from the SAME real monthly_searches
+  // history already fetched above — zero new provider cost. Null (honest,
+  // never estimated) when fewer than 9 real months are available.
+  const acceleration = computeSearchAcceleration(monthlyHistory)
+
   return {
     keyword,
     monthly_searches: volume,
@@ -222,7 +248,11 @@ function toMetric(data: DfsKeywordData): KeywordMetric | null {
 
     growth_pct_30d:  typeof trend30d === 'number' ? trend30d : null,
     growth_pct_90d:  typeof trend90d === 'number' ? trend90d : null,
-    monthly_history: toMonthlyHistory(data.keyword_info?.monthly_searches ?? []),
+    monthly_history: monthlyHistory,
+
+    recent_growth_pct: acceleration?.recent_growth_pct ?? null,
+    acceleration_pct:  acceleration?.acceleration_pct  ?? null,
+    search_direction:  acceleration?.direction         ?? null,
     // Real only if DataForSEO actually supplied it on this response (see the
     // DfsSearchIntentInfo comment above — not present on this endpoint
     // today). build.ts's enrichMetric() fills the computed fallback when
@@ -450,6 +480,8 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
       const row = task.result?.[0]
       if (!row || typeof row.search_volume !== 'number' || row.search_volume <= 0) return null
       console.log('[DataForSEO] search_volume/live fallback succeeded', { keyword, search_volume: row.search_volume, cpc: row.cpc })
+      const fallbackHistory = toMonthlyHistory(row.monthly_searches ?? [])
+      const fallbackAcceleration = computeSearchAcceleration(fallbackHistory)
       return {
         keyword,
         monthly_searches:  row.search_volume,
@@ -458,7 +490,10 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
         difficulty:        null,
         cpc:               row.cpc ?? null,
         competition_level: row.competition_level ?? null,
-        monthly_history:   toMonthlyHistory(row.monthly_searches ?? []),
+        monthly_history:   fallbackHistory,
+        recent_growth_pct: fallbackAcceleration?.recent_growth_pct ?? null,
+        acceleration_pct:  fallbackAcceleration?.acceleration_pct  ?? null,
+        search_direction:  fallbackAcceleration?.direction         ?? null,
       }
     } catch {
       return null

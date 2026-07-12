@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ThesisCard } from '@/components/research/ThesisCard'
 import { AdversarialDebate } from '@/components/research/AdversarialDebate'
+import { PrimaryButton } from '@/components/ui'
 import type { InvestmentThesis } from '@/lib/stage2/types'
 import type { AdversarialDebateResult } from '@/lib/stage3/adversarial'
 
@@ -109,36 +109,36 @@ export default function EvaluatePage() {
   const selectedDebate = selected ? debates[selected] : null
 
   return (
-    <main className="max-w-4xl mx-auto px-6 py-12 space-y-8">
+    <main className="min-h-screen bg-surface font-sans text-ink max-w-4xl mx-auto px-6 py-12 space-y-8">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-3 text-xs text-gray-500">
-        <Link href="/research" className="hover:text-gray-300 transition-colors">Research</Link>
-        <span className="text-gray-700">/</span>
-        <Link href={`/research/${signal_id}`} className="hover:text-gray-300 transition-colors">
+      <div className="flex items-center gap-3 text-xs font-mono text-outline uppercase">
+        <Link href="/research" className="hover:text-black transition-colors">Research</Link>
+        <span className="text-outline-variant">/</span>
+        <Link href={`/research/${signal_id}`} className="hover:text-black transition-colors">
           {query || signal_id.slice(0, 8) + '…'}
         </Link>
-        <span className="text-gray-700">/</span>
-        <Link href={`/research/${signal_id}/opportunity`} className="hover:text-gray-300 transition-colors">
+        <span className="text-outline-variant">/</span>
+        <Link href={`/research/${signal_id}/opportunity`} className="hover:text-black transition-colors">
           Opportunity Map
         </Link>
-        <span className="text-gray-700">/</span>
-        <span className="text-gray-400">Adversarial Evaluation</span>
+        <span className="text-outline-variant">/</span>
+        <span className="text-ink-variant">Adversarial Evaluation</span>
       </div>
 
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Adversarial Evaluation</h1>
-        <p className="text-sm text-gray-400">
+      <div className="space-y-1 border-b-2 border-black pb-4">
+        <h1 className="text-headline-md text-black">Adversarial Evaluation</h1>
+        <p className="text-sm text-ink-variant">
           Stage 3 — Bull (temp 0.5) and Bear (temp 0.8) run in parallel with no shared context.
           Kill switches execute deterministically after both complete.
         </p>
       </div>
 
       {theses.length === 0 ? (
-        <div className="rounded-lg border border-gray-800 p-6 text-center space-y-3">
-          <p className="text-sm text-gray-400">No theses found for this signal.</p>
+        <div className="border border-black bg-white p-6 text-center space-y-3">
+          <p className="text-sm text-ink-variant">No theses found for this signal.</p>
           <Link
             href={`/research/${signal_id}/opportunity`}
-            className="inline-block text-xs text-indigo-400 hover:text-indigo-300"
+            className="inline-block text-xs text-black underline hover:text-ink-variant"
           >
             ← Generate theses first
           </Link>
@@ -147,33 +147,33 @@ export default function EvaluatePage() {
         <div className="space-y-6">
           {/* Thesis selector */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Thesis</p>
+            <p className="text-[11px] font-mono font-semibold text-outline uppercase tracking-wider">Select Thesis</p>
             <div className="space-y-2">
               {theses.map((t, i) => (
                 <div
                   key={t.id}
-                  className={`rounded-lg border cursor-pointer transition-colors ${
+                  className={`border cursor-pointer transition-colors bg-white ${
                     selected === t.id
-                      ? 'border-indigo-600 bg-indigo-950/20'
-                      : 'border-gray-800 hover:border-gray-700'
+                      ? 'border-2 border-black'
+                      : 'border-black hover:bg-surface-container-low'
                   }`}
                   onClick={() => setSelected(t.id)}
                 >
                   <div className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 font-mono">#{i + 1}</span>
+                      <span className="text-xs text-outline font-mono">#{i + 1}</span>
                       {debates[t.id] && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded border ${
+                        <span className={`text-xs px-1.5 py-0.5 border font-mono uppercase ${
                           debates[t.id].all_switches_clear
-                            ? 'border-green-800 text-green-400'
-                            : 'border-yellow-800 text-yellow-400'
+                            ? 'border-verdict-positive text-verdict-positive'
+                            : 'border-verdict-caution-text text-verdict-caution-text'
                         }`}>
                           {debates[t.id].all_switches_clear ? 'evaluated ✓' : 'evaluated ⚠'}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-200 mt-1">{t.product_angle}</p>
-                    <p className="text-xs text-gray-500">{t.target_customer}</p>
+                    <p className="text-sm text-ink mt-1">{t.product_angle}</p>
+                    <p className="text-xs text-outline">{t.target_customer}</p>
                   </div>
                 </div>
               ))}
@@ -185,24 +185,21 @@ export default function EvaluatePage() {
             <div className="space-y-3">
               {stage === 'running' ? (
                 <div className="text-center py-8 space-y-2">
-                  <p className="text-sm text-gray-400 animate-pulse">
+                  <p className="text-sm text-ink-variant animate-pulse">
                     Running adversarial debate — 3 parallel AI calls…
                   </p>
-                  <p className="text-xs text-gray-600">Bull case · Bear case · Synthesis · Kill switches · ~60–90s</p>
+                  <p className="text-xs text-outline">Bull case · Bear case · Synthesis · Kill switches · ~60–90s</p>
                 </div>
               ) : (
-                <button
-                  onClick={() => selected && runDebate(selected)}
-                  className="w-full rounded-lg bg-indigo-600 py-3 text-sm font-medium hover:bg-indigo-500 transition-colors"
-                >
+                <PrimaryButton onClick={() => selected && runDebate(selected)} className="w-full">
                   Run Adversarial Evaluation for Thesis #{theses.findIndex(t => t.id === selected) + 1}
-                </button>
+                </PrimaryButton>
               )}
             </div>
           )}
 
           {error && (
-            <p className="text-xs text-red-400 bg-red-950/30 border border-red-800 rounded px-3 py-2">{error}</p>
+            <p className="text-xs text-verdict-negative bg-white border border-verdict-negative px-3 py-2">{error}</p>
           )}
 
           {/* Debate result */}
@@ -215,14 +212,14 @@ export default function EvaluatePage() {
 
           {/* Next: Stage 4 */}
           {selectedDebate && (
-            <div className="rounded-lg border border-indigo-800 bg-indigo-950/20 px-5 py-4">
-              <p className="text-sm font-medium text-indigo-300 mb-1">Stage 4 — Investment Memo</p>
-              <p className="text-xs text-indigo-400/70 mb-3">
+            <div className="border-2 border-black bg-white px-5 py-4">
+              <p className="text-sm font-bold text-black mb-1">Stage 4 — Investment Memo</p>
+              <p className="text-xs text-ink-variant mb-3">
                 Deterministic verdicts, unit economics engine, sensitivity analysis, and 10-section investment memo.
               </p>
               <Link
                 href={`/research/${signal_id}/memo`}
-                className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
+                className="inline-block bg-black border-2 border-black text-white px-4 py-2 text-sm font-black uppercase tracking-wide hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
               >
                 Generate Investment Memo →
               </Link>

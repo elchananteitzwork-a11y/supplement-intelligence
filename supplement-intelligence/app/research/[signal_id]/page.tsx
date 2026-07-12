@@ -6,6 +6,7 @@ import { MarketBriefing } from '@/components/research/MarketBriefing'
 import { FounderProfileBanner } from '@/components/research/FounderProfileBanner'
 import Link from 'next/link'
 import type { FounderProfile } from '@/lib/stage25/fit-layer'
+import { PrimaryLinkButton } from '@/components/ui'
 
 interface Props {
   params: Promise<{ signal_id: string }>
@@ -29,8 +30,8 @@ export default async function SignalBriefingPage({ params }: Props) {
   const { data: authData, error: authError } = await supabaseAuth.auth.getUser()
   if (authError || !authData?.user) {
     return (
-      <main className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400">Please sign in to view this report.</p>
+      <main className="flex items-center justify-center min-h-screen bg-surface">
+        <p className="text-outline text-sm">Please sign in to view this report.</p>
       </main>
     )
   }
@@ -69,8 +70,8 @@ export default async function SignalBriefingPage({ params }: Props) {
 
   if (!signal.signal_data || !signal.quality_detail) {
     return (
-      <main className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400 text-sm">Signal data is incomplete. Try re-running Stage 1.</p>
+      <main className="flex items-center justify-center min-h-screen bg-surface">
+        <p className="text-outline text-sm">Signal data is incomplete. Try re-running Stage 1.</p>
       </main>
     )
   }
@@ -79,16 +80,13 @@ export default async function SignalBriefingPage({ params }: Props) {
   const profile     = (founderProfile ?? null) as FounderProfile | null
 
   return (
-    <main className="max-w-3xl mx-auto px-6 py-12">
-      <div className="mb-8 flex items-center gap-3">
-        <Link
-          href="/research"
-          className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-        >
+    <main className="min-h-screen bg-surface font-sans text-ink max-w-3xl mx-auto px-6 py-12">
+      <div className="mb-8 flex items-center gap-3 text-xs font-mono uppercase text-outline">
+        <Link href="/research" className="hover:text-black transition-colors">
           ← Research
         </Link>
-        <span className="text-gray-700">/</span>
-        <span className="text-xs text-gray-500 font-mono">{signal_id.slice(0, 8)}…</span>
+        <span className="text-outline-variant">/</span>
+        <span className="text-ink-variant">{signal_id.slice(0, 8)}…</span>
       </div>
 
       <MarketBriefing signal={signal} />
@@ -103,21 +101,18 @@ export default async function SignalBriefingPage({ params }: Props) {
       </div>
 
       {!signal.pipeline_blocked && (
-        <div className="mt-12 rounded-lg border border-indigo-800 bg-indigo-950/20 px-5 py-4">
-          <p className="text-sm font-medium text-indigo-300 mb-1">
+        <div className="mt-12 border-2 border-black bg-white px-5 py-4">
+          <p className="text-sm font-bold text-black mb-1">
             Stage 2 — Opportunity Map
           </p>
-          <p className="text-xs text-indigo-400/70 mb-3">
+          <p className="text-xs text-ink-variant mb-3">
             {hasTheses
               ? 'Theses already generated for this signal. View or regenerate.'
               : 'Data quality gate passed. Generate investment theses from this market data.'}
           </p>
-          <Link
-            href={`/research/${signal_id}/opportunity`}
-            className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
-          >
+          <PrimaryLinkButton href={`/research/${signal_id}/opportunity`}>
             {hasTheses ? 'View Opportunity Map →' : 'Generate Opportunity Map →'}
-          </Link>
+          </PrimaryLinkButton>
         </div>
       )}
     </main>

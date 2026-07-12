@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>INTEL_ENGINE — Provider Transparency</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #f9f9f9;
+        }
+        .neo-shadow {
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#ffffff",
+                    "tertiary": "#000000",
+                    "inverse-on-surface": "#f1f1f1",
+                    "error": "#ba1a1a",
+                    "on-surface": "#1a1c1c",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "on-tertiary": "#ffffff",
+                    "secondary": "#5d5f5f",
+                    "on-tertiary-container": "#848484",
+                    "on-secondary-fixed-variant": "#454747",
+                    "primary-container": "#1b1b1b",
+                    "on-primary-fixed": "#1b1b1b",
+                    "on-background": "#1a1c1c",
+                    "on-surface-variant": "#4c4546",
+                    "primary-fixed": "#e2e2e2",
+                    "surface-container": "#eeeeee",
+                    "surface-dim": "#dadada",
+                    "on-primary-container": "#848484",
+                    "error-container": "#ffdad6",
+                    "tertiary-container": "#1b1c1c",
+                    "surface-container-low": "#f3f3f3",
+                    "tertiary-fixed": "#e4e2e2",
+                    "secondary-fixed": "#e2e2e2",
+                    "outline": "#7e7576",
+                    "inverse-surface": "#2f3131",
+                    "primary": "#000000",
+                    "surface-container-high": "#e8e8e8",
+                    "surface-variant": "#e2e2e2",
+                    "on-primary-fixed-variant": "#474747",
+                    "inverse-primary": "#c6c6c6",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "on-secondary-container": "#616363",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "surface": "#f9f9f9",
+                    "outline-variant": "#cfc4c5",
+                    "surface-tint": "#5e5e5e",
+                    "background": "#f9f9f9",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#dfe0e0",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "surface-bright": "#f9f9f9",
+                    "surface-container-highest": "#e2e2e2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "element-gap": "16px",
+                    "section-gap": "64px",
+                    "gutter": "24px",
+                    "grid-unit": "8px",
+                    "container-padding": "40px"
+            },
+            "fontFamily": {
+                    "verdict-sm": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-mono": ["JetBrains Mono"],
+                    "headline-xl": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="font-body-md text-on-background selection:bg-primary selection:text-on-primary">
+<!-- SideNavBar Anchor -->
+<nav class="fixed left-0 top-0 h-full w-[220px] transition-all duration-300 border-r-2 border-primary bg-background flex flex-col py-grid-unit z-[60]">
+<div class="px-gutter mb-12">
+<h1 class="font-headline-md text-headline-md font-black text-primary uppercase tracking-tighter">INTEL_ENGINE</h1>
+<p class="font-label-mono text-label-mono text-secondary mt-1">V2.04.1_STABLE</p>
+</div>
+<div class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-gutter py-3 text-secondary hover:text-primary bg-transparent transition-colors group" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-mono text-label-mono">Home</span>
+</a>
+<a class="flex items-center gap-3 px-gutter py-3 text-secondary hover:text-primary bg-transparent transition-colors" href="#">
+<span class="material-symbols-outlined">visibility</span>
+<span class="font-label-mono text-label-mono">Watchlist</span>
+</a>
+<a class="flex items-center gap-3 px-gutter py-3 text-secondary hover:text-primary bg-transparent transition-colors" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-mono text-label-mono">Pipeline</span>
+</a>
+<a class="flex items-center gap-3 px-gutter py-3 text-secondary hover:text-primary bg-transparent transition-colors" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-label-mono text-label-mono">Alerts</span>
+</a>
+<!-- SETTINGS ACTIVE -->
+<a class="flex items-center gap-3 px-gutter py-3 bg-primary text-on-primary font-bold border-r-4 border-tertiary" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-mono text-label-mono">Settings</span>
+</a>
+</div>
+<div class="px-4 mb-8">
+<button class="w-full py-3 bg-primary text-on-primary font-bold uppercase text-[12px] tracking-widest neo-shadow hover:bg-white hover:text-black border-2 border-black transition-all active:translate-y-1 active:shadow-none">
+                New Analysis
+            </button>
+</div>
+<div class="border-t border-surface-variant pt-4 space-y-1">
+<a class="flex items-center gap-3 px-gutter py-2 text-secondary hover:text-primary bg-transparent transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">help</span>
+<span class="font-label-mono text-label-mono">Help</span>
+</a>
+<a class="flex items-center gap-3 px-gutter py-2 text-secondary hover:text-primary bg-transparent transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+<span class="font-label-mono text-label-mono">Logout</span>
+</a>
+</div>
+</nav>
+<!-- TopAppBar Anchor -->
+<header class="fixed top-0 right-0 w-[calc(100%-220px)] h-[64px] bg-white border-b-2 border-primary flex items-center justify-between px-gutter z-50">
+<div class="flex items-center gap-12">
+<div class="font-headline-md text-headline-md font-bold text-primary uppercase">PRODUCT_INTEL</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-secondary-fixed-dim hover:text-primary transition-all font-body-md text-body-md" href="#">Dashboard</a>
+<a class="text-secondary-fixed-dim hover:text-primary transition-all font-body-md text-body-md" href="#">Market Alpha</a>
+<a class="text-primary border-b-2 border-primary pb-1 font-body-md text-body-md" href="#">Evidence</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 border-r border-outline-variant pr-4 mr-4">
+<button class="p-2 hover:bg-surface-container-high transition-all active:translate-y-[1px]">
+<span class="material-symbols-outlined">share</span>
+</button>
+<button class="p-2 hover:bg-surface-container-high transition-all active:translate-y-[1px]">
+<span class="material-symbols-outlined">download</span>
+</button>
+</div>
+<button class="px-4 py-1 border-2 border-black font-bold text-[12px] uppercase hover:bg-primary hover:text-white transition-all">
+                FILTERS
+            </button>
+<button class="px-4 py-1 bg-black text-white font-bold text-[12px] uppercase border-2 border-black hover:bg-white hover:text-black transition-all">
+                EXPORT_DATA
+            </button>
+<div class="w-8 h-8 border-2 border-black bg-surface-container-highest overflow-hidden">
+<img class="w-full h-full object-cover grayscale" data-alt="A professional, high-contrast studio portrait of a technology analyst. The lighting is sharp and cinematic, casting deep shadows against a clean, minimalist off-white background. The aesthetic is strictly modern and corporate, reflecting the neo-brutalist precision of the platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzxydQ-XFLrDSCcN7WXahVfWFdvvhH-AuVURlcX_VunYz8chuhq56xxvLDuDJVRXA1fsGdXLY0s1jYV_e5tRoD4drbe3l4F9M77EhptnnPqLXHm0oUKDIoc8CLieCIzAcevxs48QWRw9eBmOg39uiMy9Ttkm5wjRdYn33qd3OJrZ1miTQvuUcMVBa2wGo2NTY74xuab2UiJ_CML4OhiBD4woLSwa0QL9G4LayYUXJpu_UUP5Qcbykx9IF5yNUKoRkr28_mQldcmY_7"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[220px] pt-[64px] min-h-screen">
+<div class="p-container-padding max-w-[1200px] mx-auto">
+<!-- Page Header -->
+<div class="mb-section-gap">
+<div class="flex items-center gap-4 mb-4">
+<span class="bg-primary text-on-primary px-3 py-1 font-verdict-sm text-verdict-sm uppercase">Transparency Report</span>
+<span class="font-label-mono text-label-mono text-secondary">ID: PRV-992-ALPHA</span>
+</div>
+<h2 class="font-headline-xl text-headline-xl mb-element-gap leading-none">PROVIDER TRANSPARENCY</h2>
+<!-- Callout Section -->
+<div class="border-2 border-primary p-6 bg-white max-w-2xl mt-8">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-primary mt-1">info</span>
+<p class="font-body-lg text-body-lg text-primary leading-tight">
+                            "Ten numbers from one source count as one witness. We only raise confidence when independent sources agree."
+                        </p>
+</div>
+</div>
+</div>
+<!-- Active Providers Table -->
+<section class="mb-12">
+<div class="flex items-center justify-between mb-6 border-b-2 border-primary pb-2">
+<h3 class="font-headline-md text-headline-md uppercase tracking-tight">ACTIVE INTELLIGENCE SOURCES</h3>
+<span class="font-label-mono text-label-mono text-secondary">N=07 CONNECTED</span>
+</div>
+<div class="bg-white border-2 border-black overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container border-b border-black">
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase tracking-widest text-secondary">Provider</th>
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase tracking-widest text-secondary">Channels</th>
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase tracking-widest text-secondary">Contribution</th>
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase tracking-widest text-secondary">Reliability</th>
+<th class="px-6 py-4 font-label-mono text-label-mono uppercase tracking-widest text-secondary text-right">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-variant">
+<!-- Keepa -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="font-bold text-primary uppercase">Keepa</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 bg-surface-container-high text-[10px] font-bold uppercase tracking-tighter">Market</span>
+<span class="px-2 py-0.5 bg-surface-container-high text-[10px] font-bold uppercase tracking-tighter">Supply</span>
+</div>
+</td>
+<td class="px-6 py-5 text-secondary">Amazon unit sales and pricing history</td>
+<td class="px-6 py-5">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-3">
+<span class="font-label-mono text-[11px] text-secondary">2M AGO</span>
+<div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+</div>
+</td>
+</tr>
+<!-- DataForSEO -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="font-bold text-primary uppercase">DataForSEO</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 bg-surface-container-high text-[10px] font-bold uppercase tracking-tighter">Search</span>
+</div>
+</td>
+<td class="px-6 py-5 text-secondary">Search intent and keyword volume</td>
+<td class="px-6 py-5">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-3">
+<span class="font-label-mono text-[11px] text-secondary">14M AGO</span>
+<div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+</div>
+</td>
+</tr>
+<!-- Meta Ads Library -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="font-bold text-primary uppercase">Meta Ads Library</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 bg-surface-container-high text-[10px] font-bold uppercase tracking-tighter">Paid Media</span>
+</div>
+</td>
+<td class="px-6 py-5 text-secondary">Historical and current ad creatives</td>
+<td class="px-6 py-5">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-3">
+<span class="font-label-mono text-[11px] text-secondary">1H AGO</span>
+<div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+</div>
+</td>
+</tr>
+<!-- TikTok -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="font-bold text-primary uppercase">TikTok</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 bg-surface-container-high text-[10px] font-bold uppercase tracking-tighter">Social</span>
+</div>
+</td>
+<td class="px-6 py-5 text-secondary">Trend velocity and viral signals</td>
+<td class="px-6 py-5">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-3">
+<span class="font-label-mono text-[11px] text-secondary">42M AGO</span>
+<div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+</div>
+</td>
+</tr>
+<!-- PubMed -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="font-bold text-primary uppercase">PubMed + ClinicalTrials</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 bg-surface-container-high text-[10px] font-bold uppercase tracking-tighter">Science</span>
+</div>
+</td>
+<td class="px-6 py-5 text-secondary">Scientific validation and trials</td>
+<td class="px-6 py-5">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-3">
+<span class="font-label-mono text-[11px] text-secondary">STATIC</span>
+<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+</div>
+</td>
+</tr>
+<!-- USPTO -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="font-bold text-primary uppercase">USPTO</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 bg-surface-container-high text-[10px] font-bold uppercase tracking-tighter">Supply Side</span>
+</div>
+</td>
+<td class="px-6 py-5 text-secondary">Patent filings and IP landscape</td>
+<td class="px-6 py-5">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-3">
+<span class="font-label-mono text-[11px] text-secondary">DAILY</span>
+<div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+</div>
+</td>
+</tr>
+<!-- Apify reviews -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="font-bold text-primary uppercase">Apify Reviews</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex gap-2">
+<span class="px-2 py-0.5 bg-surface-container-high text-[10px] font-bold uppercase tracking-tighter">Consumer Voice</span>
+</div>
+</td>
+<td class="px-6 py-5 text-secondary">Synthesized review sentiment</td>
+<td class="px-6 py-5">
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+<div class="w-2 h-2 rounded-full border border-primary"></div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-3">
+<span class="font-label-mono text-[11px] text-secondary">6H AGO</span>
+<div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Pending / Available Group -->
+<section class="max-w-3xl">
+<div class="flex items-center gap-4 mb-4">
+<h4 class="font-label-mono text-label-mono uppercase font-bold text-secondary">Adds when available</h4>
+<div class="h-[1px] flex-1 bg-outline-variant"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-element-gap">
+<!-- TikTok Shop -->
+<div class="border border-outline-variant bg-white p-4 grayscale opacity-60 flex justify-between items-center group hover:grayscale-0 hover:opacity-100 transition-all cursor-not-allowed">
+<div>
+<div class="font-bold text-primary uppercase text-sm">TikTok Shop</div>
+<div class="text-[11px] text-secondary font-label-mono">DIRECT COMMERCE DATA</div>
+</div>
+<span class="material-symbols-outlined text-outline">lock</span>
+</div>
+<!-- Import Records -->
+<div class="border border-outline-variant bg-white p-4 grayscale opacity-60 flex justify-between items-center group hover:grayscale-0 hover:opacity-100 transition-all cursor-not-allowed">
+<div>
+<div class="font-bold text-primary uppercase text-sm">Import Records</div>
+<div class="text-[11px] text-secondary font-label-mono">BILL OF LADING LOGS</div>
+</div>
+<span class="material-symbols-outlined text-outline">lock</span>
+</div>
+</div>
+</section>
+<!-- Atmospheric Footer Info -->
+<footer class="mt-section-gap pt-12 border-t border-outline-variant opacity-40">
+<div class="flex justify-between items-end font-label-mono text-[10px] uppercase">
+<div>
+                        PROVIDER_VERIFICATION_PROTOCOL_V4<br/>
+                        LAST_RECALIBRATION: 2023-11-24_11:00:00_UTC
+                    </div>
+<div class="text-right">
+                        ALL DATA POINTS REPRODUCIBLE UNDER AUDIT<br/>
+                        ZERO SYNTHETIC EVIDENCE POLICY ENFORCED
+                    </div>
+</div>
+</footer>
+</div>
+</main>
+<!-- Contextual Micro-interaction Overlay (Decorative) -->
+<div class="fixed bottom-8 right-8 pointer-events-none opacity-10">
+<div class="font-label-mono text-[80px] leading-none select-none">
+            010110
+        </div>
+</div>
+<script>
+        // Micro-interaction for table rows
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.style.transform = 'translateX(4px)';
+                row.style.transition = 'transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1)';
+            });
+            row.addEventListener('mouseleave', () => {
+                row.style.transform = 'translateX(0)';
+            });
+        });
+
+        // Simple status pulse effect
+        const statusDots = document.querySelectorAll('.bg-green-500');
+        statusDots.forEach(dot => {
+            dot.style.transition = 'box-shadow 0.5s ease-in-out';
+            setInterval(() => {
+                const isBright = dot.style.boxShadow.includes('0.6');
+                dot.style.boxShadow = isBright ? '0 0 4px rgba(34,197,94,0.3)' : '0 0 12px rgba(34,197,94,0.8)';
+            }, 1000 + Math.random() * 500);
+        });
+    </script>
+</body></html>

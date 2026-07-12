@@ -13,6 +13,10 @@ import { checkConsistency } from '@/lib/consistency'
 import { buildSynthesisInput, generateInterpretation } from '@/lib/ai-interpretation'
 import { buildExpandableCards, selectFirstScreenSignals } from '@/lib/evidence'
 import { writeBuildNowPattern } from '@/lib/pattern-memory'
+import { writeVerdictLedgerEntry } from '@/lib/verdict-ledger'
+import { computeConfidenceAssessment } from '@/lib/confidence'
+import { normalizeQuery } from '@/lib/thesis-engine'
+import { synthesizeReviewNarrative } from '@/lib/review-narrative'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
 import { buildNewsIntelligence } from '@/lib/news-engine'
 import { shouldConsumeSlot } from '@/lib/analysis-slot-policy'
@@ -340,10 +344,11 @@ export async function POST(req: Request) {
     fromDiscovery?:  boolean
     categoryId?:     string
     discoveryQuery?: string
+    bypassCache?:    boolean
   }
   try { body = await req.json() } catch { return err('Invalid JSON body') }
 
-  const { input, targetAudience, pricePoint, context, fromDiscovery, categoryId: rawCategoryId, discoveryQuery } = body
+  const { input, targetAudience, pricePoint, context, fromDiscovery, categoryId: rawCategoryId, discoveryQuery, bypassCache } = body
 
   // ── validation ─────────────────────────────────────────────────
   if (!input?.trim()) return err('input is required')
@@ -366,6 +371,16 @@ export async function POST(req: Request) {
     })
   }
 
+  // Fix 5 (v2.6.0): 'none' means the classifier determined the product is
+  // outside all supported categories. Return a clear 400 instead of silently
+  // forcing into 'supplements' and producing nonsense analysis.
+  if (resolvedCategoryId === 'none') {
+    return err(
+      'This product appears to be outside the currently supported categories (Supplements, Beauty & Skincare, Pet Products, Fitness & Sports, Home & Lifestyle). Please try a product in one of these areas.',
+      400,
+    )
+  }
+
   const module = categoryRegistry.resolve(resolvedCategoryId)
 
   // ── Relevance gate ─────────────────────────────────────────────
@@ -384,21 +399,26 @@ export async function POST(req: Request) {
   // Cache check costs ~5ms. Previously providers fired before this check,
   // billing Apify/DataForSEO/Keepa on every cache hit. On a miss, the ~5ms
   // overhead is negligible against 30-75s provider latency.
-  const { data: cachedReport } = await sb
-    .from('analyses')
-    .select('id, created_at')
-    .ilike('raw_input', input.trim().replace(/\s+/g, ' '))
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  // bypassCache: set to true in request body to skip the cache and force a
+  // fresh provider run (for validation/debugging). Never appends query-string
+  // suffixes to the product name — those corrupt keyword and Keepa lookups.
+  if (!bypassCache) {
+    const { data: cachedReport } = await sb
+      .from('analyses')
+      .select('id, created_at')
+      .ilike('raw_input', input.trim().replace(/\s+/g, ' '))
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-  if (cachedReport) {
-    console.log('Report cache hit', { input: input.trim(), id: cachedReport.id })
-    return NextResponse.json({
-      analysisId:   cachedReport.id,
-      cached:       true,
-      generated_at: cachedReport.created_at,
-    })
+    if (cachedReport) {
+      console.log('Report cache hit', { input: input.trim(), id: cachedReport.id })
+      return NextResponse.json({
+        analysisId:   cachedReport.id,
+        cached:       true,
+        generated_at: cachedReport.created_at,
+      })
+    }
   }
 
   // ── Pre-flight limit check ────────────────────────────────────
@@ -482,8 +502,14 @@ export async function POST(req: Request) {
   // own retry candidates. A bounded, short second fetch — this never blocks
   // the main path beyond its own timeout, and only runs at all when the
   // specific query's demand data is genuinely absent, not merely weak.
+  // Fix 3 (v2.6.0): previously required all three AND conditions to be true,
+  // but Keepa always returns signals.demand from the broad category node, so
+  // the 3-AND condition was structurally never true → CCC never fired.
+  // The real trigger is DataForSEO absence: if the keyword engine found no
+  // monthly search volume for any buying keyword, the specific query likely
+  // lacks established search demand — the right precondition for CCC.
   const specificDemandLooksAbsent =
-    !keywordIntelligence?.top_buying?.[0]?.monthly_searches && !signals?.demand && !signals?.growth
+    !keywordIntelligence?.top_buying?.[0]?.monthly_searches
 
   // Latency: this re-fetch and Consumer Intelligence below have no data
   // dependency on each other (Consumer Intelligence only needs
@@ -676,6 +702,11 @@ export async function POST(req: Request) {
     // Valid memo — accept and exit loop
     memo       = parsed
     skipReason = null
+    // Sanitize market_size: if the AI returned the example template placeholder
+    // verbatim (e.g. "$XB (year) or '...'"), replace it with the safe fallback.
+    if (memo.market_size && /\$[A-Z]+B?\s*\(year\)/i.test(memo.market_size)) {
+      memo.market_size = 'Not independently verified — market estimates vary widely.'
+    }
     break
   }
 
@@ -795,6 +826,12 @@ export async function POST(req: Request) {
     // Stamped so this score can always be traced to the exact formula that
     // produced it — see lib/scoring.ts SCORING_ENGINE_VERSION header comment.
     memo.scoring_version   = SCORING_ENGINE_VERSION
+    // Fix 4 (v2.6.0): when a gate overrides the score-threshold verdict,
+    // append the reason to build_explanation so the user can see why a
+    // high score still produced VALIDATE_FURTHER or SKIP.
+    if (grounded.verdictOverrideReasons?.length && memo.build_explanation) {
+      memo.build_explanation += '\n\n' + grounded.verdictOverrideReasons.join(' ')
+    }
     // Deterministic replacement for the model's invented ten_k/hundred_k/
     // one_m probabilities (no longer requested in the prompt) — see
     // lib/scoring.ts computeTractionBand.
@@ -853,6 +890,32 @@ export async function POST(req: Request) {
       synthesisInput.signals,
       synthesisInput.verdict,
     ).map(s => s.id)
+
+    // ── Review Narrative Synthesis (Milestone 7, memo-only enrichment) ──────
+    // Runs strictly AFTER computeGroundedScore(memo) has already returned
+    // and memo.opportunity_score/build_decision are already final — a
+    // deliberate ordering choice, not incidental: at the moment scoring ran,
+    // memo.review_narrative did not exist on the object yet, so it is
+    // structurally impossible for this enrichment to have influenced the
+    // score, even under a future bug. See lib/review-narrative/types.ts for
+    // the full ARCHITECTURE CONSTRAINT this preserves. Reuses the SAME raw
+    // review text lib/consumer-intelligence already collected (zero
+    // duplicate/re-billed review fetch) — never a parallel scoring pipeline.
+    // Time-guarded and fully optional: failure or a tight time budget never
+    // blocks the response.
+    const NARRATIVE_BUDGET_MS = 45_000
+    const narrativeRemainingMs = maxDuration * 1000 - (Date.now() - requestStart)
+    if (narrativeRemainingMs > NARRATIVE_BUDGET_MS && consumerIntelligence?.rawReviewsForNarrative?.length) {
+      const narrative = await synthesizeReviewNarrative(
+        consumerIntelligence.rawReviewsForNarrative,
+        topCompetitors?.[0]?.productId,
+      )
+      if (narrative) memo.review_narrative = narrative
+    } else if (consumerIntelligence?.rawReviewsForNarrative?.length) {
+      console.warn('Review narrative synthesis skipped — insufficient time budget', {
+        narrativeRemainingMs, required: NARRATIVE_BUDGET_MS,
+      })
+    }
   }
 
   console.log('Analysis decision', {
@@ -958,6 +1021,36 @@ export async function POST(req: Request) {
   // Non-fatal: failure here never blocks the response.
   if (groundedScore && groundedScore.decision === 'BUILD_NOW') {
     void writeBuildNowPattern(sb, memo, groundedScore, analysis.id, user.id)
+  }
+
+  // ── Verdict Ledger (every completed analysis) ─────────────────────────────
+  // V2 Blueprint §11 / Roadmap M1.1. One immutable snapshot per successful
+  // analysis — BUILD_NOW, VALIDATE_FURTHER, SKIP, and
+  // CATEGORY_CREATION_CANDIDATE alike. groundedScore is null only on a
+  // technical failure (model/JSON parse failure — see groundedScore
+  // assignment above, gated on `!skipReason`), so gating on it here already
+  // guarantees a failed analysis never produces a ledger row. Non-fatal:
+  // failure here never blocks the response.
+  //
+  // Milestone 2 (V2 Blueprint §10 / Roadmap M1.4, confidence half):
+  // computeConfidenceAssessment is a pure, read-only function of the
+  // already-final groundedScore — it runs strictly after
+  // computeGroundedScore returned above and never feeds back into it.
+  // Score, decision, and weights are unaffected; this only adds a
+  // confidence readout to the ledger snapshot.
+  if (groundedScore) {
+    const confidenceAssessment = computeConfidenceAssessment(groundedScore)
+    void writeVerdictLedgerEntry(sb, {
+      memo,
+      grounded:         groundedScore,
+      userQuery:        input.trim(),
+      normalizedMarket: normalizeQuery(input.trim()),
+      categoryId:       module.id,
+      engineVersion:    SCORING_ENGINE_VERSION,
+      userId:           user.id,
+      analysisId:       analysis.id,
+      confidenceAssessment,
+    })
   }
 
   return NextResponse.json({ analysisId: analysis.id, memo })

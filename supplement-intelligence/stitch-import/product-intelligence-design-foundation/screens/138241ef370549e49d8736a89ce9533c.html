@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom Sepia Tint for Ledger Snapshot */
+        .bg-ledger-sepia {
+            background-color: #fdf6e3;
+        }
+        .border-sepia-dark {
+            border-color: #d3ccb8;
+        }
+        /* Custom Hard Shadow for Neo-Brutalism */
+        .neo-shadow {
+            box-shadow: 2px 2px 0px 0px #000000;
+        }
+        /* Grain Overlay for Archival Feel */
+        .archival-grain {
+            position: relative;
+        }
+        .archival-grain::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3FeclTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e8e8e8",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-secondary-container": "#616363",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "surface-container-low": "#f3f3f3",
+                        "on-surface-variant": "#4c4546",
+                        "surface": "#f9f9f9",
+                        "tertiary-container": "#1b1c1c",
+                        "secondary": "#5d5f5f",
+                        "tertiary-fixed": "#e4e2e2",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary-container": "#dfe0e0",
+                        "on-primary-container": "#848484",
+                        "surface-variant": "#e2e2e2",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-container": "#848484",
+                        "on-primary-fixed-variant": "#474747",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#2f3131",
+                        "outline-variant": "#cfc4c5",
+                        "background": "#f9f9f9",
+                        "on-secondary-fixed-variant": "#454747",
+                        "surface-dim": "#dadada",
+                        "error-container": "#ffdad6",
+                        "surface-container": "#eeeeee",
+                        "primary": "#000000",
+                        "primary-container": "#1b1b1b",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "tertiary": "#000000",
+                        "primary-fixed-dim": "#c6c6c6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#1a1c1c",
+                        "primary-fixed": "#e2e2e2",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#5e5e5e",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-surface": "#1a1c1c",
+                        "inverse-primary": "#c6c6c6",
+                        "outline": "#7e7576",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "surface-bright": "#f9f9f9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0px",
+                        "lg": "0px",
+                        "xl": "0px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "element-gap": "16px",
+                        "container-padding": "40px",
+                        "section-gap": "64px",
+                        "grid-unit": "8px"
+                    },
+                    "fontFamily": {
+                        "verdict-sm": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-xl-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                        "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-ledger-sepia text-on-surface archival-grain min-h-screen selection:bg-primary selection:text-white">
+<!-- Top Snapshot Banner -->
+<header class="w-full bg-primary text-white py-3 px-gutter flex justify-between items-center sticky top-0 z-50">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[20px]">history</span>
+<p class="font-label-mono text-label-mono uppercase tracking-widest">
+                Snapshot — July 10, 2026 · engine v2.7 · as recorded
+            </p>
+</div>
+<button class="bg-transparent border border-white px-4 py-1.5 font-label-mono text-label-mono uppercase hover:bg-white hover:text-primary transition-colors active:scale-95">
+            View this market today
+        </button>
+</header>
+<div class="flex">
+<!-- Persistent SideNav (Read Only Logic) -->
+<aside class="fixed left-0 top-12 h-[calc(100vh-48px)] w-64 border-r-2 border-primary bg-surface-container flex flex-col z-40 opacity-80 pointer-events-none">
+<div class="p-6 border-b-2 border-primary">
+<h1 class="font-headline-md text-headline-md font-black text-primary uppercase tracking-tighter">PRODUCT INTELLIGENCE</h1>
+<p class="font-label-mono text-[10px] text-secondary mt-1 uppercase">Archival Mode Active</p>
+</div>
+<nav class="flex-1 py-4">
+<div class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono">
+<span class="material-symbols-outlined">home</span> Home
+                </div>
+<div class="flex items-center gap-4 px-4 py-3 bg-primary text-on-primary font-bold uppercase font-label-mono text-label-mono">
+<span class="material-symbols-outlined">insights</span> Track Record
+                </div>
+<div class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono">
+<span class="material-symbols-outlined">account_tree</span> Pipeline
+                </div>
+<div class="flex items-center gap-4 px-4 py-3 text-secondary uppercase font-label-mono text-label-mono">
+<span class="material-symbols-outlined">database</span> Data Sources
+                </div>
+</nav>
+<div class="p-4 border-t-2 border-primary">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-black"></div>
+<div>
+<p class="font-label-mono text-[11px] font-bold">LEGACY_USER_01</p>
+<p class="font-label-mono text-[9px] text-secondary">Verified Record</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 p-container-padding w-full max-w-7xl mx-auto">
+<!-- Breadcrumb / Header Section -->
+<div class="mb-section-gap border-b-2 border-primary pb-8">
+<div class="flex items-center gap-2 mb-4 font-label-mono text-label-mono text-secondary uppercase">
+<span>Archives</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span>Snapshot #8842</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-bold">Magnesium Glycinate Opportunity</span>
+</div>
+<h2 class="font-headline-xl text-headline-xl uppercase leading-none mb-4">Magnesium Glycinate Opportunity Overview</h2>
+<div class="flex gap-4">
+<span class="bg-black text-white px-3 py-1 font-label-mono text-label-mono uppercase">Status: Captured</span>
+<span class="bg-primary-container text-white px-3 py-1 font-label-mono text-label-mono uppercase">Confidence: 94.2%</span>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Market Sentiment Card (Large) -->
+<div class="col-span-8 border-2 border-primary bg-white p-6 relative">
+<div class="flex justify-between items-start mb-8">
+<div>
+<h3 class="font-label-mono text-label-mono text-secondary uppercase mb-1">Market Sentiment Projection</h3>
+<p class="font-headline-md text-headline-md uppercase">Aggressive Expansion Forecast</p>
+</div>
+<span class="material-symbols-outlined text-primary text-[32px]">trending_up</span>
+</div>
+<div class="h-64 flex items-end gap-2 border-l border-b border-primary relative mb-4">
+<!-- Simulated Chart -->
+<div class="flex-1 bg-primary h-[40%] opacity-20"></div>
+<div class="flex-1 bg-primary h-[55%] opacity-40"></div>
+<div class="flex-1 bg-primary h-[45%] opacity-60"></div>
+<div class="flex-1 bg-primary h-[70%] opacity-80"></div>
+<div class="flex-1 bg-primary h-[85%]"></div>
+<div class="flex-1 bg-primary h-[95%]"></div>
+<div class="absolute top-4 right-4 bg-white border border-primary p-2 font-label-mono text-[10px] uppercase">
+                            CAGR: +12.4% (As of 2026)
+                        </div>
+</div>
+<p class="font-body-md text-body-md text-secondary leading-relaxed">
+                        Consumer demand for bioavailable magnesium forms has reached a critical inflection point. As of the recorded date July 10, 2026, Magnesium Glycinate represents the dominant growth sector in the mineral supplement category, driven by increased awareness of sleep hygiene and stress management.
+                    </p>
+</div>
+<!-- Snapshot Identity (Right Column) -->
+<div class="col-span-4 space-y-gutter">
+<!-- Identity Image -->
+<div class="border-2 border-primary bg-white p-2">
+<img class="w-full aspect-square object-cover grayscale opacity-90 contrast-125 border border-primary" data-alt="A high-contrast, minimalist macro photograph of pure white magnesium glycinate powder crystals on a stark black surface. The lighting is sharp and technical, emphasizing the crystalline structure and purity of the chemical compound. The overall aesthetic is scientific, authoritative, and clean, fitting a product intelligence dashboard's archival ledger view." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKuI5QBnlDD2ZxepWoUxUu6pSVYhLImVuC6zqT3aPVow4OYdE-iF6Xf5yk0uh1dyvi-7NnG6O2uzcIk2lZLIF5jewMc3_W3bKpEIZEQUgKj6T4C_jnCbsVg6TAjjJQqHsuQ4THDvxa-ILKBmCzXSRXIh9TYaWfNb0rFC92CR4n0I5DhofmCg6SgGr-4ao_SwSnp-xM6vo9kE9keKv3wULx9qjujvnJBg0szGgW6GdHXK5jwc19Vf4q0S5mI04zBDhQ8SIkgkikzD_7"/>
+</div>
+<!-- Quick Stats -->
+<div class="border-2 border-primary bg-black text-white p-6">
+<h4 class="font-label-mono text-label-mono uppercase mb-4 opacity-70">Frozen KPIs</h4>
+<div class="space-y-4">
+<div class="flex justify-between items-end border-b border-white/20 pb-2">
+<span class="font-label-mono text-[11px] uppercase">Est. Market Cap</span>
+<span class="font-headline-md text-[20px]">$2.4B</span>
+</div>
+<div class="flex justify-between items-end border-b border-white/20 pb-2">
+<span class="font-label-mono text-[11px] uppercase">Search Velocity</span>
+<span class="font-headline-md text-[20px]">+240%</span>
+</div>
+<div class="flex justify-between items-end">
+<span class="font-label-mono text-[11px] uppercase">Defensibility</span>
+<span class="font-headline-md text-[20px]">HIGH</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Competitor Landscape (Bento Bottom) -->
+<div class="col-span-12 grid grid-cols-3 gap-gutter mt-4">
+<div class="border-2 border-primary bg-white p-6">
+<div class="flex items-center gap-2 mb-4">
+<div class="w-3 h-3 bg-green-500 rounded-full"></div>
+<h4 class="font-label-mono text-label-mono uppercase">Supply Chain Stability</h4>
+</div>
+<p class="font-body-md text-body-md">Primary source extraction from Tier-1 laboratories remains consistent. No disruption recorded in the 180-day window preceding this snapshot.</p>
+</div>
+<div class="border-2 border-primary bg-white p-6">
+<div class="flex items-center gap-2 mb-4">
+<div class="w-3 h-3 border border-primary rounded-full"></div>
+<h4 class="font-label-mono text-label-mono uppercase">Patent Status</h4>
+</div>
+<p class="font-body-md text-body-md">Albion Minerals continues to hold primary IP on specific chelation processes, though generic entry points are expanding in APAC markets.</p>
+</div>
+<div class="border-2 border-primary bg-white p-6">
+<div class="flex items-center gap-2 mb-4">
+<div class="w-3 h-3 bg-primary rounded-full"></div>
+<h4 class="font-label-mono text-label-mono uppercase">Regulatory Outlook</h4>
+</div>
+<p class="font-body-md text-body-md">FDA/EFSA guidelines stable. Recent dossiers suggest increasing focus on elemental purity standards which may squeeze low-margin entrants.</p>
+</div>
+</div>
+<!-- Archival Ledger Table -->
+<div class="col-span-12 mt-8">
+<div class="border-2 border-primary bg-white overflow-hidden">
+<div class="bg-surface-container-high px-6 py-3 border-b-2 border-primary">
+<h3 class="font-label-mono text-label-mono uppercase font-bold">Historical Evidence Log (Frozen)</h3>
+</div>
+<table class="w-full text-left font-body-md">
+<thead class="bg-surface-container font-label-mono text-label-mono text-secondary uppercase">
+<tr>
+<th class="px-6 py-3 border-b border-primary">Timestamp</th>
+<th class="px-6 py-3 border-b border-primary">Source</th>
+<th class="px-6 py-3 border-b border-primary">Insight Event</th>
+<th class="px-6 py-3 border-b border-primary text-right">Witness</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr>
+<td class="px-6 py-4 font-label-mono text-[11px]">2026-07-09 14:22</td>
+<td class="px-6 py-4 uppercase font-bold">S&amp;P Global</td>
+<td class="px-6 py-4">Retail expansion into wellness convenience stores confirmed.</td>
+<td class="px-6 py-4 text-right"><div class="inline-block w-2 h-2 bg-black rounded-full"></div></td>
+</tr>
+<tr>
+<td class="px-6 py-4 font-label-mono text-[11px]">2026-07-08 09:10</td>
+<td class="px-6 py-4 uppercase font-bold">Patent Watch</td>
+<td class="px-6 py-4">Filing ID: #99201-B - New encapsulation method for magnesium chelate.</td>
+<td class="px-6 py-4 text-right"><div class="inline-block w-2 h-2 bg-black rounded-full"></div></td>
+</tr>
+<tr>
+<td class="px-6 py-4 font-label-mono text-[11px]">2026-07-05 23:59</td>
+<td class="px-6 py-4 uppercase font-bold">Engine Auto</td>
+<td class="px-6 py-4">Opportunity score upgraded from 88 to 94.2.</td>
+<td class="px-6 py-4 text-right"><div class="inline-block w-2 h-2 border border-black rounded-full"></div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Footer Stamp -->
+<footer class="mt-section-gap mb-16 flex justify-between items-end">
+<div class="border-l-4 border-primary pl-4">
+<p class="font-label-mono text-[10px] text-secondary uppercase">Integrity Verification</p>
+<p class="font-label-mono text-label-mono font-bold">SHA-256: 4e92b...a912f</p>
+<p class="font-label-mono text-[10px] text-secondary mt-1">This record is sealed and cannot be modified.</p>
+</div>
+<div class="text-right">
+<p class="font-headline-md text-headline-md uppercase opacity-10 leading-none">ARCHIVE_ONLY</p>
+</div>
+</footer>
+</main>
+</div>
+<!-- Background Atmospheric Effect -->
+<script>
+        // Subtle micro-interaction: clicking anywhere on the frozen canvas triggers a subtle pulse to indicate read-only status
+        document.body.addEventListener('click', (e) => {
+            if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+                const overlay = document.createElement('div');
+                overlay.style.position = 'fixed';
+                overlay.style.left = (e.clientX - 10) + 'px';
+                overlay.style.top = (e.clientY - 10) + 'px';
+                overlay.style.width = '20px';
+                overlay.style.height = '20px';
+                overlay.style.border = '1px solid black';
+                overlay.style.borderRadius = '50%';
+                overlay.style.pointerEvents = 'none';
+                overlay.style.zIndex = '9999';
+                overlay.style.transition = 'all 0.5s ease-out';
+                document.body.appendChild(overlay);
+                
+                requestAnimationFrame(() => {
+                    overlay.style.transform = 'scale(4)';
+                    overlay.style.opacity = '0';
+                });
+                
+                setTimeout(() => overlay.remove(), 500);
+            }
+        });
+    </script>
+</body></html>

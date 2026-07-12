@@ -32,11 +32,12 @@ ${SHARED_CONSTRAINTS}
 
 Output format:
 - Plain prose, NO markdown, NO headers, NO bullet points
-- 3–4 sentences, 60–160 words total
+- 3–4 sentences, 60–120 words total
 - End with a punctuation mark (period, exclamation point, or question mark)
 - Write in the third person (about the market and category, not to the reader)
-- Explain WHY the market score is what it is — causal reasoning, not just descriptions
+- Explain WHY the market score is what it is — lead with the two or three most decisive causal factors; do not summarize every signal
 - Reference specific numeric values from the data: search volume, review counts, competitor counts, or price ranges
+- Be direct and precise; omit qualifications that do not change the conclusion
 - State signal strengths factually; do not editorialize`
 
   const user = buildCallAUserMessage(input)

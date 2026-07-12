@@ -1,8 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies }            from 'next/headers'
-import { NextResponse }       from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const jar = cookies()
   const sb  = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,5 +16,5 @@ export async function POST() {
     }
   )
   await sb.auth.signOut()
-  return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'https://supplement-intelligence.vercel.app'))
+  return NextResponse.redirect(new URL('/login', req.url))
 }

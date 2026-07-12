@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { FounderProfile } from '@/lib/stage25/fit-layer'
+import { PrimaryButton, SecondaryButton } from '@/components/ui'
 
 interface Props {
   initial?: Partial<FounderProfile>
@@ -28,15 +29,15 @@ function RadioGroup<T extends string>({
 }) {
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-medium text-gray-300">{label}</legend>
+      <legend className="text-sm font-bold text-ink">{label}</legend>
       <div className="space-y-2">
         {options.map(o => (
           <label
             key={o.value}
-            className={`flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+            className={`flex items-start gap-3 border px-4 py-3 cursor-pointer transition-colors ${
               value === o.value
-                ? 'border-indigo-500 bg-indigo-950/30'
-                : 'border-gray-700 bg-gray-900 hover:border-gray-600'
+                ? 'border-2 border-black bg-surface-container-low'
+                : 'border-black bg-white hover:bg-surface-container-low'
             }`}
           >
             <input
@@ -45,11 +46,11 @@ function RadioGroup<T extends string>({
               value={o.value}
               checked={value === o.value}
               onChange={() => onChange(o.value)}
-              className="mt-0.5 accent-indigo-500"
+              className="mt-0.5 accent-black"
             />
             <div>
-              <span className="text-sm text-gray-200">{o.label}</span>
-              {o.note && <p className="text-xs text-gray-500 mt-0.5">{o.note}</p>}
+              <span className="text-sm text-ink">{o.label}</span>
+              {o.note && <p className="text-xs text-outline mt-0.5">{o.note}</p>}
             </div>
           </label>
         ))}
@@ -102,19 +103,19 @@ export function FounderProfileForm({ initial, onSave, saving }: Props) {
   return (
     <div className="space-y-6">
       {/* Step nav */}
-      <div className="flex gap-1">
+      <div className="flex gap-0.5 border border-black">
         {STEPS.map((s, i) => (
           <button
             key={s}
             onClick={() => setStep(s)}
-            className={`flex-1 text-xs py-1.5 rounded transition-colors ${
+            className={`flex-1 text-[11px] font-mono uppercase tracking-wide py-2 transition-colors ${
               s === step
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-black text-white font-bold'
                 : isStepComplete(s)
-                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                ? 'bg-surface-container text-ink hover:bg-surface-container-high'
                 : i <= currentIndex
-                ? 'bg-gray-800 text-gray-400'
-                : 'bg-gray-900 text-gray-600 cursor-default'
+                ? 'bg-white text-ink-variant'
+                : 'bg-white text-outline cursor-default'
             }`}
             disabled={i > currentIndex && !isStepComplete(STEPS[i - 1])}
           >
@@ -127,7 +128,7 @@ export function FounderProfileForm({ initial, onSave, saving }: Props) {
       {step === 'capital' && (
         <div className="space-y-5">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">
+            <label className="text-sm font-bold text-ink">
               Capital available for this venture (USD)
             </label>
             <input
@@ -136,9 +137,9 @@ export function FounderProfileForm({ initial, onSave, saving }: Props) {
               value={form.capital_available ?? ''}
               onChange={e => set('capital_available', parseFloat(e.target.value) || 0)}
               placeholder="e.g. 50000"
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full border border-black bg-white px-4 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-black"
             />
-            <p className="text-xs text-gray-500">Include what you can realistically deploy in the first 12 months.</p>
+            <p className="text-xs text-outline">Include what you can realistically deploy in the first 12 months.</p>
           </div>
 
           <RadioGroup
@@ -214,7 +215,7 @@ export function FounderProfileForm({ initial, onSave, saving }: Props) {
 
           {(form.channel_type === 'social_audience' || form.channel_type === 'email_list') && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">
+              <label className="text-sm font-bold text-ink">
                 Audience / list size
               </label>
               <input
@@ -223,7 +224,7 @@ export function FounderProfileForm({ initial, onSave, saving }: Props) {
                 value={form.channel_size ?? ''}
                 onChange={e => set('channel_size', parseFloat(e.target.value) || 0)}
                 placeholder="e.g. 25000"
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-black bg-white px-4 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-black"
               />
             </div>
           )}
@@ -275,27 +276,19 @@ export function FounderProfileForm({ initial, onSave, saving }: Props) {
         <button
           onClick={() => setStep(STEPS[currentIndex - 1])}
           disabled={currentIndex === 0}
-          className="text-sm text-gray-400 hover:text-gray-200 disabled:opacity-0 transition-colors"
+          className="text-sm font-mono uppercase tracking-wide text-ink-variant hover:text-black disabled:opacity-0 transition-colors"
         >
           ← Back
         </button>
 
         {step !== 'goals' ? (
-          <button
-            onClick={() => setStep(STEPS[currentIndex + 1])}
-            disabled={!isStepComplete(step)}
-            className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium hover:bg-indigo-500 disabled:opacity-40 transition-colors"
-          >
+          <PrimaryButton onClick={() => setStep(STEPS[currentIndex + 1])} disabled={!isStepComplete(step)}>
             Next →
-          </button>
+          </PrimaryButton>
         ) : (
-          <button
-            onClick={handleSubmit}
-            disabled={!isComplete || saving}
-            className="rounded-lg bg-green-700 px-5 py-2 text-sm font-medium hover:bg-green-600 disabled:opacity-40 transition-colors"
-          >
+          <SecondaryButton onClick={handleSubmit} disabled={!isComplete || saving}>
             {saving ? 'Saving…' : 'Save Profile'}
-          </button>
+          </SecondaryButton>
         )}
       </div>
 
@@ -304,8 +297,8 @@ export function FounderProfileForm({ initial, onSave, saving }: Props) {
         {STEPS.map(s => (
           <div
             key={s}
-            className={`h-1 flex-1 rounded-full transition-colors ${
-              isStepComplete(s) ? 'bg-indigo-500' : 'bg-gray-800'
+            className={`h-1 flex-1 transition-colors ${
+              isStepComplete(s) ? 'bg-black' : 'bg-outline-variant'
             }`}
           />
         ))}

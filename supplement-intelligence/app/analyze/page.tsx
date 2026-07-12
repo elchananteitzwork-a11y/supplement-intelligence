@@ -11,23 +11,33 @@ import {
 } from '@/lib/categories/client-config'
 import type { OpportunityCard } from '@/types/index'
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
+import { AppShell } from '@/components/shell/AppShell'
 import { IconSpark, IconTarget, IconBeaker } from '@/components/icons'
+import {
+  HardCard,
+  HardShadowSearchTextarea,
+  PrimaryButton,
+  SecondaryButton,
+  GhostButton,
+  GhostLinkButton,
+  WitnessDots,
+} from '@/components/ui'
 
 // ── constants ─────────────────────────────────────────────────
 
 type PageMode = 'form' | 'classifying' | 'discovering' | 'results' | 'analyzing'
 
 const CLASSIFYING_STEPS = [
-  'Reading your query...',
-  'Detecting category...',
-  'Routing to best module...',
+  'Reading your query',
+  'Detecting category',
+  'Routing to best module',
 ]
 
 const DISCOVERY_STEPS = [
-  'Scanning the category...',
-  'Identifying market opportunities...',
-  'Scoring each opportunity...',
-  'Ranking by opportunity score...',
+  'Scanning the category',
+  'Identifying market opportunities',
+  'Scoring each opportunity',
+  'Ranking by opportunity score',
 ]
 
 // Reordered/expanded 2026-06-24 to match what actually happens server-side
@@ -37,23 +47,26 @@ const DISCOVERY_STEPS = [
 // "Writing investment memo..." for most of that wait, which read as stuck
 // even when the backend was still working normally.
 const ANALYSIS_STEPS = [
-  'Mapping market conditions...',
-  'Scoring demand and competition...',
-  'Searching Amazon for real competitor products...',
-  'Collecting real customer reviews...',
-  'Analyzing virality potential...',
-  'Building product recommendation...',
-  'Calculating financial projections...',
-  'Writing investment memo...',
+  'Mapping market conditions',
+  'Scoring demand and competition',
+  'Searching Amazon for real competitor products',
+  'Collecting real customer reviews',
+  'Analyzing virality potential',
+  'Building product recommendation',
+  'Calculating financial projections',
+  'Writing investment memo',
 ]
+
+const DISCOVERY_PROVIDERS = ['Keepa', 'Google Trends', 'TikTok', 'Amazon Reviews']
+const ANALYSIS_PROVIDERS  = ['Keepa', 'Google Trends', 'TikTok', 'Amazon Reviews', 'Meta Ads']
 
 // Shown once the fixed step list above is exhausted but the request hasn't
 // returned yet — real provider data can take longer than the list assumes,
 // so this keeps the screen visibly updating instead of looking frozen.
 const STILL_WORKING_MESSAGES = [
-  'Still collecting real data — this can take a few minutes for some categories...',
-  'Real provider data (Amazon, Keepa) takes longer than the AI writing itself...',
-  'Almost there — finishing up real-data collection...',
+  'Still collecting real data — this can take a few minutes for some categories',
+  'Real provider data (Amazon, Keepa) takes longer than the AI writing itself',
+  'Almost there — finishing up real-data collection',
 ]
 
 const PRICES = [
@@ -70,42 +83,66 @@ const PRICES = [
 // opportunity (only one category-level real signal per request, see
 // CategorySignalPanel) — every "how good/strong is this" color cue is now
 // keyed on the AI's own qualitative tier, never a fabricated number.
+// OpportunityCard.promise/scores tiers aren't one of VerdictBadge's three
+// verdict schemes, so they're mapped directly to the same verdict hex
+// values via design tokens instead of being forced through VerdictBadge.
 function promiseColor(p: 'High' | 'Medium' | 'Low') {
-  return p === 'High' ? 'text-[#008a00]' : p === 'Medium' ? 'text-[#a67c00]' : 'text-[#d32f2f]'
+  return p === 'High' ? 'text-verdict-positive' : p === 'Medium' ? 'text-verdict-caution-text' : 'text-verdict-negative'
+}
+function promiseBg(p: 'High' | 'Medium' | 'Low') {
+  return p === 'High' ? 'bg-verdict-positive' : p === 'Medium' ? 'bg-verdict-caution' : 'bg-verdict-negative'
+}
+function promiseHex(p: 'High' | 'Medium' | 'Low') {
+  return p === 'High' ? '#008a00' : p === 'Medium' ? '#fbc02d' : '#d32f2f'
 }
 
 function tierColor(t: 'High' | 'Medium' | 'Low' | 'Strong' | 'Moderate' | 'Weak') {
-  return t === 'High' || t === 'Strong' ? 'text-[#008a00]'
-       : t === 'Medium' || t === 'Moderate' ? 'text-[#a67c00]'
-       : 'text-[#d32f2f]'
+  return t === 'High' || t === 'Strong' ? 'text-verdict-positive'
+       : t === 'Medium' || t === 'Moderate' ? 'text-verdict-caution-text'
+       : 'text-verdict-negative'
+}
+
+function clock(ms: number) {
+  return new Date(ms).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+// Real, honest trend arrow — derived from OpportunityMeta.promise_delta
+// (server-computed comparison of this week's promise tier vs. last week's
+// for the same opportunity name; 'new' has no prior tier to compare).
+// Never a fabricated percentage — Stitch's reference shows a MoM growth
+// % figure, but no such number is ever computed for these AI-tiered
+// opportunity cards, so this is the honest substitute for that visual slot.
+function DeltaTag({ delta }: { delta?: 'up' | 'down' | 'same' | 'new' }) {
+  if (!delta) return null
+  if (delta === 'new')  return <span className="text-[10px] font-mono font-bold text-black border border-black px-1.5 py-0.5 uppercase">New</span>
+  if (delta === 'up')   return <span className="text-[10px] font-mono font-bold text-verdict-positive uppercase">▲ Up</span>
+  if (delta === 'down') return <span className="text-[10px] font-mono font-bold text-verdict-negative uppercase">▼ Down</span>
+  return <span className="text-[10px] font-mono text-outline uppercase">— Same</span>
 }
 
 // ── sub-components ─────────────────────────────────────────────
 
 function DifficultyBadge({ d }: { d: OpportunityCard['difficulty'] }) {
   const styles = {
-    Easy:   'text-[#008a00] border-[#008a00]',
-    Medium: 'text-[#a67c00] border-[#a67c00]',
-    Hard:   'text-[#d32f2f] border-[#d32f2f]',
+    Easy:   'text-verdict-positive border-verdict-positive',
+    Medium: 'text-verdict-caution-text border-verdict-caution-text',
+    Hard:   'text-verdict-negative border-verdict-negative',
   }
   return (
-    <span className={`inline-flex items-center text-xs font-bold font-mono uppercase px-2 py-0.5 border ${styles[d]}`}>
+    <span className={`inline-flex items-center text-[10px] font-bold font-mono uppercase px-2 py-0.5 border ${styles[d]}`}>
       {d}
     </span>
   )
 }
 
-// Generic tier pill — used for startup_cost_tier and launch_speed, both
-// directional judgments (Lean/Moderate/Capital-Intensive, Fast/Moderate/Slow)
-// rather than dollar figures or day-counts with no real per-opportunity basis.
 function TierBadge({ value, good, bad }: { value: string; good: string; bad: string }) {
   const cls = value === good
-    ? 'text-[#008a00] border-[#008a00]'
+    ? 'text-verdict-positive border-verdict-positive'
     : value === bad
-      ? 'text-[#d32f2f] border-[#d32f2f]'
-      : 'text-[#a67c00] border-[#a67c00]'
+      ? 'text-verdict-negative border-verdict-negative'
+      : 'text-verdict-caution-text border-verdict-caution-text'
   return (
-    <span className={`inline-flex items-center text-xs font-bold font-mono uppercase px-2 py-0.5 border ${cls}`}>
+    <span className={`inline-flex items-center text-[10px] font-bold font-mono uppercase px-2 py-0.5 border ${cls}`}>
       {value}
     </span>
   )
@@ -115,15 +152,15 @@ function MetaRow({ opp }: { opp: OpportunityCard }) {
   return (
     <div className="flex divide-x divide-black/10 border border-black mt-3 overflow-hidden">
       <div className="flex-1 px-2.5 py-2.5 text-center">
-        <p className="text-[10px] font-mono text-[#7e7576] uppercase mb-1">Capital Tier</p>
+        <p className="text-[10px] font-mono text-outline uppercase mb-1">Capital Tier</p>
         <TierBadge value={opp.startup_cost_tier ?? '—'} good="Lean" bad="Capital-Intensive" />
       </div>
       <div className="flex-1 px-2.5 py-2.5 text-center">
-        <p className="text-[10px] font-mono text-[#7e7576] uppercase mb-1">Difficulty</p>
+        <p className="text-[10px] font-mono text-outline uppercase mb-1">Difficulty</p>
         <DifficultyBadge d={opp.difficulty} />
       </div>
       <div className="flex-1 px-2.5 py-2.5 text-center">
-        <p className="text-[10px] font-mono text-[#7e7576] uppercase mb-1">Launch Speed</p>
+        <p className="text-[10px] font-mono text-outline uppercase mb-1">Launch Speed</p>
         <TierBadge value={opp.launch_speed ?? '—'} good="Fast" bad="Slow" />
       </div>
     </div>
@@ -132,133 +169,178 @@ function MetaRow({ opp }: { opp: OpportunityCard }) {
 
 function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
   const dims: { label: string; tier: string; facts: string[] }[] = [
-    {
-      label: 'Demand',
-      tier: scores.demand.signal,
-      facts: [`Signal: ${scores.demand.signal}`],
-    },
+    { label: 'Demand', tier: scores.demand.signal, facts: [`Signal: ${scores.demand.signal}`] },
     ...(scores.market_saturation ? [{
       label: 'Market',
       tier: scores.market_saturation.level,
       facts: [`Saturation: ${scores.market_saturation.level}`, `Barrier: ${scores.market_saturation.barrier}`, scores.market_saturation.note ?? ''],
     }] : []),
-    {
-      label: 'Virality',
-      tier: scores.virality.tiktok,
-      facts: [`TikTok: ${scores.virality.tiktok}`, `Content: ${scores.virality.content_potential}`, `UGC: ${scores.virality.ugc}`],
-    },
-    {
-      label: 'Subscription',
-      tier: scores.subscription.retention,
-      facts: [`Retention: ${scores.subscription.retention}`],
-    },
-    {
-      label: 'Manufacturing',
-      tier: scores.manufacturing.complexity,
-      facts: [`Complexity: ${scores.manufacturing.complexity}`],
-    },
+    { label: 'Virality', tier: scores.virality.tiktok, facts: [`TikTok: ${scores.virality.tiktok}`, `Content: ${scores.virality.content_potential}`, `UGC: ${scores.virality.ugc}`] },
+    { label: 'Subscription', tier: scores.subscription.retention, facts: [`Retention: ${scores.subscription.retention}`] },
+    { label: 'Manufacturing', tier: scores.manufacturing.complexity, facts: [`Complexity: ${scores.manufacturing.complexity}`] },
   ]
 
   return (
     <div className="grid grid-cols-2 gap-2 mt-3">
       {dims.map(({ label, tier, facts }) => (
-        <div key={label} className="bg-white border border-black p-3">
+        <HardCard key={label} padded={false} className="p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono font-semibold text-[#7e7576] uppercase tracking-wide">{label}</span>
+            <span className="text-[10px] font-mono font-semibold text-outline uppercase tracking-wide">{label}</span>
             <span className={`text-[10px] font-bold uppercase tracking-wide ${tierColor(tier as 'High' | 'Medium' | 'Low' | 'Strong' | 'Moderate' | 'Weak')}`}>{tier}</span>
           </div>
           <div className="space-y-0.5">
             {facts.map((f, i) => (
-              <p key={i} className="text-[11px] text-[#4c4546] leading-snug">{f}</p>
+              <p key={i} className="text-[11px] text-ink-variant leading-snug">{f}</p>
             ))}
           </div>
-        </div>
+        </HardCard>
       ))}
     </div>
   )
 }
 
-
-// ── Investigation Console — a live terminal log instead of a spinner.
-// Frames the wait as watching a query execute against real data sources,
-// the way an analyst watches a Bloomberg/Palantir job run, not a
-// progress bar on a webpage.
+// ── Investigation Console — rebuilt on the Stitch "Preliminary Read"
+// bento-grid pattern (status pill + radial progress + Data Integrity panel
+// on the left, a timestamped "Resolving Evidence" feed on the right)
+// instead of the old macOS-terminal-window metaphor.
+//
+// Honesty constraints: the backend runs discovery/analysis as a single
+// request — there is no real incremental per-provider completion signal to
+// observe client-side. So providers are shown as a set, "Querying" until
+// the whole batch either succeeds or fails together — never faked as
+// completing one-by-one. Timestamps on evidence entries are real
+// (Date.now() captured when the client-side step advanced), not
+// server-side event times. Stitch's circular "Signal Lifecycle" gauge is
+// fed by the same real stepIdx/steps.length fraction the old horizontal
+// dot-line used — same data, different chrome. Stitch's fictional
+// "Interim Synthesis" AI quote and "Probe deeper" live-refine box are
+// omitted outright: no backend generates interim narrative text or
+// supports mid-flight query refinement.
 // ─────────────────────────────────────────────────────────────────
 
-// Once the fixed step list is exhausted but the request hasn't returned,
-// shows a rotating reassurance message + elapsed time instead of freezing
-// silently on the last step — real provider calls can run well past the
-// fixed list's assumed duration (see ANALYSIS_STEPS / STILL_WORKING_MESSAGES
-// comment above), and a frozen-looking screen was part of why this read as
-// "failed" even when the backend was still working normally.
-function StillWorking() {
-  const [elapsed, setElapsed] = useState(0)
-  useEffect(() => {
-    const t0 = Date.now()
-    const id = setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000)
-    return () => clearInterval(id)
-  }, [])
-  const msg = STILL_WORKING_MESSAGES[Math.min(
-    Math.floor(elapsed / 20),
-    STILL_WORKING_MESSAGES.length - 1,
-  )]
+const STATUS_LABEL: Record<PageMode, string> = {
+  classifying: 'Classifying',
+  discovering: 'Scanning',
+  analyzing:   'Verifying',
+  form: '', results: '',
+}
+
+function RadialProgress({ fraction }: { fraction: number }) {
+  const r = 80, c = 2 * Math.PI * r
   return (
-    <div className="flex gap-2.5 mb-2">
-      <span className="text-[#7e7576] shrink-0 select-none">[··]</span>
-      <span className="text-[#4c4546] italic">
-        {msg}
-        <span className="text-[#7e7576] ml-2 font-mono not-italic">{elapsed}s</span>
-        <span className="inline-block w-[7px] h-[13px] bg-black ml-1.5 align-middle animate-pulse" />
-      </span>
-    </div>
+    <svg className="w-40 h-40 -rotate-90" viewBox="0 0 192 192">
+      <circle cx="96" cy="96" r={r} fill="none" stroke="#e2e2e2" strokeWidth="12" />
+      <circle
+        cx="96" cy="96" r={r} fill="none" stroke="#000000" strokeWidth="12"
+        strokeDasharray={c} strokeDashoffset={c * (1 - fraction)}
+        strokeLinecap="butt" style={{ transition: 'stroke-dashoffset 400ms ease' }}
+      />
+    </svg>
   )
 }
 
 function InvestigationConsole({
-  query, steps, stepIdx, sources,
+  mode, query, steps, stepIdx, providers,
 }: {
-  query: string; steps: string[]; stepIdx: number; sources?: string[]
+  mode: 'classifying' | 'discovering' | 'analyzing'
+  query: string; steps: string[]; stepIdx: number; providers: string[]
 }) {
   const exhausted = stepIdx === steps.length - 1
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4 font-sans" style={{ background: '#f9f9f9' }}>
-      <div className="w-full max-w-lg animate-in">
-        <div className="border-2 border-black bg-white overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          {/* terminal title bar */}
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b-2 border-black bg-[#f3f3f3]">
-            <span className="w-2 h-2 border border-black" />
-            <span className="w-2 h-2 border border-black" />
-            <span className="w-2 h-2 border border-black bg-black" />
-            <span className="ml-2 text-[11px] font-mono text-[#4c4546] truncate flex-1 uppercase">
-              investigation · &ldquo;{query}&rdquo;
-            </span>
-            <span className="text-[11px] font-mono text-[#7e7576] shrink-0">{stepIdx + 1}/{steps.length}</span>
-          </div>
+  const [elapsed, setElapsed] = useState(0)
+  const [stepTimes, setStepTimes] = useState<number[]>([Date.now()])
 
-          {/* log body */}
-          <div className="p-5 font-mono text-[13px] leading-relaxed min-h-[260px]">
-            {steps.slice(0, stepIdx + 1).map((s, i) => {
-              const isLastAndExhausted = i === stepIdx && exhausted
-              return (
-                <div key={i} className="flex gap-2.5 mb-2">
-                  <span className="text-[#7e7576] shrink-0 select-none">[{String(i + 1).padStart(2, '0')}]</span>
-                  <span className={i < stepIdx ? 'text-[#7e7576]' : 'text-black'}>
-                    {s}
-                    {i < stepIdx || isLastAndExhausted
-                      ? <span className="text-[#008a00] ml-2">✓</span>
-                      : <span className="inline-block w-[7px] h-[13px] bg-black ml-1.5 align-middle animate-pulse" />}
-                  </span>
-                </div>
-              )
-            })}
-            {exhausted && <StillWorking />}
-            {sources && exhausted && (
-              <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-black">
-                {sources.map(src => (
-                  <span key={src} className="text-[10px] font-mono text-[#4c4546] border border-black px-1.5 py-0.5 uppercase">{src}</span>
+  useEffect(() => {
+    const t0 = Date.now()
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [mode])
+
+  useEffect(() => {
+    setStepTimes(prev => (stepIdx < prev.length ? prev : [...prev, Date.now()]))
+  }, [stepIdx])
+
+  const stillWorkingMsg = STILL_WORKING_MESSAGES[Math.min(Math.floor(elapsed / 20), STILL_WORKING_MESSAGES.length - 1)]
+
+  return (
+    <div className="font-sans">
+      <div className="max-w-5xl mx-auto animate-in space-y-gutter">
+
+        {/* header */}
+        <div className="flex items-center gap-3">
+          <span className="bg-verdict-caution text-black px-3 py-1 text-verdict-sm uppercase tracking-tight font-black">
+            {STATUS_LABEL[mode]} — {stepIdx + 1} of {steps.length} steps
+          </span>
+        </div>
+        <div>
+          <h1 className="text-headline-xl-mobile lg:text-headline-xl text-black leading-none">{query}</h1>
+        </div>
+
+        {/* bento grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
+
+          {/* left column — status + data integrity */}
+          <div className="lg:col-span-4 flex flex-col gap-gutter">
+            <HardCard className="flex flex-col items-center gap-4 relative">
+              <p className="absolute top-4 left-4 text-[10px] font-mono uppercase text-outline tracking-widest">Signal Lifecycle</p>
+              <div className="mt-6">
+                <RadialProgress fraction={(stepIdx + 1) / steps.length} />
+              </div>
+              <div className="text-center -mt-2">
+                <p className="text-sm font-mono font-bold uppercase text-black">{exhausted ? 'Finalizing' : steps[stepIdx]}</p>
+                <p className="text-[11px] font-mono text-outline mt-1 uppercase">Step {stepIdx + 1} / {steps.length}</p>
+              </div>
+              <div className="flex gap-2 pt-4 border-t border-black/10 w-full justify-center">
+                {steps.map((_, i) => (
+                  <span key={i} className={`w-2.5 h-2.5 rounded-full ${i <= stepIdx ? 'bg-black' : 'border border-black'}`} />
                 ))}
               </div>
+            </HardCard>
+
+            {providers.length > 0 && (
+              <HardCard>
+                <h3 className="text-[11px] font-mono font-bold uppercase tracking-widest border-b border-black pb-2 mb-3">Data Sources</h3>
+                <div className="flex flex-col gap-2.5">
+                  {providers.map(p => (
+                    <div key={p} className="flex justify-between items-center">
+                      <span className="text-sm text-ink">{p}</span>
+                      <span className="text-[10px] font-mono text-outline uppercase">{exhausted ? 'Querying…' : 'Pending'}</span>
+                    </div>
+                  ))}
+                </div>
+              </HardCard>
             )}
+          </div>
+
+          {/* right column — resolving evidence feed */}
+          <div className="lg:col-span-8">
+            <HardCard>
+              <h2 className="text-headline-md text-black uppercase tracking-tight mb-6">Resolving Evidence</h2>
+              <div className="space-y-5">
+                {steps.slice(0, stepIdx + 1).map((s, i) => {
+                  const done = i < stepIdx || (i === stepIdx && exhausted === false)
+                  return (
+                    <div key={i} className="flex gap-4 items-start">
+                      <div className="text-[11px] font-mono text-outline py-0.5 w-16 shrink-0">{clock(stepTimes[i] ?? stepTimes[stepTimes.length - 1])}</div>
+                      <div className="flex-1 border-b border-black/10 pb-5">
+                        <div className="flex items-center gap-2.5 mb-1.5">
+                          <span className={`w-2 h-2 rounded-full ${i <= stepIdx ? 'bg-black' : 'border border-black'}`} />
+                          <span className="text-xs font-mono font-bold uppercase tracking-wide text-black">{s}</span>
+                          {i < stepIdx && <span className="text-[10px] font-mono text-verdict-positive uppercase">done</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {exhausted && (
+                  <div className="flex gap-4 items-start opacity-70">
+                    <div className="text-[11px] font-mono text-outline py-0.5 w-16 shrink-0">{elapsed}s</div>
+                    <div className="flex-1 italic">
+                      <p className="text-sm text-ink-variant">{stillWorkingMsg}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </HardCard>
           </div>
         </div>
       </div>
@@ -272,11 +354,11 @@ function InvestigationConsole({
 // never seeing the response.
 function ErrorBanner({ message, networkFailure }: { message: string; networkFailure: boolean }) {
   return (
-    <div className="bg-[#ffdad6] border border-[#ba1a1a] p-4 text-sm text-[#93000a]">
+    <div className="bg-error-container border border-error p-4 text-sm text-error-on-container">
       <p>{message}</p>
       {networkFailure && (
-        <p className="mt-2 text-[#93000a]/80">
-          <Link href="/dashboard" className="underline hover:text-[#93000a]">Check your dashboard</Link> before re-running this — if it finished, you&rsquo;ll find it there without using another analysis slot.
+        <p className="mt-2 text-error-on-container/80">
+          <Link href="/dashboard" className="underline hover:text-error-on-container">Check your dashboard</Link> before re-running this — if it finished, you&rsquo;ll find it there without using another analysis slot.
         </p>
       )}
     </div>
@@ -296,49 +378,32 @@ function CategorySelector({
   const otherConfigs = CATEGORY_CLIENT_CONFIGS.filter(c => !c.isAuto)
 
   return (
-    <div className="bg-white border border-black p-4 mb-6">
-      <p className="text-xs font-mono text-[#7e7576] uppercase tracking-widest mb-3">Mode</p>
-
-      {/* Open Discovery — full-width first */}
+    <div className="flex flex-wrap items-center gap-2 mb-5">
       <button
         type="button"
         onClick={() => onSelect(autoConfig.id)}
-        className={`w-full mb-3 px-4 py-2.5 border text-sm font-medium transition-colors text-left flex items-center gap-2 ${
-          selected === autoConfig.id
-            ? 'bg-black text-white border-black'
-            : 'bg-white border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3]'
+        className={`px-3 py-1.5 text-xs font-mono uppercase font-bold border transition-colors flex items-center gap-1.5 ${
+          selected === autoConfig.id ? 'bg-black text-white border-black' : 'bg-white border-black text-ink-variant hover:text-black'
         }`}
       >
-        <span className="text-base">{autoConfig.icon}</span>
-        <div>
-          <span className="font-semibold">{autoConfig.name}</span>
-          <span className="ml-2 text-xs opacity-70">{autoConfig.tagline}</span>
-        </div>
+        <span>{autoConfig.icon}</span> {autoConfig.name}
       </button>
-
-      {/* Category chips */}
-      <p className="text-xs font-mono text-[#7e7576] uppercase mb-2">Or choose a specific category:</p>
-      <div className="flex flex-wrap gap-2">
-        {otherConfigs.map(cat => (
-          <button
-            key={cat.id}
-            type="button"
-            onClick={() => onSelect(cat.id)}
-            className={`px-3 py-1.5 text-xs font-medium border transition-colors ${
-              selected === cat.id
-                ? 'bg-black text-white border-black'
-                : 'bg-white border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3]'
-            }`}
-          >
-            <span className="mr-1">{cat.icon}</span>{cat.name}
-          </button>
-        ))}
-      </div>
+      <span className="text-outline text-xs">|</span>
+      {otherConfigs.map(cat => (
+        <button
+          key={cat.id}
+          type="button"
+          onClick={() => onSelect(cat.id)}
+          className={`px-3 py-1.5 text-xs font-mono uppercase border transition-colors ${
+            selected === cat.id ? 'bg-black text-white border-black' : 'bg-white border-black text-ink-variant hover:text-black'
+          }`}
+        >
+          <span className="mr-1">{cat.icon}</span>{cat.name}
+        </button>
+      ))}
     </div>
   )
 }
-
-// ── Detected category badge ────────────────────────────────────
 
 function DetectedCategoryBadge({ config }: { config: CategoryClientConfig }) {
   return (
@@ -348,27 +413,23 @@ function DetectedCategoryBadge({ config }: { config: CategoryClientConfig }) {
   )
 }
 
-// ── Opportunity Map — a promise-vs-ease grid, the primary hunting surface
-// for discovery. Replaces a scrolling list with a visual field you scan
-// and click into, the way an analyst scans a screener chart.
-//
-// 2026-06-26 evidence-first redesign: this used to plot a fabricated 0-100
-// score on a continuous Y-axis, implying precision that never existed (no
-// per-opportunity real data is ever fetched at discovery time). Both axes
-// are now discrete qualitative buckets — promise (High/Medium/Low, the AI's
-// own editorial tier) and difficulty (Easy/Medium/Hard) — jittered within
-// their bucket for the same scannable scatter feel, without pretending the
-// position is a measurement.
+// ── Opportunity Map — promise (AI editorial tier) vs. ease of execution.
+// Stitch's reference ("Pipeline - Opportunity Portfolio") plots opportunities
+// along a fictional "market lifecycle" arc (Emerging/Window Open/Contested/
+// Saturated) — no such field is ever computed for these AI-suggested
+// opportunities, so that axis is not reproduced. What IS kept from Stitch:
+// the legend-row-above-a-white-chart-card composition, numbered dots for
+// the top-ranked opportunities, and the bullish/neutral/bearish color
+// legend — remapped onto the real High/Medium/Low promise tiers, which
+// already use this exact verdict palette everywhere else in the app.
 // ─────────────────────────────────────────────────────────────────
 
 function easeOf(d: OpportunityCard['difficulty']) {
   return d === 'Easy' ? 84 : d === 'Medium' ? 50 : 17
 }
-
 function promiseY(p: OpportunityCard['promise']) {
   return p === 'High' ? 17 : p === 'Medium' ? 50 : 84
 }
-
 function hashJitter(seed: string, range: number) {
   let h = 0
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 2147483647
@@ -376,188 +437,375 @@ function hashJitter(seed: string, range: number) {
 }
 
 function OpportunityMap({
-  opportunities, selectedName, onSelect,
+  opportunities, selectedName, onSelect, count,
 }: {
   opportunities: OpportunityCard[]
   selectedName: string | null
   onSelect: (name: string) => void
+  count: number
 }) {
   return (
-    <div className="bg-white border border-black p-5 sm:p-7">
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-[#7e7576]">Opportunity Map</p>
-        <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider hidden sm:inline">Promise vs. ease of execution — AI judgment, not measured</p>
-      </div>
-      <div className="relative mt-7 h-[300px] sm:h-[400px] ml-8 border-l border-b border-black">
-        {/* quadrant dividers */}
-        <div className="absolute left-0 right-0 border-t border-dashed border-black/15 pointer-events-none" style={{ top: '35%' }} />
-        <div className="absolute top-0 bottom-0 border-l border-dashed border-black/15 pointer-events-none" style={{ left: '50%' }} />
-
-        {/* quadrant labels */}
-        <span className="absolute top-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-[#008a00]/80 font-mono font-medium">Best bets</span>
-        <span className="absolute top-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-[#7e7576] font-mono">High reward, hard</span>
-        <span className="absolute bottom-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-[#7e7576] font-mono">Quick wins</span>
-        <span className="absolute bottom-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-[#7e7576] font-mono">Low priority</span>
-
-        {/* y-axis labels */}
-        {(['High', 'Medium', 'Low'] as const).map(p => (
-          <span key={p} className="absolute -left-9 -translate-y-1/2 text-[9px] font-mono text-[#7e7576] uppercase tracking-wide" style={{ top: `${promiseY(p)}%` }}>{p}</span>
-        ))}
-
-        {/* points */}
-        {opportunities.map((opp, i) => {
-          const x = Math.min(97, Math.max(2, easeOf(opp.difficulty) + hashJitter(opp.name, 14)))
-          const y = Math.min(96, Math.max(3, promiseY(opp.promise) + hashJitter(opp.name + 'y', 10)))
-          const isTop    = i < 3
-          const isSel    = selectedName === opp.name
-          const c        = opp.promise === 'High' ? '#008a00' : opp.promise === 'Medium' ? '#fbc02d' : '#d32f2f'
-          const size     = isSel ? 15 : isTop ? 11 : 7
-          return (
-            <button
-              key={opp.name}
-              onClick={() => onSelect(opp.name)}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-10 hover:z-20 group"
-              style={{ left: `${x}%`, top: `${y}%` }}
-              aria-label={opp.name}
-            >
-              <span
-                className="block rounded-full transition-all duration-200 group-hover:scale-125 border border-black"
-                style={{
-                  width: size, height: size, background: c,
-                  boxShadow: isSel ? `0 0 0 4px rgba(0,0,0,0.15)` : isTop ? '0 0 0 2px rgba(0,0,0,.4)' : 'none',
-                }}
-              />
-              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2 py-1 bg-black border border-black text-[10px] font-mono text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                {opp.name} · {opp.promise}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-      <div className="flex justify-between mt-2.5 ml-8 text-[10px] font-mono text-[#7e7576] uppercase tracking-wider">
-        <span>← Harder to build</span>
-        <span>Easier to build →</span>
-      </div>
-    </div>
-  )
-}
-
-function OpportunityDetail({
-  opp, rank, onOpen,
-}: { opp: OpportunityCard; rank: number; onOpen: () => void }) {
-  return (
-    <div className="bg-white border border-black p-5 sm:p-6 animate-in">
-      <div className="flex items-start gap-4">
-        <span className="font-mono font-bold text-xl text-[#7e7576] shrink-0 pt-0.5 w-5 text-right">{rank}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-bold text-base leading-snug text-black">{opp.name}</h3>
-            <span className={`font-black text-sm uppercase tracking-wide ${promiseColor(opp.promise)}`}>{opp.promise}</span>
-          </div>
-          <p className="text-sm text-[#4c4546] mt-1.5">{opp.rationale}</p>
-          <p className="text-[10px] text-[#7e7576] italic mt-2">
-            AI editorial judgment, not independently verified — promise tier and dimension labels are model output, not a measurement. See the Category Signal panel for the one real data point behind this search. Open the full report for per-field source detail on your specific idea.
-          </p>
-          <MetaRow opp={opp} />
-          <EvidenceGrid scores={opp.scores} />
-          <button onClick={onOpen} className="w-full mt-4 py-2.5 text-sm font-black uppercase tracking-wide text-white bg-black hover:bg-white hover:text-black border-2 border-black transition-colors duration-200 active:scale-[0.98]">
-            Open Full Report →
-          </button>
+    <section>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
+        <div>
+          <h2 className="text-headline-md text-black uppercase tracking-tight">Opportunity Map</h2>
+          <p className="text-[11px] font-mono text-outline uppercase tracking-wider mt-1">Promise vs. ease of execution — AI judgment · N={count} opportunities</p>
+        </div>
+        <div className="flex gap-4">
+          {(['High', 'Medium', 'Low'] as const).map(p => (
+            <div key={p} className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5" style={{ background: promiseHex(p) }} />
+              <span className="text-[10px] font-mono text-outline uppercase">{p}</span>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+
+      <HardCard className="relative h-[320px] sm:h-[420px] overflow-hidden">
+        <div className="relative w-full h-full ml-6 border-l border-b border-black">
+          <div className="absolute left-0 right-0 border-t border-dashed border-black/15 pointer-events-none" style={{ top: '35%' }} />
+          <div className="absolute top-0 bottom-0 border-l border-dashed border-black/15 pointer-events-none" style={{ left: '50%' }} />
+
+          <span className="absolute top-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-verdict-positive/80 font-mono font-medium">Best bets</span>
+          <span className="absolute top-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-outline font-mono">High reward, hard</span>
+          <span className="absolute bottom-2 right-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-outline font-mono">Quick wins</span>
+          <span className="absolute bottom-2 left-2.5 text-[9px] sm:text-[10px] uppercase tracking-wider text-outline font-mono">Low priority</span>
+
+          {opportunities.map((opp, i) => {
+            const x = Math.min(97, Math.max(2, easeOf(opp.difficulty) + hashJitter(opp.name, 14)))
+            const y = Math.min(96, Math.max(3, promiseY(opp.promise) + hashJitter(opp.name + 'y', 10)))
+            const isTop = i < 3
+            const isSel = selectedName === opp.name
+            const size  = isSel ? 34 : isTop ? 26 : 12
+            return (
+              <button
+                key={opp.name}
+                onClick={() => onSelect(opp.name)}
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-10 hover:z-20 group flex items-center justify-center"
+                style={{ left: `${x}%`, top: `${y}%`, width: size, height: size }}
+                aria-label={opp.name}
+              >
+                <span
+                  className={`flex items-center justify-center rounded-full border-2 border-black transition-transform duration-150 group-hover:scale-110 ${isTop || isSel ? 'text-white text-[11px] font-bold' : ''}`}
+                  style={{ width: size, height: size, background: promiseHex(opp.promise) }}
+                >
+                  {(isTop || isSel) ? i + 1 : ''}
+                </span>
+                <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2 py-1 bg-black border border-black text-[10px] font-mono text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                  {opp.name} · {opp.promise}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex justify-between mt-2.5 ml-6 text-[10px] font-mono text-outline uppercase tracking-wider">
+          <span>← Harder to build</span>
+          <span>Easier to build →</span>
+        </div>
+      </HardCard>
+    </section>
   )
 }
 
-// ── Terminal list — dense scannable rows for analysts who'd rather read
-// a table than hunt a chart. Real columns, monospace figures, no cards.
-function OpportunityTable({
-  opportunities, onOpen, showMeta,
+// ── Opportunity Inventory — replaces the old separate List-table +
+// Detail-card pair with one grouped, expandable row list matching Stitch's
+// "Pipeline Inventory" pattern. Grouped by promise tier (the real, honest
+// analog of Stitch's fictional lifecycle-stage groups — no stage field
+// exists for these opportunities, so promise tier is the closest real
+// substitute). Stitch's row also has a select-checkbox feeding a "Compare
+// Selected" action and a "MoM Growth" percentage — both omitted: there is
+// no real cross-opportunity compare surface for pre-analysis AI
+// suggestions (they have no id yet, only saved research-pipeline theses
+// are comparable), and no percentage growth is ever computed per
+// opportunity. `_meta.promise_delta` (a real field) is shown instead via
+// DeltaTag.
+function OpportunityInventory({
+  opportunities, expandedName, onToggle, onOpen,
 }: {
-  opportunities: OpportunityCard[]
+  opportunities: (OpportunityCard & { rank: number })[]
+  expandedName: string | null
+  onToggle: (name: string) => void
   onOpen: (name: string) => void
-  showMeta: boolean
 }) {
+  const groups: { tier: 'High' | 'Medium' | 'Low'; items: (OpportunityCard & { rank: number })[] }[] = (['High', 'Medium', 'Low'] as const)
+    .map(tier => ({ tier, items: opportunities.filter(o => o.promise === tier) }))
+    .filter(g => g.items.length > 0)
+
   return (
-    <div className="border border-black overflow-hidden">
-      <div className="grid grid-cols-[2rem_1fr_5.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_4.5rem] gap-3 px-4 py-2 text-[10px] text-[#7e7576] uppercase tracking-wider border-b border-black bg-[#f3f3f3] font-mono">
-        <span>#</span><span>Opportunity</span><span className="text-right">Difficulty</span>
-        <span className="text-right hidden sm:inline">Signal</span><span className="text-right">Promise</span>
+    <section className="mt-10">
+      <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-4">
+        <h2 className="text-headline-md text-black uppercase tracking-tight">Opportunity Inventory</h2>
+        <span className="text-xs font-mono text-outline uppercase">{opportunities.length} total</span>
       </div>
-      <div className="divide-y divide-black/10">
-        {opportunities.map((opp, i) => (
-          <button
-            key={opp.name}
-            onClick={() => onOpen(opp.name)}
-            className="w-full grid grid-cols-[2rem_1fr_5.5rem_4.5rem] sm:grid-cols-[2rem_1fr_6rem_6rem_4.5rem] gap-3 px-4 py-3 text-left hover:bg-[#f3f3f3] transition-colors items-center group bg-white"
-          >
-            <span className="text-xs text-[#7e7576] font-mono">{String(i + 1).padStart(2, '0')}</span>
-            <span className="min-w-0 flex items-center gap-1.5">
-              <span className="text-sm text-black truncate">{opp.name}</span>
-              {showMeta && opp._meta?.is_new && <span className="w-1.5 h-1.5 bg-black shrink-0" />}
-            </span>
-            <span className="text-xs text-right text-[#4c4546]">{opp.difficulty}</span>
-            <span className="text-xs text-right text-[#7e7576] hidden sm:inline">{opp.scores.demand.signal}</span>
-            <span className={`text-xs text-right font-semibold uppercase tracking-wide ${promiseColor(opp.promise)}`}>{opp.promise}</span>
-          </button>
+
+      <div className="space-y-4">
+        {groups.map(g => (
+          <div key={g.tier} className="border border-black bg-white">
+            <div className="flex items-center gap-3 p-3 bg-surface-container-low border-b border-black">
+              <span className={`w-2.5 h-2.5 ${promiseBg(g.tier)}`} />
+              <span className="text-xs font-mono font-bold uppercase tracking-wide text-black">{g.tier} promise</span>
+              <span className="bg-black text-white px-2 text-[10px] font-bold">{g.items.length}</span>
+            </div>
+            <div className="divide-y divide-black/10">
+              {g.items.map(opp => {
+                const isOpen = expandedName === opp.name
+                return (
+                  <div key={opp.name} id={`opp-row-${opp.name}`}>
+                    <button
+                      onClick={() => onToggle(opp.name)}
+                      className="w-full flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-2 p-4 text-left hover:bg-surface-container-low transition-colors"
+                    >
+                      <span className="font-mono text-xs text-outline w-6 shrink-0">{String(opp.rank).padStart(2, '0')}</span>
+                      <div className="flex-1 min-w-[10rem]">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-black">{opp.name}</span>
+                          <DeltaTag delta={opp._meta?.promise_delta} />
+                        </div>
+                        <p className="text-xs text-ink-variant mt-0.5 hidden sm:block truncate">{opp.rationale}</p>
+                      </div>
+                      <span className="hidden md:block text-xs text-outline shrink-0 w-24 text-center">Signal: {opp.scores.demand.signal}</span>
+                      <DifficultyBadge d={opp.difficulty} />
+                      <span className={`text-xs font-black uppercase tracking-wide w-16 text-right shrink-0 ${promiseColor(opp.promise)}`}>{opp.promise}</span>
+                      <svg className={`w-4 h-4 text-outline shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {isOpen && (
+                      <div className="px-4 pb-5 pt-1 animate-in">
+                        <p className="text-sm text-ink-variant">{opp.rationale}</p>
+                        <p className="text-[10px] text-outline italic mt-2">
+                          AI editorial judgment, not independently verified — promise tier and dimension labels are model output, not a measurement. Open the full report for per-field source detail on your specific idea.
+                        </p>
+                        <MetaRow opp={opp} />
+                        <EvidenceGrid scores={opp.scores} />
+                        <PrimaryButton onClick={() => onOpen(opp.name)} className="w-full mt-4">
+                          Open Full Report →
+                        </PrimaryButton>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 
 // ── Category Signal — the ONE real data point fetched for the whole broad
-// category at discovery time. Surfaces signalEngine.fetch() honestly
-// instead of leaving it as invisible AI prompt context: scoped explicitly
-// to the category as a whole, never attributed to any individual
-// opportunity card above. Absent entirely on cache hits (not persisted —
-// see app/api/discover/route.ts) or when no provider returned data.
-function CategorySignalPanel({ signal, category }: { signal: AggregatedSignals | null; category: string }) {
-  if (!signal) return null
-  const rows: { label: string; value: string }[] = []
-  if (signal.demand?.value) {
-    const d = signal.demand.value
-    if (d.search_volume) rows.push({ label: 'Search volume', value: d.search_volume })
-    if (d.trend)         rows.push({ label: 'Trend', value: d.trend })
-  }
-  if (signal.growth?.value?.yoy_change) rows.push({ label: 'YoY (Amazon BSR)', value: signal.growth.value.yoy_change })
-  if (signal.competition?.value) {
-    const c = signal.competition.value
-    if (c.competing_brands) rows.push({ label: 'Competing sellers', value: c.competing_brands })
-    if (c.saturation)       rows.push({ label: 'Saturation', value: c.saturation })
-  }
-  if (signal.pricing?.value?.avg_price) rows.push({ label: 'Avg. price', value: signal.pricing.value.avg_price })
-  if (signal.virality?.value?.tiktok)   rows.push({ label: 'TikTok signal', value: signal.virality.value.tiktok })
+// category at discovery time.
+// ── Signal detail grid — a compact label/value fact grid, renders nothing
+// for fields that are absent (never fabricates a placeholder for a field a
+// provider didn't return). Shared by every dimension group below.
+function FactGrid({ facts }: { facts: { label: string; value: string | number | undefined }[] }) {
+  const present = facts.filter((f): f is { label: string; value: string | number } => f.value !== undefined && f.value !== null && f.value !== '')
+  if (!present.length) return null
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+      {present.map(f => (
+        <div key={f.label} className="leading-tight">
+          <p className="text-[9px] font-mono text-outline uppercase tracking-wide">{f.label}</p>
+          <p className="text-xs font-mono text-ink-variant mt-0.5">{f.value}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
 
-  if (!rows.length) return null
+function pct(n: number | undefined, digits = 0): string | undefined {
+  return n === undefined ? undefined : `${(n * 100).toFixed(digits)}%`
+}
+function signedPct(n: number | undefined | null): string | undefined {
+  return n === undefined || n === null ? undefined : `${n > 0 ? '+' : ''}${n.toFixed(1)}%`
+}
+
+// ── Real Category Signal — the ONE real data point set fetched for the
+// whole broad category at discovery time (signalEngine.fetch()). Every
+// field below is read straight off the same AggregatedSignals object
+// already in the /api/discover response — nothing here required a backend
+// change; it was already on the wire and simply wasn't read by the old,
+// 6-fact version of this panel (see docs/BACKEND_STITCH_COMPATIBILITY_AUDIT.md
+// §1.4 "Real Category Signal panel" / Section B).
+function CategorySignalPanel({ signal, category }: { signal: AggregatedSignals | null; category: string }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!signal) return null
+
+  const headline: { label: string; value: string | undefined }[] = [
+    { label: 'Search volume', value: signal.demand?.value.search_volume },
+    { label: 'Trend', value: signal.demand?.value.trend },
+    { label: 'YoY (Amazon BSR)', value: signal.growth?.value.yoy_change },
+    { label: 'Competing sellers', value: signal.competition?.value.competing_brands },
+    { label: 'Saturation', value: signal.competition?.value.saturation },
+    { label: 'Avg. price', value: signal.pricing?.value.avg_price },
+    { label: 'TikTok signal', value: signal.virality?.value.tiktok },
+  ]
+  const hasHeadline = headline.some(r => r.value)
+  if (!hasHeadline) return null
+
+  const d  = signal.demand?.value
+  const g  = signal.growth?.value
+  const c  = signal.competition?.value
+  const p  = signal.pricing?.value
+  const rv = signal.revenue?.value
+  const v  = signal.virality?.value
+  const rev = signal.review_velocity?.value
+  const sz = signal.seasonality?.value
+
+  const hasDetail = !!(d?.top_regions?.length || d?.annual_growth_rate !== undefined || d?.momentum_3m_pct !== undefined
+    || g?.momentum || g?.momentum_90d_pct !== undefined
+    || c?.barrier || c?.distinct_brand_count !== undefined || c?.top_brand_review_share !== undefined || c?.seller_count_trend || c?.market_maturity || c?.avg_listing_age_months !== undefined || c?.amazon_oos_pct !== undefined || c?.amazon_buybox_pct !== undefined || c?.avg_variation_count !== undefined
+    || p?.price_range || p?.premium_viable !== undefined || p?.price_per_unit_range || p?.fba_price_floor || p?.list_price_discount_pct !== undefined
+    || rv?.est_monthly_revenue || rv?.top_seller_revenue || rv?.est_monthly_units_sold || rv?.avg_rating || rv?.avg_review_count !== undefined || rv?.avg_fba_pick_pack_fee || rv?.avg_referral_fee_pct !== undefined || rv?.price_compression_pct !== undefined || rv?.sns_enrolled_pct !== undefined || rv?.category_fba_pct !== undefined || rv?.category_amazon_seller_pct !== undefined
+    || v?.content_potential || v?.ugc || v?.video_count !== undefined || v?.view_count !== undefined || v?.meta_signal || v?.ad_count !== undefined || v?.advertiser_count !== undefined
+    || rev?.monthly_reviews || rev?.sentiment || rev?.meaningful_competitor_count !== undefined || rev?.review_concentration_ratio !== undefined || rev?.pain_point_examples?.length || rev?.top_competitors?.length
+    || sz?.pattern || sz?.peak_months?.length)
+
+  const totalProviders = signal.providers_used.length + (signal.failed_providers?.length ?? 0)
 
   return (
-    <div className="bg-white border border-black p-4 mb-4">
-      <div className="flex items-center justify-between mb-2.5">
-        <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider">Real Category Signal</p>
-        <span className="text-[10px] font-mono text-[#7e7576]">{signal.providers_used.join(', ')} · {Math.round(signal.overall_confidence * 100)}% confidence</span>
+    <HardCard className="mb-8">
+      <div className="flex items-center justify-between mb-2.5 gap-3 flex-wrap">
+        <p className="text-[10px] font-mono text-outline uppercase tracking-wider">Real Category Signal</p>
+        <div className="flex items-center gap-2 shrink-0">
+          {totalProviders > 0 && <WitnessDots filled={signal.providers_used.length} total={totalProviders} size="sm" />}
+          <span className="text-[10px] font-mono text-outline">{signal.providers_used.join(', ')} · {Math.round(signal.overall_confidence * 100)}% confidence</span>
+        </div>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1.5">
-        {rows.map(r => (
+        {headline.filter(r => r.value).map(r => (
           <div key={r.label} className="leading-tight">
-            <span className="text-[10px] font-mono text-[#7e7576]">{r.label}: </span>
-            <span className="text-xs font-mono text-[#4c4546]">{r.value}</span>
+            <span className="text-[10px] font-mono text-outline">{r.label}: </span>
+            <span className="text-xs font-mono text-ink-variant">{r.value}</span>
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-[#7e7576] mt-2 italic">
+
+      {hasDetail && (
+        <>
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="mt-3 flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-black hover:text-ink-variant"
+          >
+            {expanded ? 'Hide full signal data' : 'Show full signal data'}
+            <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {expanded && (
+            <div className="mt-4 pt-4 border-t border-black space-y-4 animate-in">
+              <FactGrid facts={[
+                { label: 'Top demand regions', value: d?.top_regions?.join(', ') },
+                { label: 'Annual growth rate', value: signedPct(d?.annual_growth_rate) },
+                { label: '3mo momentum', value: signedPct(d?.momentum_3m_pct) },
+                { label: 'Growth momentum', value: g?.momentum },
+                { label: '90d momentum', value: g?.momentum_90d_pct != null ? signedPct(g.momentum_90d_pct) : undefined },
+              ]} />
+              <FactGrid facts={[
+                { label: 'Barrier to entry', value: c?.barrier },
+                { label: 'Distinct brands', value: c?.distinct_brand_count },
+                { label: 'Top brand review share', value: pct(c?.top_brand_review_share) },
+                { label: 'Seller count trend', value: c?.seller_count_trend },
+                { label: 'Market maturity', value: c?.market_maturity },
+                { label: 'Avg listing age', value: c?.avg_listing_age_months !== undefined ? `${c.avg_listing_age_months}mo` : undefined },
+                { label: 'Amazon OOS rate', value: pct(c?.amazon_oos_pct !== undefined ? c.amazon_oos_pct / 100 : undefined) },
+                { label: 'Amazon buy-box share', value: pct(c?.amazon_buybox_pct) },
+                { label: 'Avg variation count', value: c?.avg_variation_count },
+              ]} />
+              <FactGrid facts={[
+                { label: 'Price range', value: p?.price_range },
+                { label: 'Premium viable', value: p?.premium_viable === undefined ? undefined : (p.premium_viable ? 'Yes' : 'No') },
+                { label: 'Price per unit', value: p?.price_per_unit_range },
+                { label: 'FBA price floor', value: p?.fba_price_floor },
+                { label: 'List-price discount', value: pct(p?.list_price_discount_pct !== undefined ? p.list_price_discount_pct / 100 : undefined) },
+              ]} />
+              <FactGrid facts={[
+                { label: 'Est. monthly revenue', value: rv?.est_monthly_revenue },
+                { label: 'Top seller revenue', value: rv?.top_seller_revenue },
+                { label: 'Est. monthly units sold', value: rv?.est_monthly_units_sold },
+                { label: 'Avg rating', value: rv?.avg_rating },
+                { label: 'Avg review count', value: rv?.avg_review_count },
+                { label: 'Avg FBA pick/pack fee', value: rv?.avg_fba_pick_pack_fee },
+                { label: 'Avg referral fee', value: rv?.avg_referral_fee_pct !== undefined ? `${rv.avg_referral_fee_pct}%` : undefined },
+                { label: 'Price compression (90d vs 12mo)', value: signedPct(rv?.price_compression_pct) },
+                { label: 'Subscribe & Save enrollment', value: pct(rv?.sns_enrolled_pct) },
+                { label: 'Category FBA share', value: pct(rv?.category_fba_pct !== undefined ? rv.category_fba_pct / 100 : undefined) },
+                { label: 'Sold by Amazon directly', value: pct(rv?.category_amazon_seller_pct !== undefined ? rv.category_amazon_seller_pct / 100 : undefined) },
+              ]} />
+              <FactGrid facts={[
+                { label: 'Content potential', value: v?.content_potential },
+                { label: 'UGC potential', value: v?.ugc },
+                { label: 'TikTok videos', value: v?.video_count?.toLocaleString() },
+                { label: 'TikTok views', value: v?.view_count?.toLocaleString() },
+                { label: 'Meta Ads signal', value: v?.meta_signal },
+                { label: 'Ads found', value: v?.ad_count },
+                { label: 'Distinct advertisers', value: v?.advertiser_count },
+                { label: 'Active ad share', value: pct(v?.active_ad_pct) },
+              ]} />
+              <FactGrid facts={[
+                { label: 'Monthly review velocity', value: rev?.monthly_reviews },
+                { label: 'Review sentiment', value: rev?.sentiment },
+                { label: 'Meaningful competitors', value: rev?.meaningful_competitor_count },
+                { label: 'Review concentration (top 3)', value: pct(rev?.review_concentration_ratio) },
+                { label: 'Seasonality pattern', value: sz?.pattern },
+                { label: 'Peak months', value: sz?.peak_months?.join(', ') },
+              ]} />
+
+              {!!rev?.pain_point_examples?.length && (
+                <div>
+                  <p className="text-[9px] font-mono text-outline uppercase tracking-wide mb-1.5">Real customer pain-language examples</p>
+                  <ul className="space-y-1">
+                    {rev.pain_point_examples.slice(0, 5).map((ex, i) => (
+                      <li key={i} className="text-xs text-ink-variant italic border-l-2 border-black pl-2">&ldquo;{ex}&rdquo;</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!!rev?.top_competitors?.length && (
+                <div>
+                  <p className="text-[9px] font-mono text-outline uppercase tracking-wide mb-1.5">Real top competitor listings</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-black text-[9px] font-mono text-outline uppercase">
+                          <th className="text-left py-1 pr-3">Brand</th>
+                          <th className="text-right py-1 pr-3">Reviews</th>
+                          <th className="text-right py-1 pr-3">Rating</th>
+                          <th className="text-right py-1">Price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rev.top_competitors.slice(0, 10).map((tc, i) => (
+                          <tr key={i} className="border-b border-black/10">
+                            <td className="py-1 pr-3 text-ink-variant truncate max-w-[160px]">{tc.brand}</td>
+                            <td className="py-1 pr-3 text-right font-mono text-outline">{tc.reviewCount.toLocaleString()}</td>
+                            <td className="py-1 pr-3 text-right font-mono text-outline">{tc.rating}</td>
+                            <td className="py-1 text-right font-mono text-outline">${tc.price}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      <p className="text-[10px] text-outline mt-3 italic">
         Real provider data for the broad category &ldquo;{category}&rdquo; as a whole — not specific to any individual opportunity below.
       </p>
-      {/* Resilience layer (2026-06-29): providers_used above only shows the
-          success side — this is the other half of "clearly indicate which
-          providers succeeded and which failed" rather than silently
-          omitting a provider that errored or timed out from the response. */}
       {!!signal.failed_providers?.length && (
-        <p className="text-[10px] font-mono text-[#a67c00] mt-1">
+        <p className="text-[10px] font-mono text-verdict-caution-text mt-1">
           Temporarily unavailable: {signal.failed_providers.join(', ')} — other sources above are unaffected.
         </p>
       )}
-    </div>
+    </HardCard>
   )
 }
 
@@ -576,12 +824,6 @@ export default function AnalyzePage() {
   const [mode,               setMode]               = useState<PageMode>('form')
   const [stepIdx,            setStepIdx]            = useState(0)
   const [error,              setError]              = useState('')
-  // True specifically when fetch() itself rejected (a dropped connection,
-  // e.g. Safari's "Load failed"/Chrome's "Failed to fetch") rather than the
-  // server cleanly returning an error response. In that case the backend
-  // may well have kept working and saved the analysis — telling the user
-  // to just "try again" would mean paying for and re-running the same
-  // expensive real-data collection for no reason if it actually succeeded.
   const [networkFailure,     setNetworkFailure]     = useState(false)
   const [opportunities,      setOpportunities]      = useState<OpportunityCard[]>([])
   const [analyzingName,      setAnalyzingName]      = useState('')
@@ -590,7 +832,6 @@ export default function AnalyzePage() {
   const [cacheWeek,          setCacheWeek]          = useState('')
   const [cacheStatus,        setCacheStatus]        = useState('')
   const [resultCategoryName, setResultCategoryName] = useState('')
-  const [resultsView,        setResultsView]        = useState<'map' | 'list'>('map')
   const [selectedOpp,        setSelectedOpp]        = useState<string | null>(null)
   const [categorySignal,     setCategorySignal]     = useState<AggregatedSignals | null>(null)
   const [searchedQuery,      setSearchedQuery]      = useState('')
@@ -599,7 +840,6 @@ export default function AnalyzePage() {
   const resolvedConfig  = resolvedCategoryId ? getCategoryClientConfig(resolvedCategoryId) : null
   const isAutoMode      = category.isAuto
 
-  // For broad detection: use resolved category if available, else selected
   const activeConfig   = resolvedConfig ?? (isAutoMode ? null : category)
   const broad          = activeConfig ? activeConfig.isBroadQuery(input) : true
 
@@ -611,12 +851,22 @@ export default function AnalyzePage() {
     setMode('form')
   }
 
+  function selectAndScroll(name: string) {
+    setSelectedOpp(name)
+  }
+
+  // Runs after React commits the expanded row, not racing the state update
+  // the way a requestAnimationFrame call inside the click handler would.
+  useEffect(() => {
+    if (!selectedOpp) return
+    document.getElementById(`opp-row-${selectedOpp}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [selectedOpp])
+
   // ── discovery ──
   async function handleDiscover(e: React.FormEvent) {
     e.preventDefault()
     if (!input.trim()) return
 
-    // For non-auto categories: skip to direct analysis if specific input
     if (!isAutoMode && !broad) {
       return handleAnalyze(input.trim(), 'form')
     }
@@ -625,7 +875,6 @@ export default function AnalyzePage() {
     setError('')
     setStepIdx(0)
 
-    // Show a brief "classifying" phase for Open Discovery mode
     let classifyTimer: ReturnType<typeof setTimeout> | null = null
     if (isAutoMode) {
       setMode('classifying')
@@ -676,7 +925,6 @@ export default function AnalyzePage() {
 
       setOpportunities(opps)
       setSelectedOpp(null)
-      setResultsView('map')
       setCached(isCached ?? false)
       setCacheWeek(week ?? '')
       setCacheStatus(status ?? '')
@@ -705,7 +953,6 @@ export default function AnalyzePage() {
       8000,
     )
 
-    // When analyzing from results, use the resolved category (from discovery)
     const effectiveCategoryId = from === 'results' ? (resolvedCategoryId ?? categoryId) : categoryId
 
     try {
@@ -744,11 +991,6 @@ export default function AnalyzePage() {
       router.push(`/memo/${analysisId}`)
     } catch (err: unknown) {
       clearInterval(timer)
-      // fetch() itself rejects with a TypeError on a dropped connection
-      // (Safari: "Load failed", Chrome: "Failed to fetch") — distinct from
-      // the explicit `throw new Error(...)` above for a clean non-OK
-      // response. Only the former means the backend might have kept
-      // working and saved the result anyway.
       if (err instanceof TypeError) {
         setNetworkFailure(true)
         setError('Lost connection while waiting for results. This can happen on long-running analyses — the backend may have finished anyway.')
@@ -760,211 +1002,134 @@ export default function AnalyzePage() {
   }
 
   // ── CLASSIFYING screen ─────────────────────────────────────────
+  // Wrapped in AppShell (persistent nav) on every mode — every Stitch
+  // reference screen for this flow (Search Focused, Preliminary Read,
+  // Pipeline) shows full nav chrome; the old app's chrome-free convention
+  // was carried forward unexamined in the prior rebuild pass. See
+  // docs/STITCH_NARRATIVE_REMAPPING.md §2.
   if (mode === 'classifying') {
-    return <InvestigationConsole query={input} steps={CLASSIFYING_STEPS} stepIdx={stepIdx} />
+    return <AppShell active={null}><InvestigationConsole mode="classifying" query={input} steps={CLASSIFYING_STEPS} stepIdx={stepIdx} providers={[]} /></AppShell>
   }
 
   // ── DISCOVERING screen ─────────────────────────────────────────
   if (mode === 'discovering') {
-    return (
-      <InvestigationConsole
-        query={input}
-        steps={DISCOVERY_STEPS}
-        stepIdx={stepIdx}
-        sources={['Keepa', 'Google Trends', 'TikTok', 'Amazon Reviews']}
-      />
-    )
+    return <AppShell active={null}><InvestigationConsole mode="discovering" query={input} steps={DISCOVERY_STEPS} stepIdx={stepIdx} providers={DISCOVERY_PROVIDERS} /></AppShell>
   }
 
   // ── ANALYZING screen ───────────────────────────────────────────
   if (mode === 'analyzing') {
-    return (
-      <InvestigationConsole
-        query={analyzingName}
-        steps={ANALYSIS_STEPS}
-        stepIdx={stepIdx}
-        sources={['Keepa', 'Google Trends', 'TikTok', 'Amazon Reviews', 'Meta Ads']}
-      />
-    )
+    return <AppShell active={null}><InvestigationConsole mode="analyzing" query={analyzingName} steps={ANALYSIS_STEPS} stepIdx={stepIdx} providers={ANALYSIS_PROVIDERS} /></AppShell>
   }
 
   // ── RESULTS screen ─────────────────────────────────────────────
   if (mode === 'results') {
-    const showMeta = cacheStatus !== '' && cacheStatus !== 'generated'
     const detectedConfig = resolvedCategoryId ? getCategoryClientConfig(resolvedCategoryId) : null
-    const selected = opportunities.find(o => o.name === selectedOpp) ?? opportunities[0]
-    const selectedRank = selected ? opportunities.findIndex(o => o.name === selected.name) + 1 : 0
+    const ranked = opportunities.map((opp, i) => ({ ...opp, rank: i + 1 }))
 
     return (
-      <div className="min-h-screen py-14 px-4 font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
-        <div className="max-w-6xl mx-auto animate-in lg:grid lg:grid-cols-[1fr_272px] lg:gap-10 lg:items-start">
-        <div className="min-w-0">
+      <AppShell active={null}>
+        <div className="max-w-6xl mx-auto animate-in">
 
-          <button onClick={() => setMode('form')} className="text-xs font-mono uppercase text-[#4c4546] hover:text-black -ml-2 mb-6 lg:hidden">
-            ← New Search
-          </button>
+          <div className="flex items-center justify-between mb-6">
+            <GhostButton onClick={() => setMode('form')} className="-ml-2">
+              ← New Search
+            </GhostButton>
+            {cached && cacheWeek && (
+              <p className="text-[10px] font-mono text-outline uppercase">
+                {cacheStatus === 'updated' ? 'Updated this week' : 'Cached this week'} · {cacheWeek}
+              </p>
+            )}
+          </div>
 
-          <h1 className="text-2xl font-black mb-2">
-            Top Opportunities in{' '}
-            <span className="italic">{input}</span>
-          </h1>
-          {resultCategoryName && resultCategoryName !== 'Supplements' && (
-            <p className="text-xs font-mono text-[#7e7576] mb-1">
-              Analyzed as: {resultCategoryName}
-            </p>
-          )}
-          <p className="text-sm text-[#4c4546] mb-8">
-            Explore the map or scan the list, then open a full investment memo · costs 1 analysis slot
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 border-b-2 border-black pb-6 mb-6">
+            <div>
+              <h1 className="text-headline-xl-mobile lg:text-headline-xl text-black leading-none">{input}</h1>
+              <p className="text-sm text-ink-variant mt-3">
+                {opportunities.length} opportunities found
+                {resultCategoryName && resultCategoryName !== 'Supplements' && <> · Analyzed as {resultCategoryName}</>}
+              </p>
+            </div>
+            {isAutoMode && detectedConfig && <DetectedCategoryBadge config={detectedConfig} />}
+          </div>
 
           {error && <div className="mb-6"><ErrorBanner message={error} networkFailure={networkFailure} /></div>}
 
           <CategorySignalPanel signal={categorySignal} category={searchedQuery} />
 
-          {/* ── view toggle ── */}
-          <div className="flex items-center gap-1 mb-5 border-b-2 border-black">
-            {(['map', 'list'] as const).map(v => (
-              <button
-                key={v}
-                onClick={() => setResultsView(v)}
-                className={`relative text-xs font-mono font-medium uppercase tracking-wider px-4 py-2.5 transition-colors ${
-                  resultsView === v ? 'text-black font-bold' : 'text-[#7e7576] hover:text-[#4c4546]'
-                }`}
-              >
-                {v === 'map' ? 'Map' : 'List'}
-                {resultsView === v && <span className="absolute left-3 right-3 -bottom-[2px] h-[2px] bg-black" />}
-              </button>
-            ))}
-          </div>
+          <OpportunityMap
+            opportunities={opportunities}
+            selectedName={selectedOpp}
+            onSelect={selectAndScroll}
+            count={opportunities.length}
+          />
 
-          {resultsView === 'map' ? (
-            <div className="space-y-4 mb-4">
-              <OpportunityMap
-                opportunities={opportunities}
-                selectedName={selected?.name ?? null}
-                onSelect={setSelectedOpp}
-              />
-              {selected && (
-                <OpportunityDetail
-                  opp={selected}
-                  rank={selectedRank}
-                  onOpen={() => handleAnalyze(selected.name, 'results')}
-                />
-              )}
-            </div>
-          ) : (
-            <OpportunityTable
-              opportunities={opportunities}
-              onOpen={name => handleAnalyze(name, 'results')}
-              showMeta={showMeta}
-            />
-          )}
+          <OpportunityInventory
+            opportunities={ranked}
+            expandedName={selectedOpp}
+            onToggle={name => setSelectedOpp(prev => prev === name ? null : name)}
+            onOpen={name => handleAnalyze(name, 'results')}
+          />
         </div>
-
-        {/* ── Persistent search-summary rail (desktop only) ─────────── */}
-        <aside className="hidden lg:block lg:sticky lg:top-10 space-y-4">
-          <div className="bg-white border border-black p-5">
-            <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-[#7e7576] mb-4">Search Summary</p>
-            <div className="space-y-3">
-              <div>
-                <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider mb-1">Query</p>
-                <p className="text-sm italic text-black truncate">&ldquo;{input}&rdquo;</p>
-              </div>
-              <div className="pt-3 border-t border-black/10 flex items-center justify-between">
-                <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider">Found</p>
-                <p className="text-sm font-bold text-black">{opportunities.length} opportunities</p>
-              </div>
-              {isAutoMode && detectedConfig && (
-                <div className="pt-3 border-t border-black/10 flex items-center justify-between">
-                  <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider">Category</p>
-                  <DetectedCategoryBadge config={detectedConfig} />
-                </div>
-              )}
-              {cached && cacheWeek && (
-                <div className="pt-3 border-t border-black/10">
-                  <p className="text-[10px] font-mono text-[#7e7576] uppercase tracking-wider mb-1">Data freshness</p>
-                  <p className="text-xs text-[#4c4546]">
-                    {cacheStatus === 'updated' ? 'Updated this week' : 'Cached this week'} · {cacheWeek}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-          <button onClick={() => setMode('form')} className="w-full text-sm py-2.5 font-bold uppercase tracking-wide bg-white border border-black text-black hover:bg-[#f3f3f3] transition-colors">
-            ← New Search
-          </button>
-        </aside>
-        </div>
-      </div>
+      </AppShell>
     )
   }
 
   // ── FORM ──────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen py-16 px-4 font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
-      <div className="max-w-5xl mx-auto animate-in lg:grid lg:grid-cols-[1fr_272px] lg:gap-10 lg:items-start">
-      <div className="min-w-0">
+    <AppShell active={null}>
+      <div className="max-w-4xl mx-auto animate-in">
 
-        <Link href="/dashboard" className="text-xs font-mono uppercase text-[#4c4546] hover:text-black mb-6 -ml-2 inline-flex">
+        <GhostLinkButton href="/dashboard" className="mb-6 -ml-2">
           ← Analyses
-        </Link>
+        </GhostLinkButton>
 
-        <h1 className="text-2xl font-black mb-1">Discover Opportunities</h1>
-        <p className="text-sm text-[#4c4546] mb-8">
+        <h1 className="text-headline-xl-mobile lg:text-headline-xl text-black leading-none mb-3">Discover Opportunities</h1>
+        <p className="text-sm text-ink-variant mb-8">
           {isAutoMode
             ? 'Type any product idea — Open Discovery routes to the right category automatically.'
             : 'Enter a broad category to explore opportunities, or a specific idea for a direct analysis.'}
         </p>
 
-        {/* Category / mode selector */}
         <CategorySelector selected={categoryId} onSelect={handleCategorySelect} />
 
         <form onSubmit={handleDiscover} className="space-y-5">
 
-          {/* main input — command-prompt entry, not a boxed form field */}
           <div className="mb-2">
-            <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7e7576] mb-3">
-              {isAutoMode ? 'Product idea or category' : `${category.name} category or idea`}
-            </label>
-            <div className="flex items-start gap-3 border-b-2 border-black pb-3 transition-colors">
-              <span className="font-mono text-xl text-black shrink-0 select-none leading-[1.7]">&gt;</span>
-              <textarea
-                value={input} onChange={e => setInput(e.target.value)}
-                placeholder={
-                  isAutoMode
-                    ? `e.g. "dog joint supplement", "anti-aging serum", "viral kitchen gadget"…`
-                    : `Broad: "${category.examples.broad[0]}"  →  discovers 20 opportunities\nSpecific: "${category.examples.specific[0] ?? ''}"  →  full memo`
-                }
-                className="flex-1 bg-transparent border-0 outline-none resize-none font-mono text-lg text-black placeholder:text-[#7e7576] placeholder:text-sm leading-relaxed h-[3.4rem]"
-                maxLength={200} required autoFocus
-              />
-            </div>
+            <HardShadowSearchTextarea
+              value={input} onChange={e => setInput(e.target.value)}
+              placeholder={
+                isAutoMode
+                  ? `Query market data — e.g. "dog joint supplement", "anti-aging serum", "viral kitchen gadget"…`
+                  : `Broad: "${category.examples.broad[0]}"  →  discovers 20 opportunities\nSpecific: "${category.examples.specific[0] ?? ''}"  →  full memo`
+              }
+              className="text-lg h-[4.5rem]"
+              maxLength={200} required autoFocus
+            />
             <div className="flex items-center justify-between mt-3">
               {input.trim() && !isAutoMode ? (
-                <p className="text-xs text-[#4c4546] flex items-center gap-1.5">
+                <p className="text-xs text-ink-variant flex items-center gap-1.5">
                   {broad
                     ? <><IconTarget className="w-3 h-3 text-black shrink-0" /> Broad category — will discover 20 ranked opportunities</>
                     : <><IconBeaker className="w-3 h-3 text-black shrink-0" /> Specific idea — will generate full investment memo</>}
                 </p>
               ) : input.trim() && isAutoMode ? (
-                <p className="text-xs text-[#4c4546] flex items-center gap-1.5"><IconSpark className="w-3 h-3 text-black shrink-0" /> Open Discovery — category detected automatically</p>
+                <p className="text-xs text-ink-variant flex items-center gap-1.5"><IconSpark className="w-3 h-3 text-black shrink-0" /> Open Discovery — category detected automatically</p>
               ) : (
-                <p className="text-xs font-mono text-[#7e7576]">Costs 1 slot per full report</p>
+                <p className="text-xs font-mono text-outline">Costs 1 slot per full report</p>
               )}
-              <span className="text-xs text-[#7e7576] font-mono">{input.length}/200</span>
+              <span className="text-xs text-outline font-mono">{input.length}/200</span>
             </div>
           </div>
 
-          {/* optional context — only for specific (non-auto, non-broad) */}
           {!isAutoMode && !broad && input.trim() && (
-            <div className="bg-white border border-black p-6">
+            <HardCard>
               <button type="button" onClick={() => setShowExtra(v => !v)}
                 className="flex items-center justify-between w-full text-left group">
                 <div>
                   <p className="text-sm font-medium text-black">Optional context</p>
-                  <p className="text-xs text-[#7e7576] mt-0.5">Audience, price point, background</p>
+                  <p className="text-xs text-outline mt-0.5">Audience, price point, background</p>
                 </div>
-                <svg className={`w-4 h-4 text-[#7e7576] shrink-0 ml-4 transition-transform ${showExtra ? 'rotate-180' : ''}`}
+                <svg className={`w-4 h-4 text-outline shrink-0 ml-4 transition-transform ${showExtra ? 'rotate-180' : ''}`}
                   fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
                 </svg>
@@ -973,47 +1138,46 @@ export default function AnalyzePage() {
               {showExtra && (
                 <div className="mt-5 space-y-4 animate-in">
                   <div>
-                    <label className="block text-sm text-[#4c4546] mb-1.5">Target audience</label>
+                    <label className="block text-sm text-ink-variant mb-1.5">Target audience</label>
                     <input type="text" value={audience} onChange={e => setAudience(e.target.value)}
                       placeholder="e.g. women 30–45 with hormonal issues"
-                      className="w-full bg-white border-2 border-black px-4 py-2.5 text-sm text-black placeholder-[#7e7576] focus:outline-none" maxLength={100}/>
+                      className="w-full bg-white border border-black px-4 py-2.5 text-sm text-ink placeholder-outline focus:outline-none" maxLength={100}/>
                   </div>
                   <div>
-                    <label className="block text-sm text-[#4c4546] mb-1.5">Price point</label>
-                    <select value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-white border-2 border-black px-4 py-2.5 text-sm text-black focus:outline-none">
+                    <label className="block text-sm text-ink-variant mb-1.5">Price point</label>
+                    <select value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-white border border-black px-4 py-2.5 text-sm text-ink focus:outline-none">
                       {PRICES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-[#4c4546] mb-1.5">Additional context</label>
+                    <label className="block text-sm text-ink-variant mb-1.5">Additional context</label>
                     <textarea value={extra} onChange={e => setExtra(e.target.value)}
                       placeholder="Key ingredient, competitor you've spotted, your background..."
-                      className="w-full bg-white border-2 border-black px-4 py-2.5 text-sm text-black placeholder-[#7e7576] focus:outline-none resize-none h-20" maxLength={500}/>
+                      className="w-full bg-white border border-black px-4 py-2.5 text-sm text-ink placeholder-outline focus:outline-none resize-none h-20" maxLength={500}/>
                   </div>
                 </div>
               )}
-            </div>
+            </HardCard>
           )}
 
           {error && <ErrorBanner message={error} networkFailure={networkFailure} />}
 
-          <button type="submit" disabled={!input.trim()} className="w-full py-3.5 text-base font-black uppercase tracking-widest text-white bg-black hover:bg-white hover:text-black border-2 border-black transition-colors duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed">
+          <PrimaryButton type="submit" disabled={!input.trim()} className="w-full py-4 text-base tracking-widest">
             {isAutoMode
               ? 'Discover with Open Discovery →'
               : broad && input.trim()
                 ? 'Discover Opportunities →'
                 : 'Generate Investment Memo →'}
-          </button>
+          </PrimaryButton>
 
-          {/* example chips */}
           <div className="space-y-3 pt-1">
             {isAutoMode ? (
               <div>
-                <p className="text-xs font-mono text-[#7e7576] mb-2">Try any of these:</p>
+                <p className="text-xs font-mono text-outline mb-2">Try any of these:</p>
                 <div className="flex flex-wrap gap-2">
                   {category.examples.broad.map(ex => (
                     <button key={ex} type="button" onClick={() => setInput(ex)}
-                      className="text-xs px-3 py-1.5 bg-white border border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3] transition-colors">
+                      className="text-xs px-3 py-1.5 bg-white border border-black text-ink-variant hover:text-black hover:bg-surface-container-low transition-colors">
                       {ex}
                     </button>
                   ))}
@@ -1023,11 +1187,11 @@ export default function AnalyzePage() {
               <>
                 {category.examples.broad.length > 0 && (
                   <div>
-                    <p className="text-xs font-mono text-[#7e7576] mb-2">Broad categories (discovery mode):</p>
+                    <p className="text-xs font-mono text-outline mb-2">Broad categories (discovery mode):</p>
                     <div className="flex flex-wrap gap-2">
                       {category.examples.broad.map(ex => (
                         <button key={ex} type="button" onClick={() => setInput(ex)}
-                          className="text-xs px-3 py-1.5 bg-white border border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3] transition-colors">
+                          className="text-xs px-3 py-1.5 bg-white border border-black text-ink-variant hover:text-black hover:bg-surface-container-low transition-colors">
                           {ex}
                         </button>
                       ))}
@@ -1036,11 +1200,11 @@ export default function AnalyzePage() {
                 )}
                 {category.examples.specific.length > 0 && (
                   <div>
-                    <p className="text-xs font-mono text-[#7e7576] mb-2">Specific ideas (direct analysis):</p>
+                    <p className="text-xs font-mono text-outline mb-2">Specific ideas (direct analysis):</p>
                     <div className="flex flex-wrap gap-2">
                       {category.examples.specific.map(ex => (
                         <button key={ex} type="button" onClick={() => setInput(ex)}
-                          className="text-xs px-3 py-1.5 bg-white border border-black text-[#4c4546] hover:text-black hover:bg-[#f3f3f3] transition-colors">
+                          className="text-xs px-3 py-1.5 bg-white border border-black text-ink-variant hover:text-black hover:bg-surface-container-low transition-colors">
                           {ex}
                         </button>
                       ))}
@@ -1052,34 +1216,24 @@ export default function AnalyzePage() {
           </div>
 
         </form>
-      </div>
 
-      {/* ── Process rail (desktop only) ──────────────────────────── */}
-      <aside className="hidden lg:block lg:sticky lg:top-10 space-y-4">
-        <div className="bg-white border border-black p-5">
-          <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-[#7e7576] mb-4">How it works</p>
-          <div className="space-y-4">
-            {[
-              { n: '01', t: 'Type your idea', b: 'Broad category or specific concept.' },
-              { n: '02', t: 'Wait ~60 seconds', b: 'Demand, virality, subscription, and manufacturing get scored.' },
-              { n: '03', t: 'Get your answer', b: 'Market gaps, formula, financials, and an Entry Supported or Not Supported verdict.' },
-            ].map(s => (
-              <div key={s.n} className="flex gap-3">
-                <span className="italic text-lg text-[#cfc4c5] shrink-0 font-mono">{s.n}</span>
-                <div>
-                  <p className="text-sm font-medium leading-snug text-black">{s.t}</p>
-                  <p className="text-xs text-[#7e7576] mt-0.5 leading-relaxed">{s.b}</p>
-                </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-10 pt-8 border-t border-black">
+          {[
+            { n: '01', t: 'Type your idea', b: 'Broad category or specific concept.' },
+            { n: '02', t: 'Wait ~60 seconds', b: 'Demand, virality, subscription, and manufacturing get scored.' },
+            { n: '03', t: 'Get your answer', b: 'Market gaps, formula, financials, and an Entry Supported or Not Supported verdict.' },
+          ].map(s => (
+            <div key={s.n} className="flex gap-3">
+              <span className="italic text-lg text-outline-variant shrink-0 font-mono">{s.n}</span>
+              <div>
+                <p className="text-sm font-medium leading-snug text-black">{s.t}</p>
+                <p className="text-xs text-outline mt-0.5 leading-relaxed">{s.b}</p>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-        <div className="bg-white border border-black p-5">
-          <p className="text-[11px] font-mono font-semibold uppercase tracking-[0.14em] text-[#7e7576] mb-2">Beta</p>
-          <p className="text-xs text-[#4c4546] leading-relaxed">3 free analyses · 28 categories pre-loaded on the leaderboard · your analyses are added automatically.</p>
-        </div>
-      </aside>
+        <p className="text-xs text-ink-variant leading-relaxed mt-6">3 free analyses · 28 categories pre-loaded on the leaderboard · your analyses are added automatically.</p>
       </div>
-    </div>
+    </AppShell>
   )
 }

@@ -287,6 +287,16 @@ export interface MemoData {
   // Exactly 3 signal IDs selected by selectFirstScreenSignals(), verdict-
   // conditional with weight-based tie-breaking. The UI renders these 3 first.
   first_screen_signal_ids?: string[]
+
+  // ── Review Narrative (Milestone 7, memo-only enrichment) ────────────────
+  // AI-synthesized customer-review commentary from lib/review-narrative
+  // (wraps lib/review-engine). ARCHITECTURE CONSTRAINT: never read by
+  // lib/scoring.ts, lib/confidence/**, or any Decision Engine calculation —
+  // see lib/review-narrative/types.ts. Always carries an explicit
+  // `source`/`disclaimer` pair identifying it as AI-synthesized. Optional;
+  // absent whenever synthesis was skipped, failed, or timed out (never a
+  // partial/fabricated object).
+  review_narrative?: import('@/lib/review-narrative').ReviewNarrativeSynthesis
 }
 
 export interface Analysis {

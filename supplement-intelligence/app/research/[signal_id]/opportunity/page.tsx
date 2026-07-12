@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ThesisCard } from '@/components/research/ThesisCard'
+import { HardCard, PrimaryButton, SecondaryLinkButton } from '@/components/ui'
 import type { InvestmentThesis, FounderFitAnnotation } from '@/lib/stage2/types'
 import type { LaunchThresholdAssessment } from '@/lib/stage25/launch-threshold'
 
@@ -15,9 +16,9 @@ interface StoredThesis extends InvestmentThesis {
 type Stage = 'idle' | 'generating' | 'scoring_fit' | 'done' | 'error'
 
 const THRESHOLD_RESULT_COLORS: Record<string, string> = {
-  pass: 'text-[#008a00]',
-  warn: 'text-[#a67c00]',
-  fail: 'text-[#d32f2f]',
+  pass: 'text-verdict-positive',
+  warn: 'text-verdict-caution-text',
+  fail: 'text-verdict-negative',
 }
 
 export default function OpportunityMapPage() {
@@ -143,23 +144,22 @@ export default function OpportunityMapPage() {
   })
 
   return (
-    <div className="min-h-screen w-full font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
-    <main className="max-w-3xl mx-auto px-6 py-12 space-y-8">
+    <main className="min-h-screen bg-surface font-sans text-ink max-w-3xl mx-auto px-6 py-12 space-y-8">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-3 text-xs font-mono text-[#7e7576] uppercase">
+      <div className="flex items-center gap-3 text-xs font-mono text-outline uppercase">
         <Link href="/research" className="hover:text-black transition-colors">Research</Link>
-        <span className="text-[#cfc4c5]">/</span>
+        <span className="text-outline-variant">/</span>
         <Link href={`/research/${signal_id}`} className="hover:text-black transition-colors">
           {query || signal_id.slice(0, 8) + '…'}
         </Link>
-        <span className="text-[#cfc4c5]">/</span>
-        <span className="text-[#4c4546]">Opportunity Map</span>
+        <span className="text-outline-variant">/</span>
+        <span className="text-ink-variant">Opportunity Map</span>
       </div>
 
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-black tracking-tight text-black">Opportunity Map</h1>
-        <p className="text-sm text-[#4c4546]">
+      <div className="space-y-1 border-b-2 border-black pb-4">
+        <h1 className="text-headline-md text-black">Opportunity Map</h1>
+        <p className="text-sm text-ink-variant">
           Stage 2 — AI synthesizes {theses.length > 0 ? theses.length : '3–5'} investment theses
           grounded in Stage 1 evidence.
           {Object.keys(fitMap).length > 0 && ' Sorted by your founder fit score.'}
@@ -168,9 +168,9 @@ export default function OpportunityMapPage() {
 
       {/* Launch thresholds */}
       {thresholds && (
-        <div className="border border-black bg-white p-4 space-y-3">
+        <HardCard className="space-y-3">
           <div className="flex items-center gap-3">
-            <p className="text-xs font-mono font-semibold text-[#7e7576] uppercase tracking-wider">Launch Thresholds</p>
+            <p className="text-[11px] font-mono font-semibold text-outline uppercase tracking-wider">Launch Thresholds</p>
             <span className={`text-xs font-mono font-bold ${THRESHOLD_RESULT_COLORS[thresholds.overall]}`}>
               {thresholds.overall.toUpperCase()} ({thresholds.pass_count}P / {thresholds.warn_count}W / {thresholds.fail_count}F)
             </span>
@@ -182,26 +182,26 @@ export default function OpportunityMapPage() {
                   {c.result === 'pass' ? '✓' : c.result === 'warn' ? '⚠' : '✗'}
                 </span>
                 <div>
-                  <span className="text-[#4c4546]">{c.metric}</span>
+                  <span className="text-ink-variant">{c.metric}</span>
                   {' '}
-                  <span className="text-[#7e7576] font-mono">{c.value}</span>
-                  <p className="text-[#7e7576]">{c.reason}</p>
+                  <span className="text-outline font-mono">{c.value}</span>
+                  <p className="text-outline">{c.reason}</p>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </HardCard>
       )}
 
       {/* Founder profile notice */}
       {hasProfile === false && theses.length === 0 && (
-        <div className="border border-[#a67c00] bg-[#fdf6e3] px-4 py-3 space-y-2">
-          <p className="text-sm text-[#a67c00]">
+        <div className="border border-verdict-caution-text bg-white px-4 py-3 space-y-2">
+          <p className="text-sm text-verdict-caution-text">
             No founder profile — theses will be generated without fit scoring.
           </p>
           <Link
             href={`/research/profile?return_to=/research/${signal_id}/opportunity`}
-            className="text-xs text-[#a67c00] underline hover:text-black"
+            className="text-xs text-verdict-caution-text underline hover:text-black"
           >
             Complete profile first for personalized fit scores →
           </Link>
@@ -210,44 +210,40 @@ export default function OpportunityMapPage() {
 
       {/* Generate button */}
       {theses.length === 0 && stage !== 'generating' && (
-        <button
-          onClick={generateTheses}
-          disabled={stage === 'error'}
-          className="w-full bg-black border-2 border-black text-white py-3 text-sm font-black uppercase tracking-widest hover:bg-white hover:text-black disabled:opacity-40 transition-colors duration-200 active:scale-[0.98]"
-        >
+        <PrimaryButton onClick={generateTheses} disabled={stage === 'error'} className="w-full">
           Generate Investment Theses
-        </button>
+        </PrimaryButton>
       )}
 
       {/* Status */}
       {stage === 'generating' && (
         <div className="text-center py-8 space-y-2">
           <div className="text-black text-sm animate-pulse font-mono">Generating investment theses…</div>
-          <p className="text-xs text-[#7e7576]">Claude is synthesizing Stage 1 evidence into product opportunities. ~30–60s</p>
+          <p className="text-xs text-outline">Claude is synthesizing Stage 1 evidence into product opportunities. ~30–60s</p>
         </div>
       )}
       {stage === 'scoring_fit' && (
         <div className="text-center py-4">
-          <p className="text-xs text-[#4c4546] animate-pulse font-mono">Scoring founder fit (deterministic)…</p>
+          <p className="text-xs text-ink-variant animate-pulse font-mono">Scoring founder fit (deterministic)…</p>
         </div>
       )}
 
       {error && (
-        <div className="border border-[#ba1a1a] bg-[#ffdad6] px-4 py-3 text-sm text-[#93000a]">
+        <div className="border border-verdict-negative bg-white px-4 py-3 text-sm text-verdict-negative">
           {error}
         </div>
       )}
 
       {/* Generation note */}
       {generationNote && (
-        <p className="text-xs text-[#7e7576] italic border-l-2 border-black pl-3">{generationNote}</p>
+        <p className="text-xs text-outline italic border-l-2 border-black pl-3">{generationNote}</p>
       )}
 
       {fromCache && theses.length > 0 && (
-        <p className="text-xs font-mono text-[#7e7576]">
+        <p className="text-xs font-mono text-outline">
           Theses from previous generation.{' '}
           <button
-            className="text-[#4c4546] underline hover:text-black"
+            className="text-ink-variant underline hover:text-black"
             onClick={() => {
               setTheses([])
               setStage('idle')
@@ -278,13 +274,10 @@ export default function OpportunityMapPage() {
       {/* Footer actions */}
       {theses.length > 0 && hasProfile === false && (
         <div className="border-t-2 border-black pt-6 space-y-3">
-          <p className="text-sm text-[#4c4546]">Add a founder profile to see which thesis fits your situation best.</p>
-          <Link
-            href={`/research/profile?return_to=/research/${signal_id}/opportunity`}
-            className="inline-block bg-white border border-black px-4 py-2 text-sm text-black hover:bg-[#f3f3f3] transition-colors"
-          >
+          <p className="text-sm text-ink-variant">Add a founder profile to see which thesis fits your situation best.</p>
+          <SecondaryLinkButton href={`/research/profile?return_to=/research/${signal_id}/opportunity`}>
             Complete Founder Profile →
-          </Link>
+          </SecondaryLinkButton>
         </div>
       )}
 
@@ -292,7 +285,7 @@ export default function OpportunityMapPage() {
       {theses.length > 0 && (
         <div className="border-2 border-black bg-white px-5 py-4">
           <p className="text-sm font-bold text-black mb-1">Stage 3 — Adversarial Evaluation</p>
-          <p className="text-xs text-[#4c4546]">
+          <p className="text-xs text-ink-variant">
             Bull case (temp 0.5) and Bear case (temp 0.8) run in parallel with no shared context.
             Kill switches then execute deterministically before synthesis.
           </p>
@@ -305,6 +298,5 @@ export default function OpportunityMapPage() {
         </div>
       )}
     </main>
-    </div>
   )
 }

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9f9;
+        }
+        .neo-shadow {
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #000;
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#ffffff",
+                    "tertiary": "#000000",
+                    "inverse-on-surface": "#f1f1f1",
+                    "error": "#ba1a1a",
+                    "on-surface": "#1a1c1c",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "on-tertiary": "#ffffff",
+                    "secondary": "#5d5f5f",
+                    "on-tertiary-container": "#848484",
+                    "on-secondary-fixed-variant": "#454747",
+                    "primary-container": "#1b1b1b",
+                    "on-primary-fixed": "#1b1b1b",
+                    "on-background": "#1a1c1c",
+                    "on-surface-variant": "#4c4546",
+                    "primary-fixed": "#e2e2e2",
+                    "surface-container": "#eeeeee",
+                    "surface-dim": "#dadada",
+                    "on-primary-container": "#848484",
+                    "error-container": "#ffdad6",
+                    "tertiary-container": "#1b1c1c",
+                    "surface-container-low": "#f3f3f3",
+                    "tertiary-fixed": "#e4e2e2",
+                    "secondary-fixed": "#e2e2e2",
+                    "outline": "#7e7576",
+                    "inverse-surface": "#2f3131",
+                    "primary": "#000000",
+                    "surface-container-high": "#e8e8e8",
+                    "surface-variant": "#e2e2e2",
+                    "on-primary-fixed-variant": "#474747",
+                    "inverse-primary": "#c6c6c6",
+                    "tertiary-fixed-dim": "#c7c6c6",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary-fixed-variant": "#464747",
+                    "on-secondary-container": "#616363",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#1b1c1c",
+                    "surface": "#f9f9f9",
+                    "outline-variant": "#cfc4c5",
+                    "surface-tint": "#5e5e5e",
+                    "background": "#f9f9f9",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#dfe0e0",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "surface-bright": "#f9f9f9",
+                    "surface-container-highest": "#e2e2e2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "element-gap": "16px",
+                    "section-gap": "64px",
+                    "gutter": "24px",
+                    "grid-unit": "8px",
+                    "container-padding": "40px"
+            },
+            "fontFamily": {
+                    "verdict-sm": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-mono": ["JetBrains Mono"],
+                    "headline-xl": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "verdict-sm": ["12px", {"lineHeight": "12px", "fontWeight": "900"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-xl": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-background overflow-hidden">
+<!-- SideNavBar Anchor -->
+<nav class="fixed left-0 top-0 h-full w-[220px] bg-primary-container flex flex-col py-grid-unit border-r-2 border-outline z-[60] transition-all duration-300">
+<div class="px-gutter mb-section-gap pt-4">
+<h1 class="font-headline-md text-headline-md font-black text-on-primary uppercase tracking-tighter">INTEL_ENGINE</h1>
+<span class="font-label-mono text-label-mono text-on-primary-container">V2.04.1_STABLE</span>
+</div>
+<div class="flex flex-col gap-1 px-2 flex-grow">
+<!-- Navigation Items Mapping -->
+<button class="flex items-center gap-3 px-4 py-3 text-secondary hover:text-primary hover:bg-surface-container transition-colors font-label-mono text-label-mono group">
+<span class="material-symbols-outlined text-[20px]">home</span>
+<span>Home</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-3 text-secondary hover:text-primary hover:bg-surface-container transition-colors font-label-mono text-label-mono group">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+<span>Watchlist</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-3 text-secondary hover:text-primary hover:bg-surface-container transition-colors font-label-mono text-label-mono group">
+<span class="material-symbols-outlined text-[20px]">account_tree</span>
+<span>Pipeline</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-3 bg-primary text-on-primary font-bold border-r-4 border-tertiary font-label-mono text-label-mono">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span>Evidence</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-3 text-secondary hover:text-primary hover:bg-surface-container transition-colors font-label-mono text-label-mono group">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span>Settings</span>
+</button>
+</div>
+<div class="mt-auto px-4 py-6 border-t border-outline/20">
+<button class="w-full bg-on-primary text-primary font-bold py-3 uppercase text-center mb-6 hover:bg-primary hover:text-on-primary border-2 border-transparent hover:border-on-primary transition-all active:scale-95">
+                New Analysis
+            </button>
+<div class="flex flex-col gap-2">
+<button class="flex items-center gap-3 px-4 py-2 text-secondary-fixed-dim hover:text-on-primary font-label-mono text-label-mono transition-colors">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span>Help</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-2 text-secondary-fixed-dim hover:text-error font-label-mono text-label-mono transition-colors">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+<span>Logout</span>
+</button>
+</div>
+</div>
+</nav>
+<!-- TopAppBar Anchor -->
+<header class="flex justify-between items-center w-full px-gutter h-[64px] ml-[220px] max-w-[calc(100%-220px)] bg-white sticky top-0 z-50 border-b-2 border-primary neo-shadow">
+<div class="flex items-center gap-gutter flex-1">
+<h2 class="font-headline-md text-headline-md font-bold text-primary uppercase mr-8">PRODUCT_INTEL</h2>
+<div class="relative w-full max-w-md">
+<input class="w-full h-10 border-2 border-primary bg-white px-4 font-label-mono text-label-mono focus:outline-none focus:ring-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" placeholder="QUERY SIGNAL..." type="text"/>
+<span class="material-symbols-outlined absolute right-3 top-2 text-primary">search</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4 items-center">
+<button class="text-secondary-fixed-dim hover:text-primary font-body-md text-body-md transition-all">Dashboard</button>
+<button class="text-secondary-fixed-dim hover:text-primary font-body-md text-body-md transition-all">Market Alpha</button>
+<button class="text-primary border-b-2 border-primary pb-1 font-body-md text-body-md font-bold">Evidence</button>
+</div>
+<div class="h-8 w-[2px] bg-outline-variant mx-2"></div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 bg-primary text-on-primary px-4 py-2 font-label-mono text-label-mono uppercase hover:bg-surface-container-high hover:text-primary transition-all active:translate-y-[1px] active:translate-x-[1px] active:shadow-none">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                    EXPORT_DATA
+                </button>
+<button class="p-2 border-2 border-primary hover:bg-surface-container-high transition-all active:translate-y-[1px] active:translate-x-[1px]">
+<span class="material-symbols-outlined text-primary">share</span>
+</button>
+</div>
+<div class="w-10 h-10 bg-primary-container border-2 border-primary overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional, minimalist headshot of a data analyst in a sharp black suit against a stark white background. The lighting is crisp and editorial, highlighting clear facial features. The overall style is high-contrast, modern, and objective, mirroring a professional intelligence tool aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvWF-AW_V7DiGSY31bn3zZfONyZQEqM4-81hU_52fDm-CZJt4k3g9otD6pfdVWQdox5vBtSk_CIHvSt213Z4lOhaIRuJ_p3zl3hk59dpcaunxne900XHNHRjzq3Gi3MKT0bPXXoQI1v15VCxo6djDrg1wxKCej6H5JBLCjaJ88wXdr2ZQz6V2y8aq_fQCEGm-h6fpsVhFvGFGLeZsgHhLQAk2zzfBtjp_PM68Ef6Gus7r6JcGrJ9C-A6oyOKp6CcUNc9fYZMHIYrX8"/>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[220px] h-[calc(100vh-64px)] flex overflow-hidden">
+<!-- Left Rail: Evidence Explorer Signal List -->
+<aside class="w-[260px] bg-white border-r-2 border-primary flex flex-col h-full overflow-hidden shrink-0">
+<!-- Filter Header -->
+<div class="p-4 border-b border-outline-variant">
+<div class="flex gap-2">
+<button class="flex-1 py-1 border-2 border-primary bg-primary text-on-primary font-label-mono text-[10px] uppercase tracking-wider">Nulls (2)</button>
+<button class="flex-1 py-1 border-2 border-primary text-primary font-label-mono text-[10px] uppercase tracking-wider hover:bg-surface-container-low">Disagreements (0)</button>
+</div>
+</div>
+<!-- Scrollable Signals List -->
+<div class="flex-1 overflow-y-auto custom-scrollbar bg-surface-container-low/30">
+<!-- Channel Section: Amazon market -->
+<div class="mb-4">
+<div class="bg-surface-container-highest px-4 py-2 border-y border-outline-variant flex items-center justify-between">
+<span class="font-label-mono text-[10px] font-bold text-secondary uppercase tracking-widest">Amazon market</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+</div>
+<div class="bg-white border-b border-outline-variant px-4 py-3 hover:bg-surface-container transition-colors cursor-pointer border-l-4 border-primary">
+<div class="flex justify-between items-start mb-1">
+<span class="font-headline-md text-sm font-bold text-primary">YoY unit growth</span>
+<div class="w-2 h-2 rounded-full bg-primary" title="Verified"></div>
+</div>
+<div class="flex justify-between font-label-mono text-[10px] text-secondary">
+<span>AMZ_INTERNAL</span>
+<span class="text-primary font-bold">2H AGO</span>
+</div>
+</div>
+<div class="bg-white border-b border-outline-variant px-4 py-3 hover:bg-surface-container transition-colors cursor-pointer">
+<div class="flex justify-between items-start mb-1">
+<span class="font-body-md text-sm font-medium text-secondary">ASIN penetration</span>
+<div class="w-2 h-2 rounded-full bg-primary" title="Verified"></div>
+</div>
+<div class="flex justify-between font-label-mono text-[10px] text-secondary-fixed-dim">
+<span>HELIUM_10</span>
+<span>1D AGO</span>
+</div>
+</div>
+</div>
+<!-- Channel Section: Social (Contains Null Signal) -->
+<div class="mb-4">
+<div class="bg-surface-container-highest px-4 py-2 border-y border-outline-variant flex items-center justify-between">
+<span class="font-label-mono text-[10px] font-bold text-secondary uppercase tracking-widest">Social</span>
+<span class="w-1.5 h-1.5 border border-primary rounded-full"></span>
+</div>
+<div class="bg-white border-b border-outline-variant px-4 py-3 hover:bg-surface-container transition-colors cursor-pointer">
+<div class="flex justify-between items-start mb-1">
+<span class="font-body-md text-sm font-medium text-secondary">TikTok velocity</span>
+<div class="w-2 h-2 rounded-full border border-primary" title="Evidence Missing"></div>
+</div>
+<div class="flex justify-between font-label-mono text-[10px] text-error font-bold">
+<span>BYTEDANCE_API</span>
+<span>NULL DATA</span>
+</div>
+</div>
+</div>
+<!-- Channel Section: Paid media -->
+<div class="mb-4">
+<div class="bg-surface-container-highest px-4 py-2 border-y border-outline-variant flex items-center justify-between">
+<span class="font-label-mono text-[10px] font-bold text-secondary uppercase tracking-widest">Paid media</span>
+</div>
+<div class="bg-white border-b border-outline-variant px-4 py-3 hover:bg-surface-container transition-colors cursor-pointer">
+<div class="flex justify-between items-start mb-1">
+<span class="font-body-md text-sm font-medium text-secondary">CPC efficiency</span>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+<div class="flex justify-between font-label-mono text-[10px] text-secondary-fixed-dim">
+<span>AD_EXCHANGE</span>
+<span>4H AGO</span>
+</div>
+</div>
+</div>
+<!-- Placeholder Sections for completeness -->
+<div class="mb-4">
+<div class="bg-surface-container-highest px-4 py-2 border-y border-outline-variant">
+<span class="font-label-mono text-[10px] font-bold text-secondary uppercase tracking-widest">Science</span>
+</div>
+</div>
+<div class="mb-4">
+<div class="bg-surface-container-highest px-4 py-2 border-y border-outline-variant">
+<span class="font-label-mono text-[10px] font-bold text-secondary uppercase tracking-widest">Supply side</span>
+</div>
+</div>
+<div class="mb-4">
+<div class="bg-surface-container-highest px-4 py-2 border-y border-outline-variant">
+<span class="font-label-mono text-[10px] font-bold text-secondary uppercase tracking-widest">Consumer voice</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Pane: Signal Detail -->
+<section class="flex-1 h-full bg-surface-container-low p-gutter overflow-y-auto custom-scrollbar">
+<div class="max-w-6xl mx-auto flex flex-col gap-gutter">
+<!-- Signal Header -->
+<div class="flex justify-between items-end border-b-2 border-primary pb-4">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="bg-primary text-on-primary font-label-mono text-[10px] px-2 py-0.5 uppercase">AMZ_MARKET_01</span>
+<span class="font-label-mono text-[10px] text-secondary uppercase tracking-widest">Status: Verified</span>
+</div>
+<h3 class="font-headline-xl text-[40px] leading-none uppercase font-black">YoY unit growth</h3>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-headline-md text-3xl font-black text-primary">+24.8%</span>
+<span class="font-label-mono text-[12px] text-secondary">AGGREGATE DELTA (TTM)</span>
+</div>
+</div>
+<!-- Chart Container -->
+<div class="bg-white border-2 border-primary p-gutter">
+<div class="flex justify-between items-start mb-gutter">
+<div class="flex gap-8">
+<div>
+<p class="font-label-mono text-[10px] text-secondary uppercase mb-1">Signal Variance</p>
+<p class="font-headline-md text-lg font-bold">±1.4%</p>
+</div>
+<div>
+<p class="font-label-mono text-[10px] text-secondary uppercase mb-1">Confidence Score</p>
+<p class="font-headline-md text-lg font-bold">98/100</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-surface-container-high border border-primary font-label-mono text-[10px]">1M</button>
+<button class="px-3 py-1 bg-primary text-on-primary border border-primary font-label-mono text-[10px]">6M</button>
+<button class="px-3 py-1 bg-surface-container-high border border-primary font-label-mono text-[10px]">1Y</button>
+</div>
+</div>
+<!-- SVG Chart Area (Simulated Time Series) -->
+<div class="w-full h-64 bg-surface-container-low relative border border-outline-variant">
+<div class="absolute inset-0 flex items-end px-8 pb-8">
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 1000 100">
+<!-- Grid Lines -->
+<line stroke="#E0E0E0" stroke-width="1" x1="0" x2="1000" y1="20" y2="20"></line>
+<line stroke="#E0E0E0" stroke-width="1" x1="0" x2="1000" y1="50" y2="50"></line>
+<line stroke="#E0E0E0" stroke-width="1" x1="0" x2="1000" y1="80" y2="80"></line>
+<!-- Chart Path -->
+<path d="M0,80 L100,75 L200,85 L300,60 L400,65 L500,40 L600,45 L700,20 L800,25 L900,10 L1000,15" fill="none" stroke="black" stroke-width="3"></path>
+<!-- Witness Dots -->
+<circle cx="300" cy="60" fill="white" r="4" stroke="black" stroke-width="2"></circle>
+<circle cx="500" cy="40" fill="white" r="4" stroke="black" stroke-width="2"></circle>
+<circle cx="700" cy="20" fill="white" r="4" stroke="black" stroke-width="2"></circle>
+<circle cx="900" cy="10" fill="black" r="4" stroke="black" stroke-width="2"></circle>
+</svg>
+</div>
+</div>
+</div>
+<!-- Secondary Data Row: Table & Metadata -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Raw Values Table -->
+<div class="col-span-7 bg-white border-2 border-primary overflow-hidden">
+<div class="bg-surface-container px-4 py-2 border-b border-primary">
+<h4 class="font-label-mono text-[11px] font-bold uppercase">Raw Values (L6M)</h4>
+</div>
+<table class="w-full font-label-mono text-[12px] text-left">
+<thead class="bg-surface-container-low border-b border-outline-variant">
+<tr>
+<th class="px-4 py-2 font-bold">INTERVAL</th>
+<th class="px-4 py-2 font-bold">UNIT_VOL</th>
+<th class="px-4 py-2 font-bold">DELTA_YOY</th>
+<th class="px-4 py-2 font-bold">STATUS</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-outline-variant hover:bg-surface-container-low">
+<td class="px-4 py-2">OCT 2023</td>
+<td class="px-4 py-2">1,240,402</td>
+<td class="px-4 py-2 text-primary font-bold">+28.4%</td>
+<td class="px-4 py-2"><span class="w-2 h-2 inline-block bg-primary rounded-full"></span></td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-low">
+<td class="px-4 py-2">SEP 2023</td>
+<td class="px-4 py-2">1,112,091</td>
+<td class="px-4 py-2 text-primary font-bold">+21.2%</td>
+<td class="px-4 py-2"><span class="w-2 h-2 inline-block bg-primary rounded-full"></span></td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-low">
+<td class="px-4 py-2">AUG 2023</td>
+<td class="px-4 py-2">1,104,550</td>
+<td class="px-4 py-2 text-primary font-bold">+19.8%</td>
+<td class="px-4 py-2"><span class="w-2 h-2 inline-block bg-primary rounded-full"></span></td>
+</tr>
+<tr class="hover:bg-surface-container-low">
+<td class="px-4 py-2">JUL 2023</td>
+<td class="px-4 py-2">994,302</td>
+<td class="px-4 py-2 text-primary font-bold">+18.1%</td>
+<td class="px-4 py-2"><span class="w-2 h-2 inline-block bg-primary rounded-full"></span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Composition/Meta Info -->
+<div class="col-span-5 flex flex-col gap-4">
+<!-- Computation Block -->
+<div class="bg-white border-2 border-primary p-4">
+<h4 class="font-label-mono text-[10px] font-bold text-secondary uppercase mb-2">Signal Computation</h4>
+<p class="font-body-md text-sm italic leading-relaxed">
+                                "Computed as the median of 27 bestsellers' year-over-year unit growth from Amazon monthly-sales history."
+                            </p>
+</div>
+<!-- Technical Meta -->
+<div class="bg-white border-2 border-primary p-4">
+<div class="flex flex-col gap-3">
+<div>
+<h4 class="font-label-mono text-[10px] font-bold text-secondary uppercase mb-1">Sample size</h4>
+<p class="font-headline-md text-base font-bold">27 products</p>
+</div>
+<div class="pt-3 border-t border-outline-variant">
+<h4 class="font-label-mono text-[10px] font-bold text-secondary uppercase mb-1">Feeds:</h4>
+<div class="flex flex-wrap gap-2">
+<span class="bg-surface-container-high border border-primary px-2 py-0.5 font-label-mono text-[10px] uppercase">Demand Reality pillar</span>
+<span class="bg-surface-container-high border border-primary px-2 py-0.5 font-label-mono text-[10px] uppercase">Lifecycle classifier</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Bar -->
+<div class="grid grid-cols-2 gap-3 mt-auto">
+<button class="bg-primary text-on-primary font-bold py-3 uppercase text-[12px] neo-shadow hover:bg-white hover:text-primary transition-all">Audit Trace</button>
+<button class="bg-white text-primary border-2 border-primary font-bold py-3 uppercase text-[12px] hover:bg-primary hover:text-on-primary transition-all">Recalculate</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Contextual FAB (Hidden as per hierarchy rules for Detail screens) -->
+<!-- Determined not required for "Details/Explorer" screen unless primary action is creation -->
+<script>
+        // Simple micro-interaction for rows
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('click', () => {
+                row.classList.add('bg-primary', 'text-on-primary');
+                setTimeout(() => row.classList.remove('bg-primary', 'text-on-primary'), 200);
+            });
+        });
+    </script>
+</body></html>

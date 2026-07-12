@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useMemo, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { AppShell } from '@/components/shell/AppShell'
+import { PrimaryButton, PrimaryLinkButton, SecondaryLinkButton } from '@/components/ui'
 import type { ComparisonItem } from '@/app/api/research/compare/route'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -46,10 +48,10 @@ const VERDICT_RANK: Record<string, number> = {
   PURSUE: 4, PURSUE_WITH_CAUTION: 3, INVESTIGATE_FURTHER: 2, DO_NOT_PURSUE: 1,
 }
 const VERDICT_COLOR: Record<string, string> = {
-  PURSUE:               'text-[#008a00]',
-  PURSUE_WITH_CAUTION:  'text-[#a67c00]',
+  PURSUE:               'text-verdict-positive',
+  PURSUE_WITH_CAUTION:  'text-verdict-caution-text',
   INVESTIGATE_FURTHER:  'text-black',
-  DO_NOT_PURSUE:        'text-[#d32f2f]',
+  DO_NOT_PURSUE:        'text-verdict-negative',
 }
 const COMPLEXITY_RANK: Record<string, number> = { low: 3, medium: 2, high: 1 }
 const FIT_LEVEL_RANK:  Record<string, number> = { sufficient: 3, strong: 3, feasible: 3, partial: 2, tight: 2, stretched: 2, insufficient: 1, weak: 1, infeasible: 1 }
@@ -270,339 +272,315 @@ function CompareContent() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen w-full font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
-    <main className="max-w-6xl mx-auto px-4 py-12 space-y-8">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3 text-xs font-mono uppercase text-[#7e7576] mb-1">
-            <Link href="/research" className="hover:text-black transition-colors">Research</Link>
-            <span className="text-[#cfc4c5]">/</span>
-            <Link href="/research/history" className="hover:text-black transition-colors">History</Link>
-            <span className="text-[#cfc4c5]">/</span>
-            <span className="text-[#4c4546]">Compare</span>
+    <AppShell active="compare">
+      <div className="max-w-6xl space-y-8">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 flex-wrap border-b-2 border-black pb-4">
+          <div className="space-y-1">
+            <h1 className="text-headline-md text-black">Comparison Mode</h1>
+            <p className="text-sm text-ink-variant">
+              {phase === 'select'
+                ? 'Select 2–4 theses to compare side-by-side.'
+                : `Comparing ${compItems.length} ${compItems.length === 1 ? 'thesis' : 'theses'} — all metrics are verified, computed data.`
+              }
+            </p>
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-black">Comparison Mode</h1>
-          <p className="text-sm text-[#4c4546]">
-            {phase === 'select'
-              ? 'Select 2–4 theses to compare side-by-side.'
-              : `Comparing ${compItems.length} ${compItems.length === 1 ? 'thesis' : 'theses'} — all metrics are verified, computed data.`
-            }
-          </p>
-        </div>
-        {phase === 'compare' && (
-          <Link
-            href="/research/compare"
-            className="text-xs bg-white border border-black px-3 py-2 text-black hover:bg-[#f3f3f3] transition-colors"
-          >
-            ← New comparison
-          </Link>
-        )}
-      </div>
-
-      {/* ── SELECTION PHASE ──────────────────────────────────────────────── */}
-      {phase === 'select' && (
-        <div className="space-y-4">
-          {/* Floating action bar */}
-          {selectionIds.size >= 2 && (
-            <div className="sticky top-4 z-10 flex items-center justify-between border-2 border-black bg-white px-4 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <p className="text-sm font-mono text-black">
-                {selectionIds.size} selected — up to 4
-              </p>
-              <button
-                onClick={goCompare}
-                className="bg-black text-white font-black uppercase tracking-wide border-2 border-black px-4 py-1.5 text-sm hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
-              >
-                Compare →
-              </button>
-            </div>
-          )}
-
-          {historyLoading && (
-            <div className="space-y-2">
-              {[1,2,3].map(i => <div key={i} className="h-14 border border-black animate-pulse bg-[#f3f3f3]" />)}
-            </div>
-          )}
-
-          {!historyLoading && thesisOptions.length === 0 && (
-            <div className="border border-black bg-white p-10 text-center space-y-3">
-              <p className="text-[#4c4546] text-sm">No theses found. Run at least 2 market analyses first.</p>
-              <Link
-                href="/research"
-                className="inline-block bg-black text-white font-black uppercase tracking-wide border-2 border-black px-4 py-2 text-sm hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
-              >
-                Start an analysis →
-              </Link>
-            </div>
-          )}
-
-          {thesisOptions.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-mono text-[#7e7576] uppercase tracking-wider font-semibold">
-                {thesisOptions.length} theses across {historyItems.length} analyses
-              </p>
-              {thesisOptions.map(opt => {
-                const checked = selectionIds.has(opt.thesis_id)
-                const disabled = !checked && selectionIds.size >= 4
-                return (
-                  <label
-                    key={opt.thesis_id}
-                    className={`flex items-start gap-4 border px-4 py-3 cursor-pointer transition-colors bg-white ${
-                      checked   ? 'border-2 border-black bg-[#f3f3f3]'
-                      : disabled ? 'border-black opacity-40 cursor-not-allowed'
-                      : 'border-black hover:bg-[#f3f3f3]'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={disabled}
-                      onChange={() => !disabled && toggleSelection(opt.thesis_id)}
-                      className="mt-0.5 accent-black"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-black font-medium truncate">{opt.label}</p>
-                      <p className="text-xs text-[#7e7576] truncate">{opt.query}</p>
-                    </div>
-                    <div className="shrink-0 text-right space-y-0.5">
-                      <p className={`text-xs font-mono ${
-                        opt.status === 'stage4' ? 'text-[#008a00]'
-                        : opt.status === 'stage3' ? 'text-[#a67c00]'
-                        : 'text-[#7e7576]'
-                      }`}>
-                        {opt.status === 'stage4' ? 'Complete'
-                          : opt.status === 'stage3' ? 'S3'
-                          : opt.status === 'stage2' ? 'S2'
-                          : 'S1'}
-                      </p>
-                      <p className="text-[10px] text-[#7e7576]">Score {opt.opportunity_score}</p>
-                    </div>
-                  </label>
-                )
-              })}
-            </div>
+          {phase === 'compare' && (
+            <SecondaryLinkButton href="/research/compare">← New comparison</SecondaryLinkButton>
           )}
         </div>
-      )}
 
-      {/* ── COMPARISON PHASE ─────────────────────────────────────────────── */}
-      {phase === 'compare' && (
-        <div className="space-y-6">
-          {compLoading && (
-            <div className="text-center py-12">
-              <p className="text-sm text-[#4c4546] animate-pulse font-mono">Loading comparison data…</p>
-            </div>
-          )}
-
-          {compError && (
-            <p className="text-sm text-[#93000a] bg-[#ffdad6] border border-[#ba1a1a] px-3 py-2">{compError}</p>
-          )}
-
-          {!compLoading && compItems.length >= 2 && (
-            <>
-              {/* Thesis headers */}
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm" style={{ minWidth: `${180 + compItems.length * 200}px` }}>
-                  <colgroup>
-                    <col style={{ width: 180 }} />
-                    {compItems.map((_, i) => <col key={i} style={{ width: 200 }} />)}
-                  </colgroup>
-
-                  {/* Column headers */}
-                  <thead>
-                    <tr className="border-b-2 border-black">
-                      <th className="px-3 py-3 text-left text-[10px] font-mono font-semibold text-[#7e7576] uppercase tracking-wider">
-                        Metric
-                      </th>
-                      {compItems.map((item, i) => (
-                        <th key={i} className="px-3 py-3 text-left align-top">
-                          <div className="space-y-1">
-                            <p className="text-xs font-semibold text-black leading-tight">{item.product_angle}</p>
-                            <p className="text-[10px] text-[#7e7576] leading-tight truncate">{item.target_customer}</p>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-[10px] font-mono ${
-                                item.stage === 'stage4' ? 'text-[#008a00]'
-                                : item.stage === 'stage3' ? 'text-[#a67c00]'
-                                : 'text-[#7e7576]'
-                              }`}>
-                                {item.stage === 'stage4' ? 'Complete' : item.stage === 'stage3' ? 'Stage 3' : 'Stage 2'}
-                              </span>
-                              <Link
-                                href={
-                                  item.stage === 'stage4'
-                                    ? `/research/${item.signal_id}/memo`
-                                    : item.stage === 'stage3'
-                                    ? `/research/${item.signal_id}/evaluate`
-                                    : `/research/${item.signal_id}`
-                                }
-                                className="text-[10px] text-black underline hover:text-[#4c4546]"
-                              >
-                                Open →
-                              </Link>
-                            </div>
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {SECTION_ORDER.map(section => {
-                      const sectionMetrics = visibleMetrics.filter(m => m.section === section)
-                      if (sectionMetrics.length === 0) return null
-                      return (
-                        <React.Fragment key={`section-${section}`}>
-                          {/* Section divider */}
-                          <tr className="border-t border-black">
-                            <td
-                              colSpan={compItems.length + 1}
-                              className="px-3 py-1.5 text-[10px] font-mono font-semibold text-[#7e7576] uppercase tracking-wider bg-[#f3f3f3]"
-                            >
-                              {section}
-                            </td>
-                          </tr>
-
-                          {sectionMetrics.map(metric => {
-                            const values = compItems.map(item => metric.getValue(item))
-                            const winners = findWinner(metric.dir, values)
-
-                            return (
-                              <tr
-                                key={metric.id}
-                                className="border-b border-black hover:bg-[#f3f3f3] transition-colors"
-                              >
-                                <td className="px-3 py-2.5 text-xs text-[#7e7576] align-top whitespace-nowrap">
-                                  {metric.label}
-                                </td>
-                                {values.map((val, i) => {
-                                  const isWinner = winners.has(i)
-                                  const formatted = metric.format(val)
-                                  const isVerdict = metric.id === 'verdict'
-
-                                  return (
-                                    <td
-                                      key={i}
-                                      className={`px-3 py-2.5 text-xs align-top transition-colors ${
-                                        isWinner ? 'bg-[#e6f4e6]' : ''
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-1.5">
-                                        {isWinner && (
-                                          <span className="text-[#008a00] text-[10px] shrink-0" title="Best in class">▲</span>
-                                        )}
-                                        <span className={`font-mono ${
-                                          isVerdict
-                                            ? VERDICT_COLOR[String(val)] ?? 'text-[#7e7576]'
-                                            : isWinner
-                                            ? 'text-[#008a00] font-semibold'
-                                            : formatted === '—'
-                                            ? 'text-[#cfc4c5]'
-                                            : 'text-[#1a1c1c]'
-                                        }`}>
-                                          {formatted}
-                                        </span>
-                                      </div>
-                                    </td>
-                                  )
-                                })}
-                              </tr>
-                            )
-                          })}
-                        </React.Fragment>
-                      )
-                    })}
-                  </tbody>
-                </table>
+        {/* ── SELECTION PHASE ──────────────────────────────────────────────── */}
+        {phase === 'select' && (
+          <div className="space-y-4">
+            {/* Floating action bar */}
+            {selectionIds.size >= 2 && (
+              <div className="sticky top-4 z-10 flex items-center justify-between border-2 border-black bg-white px-4 py-3 shadow-hard-lg">
+                <p className="text-sm font-mono text-black">
+                  {selectionIds.size} selected — up to 4
+                </p>
+                <PrimaryButton onClick={goCompare} className="py-1.5">Compare →</PrimaryButton>
               </div>
+            )}
 
-              {/* Winner summary bar */}
-              {(() => {
-                const winCounts = compItems.map((_, j) =>
-                  visibleMetrics.reduce((acc, m) => {
-                    const vals = compItems.map(x => m.getValue(x))
-                    return acc + (findWinner(m.dir, vals).has(j) ? 1 : 0)
-                  }, 0)
-                )
-                const maxWins = Math.max(...winCounts)
-                return (
-                  <div className="border border-black bg-white p-4 space-y-2">
-                    <p className="text-xs font-mono font-semibold text-[#7e7576] uppercase tracking-wider">Best-in-class count</p>
-                    <div className="flex gap-4 flex-wrap">
-                      {compItems.map((item, i) => (
-                        <div key={i} className="text-center min-w-[100px]">
-                          <p className="text-[10px] text-[#7e7576] truncate">{item.product_angle.slice(0, 25)}…</p>
-                          <p className={`text-xl font-mono font-bold ${
-                            maxWins > 0 && winCounts[i] === maxWins ? 'text-[#008a00]' : 'text-[#7e7576]'
-                          }`}>
-                            {winCounts[i]}
-                          </p>
-                          <p className="text-[10px] text-[#7e7576]">of {visibleMetrics.length}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
+            {historyLoading && (
+              <div className="space-y-2">
+                {[1,2,3].map(i => <div key={i} className="h-14 border border-black animate-pulse bg-surface-container-low" />)}
+              </div>
+            )}
 
-              {/* AI Recommendation */}
-              <div className="border border-black bg-white p-5 space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-bold text-black">AI Recommendation</p>
-                    <p className="text-xs text-[#7e7576] mt-0.5">
-                      Claude synthesizes the data above — numbers are never modified, only explained.
-                    </p>
-                  </div>
-                  {!recommendation && (
-                    <button
-                      onClick={getRecommendation}
-                      disabled={recLoading}
-                      className="shrink-0 bg-black text-white font-black uppercase tracking-wide border-2 border-black px-4 py-2 text-sm hover:bg-white hover:text-black disabled:opacity-40 transition-colors duration-200 active:scale-[0.98]"
+            {!historyLoading && thesisOptions.length === 0 && (
+              <div className="border border-black bg-white p-10 text-center space-y-3">
+                <p className="text-ink-variant text-sm">No theses found. Run at least 2 market analyses first.</p>
+                <PrimaryLinkButton href="/research">Start an analysis →</PrimaryLinkButton>
+              </div>
+            )}
+
+            {thesisOptions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-mono text-outline uppercase tracking-wider font-semibold">
+                  {thesisOptions.length} theses across {historyItems.length} analyses
+                </p>
+                {thesisOptions.map(opt => {
+                  const checked = selectionIds.has(opt.thesis_id)
+                  const disabled = !checked && selectionIds.size >= 4
+                  return (
+                    <label
+                      key={opt.thesis_id}
+                      className={`flex items-start gap-4 border px-4 py-3 cursor-pointer transition-colors bg-white ${
+                        checked   ? 'border-2 border-black bg-surface-container-low'
+                        : disabled ? 'border-black opacity-40 cursor-not-allowed'
+                        : 'border-black hover:bg-surface-container-low'
+                      }`}
                     >
-                      {recLoading ? 'Analyzing…' : 'Get Recommendation →'}
-                    </button>
-                  )}
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={disabled}
+                        onChange={() => !disabled && toggleSelection(opt.thesis_id)}
+                        className="mt-0.5 accent-black"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-black font-medium truncate">{opt.label}</p>
+                        <p className="text-xs text-outline truncate">{opt.query}</p>
+                      </div>
+                      <div className="shrink-0 text-right space-y-0.5">
+                        <p className={`text-xs font-mono ${
+                          opt.status === 'stage4' ? 'text-verdict-positive'
+                          : opt.status === 'stage3' ? 'text-verdict-caution-text'
+                          : 'text-outline'
+                        }`}>
+                          {opt.status === 'stage4' ? 'Complete'
+                            : opt.status === 'stage3' ? 'S3'
+                            : opt.status === 'stage2' ? 'S2'
+                            : 'S1'}
+                        </p>
+                        <p className="text-[10px] text-outline">Score {opt.opportunity_score}</p>
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── COMPARISON PHASE ─────────────────────────────────────────────── */}
+        {phase === 'compare' && (
+          <div className="space-y-6">
+            {compLoading && (
+              <div className="text-center py-12">
+                <p className="text-sm text-ink-variant animate-pulse font-mono">Loading comparison data…</p>
+              </div>
+            )}
+
+            {compError && (
+              <p className="text-sm text-verdict-negative bg-white border border-verdict-negative px-3 py-2">{compError}</p>
+            )}
+
+            {!compLoading && compItems.length >= 2 && (
+              <>
+                {/* Thesis headers */}
+                <div className="overflow-x-auto border border-black">
+                  <table className="w-full border-collapse text-sm" style={{ minWidth: `${180 + compItems.length * 200}px` }}>
+                    <colgroup>
+                      <col style={{ width: 180 }} />
+                      {compItems.map((_, i) => <col key={i} style={{ width: 200 }} />)}
+                    </colgroup>
+
+                    {/* Column headers */}
+                    <thead>
+                      <tr className="border-b-2 border-black bg-surface-container-low">
+                        <th className="px-3 py-3 text-left text-[10px] font-mono font-semibold text-outline uppercase tracking-wider">
+                          Metric
+                        </th>
+                        {compItems.map((item, i) => (
+                          <th key={i} className="px-3 py-3 text-left align-top">
+                            <div className="space-y-1">
+                              <p className="text-xs font-bold text-black leading-tight">{item.product_angle}</p>
+                              <p className="text-[10px] text-outline leading-tight truncate">{item.target_customer}</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[10px] font-mono ${
+                                  item.stage === 'stage4' ? 'text-verdict-positive'
+                                  : item.stage === 'stage3' ? 'text-verdict-caution-text'
+                                  : 'text-outline'
+                                }`}>
+                                  {item.stage === 'stage4' ? 'Complete' : item.stage === 'stage3' ? 'Stage 3' : 'Stage 2'}
+                                </span>
+                                <Link
+                                  href={
+                                    item.stage === 'stage4'
+                                      ? `/research/${item.signal_id}/memo`
+                                      : item.stage === 'stage3'
+                                      ? `/research/${item.signal_id}/evaluate`
+                                      : `/research/${item.signal_id}`
+                                  }
+                                  className="text-[10px] text-black underline hover:text-ink-variant"
+                                >
+                                  Open →
+                                </Link>
+                              </div>
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {SECTION_ORDER.map(section => {
+                        const sectionMetrics = visibleMetrics.filter(m => m.section === section)
+                        if (sectionMetrics.length === 0) return null
+                        return (
+                          <React.Fragment key={`section-${section}`}>
+                            {/* Section divider */}
+                            <tr className="border-t border-black">
+                              <td
+                                colSpan={compItems.length + 1}
+                                className="px-3 py-1.5 text-[10px] font-mono font-semibold text-outline uppercase tracking-wider bg-surface-container-low"
+                              >
+                                {section}
+                              </td>
+                            </tr>
+
+                            {sectionMetrics.map(metric => {
+                              const values = compItems.map(item => metric.getValue(item))
+                              const winners = findWinner(metric.dir, values)
+
+                              return (
+                                <tr
+                                  key={metric.id}
+                                  className="border-b border-black/10 hover:bg-surface-container-low transition-colors"
+                                >
+                                  <td className="px-3 py-2.5 text-xs text-outline align-top whitespace-nowrap">
+                                    {metric.label}
+                                  </td>
+                                  {values.map((val, i) => {
+                                    const isWinner = winners.has(i)
+                                    const formatted = metric.format(val)
+                                    const isVerdict = metric.id === 'verdict'
+
+                                    return (
+                                      <td
+                                        key={i}
+                                        className={`px-3 py-2.5 text-xs align-top transition-colors ${
+                                          isWinner ? 'bg-verdict-positive/10' : ''
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-1.5">
+                                          {isWinner && (
+                                            <span className="text-verdict-positive text-[10px] shrink-0" title="Best in class">▲</span>
+                                          )}
+                                          <span className={`font-mono ${
+                                            isVerdict
+                                              ? VERDICT_COLOR[String(val)] ?? 'text-outline'
+                                              : isWinner
+                                              ? 'text-verdict-positive font-semibold'
+                                              : formatted === '—'
+                                              ? 'text-outline-variant'
+                                              : 'text-ink'
+                                          }`}>
+                                            {formatted}
+                                          </span>
+                                        </div>
+                                      </td>
+                                    )
+                                  })}
+                                </tr>
+                              )
+                            })}
+                          </React.Fragment>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
 
-                {recLoading && (
-                  <p className="text-xs text-[#4c4546] animate-pulse font-mono">
-                    Synthesizing comparison data — comparing {compItems.length} theses…
-                  </p>
-                )}
-
-                {recError && (
-                  <p className="text-xs text-[#d32f2f]">{recError}</p>
-                )}
-
-                {recommendation && (
-                  <div className="space-y-2">
-                    <div className="border border-black bg-[#f3f3f3] p-4">
-                      <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">{recommendation}</p>
+                {/* Winner summary bar */}
+                {(() => {
+                  const winCounts = compItems.map((_, j) =>
+                    visibleMetrics.reduce((acc, m) => {
+                      const vals = compItems.map(x => m.getValue(x))
+                      return acc + (findWinner(m.dir, vals).has(j) ? 1 : 0)
+                    }, 0)
+                  )
+                  const maxWins = Math.max(...winCounts)
+                  return (
+                    <div className="border border-black bg-white p-4 space-y-2">
+                      <p className="text-[10px] font-mono font-semibold text-outline uppercase tracking-wider">Best-in-class count</p>
+                      <div className="flex gap-4 flex-wrap">
+                        {compItems.map((item, i) => (
+                          <div key={i} className="text-center min-w-[100px]">
+                            <p className="text-[10px] text-outline truncate">{item.product_angle.slice(0, 25)}…</p>
+                            <p className={`text-xl font-mono font-bold ${
+                              maxWins > 0 && winCounts[i] === maxWins ? 'text-verdict-positive' : 'text-outline'
+                            }`}>
+                              {winCounts[i]}
+                            </p>
+                            <p className="text-[10px] text-outline">of {visibleMetrics.length}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <button
-                      onClick={getRecommendation}
-                      className="text-[10px] font-mono uppercase tracking-wide text-[#7e7576] hover:text-black transition-colors"
-                    >
-                      Regenerate
-                    </button>
+                  )
+                })()}
+
+                {/* AI Recommendation */}
+                <div className="border border-black bg-white p-5 space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-bold text-black">AI Recommendation</p>
+                      <p className="text-xs text-outline mt-0.5">
+                        Claude synthesizes the data above — numbers are never modified, only explained.
+                      </p>
+                    </div>
+                    {!recommendation && (
+                      <PrimaryButton onClick={getRecommendation} disabled={recLoading} className="shrink-0">
+                        {recLoading ? 'Analyzing…' : 'Get Recommendation →'}
+                      </PrimaryButton>
+                    )}
                   </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-    </main>
-    </div>
+
+                  {recLoading && (
+                    <p className="text-xs text-ink-variant animate-pulse font-mono">
+                      Synthesizing comparison data — comparing {compItems.length} theses…
+                    </p>
+                  )}
+
+                  {recError && (
+                    <p className="text-xs text-verdict-negative">{recError}</p>
+                  )}
+
+                  {recommendation && (
+                    <div className="space-y-2">
+                      <div className="border border-black bg-surface-container-low p-4">
+                        <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">{recommendation}</p>
+                      </div>
+                      <button
+                        onClick={getRecommendation}
+                        className="text-[10px] font-mono uppercase tracking-wide text-outline hover:text-black transition-colors"
+                      >
+                        Regenerate
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </AppShell>
   )
 }
 
 export default function ComparePage() {
   return (
     <Suspense fallback={
-      <main className="flex items-center justify-center min-h-screen font-sans" style={{ background: '#f9f9f9', color: '#1a1c1c' }}>
-        <p className="text-[#7e7576] text-sm animate-pulse font-mono">Loading…</p>
-      </main>
+      <AppShell active="compare">
+        <div className="flex items-center justify-center py-24">
+          <p className="text-outline text-sm animate-pulse font-mono">Loading…</p>
+        </div>
+      </AppShell>
     }>
       <CompareContent />
     </Suspense>
