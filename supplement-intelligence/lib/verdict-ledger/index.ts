@@ -67,8 +67,12 @@ export async function writeVerdictLedgerEntry(
 
           pillar_scores:     entry.pillar_scores,
           pillar_confidence: entry.pillar_confidence,
-          lifecycle_stage:   entry.lifecycle_stage,
-          gap_velocity:      entry.gap_velocity,
+          lifecycle_stage:         entry.lifecycle_stage,
+          lifecycle_inputs:        entry.lifecycle_inputs,
+          lifecycle_model_version: entry.lifecycle_model_version,
+          gap_velocity:                        entry.gap_velocity,
+          gap_velocity_demand_acceleration_pct: entry.gap_velocity_demand_acceleration_pct,
+          gap_velocity_supply_acceleration_pct: entry.gap_velocity_supply_acceleration_pct,
 
           dimension_confidence:      entry.dimension_confidence,
           overall_confidence:        entry.overall_confidence,

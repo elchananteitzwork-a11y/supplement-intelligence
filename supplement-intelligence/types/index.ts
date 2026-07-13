@@ -1,5 +1,6 @@
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import type { ConcordanceMatrix } from '@/lib/concordance'
+import type { LifecycleClassification, GapVelocity } from '@/lib/lifecycle'
 import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
 import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 import type { NewsIntelligence } from '@/lib/news-engine/types'
@@ -228,6 +229,12 @@ export interface MemoData {
   // from the stored memo alone must see the same matrix that was computed
   // at generation time, not silently diverge.
   concordance_matrix?: ConcordanceMatrix
+  // Roadmap M2.2: heuristic-v1 lifecycle stage + gap velocity, computed
+  // once at generation time (lib/lifecycle.ts) from concordance_matrix +
+  // supply_velocity (M2.3) + the existing demand/virality dimension scores
+  // — same persistence rationale as concordance_matrix above.
+  lifecycle_classification?: LifecycleClassification
+  gap_velocity?: GapVelocity
   keyword_intelligence?: KeywordIntelligence    // real per-keyword search volume/growth from DataForSEO
   consumer_intelligence?: ConsumerIntelligenceReport  // real review-text themes (lib/consumer-intelligence) — computed server-side, never touched by the AI, same pattern as keyword_intelligence
   // Real-Time News Intelligence (added 2026-06-25) — items come from openFDA/

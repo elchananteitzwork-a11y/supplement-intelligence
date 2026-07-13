@@ -120,11 +120,19 @@ export function extractVerdictLedgerEntry(ctx: ExtractLedgerEntryContext): Verdi
 
     dimension_scores: dimensionScores,
 
-    // Always null in v1 — see types.ts header comment.
+    // Always null until Roadmap M2.4 (four-pillar model) ships.
     pillar_scores:     null,
     pillar_confidence: null,
-    lifecycle_stage:   null,
-    gap_velocity:      null,
+
+    // Roadmap M2.2 — null only for a memo scored before this milestone
+    // shipped (memo.lifecycle_classification/gap_velocity absent), never
+    // fabricated retroactively for an old ledger row.
+    lifecycle_stage:         memo.lifecycle_classification?.stage ?? null,
+    lifecycle_inputs:        memo.lifecycle_classification?.inputs ?? null,
+    lifecycle_model_version: memo.lifecycle_classification?.version ?? null,
+    gap_velocity:                        memo.gap_velocity?.value ?? null,
+    gap_velocity_demand_acceleration_pct: memo.gap_velocity?.demand_acceleration_pct ?? null,
+    gap_velocity_supply_acceleration_pct: memo.gap_velocity?.supply_acceleration_normalized_pct ?? null,
 
     // Independence-aware confidence (Milestone 2) — null only when the
     // caller didn't supply a ConfidenceAssessment (never fabricated).

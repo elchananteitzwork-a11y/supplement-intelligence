@@ -16,6 +16,7 @@ import { writeBuildNowPattern } from '@/lib/pattern-memory'
 import { writeVerdictLedgerEntry } from '@/lib/verdict-ledger'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import { computeConcordanceMatrix } from '@/lib/concordance'
+import { computeLifecycle } from '@/lib/lifecycle'
 import { normalizeQuery } from '@/lib/thesis-engine'
 import { synthesizeReviewNarrative } from '@/lib/review-narrative'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
@@ -839,6 +840,15 @@ export async function POST(req: Request) {
     if (grounded.verdictOverrideReasons?.length && memo.build_explanation) {
       memo.build_explanation += '\n\n' + grounded.verdictOverrideReasons.join(' ')
     }
+
+    // Roadmap M2.2 — heuristic-v1 lifecycle stage + gap velocity. Reads
+    // memo.concordance_matrix (M2.1, already set above) and
+    // memo.signal_evidence.supply_velocity (M2.3, already present on
+    // `signals`/`memo.signal_evidence`) plus the just-computed `grounded`
+    // dimensions — every input real, nothing here calls the AI layer.
+    const { classification, gapVelocity } = computeLifecycle(memo, grounded)
+    memo.lifecycle_classification = classification
+    memo.gap_velocity = gapVelocity
     // Deterministic replacement for the model's invented ten_k/hundred_k/
     // one_m probabilities (no longer requested in the prompt) — see
     // lib/scoring.ts computeTractionBand.

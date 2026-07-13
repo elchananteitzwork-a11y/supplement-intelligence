@@ -13,11 +13,11 @@
 
 import type { BuildDecision } from '@/types/index'
 import type { ChannelType, ScoreSource } from '@/lib/scoring'
+import type { LifecycleStage, LifecycleClassification } from '@/lib/lifecycle'
 
 export type ConfidenceTier = 'HIGH' | 'MODERATE' | 'LOW'
 
-export type LifecycleStage =
-  | 'Latent' | 'Emerging' | 'Window Open' | 'Contested' | 'Saturated' | 'Declining'
+export type { LifecycleStage }
 
 // Mirrors ScoreDimension (lib/scoring.ts) — the exact per-dimension record a
 // verdict was computed from, snapshotted verbatim.
@@ -93,12 +93,18 @@ export interface VerdictLedgerEntry {
   // ── Scores ────────────────────────────────────────────────────
   dimension_scores: LedgerDimensionScore[]
 
-  // ── Pillars / lifecycle — always null in v1; populated once
-  // Roadmap M2.2 (lifecycle classifier) / M2.4 (four-pillar model) ship ──
+  // ── Pillars — always null until Roadmap M2.4 (four-pillar model) ships ──
   pillar_scores:     null
   pillar_confidence: null
-  lifecycle_stage:   null
-  gap_velocity:      null
+
+  // ── Lifecycle — Roadmap M2.2, heuristic-v1. Null only for analyses
+  // scored before this milestone shipped (never fabricated retroactively).
+  lifecycle_stage:        LifecycleStage | null
+  lifecycle_inputs:       LifecycleClassification['inputs'] | null
+  lifecycle_model_version: string | null
+  gap_velocity:                        number | null
+  gap_velocity_demand_acceleration_pct: number | null
+  gap_velocity_supply_acceleration_pct: number | null
 
   // ── Independence-aware confidence (Milestone 2 / migration 018) ──
   // Today's 7-dimension granularity — distinct from pillar_confidence
