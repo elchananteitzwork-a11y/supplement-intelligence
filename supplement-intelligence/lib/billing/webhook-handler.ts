@@ -29,14 +29,17 @@ export type StripeEventOutcome =
 // profiles.analyses_limit (migration 001), not a new invented number.
 const FREE_TIER_ANALYSES_LIMIT = 3
 
-function parseAnalysesLimit(price: Stripe.Price, product: Stripe.Product | null): number | null {
+// Exported for reuse by app/api/billing/plans/route.ts (the plan-listing
+// endpoint for the /settings/billing page) — same real metadata read, not
+// a second, divergent parsing of "analyses_limit."
+export function parseAnalysesLimit(price: Stripe.Price, product: Stripe.Product | null): number | null {
   const raw = price.metadata?.analyses_limit ?? product?.metadata?.analyses_limit
   if (!raw) return null
   const n = parseInt(raw, 10)
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-async function fetchPriceAndProduct(priceId: string): Promise<{ price: Stripe.Price; product: Stripe.Product | null } | null> {
+export async function fetchPriceAndProduct(priceId: string): Promise<{ price: Stripe.Price; product: Stripe.Product | null } | null> {
   const stripe = getStripeClient()
   const price = await stripe.prices.retrieve(priceId, { expand: ['product'] })
   const product = typeof price.product === 'object' && price.product && !('deleted' in price.product)

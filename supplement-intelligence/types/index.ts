@@ -414,6 +414,15 @@ export interface Profile {
   email:           string
   analyses_used:   number
   analyses_limit:  number
+  // Real DB columns since migration 019_billing.sql — were never added to
+  // this type before now (same pre-existing incompleteness class as
+  // LeaderboardRow.best_analysis_id above). Null for a user who has never
+  // interacted with billing (the free-tier default, not a fabricated one).
+  stripe_customer_id?:     string | null
+  stripe_subscription_id?: string | null
+  subscription_status?:    'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | null
+  subscription_price_id?:  string | null
+  current_period_end?:     string | null
 }
 
 // helper

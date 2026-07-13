@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/shell/AppShell'
 import { FounderProfileForm } from '@/components/research/FounderProfileForm'
 import { FounderProfileBanner } from '@/components/research/FounderProfileBanner'
-import { HardCard, PrimaryLinkButton, SecondaryButton, GhostButton } from '@/components/ui'
+import { HardCard, PrimaryLinkButton, SecondaryButton, GhostButton, GhostLinkButton } from '@/components/ui'
 import type { FounderProfile } from '@/lib/stage25/fit-layer'
 
 function FounderProfileContent() {
@@ -67,9 +67,12 @@ function FounderProfileContent() {
   return (
     <div className="max-w-xl space-y-8">
       <div className="space-y-2 border-b-2 border-black pb-4">
-        <h1 className="text-headline-md text-black">
-          {existing ? 'Founder Profile' : 'Set Up Founder Profile'}
-        </h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-headline-md text-black">
+            {existing ? 'Founder Profile' : 'Set Up Founder Profile'}
+          </h1>
+          <GhostLinkButton href="/settings/billing">Billing &amp; Plans →</GhostLinkButton>
+        </div>
         <p className="text-sm text-ink-variant">
           Your profile drives deterministic fit scoring for every investment thesis — capital adequacy,
           channel alignment, timeline viability, and execution gap analysis. No AI interprets your answers.
