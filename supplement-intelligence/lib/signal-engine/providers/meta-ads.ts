@@ -5,47 +5,42 @@ import type {
   ViralitySignal,
 } from '../types'
 
-// ── Meta Ad Library API (public archive, requires an access token) ────────
+// ── Meta Ad Library data via Apify (replaces the direct Meta Graph API) ────
 //
-// Endpoint:
-//   GET https://graph.facebook.com/{API_VERSION}/ads_archive
-//       ?access_token={token}
-//       &search_terms={query}
-//       &ad_reached_countries=["US"]
-//       &ad_type=ALL
-//       &ad_active_status=ALL
-//       &fields=id,page_id,page_name,ad_delivery_start_time,ad_delivery_stop_time,publisher_platforms
-//       &limit=100
+// ── WHY THIS PROVIDER NO LONGER CALLS META DIRECTLY (2026-07-13) ──────────
+// A real META_ADS_ACCESS_TOKEN was live-verified end-to-end against Meta's
+// own ads_archive endpoint, including a full /debug_token + /me/permissions
+// inspection proving ads_read and business_management were genuinely
+// granted. The request still failed: OAuthException code 10 / subcode
+// 2332002. Root cause, confirmed directly against Meta's own current
+// transparency.meta.com pages (not archived docs, not blog summaries):
+// Meta's Ad Library API is scoped ONLY to "ads about social issues,
+// elections or politics" — quoted verbatim from Meta's own current
+// description of the product. General commercial ads (this provider's
+// actual use case — supplement/beauty/fitness/consumer-goods marketing
+// intensity) are out of scope for that API entirely, for any app type,
+// use case, or verification level. There was no missing setup step.
 //
-// Token: an App Access Token (`{app-id}|{app-secret}`) or long-lived user
-// token with ads_read scope, set as META_ADS_ACCESS_TOKEN. Requires the
-// owning Meta Developer App to have completed identity verification for
-// Ad Library API access — a one-time real-world setup step, not a code
-// concern. Until that env var is set, this provider stays enabled=false
-// and never fires, exactly like the tiktok/reddit providers before their
-// credentials exist.
+// Replacement: the Apify `apify/facebook-ads-scraper` actor, which scrapes
+// the *public* Meta Ad Library website (facebook.com/ads/library) rather
+// than calling the restricted API. This is on solid legal footing: Meta v.
+// Bright Data (N.D. Cal., Jan 23 2024) held that Meta's Terms do not bar
+// logged-out scraping of public data, and Meta dropped the underlying suit
+// rather than appeal. Reuses APIFY_API_TOKEN — the same credential already
+// funding lib/signal-engine/providers/competition.ts (junglee/amazon-crawler)
+// and the Manufacturing Intelligence tab (Alibaba) — no new credential, no
+// new billing relationship.
 //
-// ── LIVE-VERIFIED 2026-07-12 — real token, real rejection ─────────────────
-// A real META_ADS_ACCESS_TOKEN (User Access Token) was configured and this
-// provider was exercised end-to-end against the real ads_archive endpoint
-// (both directly and through the full /api/generate pipeline). Result:
-// HTTP 400, OAuthException code 10 / error_subcode 2332002, message
-// "Application does not have permission for this action" — Meta requires
-// the token's owning app/user to complete Ad Library API authorization at
-// facebook.com/ads/library/api (a real-world identity-verification step,
-// separate from having a valid token at all) before ads_archive will
-// return data. This is exactly the failure path this provider was built
-// to handle: enabled=true (token present), the request reaches Meta's
-// servers, the non-200 response is caught, logged, and returns null — the
-// full analysis pipeline completed normally (HTTP 200, memo generated,
-// other providers unaffected) and the Marketing Intelligence UI rendered
-// its "not available from this provider" empty state, not a crash or a
-// fabricated estimate. What remains unverified: the actual field shapes
-// (id, page_id, page_name, ad_delivery_start_time, ad_delivery_stop_time)
-// on a genuine 200 response — that still needs a token whose app has
-// completed the authorization step above. This paragraph replaces the
-// prior "not live-verified in this environment" note, which no longer
-// applies now that a real token has been exercised.
+// ── NOT LIVE-VERIFIED — field names built from documented/observed actor
+// output, not a live run (Apify credits were exhausted at implementation
+// time, per explicit instruction not to spend them here). Defensive parsing
+// throughout: an unexpected shape degrades to fewer populated fields or an
+// honest null, never a crash or a fabricated value. The exact field names
+// below (adArchiveID, pageID/pageId, pageName, startDate/startDateFormatted,
+// endDate/endDateFormatted, publisherPlatform) should be spot-checked
+// against a real response the first time this runs live, the same
+// convention this file already used for the original Meta API integration
+// before ITS field names were confirmed.
 //
 // ── What this provider measures ────────────────────────────────────────
 //   ad_count          — real count of ads matching search_terms in the
@@ -85,8 +80,10 @@ import type {
 // corroboration of demand, distinct from Amazon/search/social signals.
 //
 // ── What this provider CANNOT measure ──────────────────────────────────
-//   - Actual ad spend / budget — Meta does not expose this for non-
-//     political ads via this endpoint.
+//   - Actual ad spend / budget — not requested from the actor (the
+//     enrichWithEcommerceData / isDetailsPerAd options that surface spend
+//     estimates are paid add-ons this provider deliberately does not
+//     enable, matching the cost/scope this provider always had).
 //   - True total ad count beyond one page — a full historical count would
 //     require paginating every result, which this provider does not do
 //     (cost/latency tradeoff, matching the single-page-fetch pattern
@@ -100,11 +97,19 @@ import type {
 //   matching the minimum-sample-gate convention used elsewhere in this
 //   codebase (e.g. lib/scoring.ts's REVIEW_MOAT_MIN_REVIEWS).
 
-const API_VERSION = 'v21.0'
-const BASE_URL = `https://graph.facebook.com/${API_VERSION}/ads_archive`
+// junglee~amazon-crawler in providers/competition.ts is this same actor
+// family's sibling — same run-sync-get-dataset-items call shape, same
+// APIFY_API_TOKEN, same timeout reasoning (see fetchAds below).
+const ACTOR_ENDPOINT = 'https://api.apify.com/v2/acts/apify~facebook-ads-scraper/run-sync-get-dataset-items'
 export const MIN_AD_SAMPLE = 3
 export const PAGE_LIMIT = 100
 
+// Internal normalized shape — unchanged from the original Meta API
+// integration. Every pure function below (computeAdStartRange,
+// computeRecentAdStartPct, computeAdDurations, computeSignals) operates on
+// this shape and required zero changes for the Apify migration; only
+// normalizeApifyAd (below) and fetchAds (in the class) had to change to
+// populate it from a different source.
 interface MetaAd {
   id?: string
   page_id?: string
@@ -114,9 +119,52 @@ interface MetaAd {
   publisher_platforms?: string[]
 }
 
-interface MetaAdsArchiveResponse {
-  data?: MetaAd[]
-  error?: { message?: string; code?: number }
+// Raw Apify dataset item shape — NOT LIVE-VERIFIED, see file header.
+// Multiple plausible field-name variants are checked defensively per field
+// since the exact casing/naming was not confirmed against a live response.
+interface ApifyFacebookAd {
+  adArchiveID?: string
+  ad_archive_id?: string
+  id?: string
+  pageID?: string
+  pageId?: string
+  page_id?: string
+  pageName?: string
+  page_name?: string
+  startDate?: number | string
+  startDateFormatted?: string
+  start_date?: number | string
+  endDate?: number | string
+  endDateFormatted?: string
+  end_date?: number | string
+  publisherPlatform?: string[]
+  publisher_platform?: string[]
+}
+
+// Apify/Meta unix timestamps observed in the wild are seconds, not
+// milliseconds — a value above 1e12 is treated as already-milliseconds
+// defensively (never misinterprets either scale). Returns undefined
+// (absence, not a fabricated date) for anything unparseable.
+function parseApifyDate(value: number | string | undefined): string | undefined {
+  if (value === undefined || value === null || value === '') return undefined
+  const ms = typeof value === 'number' ? (value > 1e12 ? value : value * 1000) : Date.parse(value)
+  if (isNaN(ms)) return undefined
+  return new Date(ms).toISOString()
+}
+
+// Maps one raw Apify dataset item onto the same internal MetaAd shape the
+// original Meta API integration always produced — this is the entire
+// surface area the Apify migration touches; every computation downstream
+// is unaware of where the data came from.
+export function normalizeApifyAd(raw: ApifyFacebookAd): MetaAd {
+  return {
+    id:                     raw.adArchiveID ?? raw.ad_archive_id ?? raw.id,
+    page_id:                raw.pageID ?? raw.pageId ?? raw.page_id,
+    page_name:              raw.pageName ?? raw.page_name,
+    ad_delivery_start_time: parseApifyDate(raw.startDateFormatted ?? raw.startDate ?? raw.start_date),
+    ad_delivery_stop_time:  parseApifyDate(raw.endDateFormatted ?? raw.endDate ?? raw.end_date),
+    publisher_platforms:    raw.publisherPlatform ?? raw.publisher_platform,
+  }
 }
 
 // ── Signal scoring ──────────────────────────────────────────────────────
@@ -214,21 +262,21 @@ export function computeAdDurations(
 
 export class MetaAdsProvider implements SignalProvider {
   readonly name    = 'meta-ads'
-  readonly enabled = !!process.env.META_ADS_ACCESS_TOKEN
+  readonly enabled = !!process.env.APIFY_API_TOKEN
 
   async fetch(ctx: SignalContext): Promise<ProviderSignals | null> {
-    const token = process.env.META_ADS_ACCESS_TOKEN
-    if (!token) return null
+    if (!this.enabled) return null
 
     const query = ctx.query.trim()
     if (!query) return null
 
     try {
-      const ads = await this.fetchAds(query, token)
-      if (!ads || ads.length < MIN_AD_SAMPLE) {
-        console.log('Meta Ads: below minimum sample', { query, found: ads?.length ?? 0, min: MIN_AD_SAMPLE })
+      const rawAds = await this.fetchAds(query)
+      if (!rawAds || rawAds.length < MIN_AD_SAMPLE) {
+        console.log('Meta Ads: below minimum sample', { query, found: rawAds?.length ?? 0, min: MIN_AD_SAMPLE })
         return null
       }
+      const ads = rawAds.map(normalizeApifyAd)
       return this.computeSignals(query, ads)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -237,41 +285,65 @@ export class MetaAdsProvider implements SignalProvider {
     }
   }
 
-  // ── Private: single search-terms fetch ─────────────────────────────────
+  // ── Private: build a public Ad Library search URL for this query ───────
+  // Standard, stable, publicly-documented Ad Library website URL shape —
+  // this is the same URL a person would visit manually; the actor scrapes
+  // whatever it renders. active_status=all (not just "active") matches the
+  // original provider's ad_active_status=ALL — we compute active_ad_pct
+  // ourselves from the returned dates rather than pre-filtering.
 
-  private async fetchAds(query: string, token: string): Promise<MetaAd[] | null> {
+  private buildSearchUrl(query: string): string {
     const params = new URLSearchParams({
-      access_token: token,
-      search_terms: query,
-      ad_reached_countries: JSON.stringify(['US']),
-      ad_type: 'ALL',
-      ad_active_status: 'ALL',
-      fields: 'id,page_id,page_name,ad_delivery_start_time,ad_delivery_stop_time,publisher_platforms',
-      limit: String(PAGE_LIMIT),
+      active_status: 'all',
+      ad_type:       'all',
+      country:       'US',
+      q:             query,
+      search_type:   'keyword_unordered',
+      media_type:    'all',
     })
+    return `https://www.facebook.com/ads/library/?${params.toString()}`
+  }
+
+  // ── Private: run the Apify actor synchronously, get dataset items ──────
+  // Same run-sync-get-dataset-items call shape as providers/competition.ts's
+  // junglee/amazon-crawler: actor-side timeout=90 plus a client-side
+  // AbortSignal just above it, both kept under the signal engine's shared
+  // 75_000ms race in app/api/generate/route.ts so that shared race — not
+  // this abort — is what actually governs on a slow run.
+
+  private async fetchAds(query: string): Promise<ApifyFacebookAd[] | null> {
+    const token = process.env.APIFY_API_TOKEN
+    if (!token) return null
 
     let res: Response
     try {
-      res = await fetch(`${BASE_URL}?${params.toString()}`, {
-        signal: AbortSignal.timeout(8_000),
+      res = await fetch(`${ACTOR_ENDPOINT}?timeout=90`, {
+        method:  'POST',
+        signal:  AbortSignal.timeout(80_000),
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          startUrls:    [{ url: this.buildSearchUrl(query) }],
+          resultsLimit: PAGE_LIMIT,
+        }),
       })
     } catch { return null }
 
     if (!res.ok) {
-      console.log('Meta Ads: non-OK response', { query, status: res.status })
+      console.log('Meta Ads (Apify): non-OK response', { query, status: res.status })
       return null
     }
 
-    let body: MetaAdsArchiveResponse
-    try { body = await res.json() as MetaAdsArchiveResponse } catch { return null }
+    let items: unknown
+    try { items = await res.json() } catch { return null }
 
-    if (body.error) {
-      console.log('Meta Ads: API error', { query, error: body.error.message })
+    if (!Array.isArray(items)) {
+      console.log('Meta Ads (Apify): unexpected response shape (not an array)', { query })
       return null
     }
-
-    if (!Array.isArray(body.data)) return null
-    return body.data
+    return items as ApifyFacebookAd[]
   }
 
   // ── Private: compute signals ─────────────────────────────────────────

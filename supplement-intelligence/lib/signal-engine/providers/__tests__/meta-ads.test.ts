@@ -1,17 +1,84 @@
-// Meta Ads provider tests — V2 Blueprint §5 / Roadmap M1.5, Milestone 5.
+// Meta Ads provider tests — V2 Blueprint §5 / Roadmap M1.5, Milestone 5;
+// data source replaced 2026-07-13 (Apify facebook-ads-scraper actor
+// replaces the direct Meta Graph API — see the provider's own header
+// comment for why: Meta's Ad Library API is scoped to political/social-
+// issue ads only, confirmed against Meta's own current documentation, not
+// a fixable setup gap).
 //
-// Two layers: pure scoring-function tests (deterministic, no I/O) and
-// class-behavior tests against a mocked global fetch (honest-null handling,
-// credential gating, minimum-sample gate) — no live network call is made
-// anywhere in this suite, consistent with this session's inability to
-// verify the live Meta Ad Library API response shape (see the provider's
-// own header comment).
+// Three layers: pure scoring-function tests (unchanged from the original
+// Meta API integration — computeSignals and everything it calls never
+// changed), normalizeApifyAd tests (the actual surface area this migration
+// touched), and class-behavior tests against a mocked global fetch, now
+// shaped as Apify's run-sync-get-dataset-items response (a bare JSON array)
+// instead of Meta's {data, error} wrapper. No live network call is made
+// anywhere in this suite — Apify credits were exhausted at implementation
+// time, per explicit instruction not to spend them here.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   MetaAdsProvider, adCountToMetaSignal, metaScore, dataConfidence, MIN_AD_SAMPLE, PAGE_LIMIT,
-  computeAdStartRange, computeRecentAdStartPct, computeAdDurations,
+  computeAdStartRange, computeRecentAdStartPct, computeAdDurations, normalizeApifyAd,
 } from '../meta-ads'
+
+describe('normalizeApifyAd — the actual surface area this migration touched', () => {
+  it('maps camelCase Apify fields onto the internal MetaAd shape', () => {
+    const normalized = normalizeApifyAd({
+      adArchiveID: 'ad-123',
+      pageID: 'page-456',
+      pageName: 'Acme Supplements',
+      startDateFormatted: '2026-06-01T00:00:00.000Z',
+      endDateFormatted: '2026-06-15T00:00:00.000Z',
+      publisherPlatform: ['facebook', 'instagram'],
+    })
+    expect(normalized.id).toBe('ad-123')
+    expect(normalized.page_id).toBe('page-456')
+    expect(normalized.page_name).toBe('Acme Supplements')
+    expect(normalized.ad_delivery_start_time).toBe('2026-06-01T00:00:00.000Z')
+    expect(normalized.ad_delivery_stop_time).toBe('2026-06-15T00:00:00.000Z')
+    expect(normalized.publisher_platforms).toEqual(['facebook', 'instagram'])
+  })
+
+  it('falls back to snake_case field name variants when camelCase is absent', () => {
+    const normalized = normalizeApifyAd({
+      ad_archive_id: 'ad-789',
+      page_id: 'page-999',
+      page_name: 'Beta Beauty',
+      publisher_platform: ['instagram'],
+    })
+    expect(normalized.id).toBe('ad-789')
+    expect(normalized.page_id).toBe('page-999')
+    expect(normalized.page_name).toBe('Beta Beauty')
+    expect(normalized.publisher_platforms).toEqual(['instagram'])
+  })
+
+  it('parses unix-seconds timestamps into ISO strings', () => {
+    // 2026-06-01T00:00:00Z in unix seconds
+    const unixSeconds = Math.floor(Date.parse('2026-06-01T00:00:00.000Z') / 1000)
+    const normalized = normalizeApifyAd({ startDate: unixSeconds })
+    expect(normalized.ad_delivery_start_time).toBe('2026-06-01T00:00:00.000Z')
+  })
+
+  it('parses unix-milliseconds timestamps into ISO strings (not misread as seconds)', () => {
+    const unixMs = Date.parse('2026-06-01T00:00:00.000Z')
+    const normalized = normalizeApifyAd({ startDate: unixMs })
+    expect(normalized.ad_delivery_start_time).toBe('2026-06-01T00:00:00.000Z')
+  })
+
+  it('leaves a field undefined (never fabricated) when no variant is present or the date is unparseable', () => {
+    const normalized = normalizeApifyAd({ startDate: 'not-a-real-date' })
+    expect(normalized.ad_delivery_start_time).toBeUndefined()
+    expect(normalized.id).toBeUndefined()
+    expect(normalized.page_id).toBeUndefined()
+  })
+
+  it('prefers the formatted date string over the raw timestamp when both are present', () => {
+    const normalized = normalizeApifyAd({
+      startDateFormatted: '2026-06-01T00:00:00.000Z',
+      startDate: 0, // would parse to 1970 if wrongly preferred
+    })
+    expect(normalized.ad_delivery_start_time).toBe('2026-06-01T00:00:00.000Z')
+  })
+})
 
 describe('adCountToMetaSignal', () => {
   it('classifies ad count into High/Medium/Low tiers', () => {
@@ -70,33 +137,38 @@ describe('dataConfidence', () => {
   })
 })
 
-// ── Class behavior (mocked fetch) ──────────────────────────────────────────
+// ── Class behavior (mocked fetch, Apify run-sync-get-dataset-items shape) ──
+// Apify's endpoint returns the dataset items as a bare JSON array directly
+// — no {data, error} wrapper like the old Meta API had. Field names are
+// Apify's camelCase (adArchiveID, pageID, startDateFormatted, ...), not
+// Meta's (id, page_id, ad_delivery_start_time, ...) — normalizeApifyAd
+// bridges the two, tested separately above.
 
-const ORIGINAL_TOKEN = process.env.META_ADS_ACCESS_TOKEN
+const ORIGINAL_TOKEN = process.env.APIFY_API_TOKEN
 
-function mockAdsResponse(ads: Array<{ page_id?: string; ad_delivery_start_time?: string; ad_delivery_stop_time?: string }>) {
+function mockAdsResponse(ads: Array<{ pageID?: string; startDateFormatted?: string; endDateFormatted?: string }>) {
   return {
     ok: true,
     status: 200,
-    json: async () => ({ data: ads.map((a, i) => ({ id: `ad-${i}`, ...a })) }),
+    json: async () => ads.map((a, i) => ({ adArchiveID: `ad-${i}`, ...a })),
   } as Response
 }
 
 describe('MetaAdsProvider — credential gating', () => {
-  afterEach(() => { process.env.META_ADS_ACCESS_TOKEN = ORIGINAL_TOKEN })
+  afterEach(() => { process.env.APIFY_API_TOKEN = ORIGINAL_TOKEN })
 
-  it('is disabled when META_ADS_ACCESS_TOKEN is unset', () => {
-    delete process.env.META_ADS_ACCESS_TOKEN
+  it('is disabled when APIFY_API_TOKEN is unset', () => {
+    delete process.env.APIFY_API_TOKEN
     expect(new MetaAdsProvider().enabled).toBe(false)
   })
 
-  it('is enabled when META_ADS_ACCESS_TOKEN is set', () => {
-    process.env.META_ADS_ACCESS_TOKEN = 'test-token'
+  it('is enabled when APIFY_API_TOKEN is set', () => {
+    process.env.APIFY_API_TOKEN = 'test-token'
     expect(new MetaAdsProvider().enabled).toBe(true)
   })
 
   it('fetch() returns null immediately when no token is present, without calling fetch', async () => {
-    delete process.env.META_ADS_ACCESS_TOKEN
+    delete process.env.APIFY_API_TOKEN
     const fetchSpy = vi.spyOn(global, 'fetch')
     const result = await new MetaAdsProvider().fetch({ query: 'creatine gummies' })
     expect(result).toBeNull()
@@ -106,11 +178,11 @@ describe('MetaAdsProvider — credential gating', () => {
 })
 
 describe('MetaAdsProvider — honest-null handling', () => {
-  beforeEach(() => { process.env.META_ADS_ACCESS_TOKEN = 'test-token' })
-  afterEach(() => { process.env.META_ADS_ACCESS_TOKEN = ORIGINAL_TOKEN; vi.restoreAllMocks() })
+  beforeEach(() => { process.env.APIFY_API_TOKEN = 'test-token' })
+  afterEach(() => { process.env.APIFY_API_TOKEN = ORIGINAL_TOKEN; vi.restoreAllMocks() })
 
   it('returns null when below the minimum ad sample (thin data — honest null, not a shaky score)', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(mockAdsResponse([{ page_id: 'p1' }, { page_id: 'p2' }]))
+    vi.spyOn(global, 'fetch').mockResolvedValue(mockAdsResponse([{ pageID: 'p1' }, { pageID: 'p2' }]))
     const result = await new MetaAdsProvider().fetch({ query: 'obscure niche product' })
     expect(result).toBeNull()
   })
@@ -121,10 +193,10 @@ describe('MetaAdsProvider — honest-null handling', () => {
     expect(result).toBeNull()
   })
 
-  it('returns null when the API response contains an error field', async () => {
+  it('returns null when the actor returns a non-array response (unexpected shape)', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true, status: 200,
-      json: async () => ({ error: { message: 'Invalid access token', code: 190 } }),
+      json: async () => ({ error: 'actor run failed' }),
     } as Response)
     const result = await new MetaAdsProvider().fetch({ query: 'creatine gummies' })
     expect(result).toBeNull()
@@ -154,13 +226,13 @@ describe('MetaAdsProvider — honest-null handling', () => {
 })
 
 describe('MetaAdsProvider — real-data computation', () => {
-  beforeEach(() => { process.env.META_ADS_ACCESS_TOKEN = 'test-token' })
-  afterEach(() => { process.env.META_ADS_ACCESS_TOKEN = ORIGINAL_TOKEN; vi.restoreAllMocks() })
+  beforeEach(() => { process.env.APIFY_API_TOKEN = 'test-token' })
+  afterEach(() => { process.env.APIFY_API_TOKEN = ORIGINAL_TOKEN; vi.restoreAllMocks() })
 
-  it('computes advertiser_count as the DISTINCT count of page_id values, not the raw ad count', async () => {
+  it('computes advertiser_count as the DISTINCT count of pageID values, not the raw ad count', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(mockAdsResponse([
-      { page_id: 'brandA' }, { page_id: 'brandA' }, { page_id: 'brandA' },
-      { page_id: 'brandB' }, { page_id: 'brandB' },
+      { pageID: 'brandA' }, { pageID: 'brandA' }, { pageID: 'brandA' },
+      { pageID: 'brandB' }, { pageID: 'brandB' },
     ]))
     const result = await new MetaAdsProvider().fetch({ query: 'creatine gummies' })
     expect(result).not.toBeNull()
@@ -172,10 +244,10 @@ describe('MetaAdsProvider — real-data computation', () => {
     const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     const past   = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     vi.spyOn(global, 'fetch').mockResolvedValue(mockAdsResponse([
-      { page_id: 'p1' },                              // no stop time -> active
-      { page_id: 'p2', ad_delivery_stop_time: future }, // future stop -> active
-      { page_id: 'p3', ad_delivery_stop_time: past },   // past stop -> inactive
-      { page_id: 'p4', ad_delivery_stop_time: past },   // past stop -> inactive
+      { pageID: 'p1' },                             // no stop time -> active
+      { pageID: 'p2', endDateFormatted: future },    // future stop -> active
+      { pageID: 'p3', endDateFormatted: past },      // past stop -> inactive
+      { pageID: 'p4', endDateFormatted: past },      // past stop -> inactive
     ]))
     const result = await new MetaAdsProvider().fetch({ query: 'creatine gummies' })
     expect(result!.virality!.active_ad_pct).toBeCloseTo(0.5, 5) // 2 of 4 active
@@ -183,7 +255,7 @@ describe('MetaAdsProvider — real-data computation', () => {
 
   it('produces a valid ProviderSignals shape with provider name and matching top-level confidence', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(mockAdsResponse(
-      Array.from({ length: 10 }, (_, i) => ({ page_id: `brand-${i}` })),
+      Array.from({ length: 10 }, (_, i) => ({ pageID: `brand-${i}` })),
     ))
     const result = await new MetaAdsProvider().fetch({ query: 'creatine gummies' })
     expect(result).not.toBeNull()
@@ -194,7 +266,7 @@ describe('MetaAdsProvider — real-data computation', () => {
 
   it('never fabricates ad_spend or a total count beyond the fetched page — those fields simply do not exist on the output', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(mockAdsResponse([
-      { page_id: 'p1' }, { page_id: 'p2' }, { page_id: 'p3' },
+      { pageID: 'p1' }, { pageID: 'p2' }, { pageID: 'p3' },
     ]))
     const result = await new MetaAdsProvider().fetch({ query: 'creatine gummies' })
     expect(result!.virality).not.toHaveProperty('ad_spend')
@@ -205,9 +277,9 @@ describe('MetaAdsProvider — real-data computation', () => {
     const now = Date.now()
     const iso = (daysAgo: number) => new Date(now - daysAgo * 24 * 60 * 60 * 1000).toISOString()
     vi.spyOn(global, 'fetch').mockResolvedValue(mockAdsResponse([
-      { page_id: 'p1', ad_delivery_start_time: iso(200) },                             // old, still active
-      { page_id: 'p2', ad_delivery_start_time: iso(30),  ad_delivery_stop_time: iso(10) }, // concluded, 20-day run
-      { page_id: 'p3', ad_delivery_start_time: iso(5) },                               // recent, still active
+      { pageID: 'p1', startDateFormatted: iso(200) },                                   // old, still active
+      { pageID: 'p2', startDateFormatted: iso(30), endDateFormatted: iso(10) },          // concluded, 20-day run
+      { pageID: 'p3', startDateFormatted: iso(5) },                                     // recent, still active
     ]))
     const result = await new MetaAdsProvider().fetch({ query: 'creatine gummies' })
     expect(result).not.toBeNull()
@@ -221,6 +293,21 @@ describe('MetaAdsProvider — real-data computation', () => {
     expect(v.recent_ad_start_pct).toBeCloseTo(2 / 3, 2)
     expect(v.avg_concluded_ad_duration_days).toBeCloseTo(20, 0)
     expect(v.avg_active_ad_age_days).toBeGreaterThan(0)
+  })
+
+  it('passes a public Ad Library search URL (not the old Meta API endpoint) as the actor input', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(mockAdsResponse(
+      Array.from({ length: 5 }, (_, i) => ({ pageID: `brand-${i}` })),
+    ))
+    await new MetaAdsProvider().fetch({ query: 'creatine gummies' })
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(String(url)).toContain('api.apify.com/v2/acts/apify~facebook-ads-scraper/run-sync-get-dataset-items')
+    expect(String(url)).not.toContain('graph.facebook.com')
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.startUrls[0].url).toContain('facebook.com/ads/library')
+    // URLSearchParams encodes spaces as '+', not %20
+    expect(body.startUrls[0].url).toContain('creatine+gummies')
   })
 })
 
