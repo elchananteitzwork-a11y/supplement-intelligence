@@ -17,10 +17,27 @@
 // mini-cards were dropped outright — superseded by the much more detailed
 // real evidence panels Demand Intensity/Concordance and Supply Landscape
 // already render further down, so keeping both was pure duplication.
+//
+// Phase 3 integration (Roadmap M2.2/M2.4, 2026-07-13): Stitch's circular
+// "phase" gauge used to show groundedPct (Evidence Breadth's grounded
+// flag) as a stand-in — groundedPct is a binary 0/100 value, not a
+// continuous quantity, so a circular gauge could only ever show a full or
+// empty ring. That stand-in is replaced here with the real lifecycle
+// stage (lib/lifecycle.ts), using the same LifecycleArc primitive already
+// built for exactly this "real, sparse discrete-stage data" case
+// (components/ui/LifecycleArc.tsx). Also adds, as new real rows within
+// this same bordered panel (not a new section, not a layout change): the
+// real gap-velocity metric and the Roadmap M2.4 V2 verdict/quality — kept
+// visually and semantically separate from the legacy BuildDecision pill
+// per explicit instruction, since the two verdict systems are independent
+// and not guaranteed to agree.
 // ═══════════════════════════════════════════════════════════════════════
 
 import type { MemoData, BuildDecision } from '@/types/index'
 import { computeGroundedScore } from '@/lib/scoring'
+import { LifecycleArc, VerdictBadge } from '@/components/ui'
+import { lifecycleProvenance, gapVelocityProvenance, v2VerdictProvenance } from '@/lib/provenance'
+import { ProvenanceBadge, deriveLifecycleDisplay, formatGapVelocity, deriveV2VerdictDisplay, LabNoData } from './shared'
 
 const PILL_CFG: Record<BuildDecision, { label: string; bg: string; text: string }> = {
   BUILD_NOW:                   { label: 'Entry Supported',     bg: 'bg-verdict-positive', text: 'text-white' },
@@ -29,39 +46,88 @@ const PILL_CFG: Record<BuildDecision, { label: string; bg: string; text: string 
   CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation',   bg: 'bg-black',            text: 'text-white' },
 }
 
-function RadialGauge({ pct }: { pct: number }) {
-  const r = 40, c = 2 * Math.PI * r
-  return (
-    <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
-      <svg className="w-full h-full -rotate-90" viewBox="0 0 96 96">
-        <circle cx="48" cy="48" r={r} fill="none" stroke="#e2e2e2" strokeWidth="8" />
-        <circle cx="48" cy="48" r={r} fill="none" stroke="#000000" strokeWidth="8"
-          strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} style={{ transition: 'stroke-dashoffset 400ms ease' }} />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-mono text-[9px] leading-none uppercase text-outline">Grounded</span>
-        <span className="font-bold text-lg leading-none mt-1">{pct}%</span>
+function LifecycleStageBlock({ m }: { m: MemoData }) {
+  const lifecycle = deriveLifecycleDisplay(m)
+  if (!lifecycle) {
+    return (
+      <div className="w-full sm:w-auto sm:min-w-[280px] shrink-0">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Lifecycle Stage</span>
+        </div>
+        <LabNoData label="Not computed for this analysis" />
       </div>
+    )
+  }
+  return (
+    <div className="w-full sm:w-auto sm:min-w-[280px] shrink-0">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Lifecycle Stage</span>
+        <ProvenanceBadge p={lifecycleProvenance()} />
+      </div>
+      <LifecycleArc stages={lifecycle.stages} currentIndex={lifecycle.currentIndex} />
+      {lifecycle.unmeasuredScience && (
+        <p className="text-[10px] text-outline italic mt-2">Classified without a real Science-dimension signal for this query.</p>
+      )}
+    </div>
+  )
+}
+
+function GapVelocityRow({ m }: { m: MemoData }) {
+  const gv = formatGapVelocity(m.gap_velocity)
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-black pt-3 mt-3">
+      <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Gap Velocity</span>
+      {gv ? (
+        <div className="flex items-center gap-2">
+          <span className={`font-mono font-bold text-sm ${gv.value > 0 ? 'text-verdict-positive' : gv.value < 0 ? 'text-verdict-negative' : 'text-ink-variant'}`}>{gv.display}</span>
+          <ProvenanceBadge p={gapVelocityProvenance()} />
+        </div>
+      ) : <LabNoData label="Not available — demand or supply acceleration missing" />}
+    </div>
+  )
+}
+
+function V2VerdictRow({ m }: { m: MemoData }) {
+  const v2 = deriveV2VerdictDisplay(m.opportunity_quality, m.market_verdict)
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-black pt-3 mt-3">
+      <div>
+        <span className="text-[10px] font-mono text-outline uppercase tracking-widest">V2 Decision Model</span>
+        <p className="text-[9px] text-outline italic mt-0.5">Separate, parallel verdict — not guaranteed to match the pill above.</p>
+      </div>
+      {v2 ? (
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs text-ink-variant">Quality {v2.qualityScore}/100 ({v2.qualityTier})</span>
+          <VerdictBadge scheme="v2-verdict" verdict={v2.verdict} />
+          <ProvenanceBadge p={v2VerdictProvenance()} />
+        </div>
+      ) : <LabNoData label="Not computed for this analysis" />}
     </div>
   )
 }
 
 export default function CurrentSignal({ m }: { m: MemoData; generatedAt?: string }) {
-  const { score, decision, groundedPct, insufficientEvidence } = computeGroundedScore(m)
+  const { score, decision, insufficientEvidence } = computeGroundedScore(m)
   const cfg = insufficientEvidence ? { label: 'Insufficient Data', bg: 'bg-white border-2 border-black', text: 'text-ink' } : PILL_CFG[decision]
   const consumerIntelTimedOut = !m.consumer_intelligence && !!m.signal_metadata?.consumer_intelligence_attempted
 
   return (
     <section id="current-signal" className="scroll-mt-20">
-      <div className="flex items-center justify-between gap-6 p-6 sm:p-8 border-2 border-black bg-white">
-        <div className="min-w-0">
-          <p className="text-[10px] font-mono text-outline uppercase tracking-widest mb-2">Current Signal</p>
-          <div className={`inline-block px-4 py-2 font-bold text-headline-md leading-none mb-1 ${cfg.bg} ${cfg.text}`}>
-            {cfg.label}
+      <div className="p-6 sm:p-8 border-2 border-black bg-white">
+        <div className="flex items-center justify-between gap-6">
+          <div className="min-w-0">
+            <p className="text-[10px] font-mono text-outline uppercase tracking-widest mb-2">Current Signal</p>
+            <div className={`inline-block px-4 py-2 font-bold text-headline-md leading-none mb-1 ${cfg.bg} ${cfg.text}`}>
+              {cfg.label}
+            </div>
+            <p className="font-mono text-xs text-outline mt-2">{m.category_name} — {score} / 100</p>
+            <p className="text-[9px] text-outline uppercase tracking-wider mt-1">Legacy build-decision verdict</p>
           </div>
-          <p className="font-mono text-xs text-outline mt-2">{m.category_name} — {score} / 100</p>
+          <LifecycleStageBlock m={m} />
         </div>
-        <RadialGauge pct={groundedPct} />
+
+        <GapVelocityRow m={m} />
+        <V2VerdictRow m={m} />
       </div>
 
       {consumerIntelTimedOut && (

@@ -97,10 +97,11 @@ function RiskAssessment({ m }: { m: MemoData }) {
 }
 
 // Kill Criteria moved out to its own top-level Stitch-mapped section
-// (rendered directly in MemoDisplay.tsx via deriveKillCriteria +
-// KillCriteriaList) — Stitch's Investor Report treats "Strategic
-// Readiness" and "Kill Criteria" as two distinct sections (a bordered
-// white card vs. a full-bleed black panel), not one bundled component.
+// (rendered directly in MemoDisplay.tsx via the real Roadmap M2.8
+// memo.kill_criteria + deriveKillCriteriaItems + KillCriteriaList) —
+// Stitch's Investor Report treats "Strategic Readiness" and "Kill
+// Criteria" as two distinct sections (a bordered white card vs. a
+// full-bleed black panel), not one bundled component.
 export default function StrategicReadinessChecklist({ m, decision }: { m: MemoData; decision: BuildDecision }) {
   const budget  = deriveValidationBudget(m, decision)
   const metrics = deriveSuccessMetrics(m)

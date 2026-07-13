@@ -12,11 +12,12 @@ import { Fragment } from 'react'
 import type { MemoData } from '@/types/index'
 import {
   legacyCompetitionProvenance, marketSaturationProvenance, competitionEvidenceProvenance,
-  marketAccessibilityProvenance, biggestCompetitorProvenance, STATIC_PROVENANCE, type Provenance,
+  marketAccessibilityProvenance, biggestCompetitorProvenance, supplyVelocityProvenance, STATIC_PROVENANCE, type Provenance,
 } from '@/lib/provenance'
 import { HardCard } from '@/components/ui'
 import {
   ProvenanceBadge, ProvenanceCaption, LabNoData, NumList, SignalBars, mapAccessibility, truncateLabel,
+  deriveSupplyVelocityDisplay,
 } from './shared'
 
 interface EvidenceRowSpec { label: string; value: string | undefined; provenance: Provenance | null }
@@ -301,6 +302,47 @@ function SupplySnapshot({ m }: { m: MemoData }) {
   )
 }
 
+// ── Roadmap M2.3 (Phase 3 integration) — real new-listing velocity ──────
+// This is the real data Stitch's own §4 left-card ("24-month new-listings
+// trend bar chart") wanted — SupplySnapshot's own header comment
+// previously said no historical listings series existed to draw that
+// honestly; M2.3 shipped exactly this (a real listedSince-derived
+// distribution, not a fabricated chart) after that comment was written.
+// Null (honest unavailable state) when the real competitive-set sample
+// was too small for Keepa's own minimum-sample gate.
+function SupplyVelocityPanel({ m }: { m: MemoData }) {
+  const sv = deriveSupplyVelocityDisplay(m.signal_evidence?.supply_velocity?.value)
+  return (
+    <div className="bg-white border border-black p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-xs font-semibold text-black">New-Listing Velocity (Supply Response)</p>
+        {sv && <ProvenanceBadge p={supplyVelocityProvenance()} />}
+      </div>
+      {sv ? (
+        <>
+          <div className="border border-black divide-y divide-black">
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <span className="text-xs text-outline">Listed within last 12 months</span>
+              <span className="font-mono text-sm font-semibold text-black">{sv.youngListingPct12m !== null ? `${Math.round(sv.youngListingPct12m * 100)}%` : <LabNoData />}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <span className="text-xs text-outline">Listed within last 24 months</span>
+              <span className="font-mono text-sm font-semibold text-black">{sv.youngListingPct24m !== null ? `${Math.round(sv.youngListingPct24m * 100)}%` : <LabNoData />}</span>
+            </div>
+          </div>
+          <p className="text-[11px] text-outline italic mt-3 leading-relaxed">
+            {sv.entryVelocity
+              ? `New-entrant pace: ${sv.entryVelocity} (single-snapshot proxy, not a true two-point-in-time delta).`
+              : 'New-entrant pace not available for this sample.'}
+          </p>
+        </>
+      ) : (
+        <LabNoData label="Not available — competitive-set sample too small for a real listedSince read" />
+      )}
+    </div>
+  )
+}
+
 export default function SupplyLandscape({ m }: { m: MemoData }) {
   const sig = m.signal_metadata
   const comp = m.biggest_competitor
@@ -311,6 +353,10 @@ export default function SupplyLandscape({ m }: { m: MemoData }) {
   return (
     <div className="space-y-6">
       <SupplySnapshot m={m} />
+
+      <div className="pt-5 border-t border-black">
+        <SupplyVelocityPanel m={m} />
+      </div>
 
       <div className="grid gap-3 pt-5 border-t border-black">
         <CompetitionEvidencePanel m={m} />

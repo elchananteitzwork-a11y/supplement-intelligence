@@ -43,9 +43,10 @@
 import { useState, useEffect, useRef } from 'react'
 import type { MemoData, BuildDecision } from '@/types/index'
 import { computeGroundedScore } from '@/lib/scoring'
+import { computeConfidenceAssessment } from '@/lib/confidence'
 import { verdictLabelFromDecision } from '@/lib/ai-interpretation/verdict'
 import { HardCard, KillCriteriaList } from '@/components/ui'
-import { computeConfidence, deriveKillCriteria } from './shared'
+import { deriveKillCriteriaItems } from './shared'
 import CurrentSignal from './CurrentSignal'
 import EvidenceConfidence from './EvidenceConfidence'
 import DemandIntensity from './DemandIntensity'
@@ -161,12 +162,20 @@ function ReportSection({ id, title, children }: { id: string; title: string; chi
 }
 
 export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; generatedAt?: string }) {
-  const { decision } = computeGroundedScore(m)
-  const confidence = computeConfidence(m)
+  const grounded = computeGroundedScore(m)
+  const { decision } = grounded
+  // Roadmap M1.4 (Phase 3 integration): the exact same real, pure function
+  // app/api/generate/route.ts already calls server-side, given the exact
+  // same grounded inputs recomputed above (same pattern this component
+  // already used for `decision` itself) — a bit-for-bit identical result,
+  // not a second, divergent confidence calculation.
+  const confidenceAssessment = computeConfidenceAssessment(grounded)
   const containerRef = useRef<HTMLDivElement>(null)
   const sections = getSections(m)
   const [activeSection, setActiveSection] = useState(sections[0].id)
-  const kill = deriveKillCriteria(m)
+  // Roadmap M2.8: real, machine-evaluable kill criteria — null (never a
+  // fabricated list) when this analysis predates the feature.
+  const killItems = deriveKillCriteriaItems(m.kill_criteria)
 
   function jumpTo(id: string) {
     setActiveSection(id)
@@ -225,9 +234,19 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
         <ReportSection id="strategic-readiness" title="Strategic Readiness"><StrategicReadinessChecklist m={m} decision={decision} /></ReportSection>
 
         {/* ── Section 8: Kill Criteria — full-bleed black, matching
-            Stitch's only inverted section (Investor Report §8) ─────── */}
+            Stitch's only inverted section (Investor Report §8). Roadmap
+            M2.8's real, machine-evaluable memo.kill_criteria — honest
+            unavailable note (not a silently-vanished section) when this
+            analysis predates the feature. ─────────────────────────────── */}
         <section id="kill-criteria" className="scroll-mt-20">
-          <KillCriteriaList title="Kill Criteria — we would reverse this verdict if…" items={kill} />
+          {killItems ? (
+            <KillCriteriaList title="Kill Criteria — we would reverse this verdict if…" items={killItems} />
+          ) : (
+            <div className="bg-black text-white p-gutter">
+              <p className="text-[11px] font-mono uppercase tracking-wider text-white/60 mb-2">Kill Criteria — we would reverse this verdict if…</p>
+              <p className="text-sm text-white/70 italic">Not available — this analysis predates the kill-criteria feature.</p>
+            </div>
+          )}
         </section>
 
         {/* ── Extensions: real backend data with no Stitch section ──── */}
@@ -237,7 +256,7 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
         </div>
 
         <ReportSection id="thesis-detail" title="Investment Thesis Detail"><InvestmentThesis m={m} decision={decision} /></ReportSection>
-        <ReportSection id="evidence-methodology" title="Score Methodology &amp; Evidence Coverage"><EvidenceConfidence m={m} decision={decision} confidence={confidence} /></ReportSection>
+        <ReportSection id="evidence-methodology" title="Score Methodology &amp; Evidence Coverage"><EvidenceConfidence m={m} decision={decision} confidenceAssessment={confidenceAssessment} /></ReportSection>
         <ReportSection id="news-intelligence" title="Recent Market Intelligence"><NewsIntelligence m={m} /></ReportSection>
         {m.review_narrative && (
           <ReportSection id="review-narrative" title="Customer Review Intelligence"><ReviewNarrative m={m} /></ReportSection>

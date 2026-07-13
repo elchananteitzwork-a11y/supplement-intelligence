@@ -7,21 +7,67 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 import type { MemoData, BuildDecision } from '@/types/index'
+import type { ConfidenceAssessment } from '@/lib/confidence'
 import { computeGroundedScore, CHANNEL_COVERAGE_NOTES } from '@/lib/scoring'
 import { checkConsistency } from '@/lib/consistency'
 import { HardCard, WitnessDots } from '@/components/ui'
 import {
   computeEvidenceCoverage, opportunityScoreProvenance,
   consistencyFlagProvenance, evidenceBreadthProvenance, channelConcentrationProvenance,
-  coverageNoteProvenance, categoryCreationProvenance,
+  coverageNoteProvenance, categoryCreationProvenance, confidenceAssessmentProvenance,
 } from '@/lib/provenance'
-import { EvidenceBadge, ProvenanceCaption, ConfidencePill, shortFactValue } from './shared'
+import { EvidenceBadge, ProvenanceCaption, ConfidencePill, shortFactValue, deriveConfidenceDisplay } from './shared'
+
+// Roadmap M1.4 (Phase 3 integration) — real independence-aware confidence
+// breakdown per scored dimension. Reuses WitnessDots (already the real
+// evidence-breadth primitive elsewhere in this exact file) for each
+// dimension's own confirmingChannelCount/witnesses.length, instead of a
+// single opaque number.
+function IndependenceConfidenceBlock({ assessment }: { assessment: ConfidenceAssessment }) {
+  const pct = assessment.overallConfidence !== null ? Math.round(assessment.overallConfidence * 100) : null
+  return (
+    <div className="mt-7 pt-6 border-t border-black">
+      <div className="flex items-baseline justify-between gap-3 mb-2">
+        <p className="text-[10px] text-outline uppercase tracking-widest">Independence-Aware Confidence</p>
+        <span className={`font-mono text-lg font-bold ${pct !== null && pct >= 50 ? 'text-verdict-positive' : pct !== null && pct >= 25 ? 'text-verdict-caution-text' : 'text-outline'}`}>
+          {pct !== null ? `${pct}%` : '—'}
+        </span>
+      </div>
+      <p className="text-[11px] text-ink-variant mb-1">
+        {assessment.weakestDimension
+          ? `Weakest-link composite — capped by "${assessment.weakestDimension}," this analysis's least-evidenced load-bearing dimension.`
+          : 'No scored dimension had a real confidence reading for this analysis.'}
+      </p>
+      <p className="text-[11px] text-ink-variant mb-3">
+        Confirmed by {assessment.distinctConfirmingChannels} distinct independent channel{assessment.distinctConfirmingChannels === 1 ? '' : 's'} across all scored dimensions.
+      </p>
+      <ProvenanceCaption p={confidenceAssessmentProvenance()} />
+
+      <div className="mt-3 space-y-2.5">
+        {assessment.dimensions.map(d => (
+          <div key={d.key} className="flex items-center gap-3">
+            <span className="text-xs text-ink-variant w-40 shrink-0 truncate">{d.label}</span>
+            {d.confidence !== null ? (
+              <>
+                <WitnessDots filled={d.confirmingChannelCount} total={Math.max(d.witnesses.length, d.confirmingChannelCount, 1)} size="sm" />
+                <span className="font-mono text-xs text-ink-variant w-10 text-right shrink-0">{Math.round(d.confidence * 100)}%</span>
+              </>
+            ) : (
+              <span className="flex-1 text-xs text-outline italic">No real evidence to be confident about</span>
+            )}
+            {d.channelMismatch && <span className="text-[9px] text-verdict-caution-text uppercase tracking-wider shrink-0">Channel gap</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function EvidenceConfidence({
-  m, decision, confidence,
+  m, decision, confidenceAssessment,
 }: {
   m: MemoData; decision: BuildDecision
-  confidence: { level: 'High' | 'Medium' | 'Low'; note: string }
+  confidenceAssessment: ConfidenceAssessment
 }) {
   const cov = computeEvidenceCoverage(m)
   const { dimensions, groundedPct, insufficientEvidence, evidenceBreadth, categoryCreationContext } = computeGroundedScore(m)
@@ -29,6 +75,7 @@ export default function EvidenceConfidence({
   const qualitative = dimensions.filter(d => d.weight === 0)
   const contributedChannels = evidenceBreadth.channelBreakdown.filter(c => c.contributed)
   const flags = checkConsistency(m, decision)
+  const confidence = deriveConfidenceDisplay(confidenceAssessment)
   const facts = ([
     ['Market', m.market_size ? 'Not independently verified — AI estimate only' : undefined],
     ['Margin', m.gross_margin],
@@ -110,6 +157,8 @@ export default function EvidenceConfidence({
           </div>
         )}
       </div>
+
+      <IndependenceConfidenceBlock assessment={confidenceAssessment} />
 
       {/* Evidence Breadth + Sources */}
       <div className="mt-7 pt-6 border-t border-black">

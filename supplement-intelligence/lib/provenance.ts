@@ -619,3 +619,49 @@ export function categoryCreationProvenance(broadQuery: string): Provenance {
 export function consumerPainLimitationNote(): string {
   return "This score has two components: a pain component (how much real dissatisfaction exists, and how richly customers describe it) and an opportunity component (how specifically customers name structural gaps and explicit improvements across both satisfied and dissatisfied reviewers). The pain component cannot distinguish suffering that a better product would fix from suffering that is structural to the category regardless of quality. The opportunity component measures how clearly customers name what to build — it cannot confirm that the named improvement is technically feasible or that a new entrant could actually deliver it. Treat a high score as 'real, well-documented dissatisfaction with specific, nameable improvement paths' — confirm fixability through your own qualitative read of the quotes above before treating it as a build guarantee."
 }
+
+// ── Phase 3 integration (Roadmap M2.2–M2.5, M2.8) — provenance for the
+// Investor Report fields newly surfaced from the M2 intelligence layer.
+// Same four-tier classification as every provenance function above.
+
+export function lifecycleProvenance(): Provenance {
+  return verified(
+    'Server-side classifier (lib/lifecycle.ts)',
+    "Deterministic six-stage signature-table classification (heuristic-v1) over real, already-scored inputs: cross-channel search/Amazon demand momentum (lib/concordance.ts), the real demand dimension score, and M2.3's real new-listing velocity. No AI involvement. The Science column of the underlying signature table has no real input for most queries — see the 'unmeasured' note when shown."
+  )
+}
+
+export function gapVelocityProvenance(): Provenance {
+  return estimated(
+    'Server-side formula (lib/lifecycle.ts)',
+    "gap_velocity = demand_acceleration_pct − supply_acceleration_normalized_pct. The demand term is Keepa's real 90-day % change in monthlySold. The supply term is M2.3's real new-listing-velocity ratio, normalized onto a comparable percentage scale ((ratio − 0.5) × 200) so the two terms share units — a deliberate, disclosed normalization, not a claim that the two source measurements are the same physical quantity."
+  )
+}
+
+export function supplyVelocityProvenance(): Provenance {
+  return verified(
+    'Keepa listedSince distribution (lib/signal-engine/providers/keepa.ts)',
+    'Real share of the competitive set listed within the last 12/24 months, computed from the same Keepa listedSince field already collected for this analysis — zero additional API cost. entry_velocity is a single-snapshot ratio of the two shares, not a true two-point-in-time delta (no persisted historical snapshot exists to compare against).'
+  )
+}
+
+export function scienceProvenance(): Provenance {
+  return verified(
+    'PubMed + ClinicalTrials.gov (lib/science-engine, nightly batch)',
+    'Real publication counts (one HTTP call per complete calendar year) and a real ClinicalTrials.gov registration total, refreshed nightly for a fixed, small list of tracked ingredients — never a live per-request call. Absent for any query outside that tracked list, which is a coverage gap, not evidence the science base is thin.'
+  )
+}
+
+export function confidenceAssessmentProvenance(): Provenance {
+  return estimated(
+    'Independence-aware confidence model (lib/confidence)',
+    'Real channel-independence formula: confidence(dimension) = 1 − Π(1 − rᵢ) over the distinct real channels that actually confirmed it for this query (signals sharing a channel tag count once, at their max reliability). Composite confidence is weakest-link (minimum across dimensions), never an average. This is the same real model that gates BUILD_NOW server-side — not a separate, cosmetic number.'
+  )
+}
+
+export function v2VerdictProvenance(): Provenance {
+  return estimated(
+    'Two-axis decision model (lib/verdict-matrix.ts)',
+    "Axis 1 (Opportunity Quality, 0-100) is a four-pillar regrouping of this analysis's own already-scored dimensions — timing never enters it. Axis 2 is the lifecycle stage above. The verdict shown is the Quality × Lifecycle matrix cell (Blueprint §8) — a separate, parallel decision system from the legacy build-decision verdict; the two are computed independently and are not guaranteed to agree."
+  )
+}

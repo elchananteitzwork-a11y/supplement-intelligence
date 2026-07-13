@@ -18,9 +18,10 @@ import {
   demandMomentum90dProvenance, topRegionsProvenance, revenueEvidenceProvenance, unitsSoldProvenance,
   categoryReviewDataProvenance, realFeeDataProvenance, type Provenance,
 } from '@/lib/provenance'
-import { ProvenanceBadge, LabNoData, SignalBars, LEVEL_TO_SIGNAL, dimLevel } from './shared'
+import { ProvenanceBadge, LabNoData, SignalBars, LEVEL_TO_SIGNAL, dimLevel, deriveScienceDisplay } from './shared'
 import KeywordIntelligence from './KeywordIntelligence'
 import type { ConcordanceMatrix, Momentum } from '@/lib/concordance'
+import { scienceProvenance } from '@/lib/provenance'
 
 // ── Roadmap M2.1: per-channel scorecard ─────────────────────────────────
 // "Each demand channel emits accelerating/stable/decelerating/absent;
@@ -248,6 +249,46 @@ function TikTokSignalCard({
   )
 }
 
+// ── Roadmap M2.5 (Phase 3 integration) — real science signal ────────────
+// Blueprint §2 Pillar 1 lists science (publication/trial velocity) as a
+// real demand-side leading indicator. Absent for the large majority of
+// real analyses (the nightly batch only tracks a small, fixed ingredient
+// list — lib/science-engine/tracked-ingredients.ts) — kept as a single
+// compact disclosure line rather than a full empty card so the common
+// case doesn't clutter this section.
+function ScienceSignalRow({ m }: { m: MemoData }) {
+  const sci = deriveScienceDisplay(m.signal_evidence?.science?.value)
+  if (!sci) {
+    return (
+      <p className="text-[11px] text-outline italic py-2">
+        Science signal (publication/trial velocity): not tracked for this query — the nightly batch covers a small, fixed ingredient list only.
+      </p>
+    )
+  }
+  return (
+    <div className="bg-white border border-black p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-xs font-semibold text-black">Science Signal — {sci.ingredient}</p>
+        <ProvenanceBadge p={scienceProvenance()} />
+      </div>
+      <div className="border border-black divide-y divide-black">
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+          <span className="text-xs text-outline">Publication Trend</span>
+          <span className="font-mono text-sm font-semibold text-black">{sci.publicationTrend ?? <LabNoData />}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+          <span className="text-xs text-outline">Publication Velocity (YoY)</span>
+          <span className="font-mono text-sm font-semibold text-black">{sci.publicationVelocityPct !== null ? `${sci.publicationVelocityPct > 0 ? '+' : ''}${sci.publicationVelocityPct}%` : <LabNoData />}</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+          <span className="text-xs text-outline">Registered Clinical Trials</span>
+          <span className="font-mono text-sm font-semibold text-black">{sci.trialRegistrationsCount ?? <LabNoData />}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DemandIntensity({ m }: { m: MemoData }) {
   const subscriptionLevel = dimLevel(m, 'subscription')
   const sig = m.signal_metadata
@@ -277,6 +318,10 @@ export default function DemandIntensity({ m }: { m: MemoData }) {
           <ConcordanceMatrixCard matrix={m.concordance_matrix} />
         </div>
       )}
+
+      <div className="pt-5 border-t border-black">
+        <ScienceSignalRow m={m} />
+      </div>
 
       <div className="grid gap-3 pt-5 border-t border-black">
         <DemandEvidencePanel m={m} />

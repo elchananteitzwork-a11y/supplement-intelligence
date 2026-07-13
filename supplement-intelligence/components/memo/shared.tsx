@@ -14,6 +14,24 @@ import { useState } from 'react'
 import type { MemoData, BuildDecision } from '@/types/index'
 import type { Provenance, ProvenanceLevel } from '@/lib/provenance'
 
+// Phase 3 Investor Report integration (Roadmap M2.2–M2.5, M2.8, M1.4): the
+// pure field-derivation functions live in field-derivations.ts (a plain
+// .ts module, no JSX) so they're directly testable without a React
+// component-testing toolchain — re-exported here so every existing
+// `from './shared'` import site is unaffected.
+export {
+  deriveConfidenceDisplay,
+  deriveKillCriteriaItems,
+  deriveLifecycleDisplay, LIFECYCLE_STAGES,
+  formatGapVelocity,
+  deriveV2VerdictDisplay,
+  deriveSupplyVelocityDisplay,
+  deriveScienceDisplay,
+} from './field-derivations'
+export type {
+  LifecycleDisplay, GapVelocityDisplay, V2VerdictDisplay, SupplyVelocityDisplay, ScienceDisplay,
+} from './field-derivations'
+
 // ── Provenance disclosure ────────────────────────────────────────────────
 // Every real-vs-AI-judgment claim in the memo carries one of these. Direct
 // successor to components/lab/Badges.tsx's EvidenceBadge/ProvenanceBadge/
@@ -194,21 +212,6 @@ export function mapAccessibility(score: number) {
               : score <= 7 ? 'Real — incumbents miss specific segments or price tiers'
               :              'Wide — early market with limited brand concentration',
   }
-}
-
-export function computeConfidence(m: MemoData): { level: 'High' | 'Medium' | 'Low'; note: string } {
-  const na  = 'N/A'
-  const hit = [
-    !!(m.biggest_competitor?.name             && m.biggest_competitor.name   !== na),
-    !!(m.market_size                          && m.market_size               !== na),
-    !!(m.gross_margin                         && m.gross_margin              !== na),
-    !!(m.product_recommendation?.retail_price && m.product_recommendation.retail_price  !== na),
-    !!(m.product_recommendation?.cogs_estimate && m.product_recommendation.cogs_estimate !== na),
-    (m.product_recommendation?.formula?.length ?? 0) >= 3,
-  ].filter(Boolean).length
-  if (hit >= 5) return { level: 'High',   note: 'Full data coverage'            }
-  if (hit >= 3) return { level: 'Medium', note: 'Partial data — some estimates' }
-  return           { level: 'Low',    note: 'Directional only'               }
 }
 
 // ── Real-data citations for derived reasons/risks ────────────────────────
@@ -436,29 +439,6 @@ export function deriveSuccessMetrics(m: MemoData): string[] {
     : 'Repeat purchase rate > 20% within 60 days')
 
   return out.slice(0, 4)
-}
-
-export function deriveKillCriteria(m: MemoData): string[] {
-  const sat = m.market_saturation
-  const out: string[] = []
-
-  const demandLevel = dimLevel(m, 'demand')
-  out.push(
-    demandLevel === 'Low' || demandLevel === 'Medium'
-      ? 'Fewer than 30 organic units/month after 60-day test → insufficient market demand at this price'
-      : 'Fewer than 50 organic units/month after 60-day test → adjust positioning before scaling',
-  )
-
-  out.push('CAC exceeds $80 with no subscription conversion > 20% → unprofitable unit economics')
-
-  if (sat?.entry_difficulty === 'High' || sat?.concentration === 'Very High') {
-    const comp = m.biggest_competitor?.name ?? 'dominant incumbents'
-    out.push(`Unable to achieve measurable differentiation from ${comp} within 3 months → pivot or exit category`)
-  } else {
-    out.push('Direct competitor launches identical product at 20%+ lower price before reaching $10k MRR → reassess positioning')
-  }
-
-  return out.slice(0, 3)
 }
 
 // ── Hero decision chips (Demand / Competition / Revenue / Risk) ─────────
