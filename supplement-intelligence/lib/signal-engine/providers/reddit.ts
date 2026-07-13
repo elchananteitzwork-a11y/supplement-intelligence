@@ -6,6 +6,7 @@ import type {
   GrowthSignal,
   ReviewVelocitySignal,
 } from '../types'
+import { fetchRedditAccessToken, redditUserAgent } from '@/lib/reddit-client/token'
 
 // ── Reddit provider (OAuth2 client_credentials) ────────────────────
 //
@@ -59,7 +60,6 @@ import type {
 
 // ── Constants ──────────────────────────────────────────────────────
 
-const TOKEN_URL = 'https://www.reddit.com/api/v1/access_token'
 const API_BASE  = 'https://oauth.reddit.com'
 
 // Supplement-relevant subreddits, in priority order.
@@ -80,13 +80,6 @@ const PAIN_PATTERNS = [
 ]
 
 // ── Types ─────────────────────────────────────────────────────────
-
-interface RedditTokenResponse {
-  access_token?: string
-  token_type?:   string
-  expires_in?:   number
-  error?:        string
-}
 
 interface RedditPost {
   data: {
@@ -269,6 +262,9 @@ export class RedditProvider implements SignalProvider {
   }
 
   // ── Private: OAuth2 token ─────────────────────────────────────
+  // Roadmap M2.7: the actual fetch now lives in lib/reddit-client/token.ts
+  // (shared with the new VOC problem-cluster pipeline) — this method keeps
+  // only the provider-instance-scoped caching, same real behavior as before.
 
   private async getToken(): Promise<string | null> {
     // Reuse if still valid (Reddit tokens last 1 hour)
@@ -276,49 +272,16 @@ export class RedditProvider implements SignalProvider {
       return this._token.value
     }
 
-    const clientId     = process.env.REDDIT_CLIENT_ID!
-    const clientSecret = process.env.REDDIT_CLIENT_SECRET!
-    const username     = process.env.REDDIT_USERNAME ?? 'bot'
-    const credentials  = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+    const token = await fetchRedditAccessToken()
+    if (!token) return null
 
-    let res: Response
-    try {
-      res = await fetch(TOKEN_URL, {
-        method:  'POST',
-        signal:  AbortSignal.timeout(8_000),
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'User-Agent':    `supplement-intelligence/1.0 by /u/${username}`,
-          'Content-Type':  'application/x-www-form-urlencoded',
-        },
-        body: 'grant_type=client_credentials',
-      })
-    } catch { return null }
-
-    if (!res.ok) {
-      console.error('Reddit token error', { status: res.status })
-      return null
-    }
-
-    let body: RedditTokenResponse
-    try { body = await res.json() as RedditTokenResponse } catch { return null }
-
-    if (!body.access_token) {
-      console.error('Reddit token: no access_token in response', body.error)
-      return null
-    }
-
-    this._token = {
-      value:   body.access_token,
-      expires: Date.now() + ((body.expires_in ?? 3600) - 60) * 1000,
-    }
+    this._token = token
     return this._token.value
   }
 
   // ── Private: search across supplement subreddits ──────────────
 
   private async searchPosts(token: string, query: string): Promise<RedditPost[]> {
-    const username  = process.env.REDDIT_USERNAME ?? 'bot'
     const subreddit = SUPPLEMENT_SUBREDDITS.join('+')
     const url = `${API_BASE}/r/${subreddit}/search` +
       `?q=${encodeURIComponent(query)}` +
@@ -330,7 +293,7 @@ export class RedditProvider implements SignalProvider {
         signal:  AbortSignal.timeout(10_000),
         headers: {
           'Authorization': `Bearer ${token}`,
-          'User-Agent':    `supplement-intelligence/1.0 by /u/${username}`,
+          'User-Agent':    redditUserAgent(),
           'Accept':        'application/json',
         },
       })
