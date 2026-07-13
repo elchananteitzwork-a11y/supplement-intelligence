@@ -25,17 +25,27 @@ import type {
 // and never fires, exactly like the tiktok/reddit providers before their
 // credentials exist.
 //
-// ── IMPORTANT — not live-verified in this environment ─────────────────────
-// Unlike tiktok.ts (whose field names carry "CONFIRMED VIA LIVE CALL" dates
-// because they were checked against a live response), this implementation
-// is written directly from Meta's publicly documented Ad Library API
-// contract only. No network access was available to verify the exact
-// response shape live. Parsing below is deliberately defensive — any
-// unexpected shape (missing fields, empty array, non-200 status) returns
-// null rather than guessing — but the field names themselves (id, page_id,
-// page_name, ad_delivery_start_time, ad_delivery_stop_time) should be spot-
-// checked against a real response the first time META_ADS_ACCESS_TOKEN is
-// configured, the same way tiktok.ts's fields were originally confirmed.
+// ── LIVE-VERIFIED 2026-07-12 — real token, real rejection ─────────────────
+// A real META_ADS_ACCESS_TOKEN (User Access Token) was configured and this
+// provider was exercised end-to-end against the real ads_archive endpoint
+// (both directly and through the full /api/generate pipeline). Result:
+// HTTP 400, OAuthException code 10 / error_subcode 2332002, message
+// "Application does not have permission for this action" — Meta requires
+// the token's owning app/user to complete Ad Library API authorization at
+// facebook.com/ads/library/api (a real-world identity-verification step,
+// separate from having a valid token at all) before ads_archive will
+// return data. This is exactly the failure path this provider was built
+// to handle: enabled=true (token present), the request reaches Meta's
+// servers, the non-200 response is caught, logged, and returns null — the
+// full analysis pipeline completed normally (HTTP 200, memo generated,
+// other providers unaffected) and the Marketing Intelligence UI rendered
+// its "not available from this provider" empty state, not a crash or a
+// fabricated estimate. What remains unverified: the actual field shapes
+// (id, page_id, page_name, ad_delivery_start_time, ad_delivery_stop_time)
+// on a genuine 200 response — that still needs a token whose app has
+// completed the authorization step above. This paragraph replaces the
+// prior "not live-verified in this environment" note, which no longer
+// applies now that a real token has been exercised.
 //
 // ── What this provider measures ────────────────────────────────────────
 //   ad_count          — real count of ads matching search_terms in the
