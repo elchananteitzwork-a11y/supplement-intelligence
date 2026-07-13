@@ -2,9 +2,34 @@ import { redirect }  from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Analysis, Profile } from '@/types/index'
 import { AppShell } from '@/components/shell/AppShell'
-import OpportunityCard from '@/components/OpportunityCard'
+import DashboardOpportunityCard from '@/components/dashboard/DashboardOpportunityCard'
 import { StatTile, PrimaryLinkButton } from '@/components/ui'
 import { IconTarget } from '@/components/icons'
+import { computeGroundedScore } from '@/lib/scoring'
+import { computeConfidenceAssessment } from '@/lib/confidence'
+import { deriveLifecycleDisplay, deriveV2VerdictDisplay, deriveScienceDisplay } from '@/components/memo/field-derivations'
+import { deriveKillCriteriaCount } from '@/components/dashboard/derivations'
+import {
+  computeV2BuildRate, computeAvgQuality, computeLifecycleCoverage, computeAvgConfidence,
+  type DashboardCardIntelligence,
+} from '@/components/dashboard/aggregates'
+
+// Roadmap M2.2/M2.4/M1.4/M2.8/M2.5 (Phase 2 -> Dashboard integration).
+// Computed exactly once per analysis, reused for both this card's own
+// display and the portfolio-level aggregates below — never recomputed.
+function computeCardIntelligence(a: Analysis): DashboardCardIntelligence & {
+  killCriteriaCount: number; hasScience: boolean
+} {
+  const grounded = computeGroundedScore(a.memo_data)
+  const confidenceAssessment = computeConfidenceAssessment(grounded)
+  return {
+    lifecycle:         deriveLifecycleDisplay(a.memo_data),
+    v2Verdict:         deriveV2VerdictDisplay(a.memo_data.opportunity_quality, a.memo_data.market_verdict),
+    confidencePct:      confidenceAssessment.overallConfidence !== null ? Math.round(confidenceAssessment.overallConfidence * 100) : null,
+    killCriteriaCount: deriveKillCriteriaCount(a.memo_data),
+    hasScience:        deriveScienceDisplay(a.memo_data.signal_evidence?.science?.value) !== null,
+  }
+}
 
 function timeAgo(d: string | null | undefined) {
   if (!d) return 'unknown'
@@ -37,9 +62,15 @@ export default async function Dashboard() {
   const canAnalyze = devUnlimited || left > 0
 
   const total     = list.length
-  const buildNow  = list.filter(a => a.build_decision === 'BUILD_NOW').length
-  const buildRate = total ? Math.round((buildNow / total) * 100) : 0
   const avgScore  = total ? Math.round(list.reduce((s, a) => s + a.opportunity_score, 0) / total) : 0
+
+  // Computed once per analysis; reused for both each card's own display
+  // and the portfolio-level aggregates below (never recomputed).
+  const cardIntel = list.map(computeCardIntelligence)
+  const v2BuildRate        = computeV2BuildRate(cardIntel)
+  const avgQuality         = computeAvgQuality(cardIntel)
+  const lifecycleCoverage  = computeLifecycleCoverage(cardIntel)
+  const avgConfidence      = computeAvgConfidence(cardIntel)
 
   return (
     <AppShell active="home" canAnalyze={canAnalyze}>
@@ -52,9 +83,30 @@ export default async function Dashboard() {
         {total > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
             <StatTile label="Total Runs" value={String(total)} />
-            <StatTile label="Build Rate" value={`${buildRate}%`} color={buildRate >= 50 ? '#008a00' : undefined} />
+            {/* Roadmap M2.4 — replaces the legacy build_decision-based
+                "Build Rate" tile. Real market_verdict.verdict === 'BUILD_NOW'
+                rate over the analyses that actually have M2.4 data — never
+                divided by the full (mostly pre-M2.4) total, which would
+                silently understate the real rate. Honest "—" when zero
+                analyses have been scored under the V2 model yet. */}
+            <StatTile
+              label="V2 Build Rate"
+              value={v2BuildRate ? `${v2BuildRate.ratePct}%` : '—'}
+              color={v2BuildRate && v2BuildRate.ratePct >= 50 ? '#008a00' : undefined}
+            />
             <StatTile label="Avg Score" value={String(avgScore)} color={avgScore >= 65 ? '#008a00' : avgScore >= 50 ? '#a67c00' : '#d32f2f'} />
             <StatTile label="Last Run" value={timeAgo(list[0]?.created_at)} />
+            <StatTile
+              label="Avg Quality (V2)"
+              value={avgQuality ? `${avgQuality.avgScore}` : '—'}
+              color={avgQuality && avgQuality.avgScore >= 70 ? '#008a00' : avgQuality && avgQuality.avgScore >= 45 ? '#a67c00' : undefined}
+            />
+            <StatTile label="Lifecycle Classified" value={`${lifecycleCoverage.classifiedCount}/${lifecycleCoverage.totalCount}`} />
+            <StatTile
+              label="Avg Confidence"
+              value={avgConfidence ? `${avgConfidence.avgPct}%` : '—'}
+              color={avgConfidence && avgConfidence.avgPct >= 50 ? '#008a00' : avgConfidence && avgConfidence.avgPct >= 25 ? '#a67c00' : undefined}
+            />
           </div>
         )}
 
@@ -72,11 +124,10 @@ export default async function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {list.map((a, i) => (
-              <OpportunityCard
+              <DashboardOpportunityCard
                 key={a.id}
                 href={`/memo/${a.id}`}
                 rank={i + 1}
-                gridIndex={i}
                 categoryName={a.category_name}
                 score={a.opportunity_score}
                 decision={a.build_decision}
@@ -84,6 +135,10 @@ export default async function Dashboard() {
                 competitor={a.biggest_competitor}
                 marketSize={a.market_size}
                 timeLabel={timeAgo(a.created_at)}
+                lifecycle={cardIntel[i].lifecycle}
+                v2Verdict={cardIntel[i].v2Verdict}
+                killCriteriaCount={cardIntel[i].killCriteriaCount}
+                hasScience={cardIntel[i].hasScience}
               />
             ))}
           </div>

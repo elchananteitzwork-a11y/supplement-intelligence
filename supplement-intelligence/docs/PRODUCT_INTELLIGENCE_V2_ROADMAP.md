@@ -218,6 +218,19 @@ Tests: 21 new field-level tests (`components/memo/__tests__/field-derivations.te
 
 Explicitly out of scope this pass (per instruction): Dashboard, Watchlist, Alerts, Compare, History, Track Record, and any connection to the separate Research pipeline.
 
+### Dashboard UI integration (ad hoc — not a numbered roadmap milestone) `[x]`
+Same naming caveat as above: this is UI integration of already-shipped Phase 2 backend intelligence, not a new backend capability.
+
+**Completed 2026-07-13.** Real risk identified before writing any code: `app/dashboard/page.tsx` and `app/leaderboard/page.tsx` (Track Record — explicitly out of scope this pass) both render the same shared `components/OpportunityCard.tsx`. Modifying that component to show Phase 2 fields would have changed Track Record's rendering too, even though only Dashboard was in scope. Resolved by leaving `components/OpportunityCard.tsx` completely untouched and building a new, Dashboard-only `components/dashboard/DashboardOpportunityCard.tsx` that mirrors its exact visual structure/classes — confirmed after the fact by `next build`'s output showing `/leaderboard`'s bundle size byte-identical to before this change.
+
+Per explicit instruction ("replace the legacy BuildDecision presentation"), each card's footer badge now shows the real Roadmap M2.4 verdict (`VerdictBadge scheme="v2-verdict"`) when available, falling back to the legacy `build-decision` badge only for analyses that predate M2.4 (an honest degradation, not a redesign of the slot). A new compact second footer row (rendered only when any Phase 2 data exists, so pre-Phase-2 analyses render byte-identical to before) surfaces the real lifecycle stage, quality score/tier, kill-criteria count, and a science-signal tag — reusing `deriveLifecycleDisplay`/`deriveV2VerdictDisplay`/`deriveScienceDisplay` from `components/memo/field-derivations.ts` by import only (that file was not modified — Investor Report stayed untouched, confirmed by `/memo/[id]`'s unchanged build size).
+
+The StatTile row gets one replacement and three additions, computed once per analysis in `app/dashboard/page.tsx` and reused for both each card's own display and these aggregates (never a second calculation): "Build Rate" (legacy `build_decision`-based) is replaced by "V2 Build Rate" (real `market_verdict.verdict === 'BUILD_NOW'` rate — critically, divided only by the count of analyses that actually have M2.4 data, never by the full mostly-pre-M2.4 total, which would have silently understated the real rate); new "Avg Quality (V2)", "Lifecycle Classified" (real coverage count, e.g. "3/12"), and "Avg Confidence" (real `computeConfidenceAssessment` average) tiles. Every aggregate honestly returns "—" rather than a misleading 0% when zero analyses have the relevant real data yet — expected today, since Phase 2 only started shipping 2026-07-13.
+
+New `components/dashboard/derivations.ts` (real kill-criteria count) and `components/dashboard/aggregates.ts` (the four portfolio-level aggregates) — both plain, non-JSX, directly testable, same convention as `field-derivations.ts`. Tests: 10 new (`components/dashboard/__tests__/{derivations,aggregates}.test.ts`) covering every real/absent/boundary case, including the "never divide by the wrong denominator" property for each aggregate. Verified: `tsc --noEmit` clean, full suite 582/582 passing (51 files), `next build` clean — `/leaderboard` and `/memo/[id]` bundle sizes both unchanged, confirming neither Track Record nor the Investor Report was touched.
+
+Explicitly out of scope this pass (per instruction): Investor Report, Compare, History, Watchlist, Alerts, Track Record, and the Research pipeline.
+
 ---
 
 ## Phase 3 — Long-term strategic advantages
