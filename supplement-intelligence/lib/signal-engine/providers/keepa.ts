@@ -9,6 +9,7 @@ import type {
   RevenueSignal,
   ReviewVelocitySignal,
   SeasonalitySignal,
+  SupplyVelocitySignal,
 } from '../types'
 import { checkKeywordRelevance } from '../../keyword-engine/relevance-guard'
 
@@ -695,6 +696,63 @@ function numMedian(arr: number[]): number | null {
   return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m]
 }
 
+const MIN_SUPPLY_VELOCITY_SAMPLE = 5
+
+// Roadmap M2.3 — real listedSince distribution (share of the competitive
+// set younger than 12/24 months), not just the pre-existing median
+// (avg_listing_age_months on CompetitionSignal). Reuses the exact same
+// listedSinceMonths array already collected for that median — zero new
+// Keepa tokens spent.
+//
+// entry_velocity is a single-snapshot proxy, not a true two-point-in-time
+// delta (this provider makes one request per analysis; a real "was the
+// entry rate higher 6 months ago" needs a persisted historical snapshot,
+// which doesn't exist for this signal). The proxy: if new listings arrived
+// at a constant rate over the trailing 24 months, exactly half of them
+// would fall in the trailing 12 (young_listing_pct_12m / young_listing_pct_24m
+// ≈ 0.5). A ratio meaningfully above 0.5 means more than half of the last
+// 24 months' entrants are concentrated in the most recent 12 — the entry
+// rate is accelerating relative to the earlier half of the window; below
+// 0.5 means it's decelerating. This is real arithmetic on real per-product
+// listedSince values, not an invented trend line.
+export function computeSupplyVelocity(listedSinceMonths: number[]): SupplyVelocitySignal | undefined {
+  if (listedSinceMonths.length < MIN_SUPPLY_VELOCITY_SAMPLE) return undefined
+
+  const under12 = listedSinceMonths.filter(m => m <= 12).length
+  const under24 = listedSinceMonths.filter(m => m <= 24).length
+  const total   = listedSinceMonths.length
+
+  const young_listing_pct_12m = Math.round((under12 / total) * 100) / 100
+  const young_listing_pct_24m = Math.round((under24 / total) * 100) / 100
+
+  let entry_velocity_ratio: number | undefined
+  let entry_velocity: SupplyVelocitySignal['entry_velocity']
+  if (under24 > 0) {
+    entry_velocity_ratio = Math.round((under12 / under24) * 100) / 100
+    entry_velocity = entry_velocity_ratio > 0.6 ? 'Accelerating'
+      : entry_velocity_ratio < 0.4 ? 'Decelerating'
+      : 'Stable'
+  }
+
+  // Score: fewer young listings = harder for a new entrant to differentiate
+  // against an entrenched field (lower score); many young listings = an
+  // actively-forming, still-open competitive set (higher score). Confidence
+  // scales with sample size, same tiering convention as dataConfidence-style
+  // functions elsewhere in this codebase.
+  const score = Math.round(young_listing_pct_24m * 10)
+  const confidence = total >= 20 ? 0.75 : total >= 10 ? 0.6 : 0.45
+
+  return {
+    score,
+    confidence,
+    young_listing_pct_12m,
+    young_listing_pct_24m,
+    entry_velocity_ratio,
+    entry_velocity,
+    sample_size: total,
+  }
+}
+
 // ── Core provider class ───────────────────────────────────────────
 
 export class KeepaProvider implements SignalProvider {
@@ -1103,6 +1161,10 @@ export class KeepaProvider implements SignalProvider {
     // P4: Median listing age.
     const medListingAgeMonths = numMedian(listedSinceMonths)
 
+    // Roadmap M2.3: the real listedSince distribution (not just the median
+    // above) — same underlying array, zero new Keepa tokens.
+    const supply_velocity = computeSupplyVelocity(listedSinceMonths)
+
     // P5: Median Amazon OOS%.
     const medAmazonOosPct = numMedian(oosAmazonPcts)
 
@@ -1481,6 +1543,7 @@ export class KeepaProvider implements SignalProvider {
       revenue,
       seasonality,
       review_velocity,
+      supply_velocity,
       provider:   'keepa',
       fetched_at: new Date().toISOString(),
       confidence: overallConf,

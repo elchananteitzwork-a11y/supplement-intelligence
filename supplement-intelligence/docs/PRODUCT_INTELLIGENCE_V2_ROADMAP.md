@@ -113,12 +113,20 @@ Heuristic signature table mapping concordance patterns + supply velocity onto th
 - Known-answer tests: a saturated fixture (creatine-like) classifies Saturated/Contested; a fabricated emerging fixture classifies Emerging.
 - Stage and gap velocity are written to the Verdict Ledger.
 
-### M2.3 — New-listing velocity from `listedSince` `[ ]`
+### M2.3 — New-listing velocity from `listedSince` `[x]`
 **Blueprint refs:** §2 Pillar 2, §15 (Keepa minor improvement). **Depends on:** nothing (data already fetched).
 Emit the `listedSince` distribution: share of competitive set younger than 12/24 months and its trend — not just the median.
 **Acceptance criteria:**
 - Benchmark queries produce young-listing shares; values sanity-checked against raw Keepa data.
 - Signal tagged `supply-side`, feeds gap velocity (M2.2).
+
+**Completed 2026-07-13.** Built ahead of M2.2 (which structurally requires this milestone's output for `gap_velocity`'s supply-side term) rather than as a separate later pass, per explicit direction to preserve the roadmap's own dependency order. New `SupplyVelocitySignal` type (`lib/signal-engine/types.ts`) plus `computeSupplyVelocity()` (`lib/signal-engine/providers/keepa.ts`) reuse the exact `listedSinceMonths` array already collected for the pre-existing `avg_listing_age_months` median — zero new Keepa tokens spent. Emits real `young_listing_pct_12m`/`young_listing_pct_24m` shares and a single-snapshot `entry_velocity` proxy (`Accelerating`/`Stable`/`Decelerating`, from the ratio of the two shares — 0.5 = uniform entry rate over the 24-month window), honestly disclosed as a proxy rather than a true two-point-in-time delta, since this provider makes one request per analysis with no persisted historical snapshot to compare against (same constraint as M1.5's `recent_ad_start_pct`).
+
+**"Signal tagged supply-side" — satisfied at the label/provenance level, not the cross-provider channel-independence system**, disclosed rather than silently glossed over: `PROVIDER_CHANNEL` (`lib/scoring.ts`) maps at provider granularity, and `supply_velocity` is populated by the same Keepa fetch already tagged `amazon_market` — giving it a fully independent `supply_side` witness in the channel-independence/evidence-breadth accounting would need either a second real Keepa request under a distinct provider name (real added cost for data this fetch already has) or a per-dimension channel-override mechanism neither this milestone nor M1.3 authorized. The data is real either way; only the cross-provider independence bookkeeping doesn't yet distinguish it from Keepa's other `amazon_market` output. `lib/scoring.ts`'s M1.3-era comment anticipating this exact tradeoff was updated in place rather than left stale.
+
+`AggregatedDimension.perProviderValues` (added in M2.1) and `'supply_velocity'` added to `engine.ts`'s aggregation `dims` array — both small, additive, non-breaking extensions of already-shipped M2.1/M1.3 work.
+
+Verified: `tsc --noEmit` clean, 397/397 tests passing (27 files, 8 new for `computeSupplyVelocity` — minimum-sample gate, real share computation, all three `entry_velocity` tiers, the no-listings-under-24-months edge case, score/confidence monotonicity), `next build` clean.
 
 ### M2.4 — Verdict matrix (two-axis decisions) `[ ]`
 **Blueprint refs:** §7, §8. **Depends on:** M2.2.

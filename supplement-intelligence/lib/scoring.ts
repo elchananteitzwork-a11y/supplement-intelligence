@@ -287,15 +287,24 @@ export const CHANNEL_LABELS: Record<ChannelType, string> = {
 // behavior change beyond the label. `science` has no provider yet
 // (reserved for Roadmap M2.5).
 //
-// KNOWN SCOPING LIMIT (deliberate): Keepa's CompetitionSignal carries both
-// marketplace-saturation fields (competing_brands, saturation — genuinely
-// amazon_market) and listing-velocity fields (avg_listing_age_months,
-// seller_count_trend — arguably supply_side). PROVIDER_CHANNEL maps at
-// provider granularity, not per-field, so keepa is tagged amazon_market as
-// a whole; splitting its listing-velocity output into its own supply_side
-// signal is Roadmap M2.3 ("New-listing velocity from listedSince"), which
-// formalizes that exact sub-signal as its own dimension. Not done here to
-// avoid a per-field channel model this milestone didn't authorize.
+// KNOWN SCOPING LIMIT (deliberate, updated Roadmap M2.3): Keepa's
+// CompetitionSignal still carries marketplace-saturation fields
+// (competing_brands, saturation — genuinely amazon_market) alongside
+// listing-velocity fields (avg_listing_age_months, seller_count_trend —
+// arguably supply_side). M2.3 formalized the listing-velocity sub-signal
+// into its own dimension type (SupplyVelocitySignal, lib/signal-engine/
+// providers/keepa.ts's computeSupplyVelocity) with real young-listing-share
+// data the old single median never captured — but it is still populated by
+// the SAME keepa fetch and reported under the SAME provider name, so
+// PROVIDER_CHANNEL (which maps at provider granularity, not per-dimension)
+// still tags it amazon_market for channel-independence/evidence-breadth
+// accounting purposes. Giving it a genuinely independent supply_side
+// witness in that system would require either a second real Keepa request
+// under a distinct provider name (real added cost/latency for data this
+// fetch already has) or a per-dimension channel-override mechanism neither
+// this milestone nor M1.3 authorized. "Tagged supply-side" for M2.3's own
+// acceptance criterion is satisfied at the label/provenance/lifecycle-input
+// level instead (see lib/lifecycle.ts) — the data itself is real either way.
 // Exported (Roadmap M1.3) so lib/__tests__/channel-tagging.test.ts can
 // assert every provider registered in lib/signal-engine/registry.ts has a
 // real entry here — the closest available substitute for true type-level

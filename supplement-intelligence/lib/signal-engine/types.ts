@@ -123,6 +123,30 @@ export interface GrowthSignal extends SignalScore {
   momentum_90d_pct?: number | null
 }
 
+// Roadmap M2.3 — "New-listing velocity from listedSince." Formalizes the
+// listing-velocity sub-signal that lib/scoring.ts's PROVIDER_CHANNEL
+// comment (Roadmap M1.3) flagged as living inside Keepa's CompetitionSignal
+// (avg_listing_age_months — a single median) without its own dimension.
+// This is the same real listedSince data, computed as a distribution
+// instead of only a median: share of the competitive set younger than 12
+// and 24 months, plus a single-snapshot entry-velocity proxy (see
+// providers/keepa.ts's computeSupplyVelocity for exact derivation/disclosure
+// — there is no two-point-in-time delta available, same honesty
+// constraint as meta-ads.ts's recent_ad_start_pct).
+export interface SupplyVelocitySignal extends SignalScore {
+  young_listing_pct_12m?: number   // 0–1, fraction of the competitive set listed within the last 12 months
+  young_listing_pct_24m?: number   // 0–1, fraction within the last 24 months
+  // Ratio of the two shares above (young_listing_pct_12m / young_listing_pct_24m).
+  // 0.5 = uniform entry rate over the 24-month window; >0.5 = more than
+  // half of the last 24 months' entrants arrived in just the most recent
+  // 12 (entry pace accelerating); <0.5 = decelerating. NOT a true delta
+  // between two real point-in-time measurements — derived from a single
+  // Keepa snapshot's age distribution.
+  entry_velocity_ratio?: number
+  entry_velocity?: 'Accelerating' | 'Stable' | 'Decelerating'
+  sample_size?: number   // how many products in the competitive set had a usable listedSince value
+}
+
 export interface SeasonalitySignal extends SignalScore {
   // 10 = perfectly perennial (ideal for subscription), 0 = heavily seasonal
   peak_months?: string[]                    // e.g. ["Nov", "Dec"]
@@ -256,6 +280,7 @@ export interface ProviderSignals {
   virality?:        ViralitySignal
   review_velocity?: ReviewVelocitySignal
   revenue?:         RevenueSignal
+  supply_velocity?: SupplyVelocitySignal
 
   provider:   string   // provider name, e.g. "keepa"
   fetched_at: string   // ISO timestamp
@@ -289,6 +314,7 @@ export interface AggregatedSignals {
   virality?:        AggregatedDimension<ViralitySignal>
   review_velocity?: AggregatedDimension<ReviewVelocitySignal>
   revenue?:         AggregatedDimension<RevenueSignal>
+  supply_velocity?: AggregatedDimension<SupplyVelocitySignal>
 
   providers_used:     string[]
   overall_confidence: number   // avg across all populated dimensions

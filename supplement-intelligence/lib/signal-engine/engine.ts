@@ -121,7 +121,7 @@ export class SignalEngine {
 
     const dims: DimKey[] = [
       'demand', 'competition', 'growth', 'seasonality',
-      'pricing', 'virality', 'review_velocity', 'revenue',
+      'pricing', 'virality', 'review_velocity', 'revenue', 'supply_velocity',
     ]
 
     const result: Record<string, AggregatedDimension<SignalScore>> = {}
