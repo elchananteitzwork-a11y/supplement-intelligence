@@ -8,6 +8,7 @@ import { computeGroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import { deriveLifecycleDisplay, deriveV2VerdictDisplay, type LifecycleDisplay, type V2VerdictDisplay } from '@/components/memo/field-derivations'
 import { deriveHistoricalOutcomeStatus, type HistoricalOutcomeStatus } from '@/components/leaderboard/derivations'
+import { isDevUnlimitedAnalysesEnabled } from '@/lib/billing/dev-bypass'
 
 function timeLabelFor(r: LeaderboardRow) {
   return `${r.analysis_count} run${r.analysis_count === 1 ? '' : 's'}`
@@ -77,7 +78,7 @@ export default async function Leaderboard() {
   const pro   = profile as Profile | null
   const used  = pro?.analyses_used  ?? 0
   const limit = pro?.analyses_limit ?? 3
-  const devUnlimited = process.env.DEV_UNLIMITED_ANALYSES === 'true'
+  const devUnlimited = isDevUnlimitedAnalysesEnabled()
   const canAnalyze = devUnlimited || used < limit
 
   return (

@@ -13,6 +13,7 @@ import {
   computeV2BuildRate, computeAvgQuality, computeLifecycleCoverage, computeAvgConfidence,
   type DashboardCardIntelligence,
 } from '@/components/dashboard/aggregates'
+import { isDevUnlimitedAnalysesEnabled } from '@/lib/billing/dev-bypass'
 
 // Roadmap M2.2/M2.4/M1.4/M2.8/M2.5 (Phase 2 -> Dashboard integration).
 // Computed exactly once per analysis, reused for both this card's own
@@ -57,7 +58,7 @@ export default async function Dashboard() {
   const pro  = profile as Profile | null
   const used = pro?.analyses_used  ?? 0
   const limit = pro?.analyses_limit ?? 3
-  const devUnlimited = process.env.DEV_UNLIMITED_ANALYSES === 'true'
+  const devUnlimited = isDevUnlimitedAnalysesEnabled()
   const left  = Math.max(0, limit - used)
   const canAnalyze = devUnlimited || left > 0
 

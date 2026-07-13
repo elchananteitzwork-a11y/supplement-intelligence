@@ -13,6 +13,7 @@ import type {
   ThesisDepth,
 }                              from '@/lib/thesis-engine'
 import { handleProviderError } from '@/lib/provider-errors'
+import { isDevUnlimitedAnalysesEnabled } from '@/lib/billing/dev-bypass'
 
 // Vercel Pro: allow up to 2 minutes for signal collection + Claude synthesis.
 // 'deep' analyses may approach this ceiling for large category corpora.
@@ -143,7 +144,7 @@ export async function POST(req: Request): Promise<Response> {
   const request = parsed.data
 
   // ── 3. Quota pre-flight ──────────────────────────────────────
-  const devUnlimited = process.env.DEV_UNLIMITED_ANALYSES === 'true'
+  const devUnlimited = isDevUnlimitedAnalysesEnabled()
 
   if (!devUnlimited) {
     const { data: profile, error: profileErr } = await sb

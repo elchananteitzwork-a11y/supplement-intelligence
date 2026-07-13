@@ -27,6 +27,7 @@ import { buildNewsIntelligence } from '@/lib/news-engine'
 import { shouldConsumeSlot } from '@/lib/analysis-slot-policy'
 import { handleProviderError } from '@/lib/provider-errors'
 import { checkRateLimit, GENERATE_LIMIT } from '@/lib/rate-limit'
+import { isDevUnlimitedAnalysesEnabled } from '@/lib/billing/dev-bypass'
 import type { MemoData, SignalMetadata } from '@/types/index'
 
 // CONFIRMED VIA LOAD TEST (2026-06-24, 17 real generations): single-attempt
@@ -427,7 +428,7 @@ export async function POST(req: Request) {
   }
 
   // ── Pre-flight limit check ────────────────────────────────────
-  const devUnlimited = process.env.DEV_UNLIMITED_ANALYSES === 'true'
+  const devUnlimited = isDevUnlimitedAnalysesEnabled()
 
   if (!devUnlimited) {
     const { data: profile, error: profileErr } = await sb
