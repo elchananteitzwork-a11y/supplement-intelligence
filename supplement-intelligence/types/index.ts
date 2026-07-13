@@ -402,6 +402,11 @@ export interface LeaderboardRow {
   market_size:       string | null
   analysis_count:    number
   last_analyzed:     string
+  // Real DB column since migration 001 (see 008_atomic_leaderboard_upsert.sql)
+  // — was never added to this type before now. Points at the specific
+  // analyses row this leaderboard entry's displayed score/decision came
+  // from, so its full memo_data (Phase 2 fields, etc.) can be read.
+  best_analysis_id:  uuid | null
 }
 
 export interface Profile {
