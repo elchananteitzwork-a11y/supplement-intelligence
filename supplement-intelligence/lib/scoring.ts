@@ -585,7 +585,11 @@ function difficultyToEaseScore(difficulty: number): number {
 // Gate: effective_searches ≥ 1,000 AND avg_review_count ≥ 10.
 // Keyword source: same semantic filter as computeDemand (not raw top_buying[0]).
 const REVIEW_MOAT_MIN_SEARCHES   = 1_000
-const REVIEW_MOAT_MIN_REVIEWS    = 10
+// Exported (Roadmap M2.9) so lib/re-measurement's outcome-label logic
+// reuses the exact same "real review base" threshold this file already
+// established, rather than inventing a second one for "did a new entrant
+// accumulate a real review base."
+export const REVIEW_MOAT_MIN_REVIEWS = 10
 const REVIEW_MOAT_SPEC_FLOOR     = 0.2
 
 export function computeReviewMoatScore(m: MemoData): number | null {
@@ -710,7 +714,11 @@ function realisticPrice(m: MemoData): number | null {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
 }
 
-function parseDollarString(s: string | undefined): number | null {
+// Exported (Roadmap M2.9) so lib/re-measurement can parse the same real
+// dollar-string fields (e.g. PricingSignal.avg_price) when comparing a
+// frozen verdict-time price against a fresh re-pull, without a second copy
+// of this exact parsing logic.
+export function parseDollarString(s: string | undefined): number | null {
   if (!s) return null
   const n = parseFloat(s.replace(/[^0-9.]/g, ''))
   return isNaN(n) ? null : n
