@@ -15,8 +15,10 @@ import { buildExpandableCards, selectFirstScreenSignals } from '@/lib/evidence'
 import { writeBuildNowPattern } from '@/lib/pattern-memory'
 import { writeVerdictLedgerEntry } from '@/lib/verdict-ledger'
 import { computeConfidenceAssessment } from '@/lib/confidence'
+import type { ConfidenceAssessment } from '@/lib/confidence'
 import { computeConcordanceMatrix } from '@/lib/concordance'
 import { computeLifecycle } from '@/lib/lifecycle'
+import { computeOpportunityQuality, computeMarketVerdict } from '@/lib/verdict-matrix'
 import { normalizeQuery } from '@/lib/thesis-engine'
 import { synthesizeReviewNarrative } from '@/lib/review-narrative'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
@@ -818,6 +820,10 @@ export async function POST(req: Request) {
   // UI breakdown — never as a number.
   // Hoisted so the pattern-memory write below can reference it after the block closes.
   let groundedScore: GroundedScore | null = null
+  // Hoisted alongside groundedScore (Roadmap M2.4) so the Verdict Ledger
+  // write below reuses the same assessment computed for the verdict matrix
+  // rather than calling this pure function a second time.
+  let confidenceAssessment: ConfidenceAssessment | null = null
 
   if (!skipReason && memo.scores) {
     // Persisted, not passed as an argument — see MemoData.
@@ -849,6 +855,20 @@ export async function POST(req: Request) {
     const { classification, gapVelocity } = computeLifecycle(memo, grounded)
     memo.lifecycle_classification = classification
     memo.gap_velocity = gapVelocity
+
+    // Roadmap M2.4 — two-axis decision model (lib/verdict-matrix.ts).
+    // confidenceAssessment moved up from its previous call site (just
+    // before the Verdict Ledger write, below) so both this computation and
+    // the ledger write share the exact same assessment rather than calling
+    // this pure, read-only function twice. Additive/parallel: does not
+    // read or write grounded.decision (BuildDecision) — see
+    // lib/verdict-matrix.ts's header comment for the full scope rationale.
+    confidenceAssessment = computeConfidenceAssessment(grounded)
+    const opportunityQuality = computeOpportunityQuality(grounded, memo)
+    const marketVerdict = computeMarketVerdict(opportunityQuality, classification.stage, grounded, confidenceAssessment)
+    memo.opportunity_quality = opportunityQuality
+    memo.market_verdict = marketVerdict
+
     // Deterministic replacement for the model's invented ten_k/hundred_k/
     // one_m probabilities (no longer requested in the prompt) — see
     // lib/scoring.ts computeTractionBand.
@@ -1054,9 +1074,10 @@ export async function POST(req: Request) {
   // already-final groundedScore — it runs strictly after
   // computeGroundedScore returned above and never feeds back into it.
   // Score, decision, and weights are unaffected; this only adds a
-  // confidence readout to the ledger snapshot.
-  if (groundedScore) {
-    const confidenceAssessment = computeConfidenceAssessment(groundedScore)
+  // confidence readout to the ledger snapshot. (Computed once, above,
+  // alongside the Roadmap M2.4 verdict matrix — reused here rather than
+  // called a second time.)
+  if (groundedScore && confidenceAssessment) {
     void writeVerdictLedgerEntry(sb, {
       memo,
       grounded:         groundedScore,

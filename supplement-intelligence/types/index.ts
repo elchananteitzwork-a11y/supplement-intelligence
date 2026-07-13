@@ -1,6 +1,7 @@
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import type { ConcordanceMatrix } from '@/lib/concordance'
 import type { LifecycleClassification, GapVelocity } from '@/lib/lifecycle'
+import type { OpportunityQuality, MarketVerdictResult } from '@/lib/verdict-matrix'
 import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
 import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 import type { NewsIntelligence } from '@/lib/news-engine/types'
@@ -235,6 +236,16 @@ export interface MemoData {
   // — same persistence rationale as concordance_matrix above.
   lifecycle_classification?: LifecycleClassification
   gap_velocity?: GapVelocity
+  // Roadmap M2.4: two-axis decision model (lib/verdict-matrix.ts). Additive
+  // and parallel to opportunity_score/build_decision above — this does not
+  // replace either; existing UI, leaderboard, and pattern-memory consumers
+  // of build_decision are completely unaffected. opportunity_quality is
+  // Axis 1 (four-pillar Quality, timing-independent); market_verdict is the
+  // Quality x Lifecycle matrix decision (Axis 1 x Axis 2), computed once at
+  // generation time from the already-final grounded score, lifecycle_
+  // classification above, and the confidence assessment.
+  opportunity_quality?: OpportunityQuality
+  market_verdict?: MarketVerdictResult
   keyword_intelligence?: KeywordIntelligence    // real per-keyword search volume/growth from DataForSEO
   consumer_intelligence?: ConsumerIntelligenceReport  // real review-text themes (lib/consumer-intelligence) — computed server-side, never touched by the AI, same pattern as keyword_intelligence
   // Real-Time News Intelligence (added 2026-06-25) — items come from openFDA/

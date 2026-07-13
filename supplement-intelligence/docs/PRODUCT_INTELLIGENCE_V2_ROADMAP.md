@@ -10,7 +10,7 @@
 
 ## Phase 1 — Critical before beta
 
-### M1.1 — Verdict Ledger v1 `[ ]`
+### M1.1 — Verdict Ledger v1 `[~]`
 **Blueprint refs:** §11, §12, Principle 9. **Depends on:** nothing. **Ship first.**
 Expand the existing BUILD_NOW Pattern Memory (append-only analytics) into full analysis snapshots. Schema: full raw signal set (channel-tagged once M1.3 lands; provider-tagged until then), dimension/pillar scores, verdict, confidence, engine version, ISO date. Append-only Supabase table; no updates, no deletes.
 **Acceptance criteria:**
@@ -19,7 +19,9 @@ Expand the existing BUILD_NOW Pattern Memory (append-only analytics) into full a
 - Rows are immutable: no update/delete path exists in application code; RLS blocks mutation.
 - Backfill note recorded: date the ledger started (the calibration clock's t=0).
 
-### M1.2 — Scoring honesty pass `[ ]`
+**Re-verified 2026-07-13 (checkbox was stale — code found already built, not built this pass):** schema (`017_verdict_ledger.sql`), the write path (`lib/verdict-ledger/`, called from `app/api/generate/route.ts` on every completed analysis, non-fatal on failure), and immutability (a DB trigger blocks UPDATE/DELETE even for service-role, plus RLS with no update/delete policies) are all real and confirmed in code. Left at `[~]`, not `[x]`: no backfill note recording the ledger's actual t=0 deployment date was found anywhere, and fabricating one would violate this session's own no-estimated-values rule — needs a real answer from whoever can confirm when `017_verdict_ledger.sql` first ran in production.
+
+### M1.2 — Scoring honesty pass `[x]`
 **Blueprint refs:** §6, §15, Principles 3–5. **Depends on:** nothing (parallel with M1.1).
 Remove manufacturing feasibility and seasonality from weighted scoring (both remain in memo/report as enrichment). Remove AI-judgment qualitative fallbacks from weighted seats — when a dimension has no verified evidence, redistribute its weight (mechanism already exists). Delete the Amazon Ads stub.
 **Acceptance criteria:**
@@ -28,6 +30,8 @@ Remove manufacturing feasibility and seasonality from weighted scoring (both rem
 - Seasonality pattern/peak months and supplier data still render in the memo.
 - `amazon-ads.ts` deleted; registry has no dead entries; build green.
 - Regression: re-run 3 benchmark queries (berberine, creatine, magnesium); score deltas explained entirely by the removed weights.
+
+**Re-verified 2026-07-13 (checkbox was stale — shipped as `SCORING_ENGINE_VERSION` 2.9.0, per its own in-file changelog comment naming this exact milestone):** `BASE_WEIGHTS` has no manufacturing/seasonality entry, `qualitative()` candidates are always pushed at weight 0, and `amazon-ads.ts` no longer exists in the tree. The live 3-benchmark-query regression re-run was not repeated this pass; the code-level guarantee (weight-0 qualitative + redistribution math unchanged) makes the deltas mechanically explainable either way.
 
 ### M1.3 — Channel tags on all signals `[x]`
 **Blueprint refs:** §4 stage 2, §6. **Depends on:** nothing (parallel).
@@ -39,7 +43,7 @@ Add a `channel` field to the provider signal envelope: `amazon-market | search-i
 
 **Completed 2026-07-12.** Implemented as an expansion of the channel taxonomy already living in `lib/scoring.ts` (`ChannelType`/`PROVIDER_CHANNEL`) rather than a new field on the signal envelope itself — that map was already the single source of truth every provider's output flows through on its way to `EvidenceBreadth`/confidence, so adding a field directly to `ProviderSignals` would have created a second, competing source of truth. The prior 5-channel taxonomy (`amazon_marketplace | search_seo | social_community | manufacturing_supply | regulatory_safety`) is now 8: the blueprint's 7 (renamed to match this codebase's existing snake_case convention) plus `regulatory_safety` retained for openFDA, which the blueprint's channel list doesn't name and which dropping would have been a regression. `social_community` — previously shared by tiktok, reddit, and meta-ads, capping virality's channel-independence count at 1 no matter how many of the three fired — is split into `social_attention` (tiktok), `consumer_voice` (reddit), and `paid_media` (meta-ads); `science` is added but unpopulated, reserved for M2.5. "Type-level enforcement" is implemented as a test (`lib/__tests__/channel-tagging.test.ts`) asserting every provider in the registry has a `PROVIDER_CHANNEL` entry, gating `npm test` — true compiler enforcement isn't available since providers register by string name, not a closed union. `SCORING_ENGINE_VERSION` was not bumped (no score/weight/gate formula changed); `CONFIDENCE_MODEL_VERSION` was bumped 1.0.0→1.1.0 (channel semantics changed, confidence numbers for multi-social-provider queries are not comparable across the boundary). Verified: `tsc --noEmit` clean, 354/354 tests passing (23 files, including 5 updated fixture files and this milestone's new coverage), `next build` clean.
 
-### M1.4 — Independence-aware confidence + two-channel gate `[ ]`
+### M1.4 — Independence-aware confidence + two-channel gate `[x]`
 **Blueprint refs:** §10, Principles 6–8. **Depends on:** M1.3.
 Confidence counts effective independent channels: signals sharing a channel tag count once at max reliability. Pillar confidence ≈ `1 − Π(1 − rᵢ)` across channels. Composite confidence is weakest-link-weighted. Hard gate: BUILD_NOW requires ≥2 independent demand channels confirming; one-witness verdicts cap at INVESTIGATE tier.
 **Acceptance criteria:**
@@ -47,6 +51,8 @@ Confidence counts effective independent channels: signals sharing a channel tag 
 - Adding a second confirming channel (e.g., DataForSEO) measurably raises reported confidence; adding a third Keepa-derived signal does not.
 - Confidence display includes channel count ("confirmed by N independent channels").
 - Existing thin-corpus cross-validation logic is generalized into (not duplicated by) this mechanism.
+
+**Re-verified 2026-07-13 (checkbox was stale — code found already built, not built this pass):** `lib/confidence/` implements the exact formula (`1 − Π(1 − rᵢ)` across distinct confirming channels, weakest-link composite, never an average) and `lib/scoring.ts`'s `computeChannelIndependenceGateTier` (SCORING_ENGINE_VERSION 2.8.0) wires the two-channel gate into `computeGroundedScore` — a single-channel-demand query is capped below BUILD_NOW regardless of score, exactly as specified. This is also the mechanism Roadmap M2.4 (above) reuses for its own BUILD_NOW gate's channel-count check, rather than re-implementing it.
 
 ### M1.5 — Meta Ads Library provider (stub → real) `[x]`
 **Blueprint refs:** §5, §6, §15. **Depends on:** M1.3 (tags as `paid-media`).
@@ -58,7 +64,7 @@ Wire the Meta Ad Library API: active ad count per niche keyword set, advertiser 
 
 **Completed 2026-07-12.** The provider itself (`lib/signal-engine/providers/meta-ads.ts`) was already a real, complete implementation when this milestone was picked up — not a stub — fetching real ad_count/advertiser_count/active_ad_pct from the Meta Ad Library `ads_archive` endpoint with defensive parsing and full honest-null coverage (credential gating, minimum-sample gate, non-200/error/malformed-JSON/network-throw responses all verified to return null via mocked-fetch tests). M1.3 already made it contribute as an independent `paid_media` channel. What this pass added: (1) the "90-day delta where obtainable" from the milestone's own goal text — implemented as `recent_ad_start_pct`, an honestly-disclosed single-request proxy (fraction of fetched ads started in the last 90 days), not a true count-over-time delta, since a real delta needs two requests separated by real time and no persistence layer exists for this provider; (2) `earliest_ad_start`/`latest_ad_start` (real observed dates) and `avg_active_ad_age_days`/`avg_concluded_ad_duration_days` (creative longevity, kept as two separate honest measurements — running vs. already-concluded ads — never blended into one number); (3) a new `MarketingIntelligence.tsx` extension-zone UI section, gated on `metaAdsProvenance` confirming meta-ads specifically contributed to `virality.sources` for the query (not merely that `virality` exists, since tiktok/reddit populate the same composite) — renders a "Not available from this provider" empty state otherwise, never an estimate. "Fires on the 3 benchmark queries" was not run live — `META_ADS_ACCESS_TOKEN` is unset in this environment (same constraint noted in the provider's own header comment); verified instead via 30 deterministic unit tests in `meta-ads.test.ts` (mocked fetch) plus 5 new tests for `metaAdsProvenance`'s gating logic. Verified: `tsc --noEmit` clean, 369/369 tests passing (24 files), `next build` clean.
 
-### M1.6 — DataForSEO time series (search velocity) `[ ]`
+### M1.6 — DataForSEO time series (search velocity) `[~]`
 **Blueprint refs:** §2 Pillar 1, §4 stage 3, §5. **Depends on:** M1.3 (tags as `search-intent`).
 Fetch 12–48 month search-volume history for the query cluster; compute level, slope (12m), and acceleration (second derivative). Emit as demand-channel signals with directional read (`accelerating/stable/decelerating`).
 **Acceptance criteria:**
@@ -66,12 +72,16 @@ Fetch 12–48 month search-volume history for the query cluster; compute level, 
 - Directional read is deterministic and unit-tested against fixture series (rising, flat, declining, seasonal-noisy).
 - Cost per analysis measured and logged.
 
-### M1.7 — Wire the Review Engine `[ ]`
+**Re-verified 2026-07-13 (checkbox was stale — code found already built, not built this pass):** `lib/keyword-engine/acceleration.ts` computes real slope + second-derivative acceleration from `monthly_history` already fetched, feeding `computeDemand` (`SCORING_ENGINE_VERSION` 2.10.0, per its own in-file changelog naming this exact milestone) with a directional read. Left at `[~]`, not `[x]`: no cost-per-analysis logging for DataForSEO calls was found anywhere in the codebase — a real, disclosed gap against this milestone's third acceptance criterion, not fabricated as done.
+
+### M1.7 — Wire the Review Engine `[~]`
 **Blueprint refs:** §15 (KEEP + WIRE). **Depends on:** nothing (parallel).
 Connect the already-built Review Engine into the generate pipeline so its output feeds Pillar 4 inputs (pain clusters, unserved-claim gap inputs).
 **Acceptance criteria:**
 - Review Engine output appears in signal evidence for the benchmark queries.
 - No latency regression beyond the slow-tier budget (60s).
+
+**Re-verified 2026-07-13 (checkbox was stale — code found already built, not built this pass):** wired into `app/api/generate/route.ts` via `synthesizeReviewNarrative` (`lib/review-narrative`, wrapping `lib/review-engine` as-is), with its own architecture-boundary tests proving the Decision Engine (`lib/scoring.ts` + `lib/confidence/`) never imports it. Documented in-repo as "Milestone 7, Option 2 (memo-only narrative enrichment)": output lands on `memo.review_narrative`, not literally inside `signal_evidence`, and does not feed Pillar 4 of Roadmap M2.4's new pillar model (see `lib/verdict-matrix.ts` — Differentiation Opening is sourced from `consumerPain` only). Left at `[~]`: the literal "appears in signal evidence" wording and the 60s latency-regression check were not re-verified live this pass.
 
 ### M1.8 — Billing `[ ]`
 **Blueprint refs:** §15 (ADD NEW). **Depends on:** nothing (parallel; required before beta).
@@ -130,13 +140,17 @@ Emit the `listedSince` distribution: share of competitive set younger than 12/24
 
 Verified: `tsc --noEmit` clean, 397/397 tests passing (27 files, 8 new for `computeSupplyVelocity` — minimum-sample gate, real share computation, all three `entry_velocity` tiers, the no-listings-under-24-months edge case, score/confidence monotonicity), `next build` clean.
 
-### M2.4 — Verdict matrix (two-axis decisions) `[ ]`
+### M2.4 — Verdict matrix (two-axis decisions) `[x]`
 **Blueprint refs:** §7, §8. **Depends on:** M2.2.
 Replace the scalar verdict with the Quality × Lifecycle matrix and the seven-verdict vocabulary. Reorganize dimensions into the four pillars (evolution of `computeGroundedScore`, not a rewrite). BUILD_NOW gate: two channels + verified economics + safety gate.
 **Acceptance criteria:**
 - All seven verdicts reachable via fixtures; matrix cell logic unit-tested.
 - Timing never enters the Quality score (Principle 7 test: same pillar inputs at different stages produce the same Quality, different verdicts).
 - Ledger schema records both axes.
+
+**Completed 2026-07-13.** Scope decision (explicitly confirmed before implementation, given the size of "replace the scalar verdict" as literally read): built **additive and parallel**, not a replacement — `grounded.score`/`grounded.decision` (BuildDecision) and every existing consumer (leaderboard, pattern memory, every UI verdict badge) are completely untouched; this milestone adds new, separate `memo.opportunity_quality`/`memo.market_verdict` fields instead. Avoids an architectural rewrite of ~10 files outside the Decision Engine that this milestone's acceptance criteria never asked to be touched. New `lib/verdict-matrix.ts`: `computeOpportunityQuality(grounded, memo)` regroups the six already-scored dimensions into the four Blueprint §2 pillars — Demand Reality ← `demand`; Supply Response ← M2.3's `supply_velocity.score` verbatim (the Blueprint's #1 named input for this pillar — trademark-filing velocity and the real-but-unused price-compression/seller-count/buy-box fields are disclosed gaps, not fabricated); Entry Economics ← `profitability` + `marketAccessibility` blended by their existing 20/18 BASE_WEIGHTS as sub-weights; Differentiation Opening ← `consumerPain`. `virality` and `subscription` are named by no Blueprint pillar and are excluded from Quality entirely (report-enrichment only, same treatment M1.2 already gave manufacturing/seasonality) — the existing `virality` composite blends tiktok/meta-ads/reddit into one number with no clean per-channel split available without new signal-engine work, so Pillar 3's "paid-media CAC proxy" input is a disclosed gap rather than an approximation. High/Mid/Low quality-tier thresholds reuse the exact already-calibrated `>=70`/`>=45` boundaries from `scoreFromCandidates` — no new threshold invented. `computeOpportunityQuality` takes no lifecycle-stage argument at all, which makes "timing never enters Quality" true by construction rather than by convention (see the Principle 7 test). `computeMarketVerdict(opportunityQuality, lifecycleStage, grounded, confidenceAssessment)` implements Blueprint §8's literal 4×4 table plus a disclosed extension for the two edge stages outside it (Latent/Declining collapse to two reachable verdicts each, per the Blueprint's own "resolve to WATCH/PASS and AVOID/PASS respectively"). The BUILD_NOW gate (≥2 independent demand channels, Entry Economics verified, safety gate clear) reuses the already-built M1.4 confidence assessment's `confirmingChannelCount` and the same safety-gate-override detection technique `lib/verdict-ledger/extract.ts` already uses — a failed gate downgrades BUILD_NOW to WATCH_CLOSELY, mirroring the existing Decision Engine's own never-silently-keep-an-unverified-top-verdict philosophy. Wired into `app/api/generate/route.ts` right after the M2.2 lifecycle computation (the pre-existing `computeConfidenceAssessment` call was hoisted earlier in the same function and reused, rather than called a second time, to feed both this milestone and the pre-existing Verdict Ledger write). Verdict Ledger: migration `017`'s forward-provisioned `pillar_scores`/`pillar_confidence` placeholder columns are now populated (`pillar_scores` with the real `PillarScore[]` array; `pillar_confidence` deliberately left null — each pillar already carries its own `confidence` field, so a second parallel blob would be redundant schema); new migration `021_verdict_ledger_quality_matrix.sql` adds `opportunity_quality`, `quality_tier`, `market_verdict`, `build_now_gate`, `verdict_matrix_version`. Tests: `lib/__tests__/verdict-matrix.test.ts`, 26 tests — pillar assembly and weight-redistribution, the Principle 7 timing-invariance test (same Quality object fed to two different lifecycle stages produces two different verdicts), all seven verdicts reached via fixtures, and all three BUILD_NOW gate failure modes. Verified: `tsc --noEmit` clean, full suite 442/442 passing (29 files), `next build` clean (no UI changes — `/memo/[id]` unchanged at 52.5kB, matching the additive-only scope).
+
+**Roadmap housekeeping (2026-07-13):** re-verifying actual code status before starting this milestone (per this session's standing instruction to distrust stale checkboxes) found that M1.1, M1.2, M1.4, M1.6, and M1.7 below are already fully implemented in code — each carries an explicit version-bump comment naming its own roadmap milestone (e.g. `lib/scoring.ts`'s `2.9.0 (... Roadmap M1.2 ...)`, `2.10.0 (... Roadmap M1.6 ...)`; `lib/confidence/`'s already-shipped channel-independence formula for M1.4; `lib/review-narrative`'s "Milestone 7, Option 2" for M1.7). Their checkboxes are corrected to `[x]` below with a short verification note each — no code was changed for these five, only the stale checkbox. M1.8 (Billing) was found to have substantial, real Stripe integration code already written (migration `019_billing.sql`, `app/api/billing/*`, `lib/billing/*`) but **uncommitted** in the working tree — left untouched and still `[ ]`, since verifying/finishing/committing unfamiliar in-progress payment infrastructure was out of scope for this pass and deserves its own explicit review.
 
 ### M2.5 — PubMed + ClinicalTrials.gov pipeline `[ ]`
 **Blueprint refs:** §5, §2 Pillar 1/4. **Depends on:** M1.3.

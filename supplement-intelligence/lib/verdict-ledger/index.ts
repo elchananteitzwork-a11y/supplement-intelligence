@@ -67,6 +67,11 @@ export async function writeVerdictLedgerEntry(
 
           pillar_scores:     entry.pillar_scores,
           pillar_confidence: entry.pillar_confidence,
+          opportunity_quality:    entry.opportunity_quality,
+          quality_tier:           entry.quality_tier,
+          market_verdict:         entry.market_verdict,
+          build_now_gate:         entry.build_now_gate,
+          verdict_matrix_version: entry.verdict_matrix_version,
           lifecycle_stage:         entry.lifecycle_stage,
           lifecycle_inputs:        entry.lifecycle_inputs,
           lifecycle_model_version: entry.lifecycle_model_version,

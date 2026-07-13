@@ -120,9 +120,16 @@ export function extractVerdictLedgerEntry(ctx: ExtractLedgerEntryContext): Verdi
 
     dimension_scores: dimensionScores,
 
-    // Always null until Roadmap M2.4 (four-pillar model) ships.
-    pillar_scores:     null,
+    // Roadmap M2.4 — null only for a memo scored before this milestone
+    // shipped (memo.opportunity_quality/market_verdict absent), never
+    // fabricated retroactively.
+    pillar_scores:     memo.opportunity_quality?.pillars ?? null,
     pillar_confidence: null,
+    opportunity_quality:    memo.opportunity_quality?.score ?? null,
+    quality_tier:           memo.opportunity_quality?.tier ?? null,
+    market_verdict:         memo.market_verdict?.verdict ?? null,
+    build_now_gate:         memo.market_verdict?.buildNowGate ?? null,
+    verdict_matrix_version: memo.market_verdict?.version ?? null,
 
     // Roadmap M2.2 — null only for a memo scored before this milestone
     // shipped (memo.lifecycle_classification/gap_velocity absent), never

@@ -14,6 +14,7 @@
 import type { BuildDecision } from '@/types/index'
 import type { ChannelType, ScoreSource } from '@/lib/scoring'
 import type { LifecycleStage, LifecycleClassification } from '@/lib/lifecycle'
+import type { PillarScore, QualityTier, MarketVerdict, BuildNowGate } from '@/lib/verdict-matrix'
 
 export type ConfidenceTier = 'HIGH' | 'MODERATE' | 'LOW'
 
@@ -93,9 +94,19 @@ export interface VerdictLedgerEntry {
   // ── Scores ────────────────────────────────────────────────────
   dimension_scores: LedgerDimensionScore[]
 
-  // ── Pillars — always null until Roadmap M2.4 (four-pillar model) ships ──
-  pillar_scores:     null
+  // ── Pillars + two-axis verdict (Roadmap M2.4) — null only for analyses
+  // scored before this milestone shipped (never fabricated retroactively).
+  // pillar_confidence stays null deliberately: each PillarScore in
+  // pillar_scores already carries its own optional `confidence` field, so a
+  // second parallel jsonb blob for the same numbers would be redundant
+  // schema, not a real gap — see lib/verdict-matrix.ts.
+  pillar_scores:     PillarScore[] | null
   pillar_confidence: null
+  opportunity_quality:    number | null   // Axis 1, 0-100
+  quality_tier:           QualityTier | null
+  market_verdict:         MarketVerdict | null   // Axis 1 x Axis 2 (lifecycle_stage below)
+  build_now_gate:         BuildNowGate | null    // populated only when market_verdict resolved to BUILD_NOW pre-gate
+  verdict_matrix_version: string | null
 
   // ── Lifecycle — Roadmap M2.2, heuristic-v1. Null only for analyses
   // scored before this milestone shipped (never fabricated retroactively).
