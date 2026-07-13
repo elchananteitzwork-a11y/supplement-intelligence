@@ -105,7 +105,7 @@ function validate(raw: unknown): ValidationResult {
 export async function POST(req: Request): Promise<NextResponse> {
   const { data: { user } } = await createClient().auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!checkRateLimit(user.id, REVIEWS_COLLECT_LIMIT)) {
+  if (!(await checkRateLimit(user.id, REVIEWS_COLLECT_LIMIT))) {
     return NextResponse.json({ error: 'Too many requests — please wait a moment' }, { status: 429 })
   }
 

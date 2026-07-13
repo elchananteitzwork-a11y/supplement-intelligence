@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const sb = supabaseFromCookies()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return err('Unauthorized', 401)
-  if (!checkRateLimit(user.id, MANUFACTURING_LIMIT)) return err('Too many requests — please wait a moment', 429)
+  if (!(await checkRateLimit(user.id, MANUFACTURING_LIMIT))) return err('Too many requests — please wait a moment', 429)
 
   let body: { product?: string; category?: string; complexity?: string }
   try { body = await req.json() } catch { return err('Invalid JSON body') }
