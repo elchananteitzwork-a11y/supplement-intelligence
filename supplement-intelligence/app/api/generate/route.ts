@@ -19,6 +19,7 @@ import type { ConfidenceAssessment } from '@/lib/confidence'
 import { computeConcordanceMatrix } from '@/lib/concordance'
 import { computeLifecycle } from '@/lib/lifecycle'
 import { computeOpportunityQuality, computeMarketVerdict } from '@/lib/verdict-matrix'
+import { computeKillCriteria } from '@/lib/kill-criteria'
 import { normalizeQuery } from '@/lib/thesis-engine'
 import { synthesizeReviewNarrative } from '@/lib/review-narrative'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
@@ -868,6 +869,11 @@ export async function POST(req: Request) {
     const marketVerdict = computeMarketVerdict(opportunityQuality, classification.stage, grounded, confidenceAssessment)
     memo.opportunity_quality = opportunityQuality
     memo.market_verdict = marketVerdict
+
+    // Roadmap M2.8 — 3-4 falsifiable, machine-evaluable kill criteria
+    // (Blueprint §13 item 8), derived purely from the lifecycle
+    // classification + gap velocity just computed above — no new fetch.
+    memo.kill_criteria = computeKillCriteria(classification, gapVelocity)
 
     // Deterministic replacement for the model's invented ten_k/hundred_k/
     // one_m probabilities (no longer requested in the prompt) — see

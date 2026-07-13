@@ -2,6 +2,7 @@ import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import type { ConcordanceMatrix } from '@/lib/concordance'
 import type { LifecycleClassification, GapVelocity } from '@/lib/lifecycle'
 import type { OpportunityQuality, MarketVerdictResult } from '@/lib/verdict-matrix'
+import type { KillCriterion } from '@/lib/kill-criteria'
 import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
 import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 import type { NewsIntelligence } from '@/lib/news-engine/types'
@@ -246,6 +247,14 @@ export interface MemoData {
   // classification above, and the confidence assessment.
   opportunity_quality?: OpportunityQuality
   market_verdict?: MarketVerdictResult
+  // Roadmap M2.8: 3-4 falsifiable, machine-evaluable kill criteria derived
+  // from lifecycle_classification/gap_velocity above (lib/kill-criteria.ts)
+  // — "what would change our mind" (Blueprint §13 item 8). Consumed by the
+  // Watchlist re-check job (lib/watchlist/recheck.ts) to detect real
+  // threshold triggers on a later re-pull; never re-derived independently
+  // there, so a watched niche is always evaluated against the exact
+  // criteria this analysis actually generated.
+  kill_criteria?: KillCriterion[]
   keyword_intelligence?: KeywordIntelligence    // real per-keyword search volume/growth from DataForSEO
   consumer_intelligence?: ConsumerIntelligenceReport  // real review-text themes (lib/consumer-intelligence) — computed server-side, never touched by the AI, same pattern as keyword_intelligence
   // Real-Time News Intelligence (added 2026-06-25) — items come from openFDA/
