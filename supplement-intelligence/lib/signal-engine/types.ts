@@ -147,6 +147,31 @@ export interface SupplyVelocitySignal extends SignalScore {
   sample_size?: number   // how many products in the competitive set had a usable listedSince value
 }
 
+// Roadmap M2.5 — PubMed + ClinicalTrials.gov pipeline. Populated exclusively
+// from lib/provider-cache, written by the nightly batch
+// (lib/science-engine/pipeline.ts, run via app/api/cron/science-pipeline) —
+// never a live per-request API call. PubMed's multi-year query loop and
+// ClinicalTrials.gov's search both take real seconds, incompatible with the
+// fast tier's <500ms budget this dimension must stay inside; only a single
+// indexed cache read happens at request time (see providers/science.ts).
+export interface ScienceSignal extends SignalScore {
+  ingredient?: string   // which lib/science-engine/tracked-ingredients.ts entry this matched
+  // Real PubMed esearch counts, one real HTTP call per complete calendar
+  // year (the in-progress current year is deliberately excluded — see
+  // lib/science-engine/pubmed.ts).
+  publication_counts_by_year?: Record<string, number>
+  // Latest complete year vs the prior complete year, % change. Undefined
+  // when fewer than two years of real data were available — never a
+  // fabricated comparison against a missing year.
+  publication_velocity_pct?: number
+  publication_trend?: 'Accelerating' | 'Stable' | 'Declining'
+  // Real ClinicalTrials.gov v2 totalCount for this ingredient — a current
+  // total, not a fabricated multi-year series (see lib/science-engine/
+  // clinicaltrials.ts for why trial registrations don't get a velocity read).
+  trial_registrations_count?: number
+  as_of?: string   // ISO timestamp of the nightly batch run that produced this cache entry
+}
+
 export interface SeasonalitySignal extends SignalScore {
   // 10 = perfectly perennial (ideal for subscription), 0 = heavily seasonal
   peak_months?: string[]                    // e.g. ["Nov", "Dec"]
@@ -281,6 +306,7 @@ export interface ProviderSignals {
   review_velocity?: ReviewVelocitySignal
   revenue?:         RevenueSignal
   supply_velocity?: SupplyVelocitySignal
+  science?:         ScienceSignal
 
   provider:   string   // provider name, e.g. "keepa"
   fetched_at: string   // ISO timestamp
@@ -315,6 +341,7 @@ export interface AggregatedSignals {
   review_velocity?: AggregatedDimension<ReviewVelocitySignal>
   revenue?:         AggregatedDimension<RevenueSignal>
   supply_velocity?: AggregatedDimension<SupplyVelocitySignal>
+  science?:         AggregatedDimension<ScienceSignal>
 
   providers_used:     string[]
   overall_confidence: number   // avg across all populated dimensions

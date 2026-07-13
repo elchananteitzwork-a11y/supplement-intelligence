@@ -321,6 +321,10 @@ export const PROVIDER_CHANNEL: Record<string, ChannelType> = {
   'meta-ads':             'paid_media',
   'apify-alibaba':        'supply_side',
   openfda:                'regulatory_safety',
+  // Roadmap M2.5: cache-backed provider (lib/signal-engine/providers/
+  // science.ts) reading nightly-batch PubMed + ClinicalTrials.gov data —
+  // see that file's header comment for why this is one provider, not two.
+  science:                'science',
 }
 // HARDENING FIX (2026-06-28): kept in PROVIDER_CHANNEL above (so a future
 // contribution is still correctly classified if reddit is ever enabled),
@@ -345,7 +349,7 @@ export const CHANNEL_COVERAGE_NOTES: Record<ChannelType, string> = {
   paid_media:         'Reflects only ads indexed by the Meta Ad Library (Facebook/Instagram) — spend on Google, Amazon, TikTok, or other ad platforms is not visible here, and true ad budget is never exposed by this endpoint, only ad/advertiser counts.',
   consumer_voice:     "Reflects Reddit's own audience composition by platform design (skews younger, US, English-speaking, text-first) — absence of signal here is not evidence of absence of demand or complaints elsewhere.",
   supply_side:        'Reflects suppliers indexed by this specific scraper — sourcing regions or supplier networks outside it are not visible here.',
-  science:            'No provider populates this channel yet — reserved for Roadmap M2.5 (PubMed / ClinicalTrials.gov).',
+  science:            'Reflects only publication/trial activity for the fixed list of tracked ingredients (lib/science-engine/tracked-ingredients.ts) refreshed by a nightly batch — queries outside that list show Absent, which is a coverage gap, not evidence the science base is thin.',
   regulatory_safety:  'Reflects only FDA recall and adverse-event data — does not cover non-US regulators or unreported incidents.',
 }
 

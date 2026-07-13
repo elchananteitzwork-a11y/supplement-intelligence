@@ -11,6 +11,11 @@ import { createClient } from '@supabase/supabase-js'
 //   serp:v1:{query}                — ProviderSignals from junglee~amazon-crawler
 //   keywords:v1:{query}            — KeywordIntelligence from DataForSEO
 //   mfg:v1:{product}:{category}    — ManufacturingEstimate from Apify/Alibaba
+//   science:v1:{ingredient}        — ScienceSignal from lib/science-engine's
+//                                    nightly batch (Roadmap M2.5) — the only
+//                                    entry here NOT written lazily on a
+//                                    cache miss; written proactively once a
+//                                    night by app/api/cron/science-pipeline.
 //
 // All reads/writes are non-fatal: a cache miss or write failure never
 // blocks the analysis — callers proceed to the live provider instead.

@@ -186,10 +186,23 @@ describe('computeLifecycle — known-answer fixtures (roadmap acceptance criteri
     expect(classification.stage).toBe('Emerging')
   })
 
-  it('always names science as unmeasured — never silently presented as a resolved input', () => {
+  it('names science as unmeasured when no real science signal was contributed for this query', () => {
     const memo: MemoData = { ...MEMO_SCAFFOLD } as unknown as MemoData
     const { classification } = computeLifecycle(memo, groundedWithDemand(5))
     expect(classification.unmeasured_dimensions).toContain('science')
+  })
+
+  it('Roadmap M2.5: does not list science as unmeasured once a real cached signal was contributed', () => {
+    const memo: MemoData = {
+      ...MEMO_SCAFFOLD,
+      signal_evidence: {
+        science: { value: { score: 8, confidence: 0.75, ingredient: 'berberine', publication_trend: 'Accelerating' }, sources: ['science'], primarySource: 'science', confidence: 0.75 },
+        providers_used: ['science'], overall_confidence: 0.75,
+      },
+    } as unknown as MemoData
+    const { classification } = computeLifecycle(memo, groundedWithDemand(5))
+    expect(classification.unmeasured_dimensions).not.toContain('science')
+    expect(classification.unmeasured_dimensions).toEqual([])
   })
 
   it('every classification names its own model version, for future-classifier comparability', () => {

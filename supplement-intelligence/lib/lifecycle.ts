@@ -12,14 +12,20 @@
 // | Saturated   | —       | flat          | fading     | high, flat       | high, price compression |
 // | Declining   | —       | ↓             | gone       | ↓                | exits                   |
 //
-// HONEST GAP, disclosed rather than fabricated around: the Science column
-// has no real provider yet (Roadmap M2.5 — PubMed/ClinicalTrials.gov is not
-// built). Latent and Emerging are the two stages whose blueprint signature
-// leans most heavily on Science (both show ↑) — this v1 classifier
+// HONEST GAP, disclosed rather than fabricated around: as of Roadmap M2.5,
+// a real Science signal exists (lib/science-engine — PubMed + ClinicalTrials.gov,
+// nightly-batch cached), but it is scoped to a fixed, small tracked-ingredient
+// list and this classifier's signature-table RULES were not changed to read
+// it — doing so would mean redesigning the already-shipped, already-tested
+// M2.2 classifier, which was not part of M2.5's own acceptance criteria.
+// Latent and Emerging are the two stages whose blueprint signature leans
+// most heavily on Science (both show ↑) — this v1 classifier still
 // distinguishes them using only Search + Amazon-demand-level, the two real
 // columns that actually differ between them (flat/absent vs. accelerating/
-// small-absent). `unmeasured_dimensions` on every classification result
-// names this gap explicitly so it's never silently assumed resolved.
+// small-absent). `unmeasured_dimensions` reflects the real, per-query state
+// of the Science channel (present for a tracked ingredient with cached
+// data, absent otherwise) rather than unconditionally claiming it's never
+// measured — see computeLifecycle below.
 //
 // This is a genuine "signature table" (first matching rule wins), not a
 // weighted score — matching the roadmap's own words: "Heuristic signature
@@ -164,11 +170,15 @@ export function computeLifecycle(m: MemoData, grounded: GroundedScore): { classi
     supply_young_listing_pct_24m: supplyVelocity?.young_listing_pct_24m ?? null,
   }
 
+  // Roadmap M2.5: 'science' is only genuinely unmeasured when no cached
+  // signal was contributed for this query (either the ingredient isn't on
+  // the tracked list, or the nightly batch hasn't populated it yet) — never
+  // unconditionally listed as a gap once real data exists for it.
   const classification: LifecycleClassification = {
     stage:   classifyLifecycleStage(inputs),
     version: LIFECYCLE_MODEL_VERSION,
     inputs,
-    unmeasured_dimensions: ['science'],
+    unmeasured_dimensions: m.signal_evidence?.science ? [] : ['science'],
   }
 
   const gapVelocity = computeGapVelocity(
