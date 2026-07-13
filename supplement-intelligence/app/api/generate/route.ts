@@ -15,6 +15,7 @@ import { buildExpandableCards, selectFirstScreenSignals } from '@/lib/evidence'
 import { writeBuildNowPattern } from '@/lib/pattern-memory'
 import { writeVerdictLedgerEntry } from '@/lib/verdict-ledger'
 import { computeConfidenceAssessment } from '@/lib/confidence'
+import { computeConcordanceMatrix } from '@/lib/concordance'
 import { normalizeQuery } from '@/lib/thesis-engine'
 import { synthesizeReviewNarrative } from '@/lib/review-narrative'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
@@ -721,6 +722,12 @@ export async function POST(req: Request) {
   // and memo.consumer_intelligence to ground the score in real data.
   if (!skipReason && signals) {
     memo.signal_evidence = signals
+    // Roadmap M2.1: derived from the same `signals` object, computed once
+    // here rather than lazily at render time, so every later read of this
+    // stored memo sees the identical matrix — same persistence rationale
+    // as category_creation_broad_evidence above.
+    const matrix = computeConcordanceMatrix(signals)
+    if (matrix) memo.concordance_matrix = matrix
   }
   if (!skipReason && enrichedKeywordIntelligence) {
     const keywordAiInsights = await keywordInsightsPromise

@@ -1,4 +1,5 @@
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
+import type { ConcordanceMatrix } from '@/lib/concordance'
 import type { KeywordIntelligence } from '@/lib/keyword-engine/types'
 import type { ConsumerIntelligenceReport } from '@/lib/consumer-intelligence'
 import type { NewsIntelligence } from '@/lib/news-engine/types'
@@ -219,6 +220,14 @@ export interface MemoData {
   // data the UI shows before any AI interpretation. Optional for backward
   // compat with memos generated before this existed.
   signal_evidence?:      AggregatedSignals     // real demand/growth/revenue/review/virality signals — same object already used to ground the prompt, now persisted instead of discarded after generation
+  // Roadmap M2.1: per-channel demand directional reads (accelerating/
+  // stable/decelerating/absent) derived from signal_evidence.growth's
+  // per-provider contributions — computed once at generation time
+  // (lib/concordance.ts) and persisted here for the same reason
+  // category_creation_broad_evidence below is persisted: a later re-render
+  // from the stored memo alone must see the same matrix that was computed
+  // at generation time, not silently diverge.
+  concordance_matrix?: ConcordanceMatrix
   keyword_intelligence?: KeywordIntelligence    // real per-keyword search volume/growth from DataForSEO
   consumer_intelligence?: ConsumerIntelligenceReport  // real review-text themes (lib/consumer-intelligence) — computed server-side, never touched by the AI, same pattern as keyword_intelligence
   // Real-Time News Intelligence (added 2026-06-25) — items come from openFDA/

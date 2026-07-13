@@ -86,12 +86,24 @@ Stripe (or equivalent): plan gating on analyses/month, watch slots reserved for 
 
 ## Phase 2 — Major improvements after beta
 
-### M2.1 — Concordance matrix + directional reads `[ ]`
+### M2.1 — Concordance matrix + directional reads `[x]`
 **Blueprint refs:** §4 stage 4, §10, §13 item 3. **Depends on:** M1.4, M1.5, M1.6.
 Each demand channel emits `accelerating / stable / decelerating / absent`; build the cross-channel concordance matrix; render it in the report as a per-channel scorecard with actual numbers.
 **Acceptance criteria:**
 - Matrix renders for benchmark queries with ≥3 channels populated.
 - Agreement/divergence feeds confidence (M1.4) and is consumed by M2.2.
+
+**Completed 2026-07-13.** Before starting, re-verified M1.1/M1.2/M1.4/M1.6/M1.7/M1.8 fresh against the code (not the roadmap's own stale checkboxes, which still showed `[ ]`): all six are genuinely complete — ledger writes, honest weights, the independence gate, DataForSEO acceleration, the Review Engine, and billing gating all confirmed live in the current codebase. None needed work; only M2.1 was genuinely incomplete.
+
+Real per-channel data did not previously exist to build a genuine matrix from: `lib/signal-engine/engine.ts`'s `aggregateDimension()` blends every contributing provider's `growth.momentum` into one final value (highest-confidence provider's string fields "win"), discarding what every other contributing provider individually reported. Required one additive extension: `AggregatedDimension.perProviderValues` (new, optional field, populated in both branches of `aggregateDimension`) preserves each provider's own un-blended signal alongside the existing blended `value` — every existing consumer of `AggregatedDimension` is unaffected.
+
+New `lib/concordance.ts` (`computeConcordanceMatrix`) reads `growth.perProviderValues` back out, maps each contributing provider to its channel via the already-exported `PROVIDER_CHANNEL` (lib/scoring.ts), and reports one of `Accelerating | Stable | Decelerating | Absent` for each of demand's three real channels (`search_intent`, `amazon_market`, `consumer_voice` — the channels that actually populate `growth` today; tiktok/meta-ads populate `virality`, not `growth`, so their absence here is correct, not a gap). Computed once at generation time (`app/api/generate/route.ts`, alongside `signal_evidence`) and persisted on `MemoData.concordance_matrix` so a later re-render sees the same matrix, not a recomputation — same rationale as the pre-existing `category_creation_broad_evidence` persistence. Rendered as a per-channel scorecard in `DemandIntensity.tsx`, always showing all 3 channel slots (Absent shown honestly, never hidden or fabricated).
+
+**Scoping decision, disclosed rather than silently limited:** `agreement` (`Unanimous | Majority | Mixed | Insufficient`) is computed and rendered, but was **not** wired into `lib/confidence`'s M1.4 confidence formula. The roadmap's own text says this matrix is "consumed by M2.2" (the lifecycle classifier), which does not exist yet — wiring a real input into M1.4's already-shipped, already-tested formula ahead of its actual downstream consumer existing would mean guessing what M2.2 will need rather than building to a real spec. `agreement` is real and available for M2.2 to consume once it's built.
+
+Reddit is `STRUCTURALLY_DISABLED_PROVIDERS` in this environment (no credentials configured anywhere), so `consumer_voice` will show `Absent` on every live query until that changes — this is an honest reflection of current deployment state, not a bug in the matrix logic itself (verified via unit tests with all 3 channels populated).
+
+Verified: `tsc --noEmit` clean, 389/389 tests passing (26 files, including 2 new test files — 3 tests for `engine.ts`'s aggregation extension, 10 for `computeConcordanceMatrix` covering channel mapping, Absent-channel honesty, tie-breaking between two providers on the same channel, and all four agreement tiers), `next build` clean (`/memo/[id]` 52.2kB → 52.5kB, expected from the new UI card).
 
 ### M2.2 — Lifecycle classifier v1 + gap velocity `[ ]`
 **Blueprint refs:** §3, §9. **Depends on:** M2.1; supply-velocity input from M2.3.

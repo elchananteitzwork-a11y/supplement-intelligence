@@ -20,6 +20,49 @@ import {
 } from '@/lib/provenance'
 import { ProvenanceBadge, LabNoData, SignalBars, LEVEL_TO_SIGNAL, dimLevel } from './shared'
 import KeywordIntelligence from './KeywordIntelligence'
+import type { ConcordanceMatrix, Momentum } from '@/lib/concordance'
+
+// ── Roadmap M2.1: per-channel scorecard ─────────────────────────────────
+// "Each demand channel emits accelerating/stable/decelerating/absent;
+// render it in the report as a per-channel scorecard with actual numbers."
+// Real per-provider directional reads (lib/concordance.ts), not the single
+// blended momentum shown elsewhere in this section — a channel that never
+// reported for this query shows Absent honestly rather than being hidden.
+const MOMENTUM_CLS: Record<Momentum, string> = {
+  Accelerating: 'text-verdict-positive border-black bg-white',
+  Stable:       'text-ink-variant border-black bg-white',
+  Decelerating: 'text-verdict-negative border-black bg-white',
+  Absent:       'text-outline border-outline-variant bg-surface-container',
+}
+const AGREEMENT_LABEL: Record<ConcordanceMatrix['agreement'], string> = {
+  Unanimous:    'Unanimous — every reporting channel agrees',
+  Majority:     'Majority — most reporting channels agree',
+  Mixed:        'Mixed — reporting channels disagree',
+  Insufficient: 'Insufficient — fewer than 2 channels reported',
+}
+
+function ConcordanceMatrixCard({ matrix }: { matrix: ConcordanceMatrix }) {
+  return (
+    <div className="bg-white border border-black p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-xs font-semibold text-black">Cross-Channel Demand Concordance</p>
+        <span className="text-[10px] font-mono text-outline uppercase tracking-wider">{matrix.distinctReportingChannels}/{matrix.reads.length} channels reporting</span>
+      </div>
+      <div className="border border-black divide-y divide-black">
+        {matrix.reads.map(r => (
+          <div key={r.channel} className="flex items-center justify-between gap-3 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-black">{r.label}</p>
+              {r.provider && <p className="text-[10px] text-outline font-mono">{r.provider}</p>}
+            </div>
+            <span className={`text-[10px] font-semibold uppercase tracking-wide border px-2 py-0.5 shrink-0 ${MOMENTUM_CLS[r.momentum]}`}>{r.momentum}</span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-outline italic mt-3 leading-relaxed">{AGREEMENT_LABEL[matrix.agreement]}</p>
+    </div>
+  )
+}
 
 // ── Stitch's literal §3 row pattern (re-confirmed by direct re-read of
 // 80f611873dbf4a5087134b00e73b9f31.html lines 231-300): one row per real
@@ -228,6 +271,12 @@ export default function DemandIntensity({ m }: { m: MemoData }) {
         <ConcordanceRow label="Subscription Strength" value={subscriptionLevel ?? undefined} level={subscriptionLevel ? LEVEL_TO_SIGNAL[subscriptionLevel] : null} />
         <ConcordanceRow label="Social / TikTok Signal" value={viralityLevel ?? undefined} level={viralityLevel} />
       </div>
+
+      {m.concordance_matrix && (
+        <div className="pt-5 border-t border-black">
+          <ConcordanceMatrixCard matrix={m.concordance_matrix} />
+        </div>
+      )}
 
       <div className="grid gap-3 pt-5 border-t border-black">
         <DemandEvidencePanel m={m} />

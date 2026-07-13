@@ -270,6 +270,14 @@ export interface AggregatedDimension<T extends SignalScore> {
   sources:       string[]   // every provider that contributed to the blended score
   primarySource: string     // which single provider's non-numeric fields (strings) ended up in `value` — only `score`/`confidence` are ever blended across providers, so a citation naming all of `sources` for a specific string field would overstate how many providers actually back it
   confidence:    number      // weighted-average confidence
+  // Roadmap M2.1 (concordance matrix): each contributing provider's own,
+  // un-blended signal — `value` above already discards this (only the
+  // highest-confidence provider's string fields survive aggregation), so a
+  // per-channel view of "what did THIS specific provider report" needs the
+  // raw list preserved separately. Optional and additive: every existing
+  // consumer of AggregatedDimension that never reads this field is
+  // unaffected. Order matches `sources`.
+  perProviderValues?: Array<{ source: string; value: T }>
 }
 
 export interface AggregatedSignals {

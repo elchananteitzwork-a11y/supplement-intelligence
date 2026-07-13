@@ -26,6 +26,7 @@ function aggregateDimension<T extends SignalScore>(
       sources:       [contributions[0].source],
       primarySource: contributions[0].source,
       confidence:    contributions[0].value.confidence,
+      perProviderValues: contributions,
     }
   }
 
@@ -51,6 +52,7 @@ function aggregateDimension<T extends SignalScore>(
     sources:       contributions.map(c => c.source),
     primarySource: primary.source,
     confidence:    avgConf,
+    perProviderValues: contributions,
   }
 }
 
