@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runScienceIngestionPipeline } from '@/lib/science-engine/pipeline'
+import { TRACKED_INGREDIENTS } from '@/lib/science-engine/tracked-ingredients'
+import { runDiscoveryDetection } from '@/lib/discovery-engine/run'
 
 // ── Science pipeline — nightly batch entry point (Roadmap M2.5) ─────────────
 //
@@ -14,6 +16,14 @@ import { runScienceIngestionPipeline } from '@/lib/science-engine/pipeline'
 // Absent CRON_SECRET, the route fails closed (401) rather than running
 // unauthenticated — same safe-by-default posture as the Billing routes
 // when their own required env vars are unset.
+//
+// Roadmap M2.12: also runs Discovery Engine detection right after
+// ingestion, for the same TRACKED_INGREDIENTS this pipeline just wrote
+// fresh niche_timeseries observations for — this is the only real writer
+// for these candidates today, so detection belongs on this exact cadence.
+// lib/discovery-engine/run.ts itself is category-agnostic (takes a
+// candidate list as a parameter); TRACKED_INGREDIENTS is supplied here,
+// at the call site, not assumed inside the engine.
 
 export const maxDuration = 60   // 3 ingredients x (6 sequential PubMed calls + 1 ClinicalTrials.gov call) — seconds, not minutes, but real network I/O
 // Without this, Next.js's build-time static-render detection doesn't
@@ -37,10 +47,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const startedAt = Date.now()
   const results = await runScienceIngestionPipeline()
+  const discovery = await runDiscoveryDetection([...TRACKED_INGREDIENTS])
   const durationMs = Date.now() - startedAt
 
   const succeeded = results.filter(r => r.success).length
-  console.log('Science pipeline run complete', { succeeded, total: results.length, durationMs })
+  console.log('Science pipeline run complete', { succeeded, total: results.length, discovery, durationMs })
 
-  return NextResponse.json({ results, succeeded, total: results.length, durationMs })
+  return NextResponse.json({ results, succeeded, total: results.length, discovery, durationMs })
 }

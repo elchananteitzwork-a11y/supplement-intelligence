@@ -47,6 +47,21 @@ export interface ScoreDimension {
 // moves to the new paid_media — previously all three collapsed into one
 // witness for channel-independence purposes, which under-counted real
 // corroboration whenever more than one of them fired on the same query.
+// Roadmap M2.10 (2026-07-13): two channels added for genuinely new,
+// independent evidence types the original 8 have no room for.
+// `social_commerce` is revealed-money data (TikTok Shop GMV, e.g. Kalodata/
+// FastMoss, Roadmap M3.5) — categorically different from social_attention's
+// engagement-mechanics data, so it earns its own channel rather than
+// inflating TikTok's existing witness. `video_research` is YouTube video
+// velocity/comment data (Roadmap M2.13's VOC re-sourcing, replacing
+// Reddit). Deliberately NOT added: a channel for TikTok Creative Center
+// (shares paid_media with meta-ads — both are paid/organic *attention*
+// mechanics, and per the Master Execution Plan's explicit instruction,
+// Creative Center + Meta Ads must never be counted as two independent
+// witnesses) or for Amazon Q&A (shares amazon_market — same underlying
+// marketplace data surface as Keepa, same precedent already set for
+// Keepa's supply-velocity sub-signal in M2.3, see the KNOWN SCOPING LIMIT
+// comment below).
 export type ChannelType =
   | 'amazon_market'
   | 'search_intent'
@@ -56,6 +71,8 @@ export type ChannelType =
   | 'supply_side'
   | 'science'
   | 'regulatory_safety'
+  | 'social_commerce'
+  | 'video_research'
 
 export interface ChannelBreakdownEntry {
   channel:     ChannelType
@@ -277,6 +294,8 @@ export const CHANNEL_LABELS: Record<ChannelType, string> = {
   supply_side:        'Manufacturing / Supply',
   science:            'Scientific Literature',
   regulatory_safety:  'Regulatory / Safety',
+  social_commerce:    'Social Commerce (GMV)',
+  video_research:     'Video Research',
 }
 
 // Roadmap M1.3 (2026-07-12): Meta Ad Library and Reddit split out of the
@@ -285,7 +304,13 @@ export const CHANNEL_LABELS: Record<ChannelType, string> = {
 // (amazon_marketplace→amazon_market, search_seo→search_intent,
 // manufacturing_supply→supply_side), same provider, same real data, no
 // behavior change beyond the label. `science` has no provider yet
-// (reserved for Roadmap M2.5).
+// (reserved for Roadmap M2.5). Roadmap M2.10 (2026-07-13) added
+// `social_commerce` and `video_research` to ChannelType with no provider
+// entries below yet, by design — they're reserved for M3.5 (TikTok Shop
+// GMV) and M2.13 (YouTube) respectively; the type/label/coverage-note
+// extension intentionally ships ahead of the providers it will tag, so
+// every later milestone that lands can register against an
+// already-correct taxonomy instead of touching this file again.
 //
 // KNOWN SCOPING LIMIT (deliberate, updated Roadmap M2.3): Keepa's
 // CompetitionSignal still carries marketplace-saturation fields
@@ -351,6 +376,8 @@ export const CHANNEL_COVERAGE_NOTES: Record<ChannelType, string> = {
   supply_side:        'Reflects suppliers indexed by this specific scraper — sourcing regions or supplier networks outside it are not visible here.',
   science:            'Reflects only publication/trial activity for the fixed list of tracked ingredients (lib/science-engine/tracked-ingredients.ts) refreshed by a nightly batch — queries outside that list show Absent, which is a coverage gap, not evidence the science base is thin.',
   regulatory_safety:  'Reflects only FDA recall and adverse-event data — does not cover non-US regulators or unreported incidents.',
+  social_commerce:    'Reflects TikTok Shop GMV only, once a provider is registered (Roadmap M3.5) — GMV on other platforms is not visible here.',
+  video_research:     'Reflects YouTube video/comment activity only, once a provider is registered (Roadmap M2.13) — video discussion on other platforms is not visible here.',
 }
 
 function hasRealRecallOrAdverseEvent(m: MemoData): boolean {

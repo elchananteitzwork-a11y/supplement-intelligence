@@ -40,6 +40,7 @@ import type { KillCriterionFreshValues } from '@/lib/kill-criteria'
 import type { MemoData } from '@/types/index'
 import type { WatchlistEntry } from './types'
 import { listActiveWatches, updateWatchAfterCheck, writeAlert } from './service-store'
+import { appendObservations } from '@/lib/niche-timeseries/store'
 
 const fastTierEngine = new SignalEngine([new KeepaProvider(), new GoogleTrendsProvider(), new ScienceProvider()])
 
@@ -123,6 +124,20 @@ export async function runWatchlistRecheck(): Promise<WatchlistRecheckSummary> {
 
     const fresh = computeFreshLifecycleFromSignals(signals)
     const result = evaluateWatch(entry, fresh)
+
+    // Roadmap M2.11: append these same real, already-computed numeric
+    // values into the niche_timeseries history — non-fatal, never blocks
+    // this job. search_momentum/supply_entry_velocity are categorical
+    // (Momentum | 'Unknown'), not numeric, so they're deliberately not
+    // appended here — only genuinely numeric fields, no invented encoding.
+    await appendObservations([
+      fresh.gapVelocity.demand_acceleration_pct != null
+        ? { nicheKey: entry.category_name, source: 'keepa', metric: 'demand_acceleration_pct', value: fresh.gapVelocity.demand_acceleration_pct } : null,
+      fresh.classification.inputs.supply_young_listing_pct_24m != null
+        ? { nicheKey: entry.category_name, source: 'keepa', metric: 'young_listing_pct_24m', value: fresh.classification.inputs.supply_young_listing_pct_24m } : null,
+      fresh.gapVelocity.value != null
+        ? { nicheKey: entry.category_name, source: 'lifecycle', metric: 'gap_velocity', value: fresh.gapVelocity.value } : null,
+    ])
 
     if (result.stageTransition) {
       summary.stageTransitions++

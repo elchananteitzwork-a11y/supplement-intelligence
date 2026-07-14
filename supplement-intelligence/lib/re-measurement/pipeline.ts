@@ -21,6 +21,7 @@
 
 import { fetchFastTierSignals } from '@/lib/watchlist/recheck'
 import { parseDollarString } from '@/lib/scoring'
+import { appendObservations } from '@/lib/niche-timeseries/store'
 import { dueCheckpoints, daysSince } from './checkpoints'
 import { computeOutcomeLabel } from './outcome'
 import {
@@ -75,6 +76,13 @@ export async function runRemeasurement(now = new Date()): Promise<RemeasurementR
 
     const outcomeLabel = computeOutcomeLabel({ entryVelocity, avgReviewCountAtMeasurement })
     const elapsedDays = daysSince(row.created_at, now)
+
+    // Roadmap M2.11: append these same real, already-computed values into
+    // the niche_timeseries history — non-fatal, never blocks this job.
+    await appendObservations([
+      youngListingPct24m != null ? { nicheKey: row.normalized_market, source: 'keepa', metric: 'young_listing_pct_24m', value: youngListingPct24m, observedAt: now } : null,
+      priceMovementPct != null   ? { nicheKey: row.normalized_market, source: 'keepa', metric: 'price_movement_pct', value: priceMovementPct, observedAt: now } : null,
+    ])
 
     for (const checkpoint of due) {
       await writeOutcome({

@@ -1,15 +1,41 @@
 // ── Deterministic problem-language clustering — Roadmap M2.7 ────────────────
 //
-// Pure function: real fetched Reddit posts in, real per-topic cluster stats
-// out. No AI, no invented numbers — every post's topic membership is a real
-// regex match against its own real title/selftext (lib/voc-pipeline/
-// topics.ts); every count, engagement score, and quote comes directly from
-// the posts actually fetched this run. A post can belong to more than one
-// topic when its language genuinely spans clusters (e.g. a gut+skin post) —
-// never forced into exactly one bucket.
+// Pure function: real fetched posts in, real per-topic cluster stats out.
+// No AI, no invented numbers — every post's topic membership is a real
+// regex match against its own real title/body (lib/voc-pipeline/topics.ts);
+// every count, engagement score, and quote comes directly from the posts
+// actually fetched this run. A post can belong to more than one topic when
+// its language genuinely spans clusters (e.g. a gut+skin post) — never
+// forced into exactly one bucket.
+//
+// Roadmap M2.13 (2026-07-14): this file's input type was `VocRedditPost`
+// with a `selftext` field — both literally Reddit's own API vocabulary,
+// which became misleading once this pipeline started sourcing real posts
+// from YouTube comments and DataForSEO question-keywords too (Roadmap M2.7's
+// Reddit fetch is deferred, not deleted — lib/voc-pipeline/reddit-listing.ts
+// still produces this same shape, kept dormant). Renamed to `VocPost`/
+// `body` here, the same generalization-of-a-misleading-name discipline
+// already applied once before in this codebase (M1.3's channel-taxonomy
+// renames, e.g. amazon_marketplace→amazon_market). `subreddit`/
+// `subreddits_seen` are deliberately KEPT AS-IS below — they already mean
+// "which source-group did this come from" generically, and renaming them
+// too would be unjustified extra churn for a concept that's still accurate
+// even under its Reddit-derived name: a YouTube video ID or the fixed
+// literal 'dataforseo-question-keywords' fits the same slot correctly.
+// Zero clustering/ranking LOGIC changed by this rename — same regex
+// matching, same engagement formula, same ranking, over the same shape of
+// data under new, honest names.
 
 import type { ProblemTopic } from './topics'
-import type { VocRedditPost } from './reddit-listing'
+
+export interface VocPost {
+  title:        string
+  body?:        string
+  score:        number
+  num_comments: number
+  created_utc:  number
+  subreddit:    string
+}
 
 export interface TopicClusterStats {
   topic_key:      string
@@ -29,19 +55,19 @@ export interface TopicClusterStats {
 const MAX_SAMPLE_QUOTES  = 5
 const SNIPPET_MAX_CHARS  = 180
 
-function postMatchesTopic(post: VocRedditPost, topic: ProblemTopic): boolean {
-  const haystack = `${post.title} ${post.selftext ?? ''}`
+function postMatchesTopic(post: VocPost, topic: ProblemTopic): boolean {
+  const haystack = `${post.title} ${post.body ?? ''}`
   return topic.keywords.some(rx => rx.test(haystack))
 }
 
-function engagementOf(post: VocRedditPost): number {
+function engagementOf(post: VocPost): number {
   return post.score + post.num_comments * 2
 }
 
-function quoteFor(post: VocRedditPost): string {
-  if (post.selftext && post.selftext.trim().length > 0) {
-    const snippet = post.selftext.trim().slice(0, SNIPPET_MAX_CHARS)
-    return `${post.title.trim()} — "${snippet}${post.selftext.length > SNIPPET_MAX_CHARS ? '…' : ''}"`
+function quoteFor(post: VocPost): string {
+  if (post.body && post.body.trim().length > 0) {
+    const snippet = post.body.trim().slice(0, SNIPPET_MAX_CHARS)
+    return `${post.title.trim()} — "${snippet}${post.body.length > SNIPPET_MAX_CHARS ? '…' : ''}"`
   }
   return post.title.trim()
 }
@@ -49,7 +75,7 @@ function quoteFor(post: VocRedditPost): string {
 // Real posts -> real per-topic stats, one entry per topic that matched at
 // least one post this run (a topic with zero real matches is simply absent
 // from the result — never a fabricated zero-row).
-export function clusterPosts(posts: VocRedditPost[], topics: ProblemTopic[]): TopicClusterStats[] {
+export function clusterPosts(posts: VocPost[], topics: ProblemTopic[]): TopicClusterStats[] {
   const results: TopicClusterStats[] = []
 
   for (const topic of topics) {

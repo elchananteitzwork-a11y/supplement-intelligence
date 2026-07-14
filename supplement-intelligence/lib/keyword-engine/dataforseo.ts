@@ -270,6 +270,94 @@ function toMetric(data: DfsKeywordData): KeywordMetric | null {
 
 const KEYWORD_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000  // 7 days — keyword volumes stable week-to-week
 
+// Roadmap M2.13: extracted from DataForSeoKeywordProvider's own private
+// fetchOnce (which now just delegates here, unchanged behavior) so
+// lib/voc-pipeline/dataforseo-question-posts.ts can call the SAME real
+// related_keywords/live endpoint directly — without going through
+// DataForSeoKeywordProvider.fetch()'s per-product relevance guard
+// (checkKeywordRelevance), which is the wrong semantics for a topic-seeded
+// weekly VOC pull (it exists to reject a broadened candidate keyword that
+// drifted away from ONE specific product query — there is no single
+// product query here to guard against). No `this` usage in the original
+// method body, so this is a pure, behavior-preserving extraction.
+export async function fetchRelatedKeywords(keyword: string, externalSignal?: AbortSignal): Promise<KeywordMetric[] | null> {
+  if (externalSignal?.aborted) return null
+
+  // Combine the caller's overall-deadline signal with this call's own
+  // 12s per-attempt timeout — whichever fires first aborts the request.
+  // No `AbortSignal.any` (Node 20.3+ only, and this repo doesn't pin an
+  // `engines` field) — wired by hand so this works on any Node version
+  // that has native fetch + AbortController.
+  const controller = new AbortController()
+  const onExternalAbort = () => controller.abort()
+  externalSignal?.addEventListener('abort', onExternalAbort)
+  const perCallTimeout = setTimeout(() => controller.abort(), 12_000)
+
+  try {
+    const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64')
+    const res = await fetch(ENDPOINT, {
+      method:  'POST',
+      signal:  controller.signal,
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify([{
+        keyword,
+        language_code: 'en',
+        location_code: US_LOCATION_CODE,
+        depth:         2,
+        limit:         100,
+      }]),
+    })
+
+    if (!res.ok) {
+      console.error('DataForSEO HTTP error', { status: res.status, keyword })
+      return null
+    }
+
+    const data: DfsResponse = await res.json()
+    const task = data.tasks?.[0]
+    // CONFIRMED VIA LIVE CALL: DataForSEO's own success code is 20000, not
+    // an HTTP-style "< 400 is fine." The original `status_code >= 400`
+    // check was true for the success code itself (20000 >= 400), so every
+    // real successful call was being discarded as an error — this is the
+    // bug that caused the first live end-to-end test to come back empty.
+    if (!task || task.status_code !== 20000) {
+      console.error('DataForSEO task error', { keyword, status: task?.status_code, message: task?.status_message })
+      return null
+    }
+
+    const items = task.result?.[0]?.items ?? []
+    const metrics = items
+      .map(it => it.keyword_data ? toMetric(it.keyword_data) : null)
+      .filter((m): m is KeywordMetric => m !== null)
+
+    if (metrics.length < MIN_USABLE_KEYWORDS) {
+      console.log('DataForSEO: too few usable keywords for this candidate', { keyword, count: metrics.length })
+      return null
+    }
+    return metrics
+  } catch (e: unknown) {
+    // Distinguish an intentional cancellation (caller's deadline passed,
+    // or this call's own 12s attempt timeout) from a genuine provider
+    // failure — PR review finding: once timeouts can fire from an
+    // external signal too, logging every abort as "provider error" would
+    // make DataForSEO look unreliable in production logs when it was
+    // simply cancelled on purpose.
+    const aborted = e instanceof Error && e.name === 'AbortError'
+    if (aborted) {
+      console.log('DataForSEO call cancelled (timeout or caller deadline)', { keyword })
+    } else {
+      console.error('DataForSEO provider error', { keyword, error: e instanceof Error ? e.message : e })
+    }
+    return null
+  } finally {
+    clearTimeout(perCallTimeout)
+    externalSignal?.removeEventListener('abort', onExternalAbort)
+  }
+}
+
 export class DataForSeoKeywordProvider implements KeywordProvider {
   readonly name    = 'dataforseo'
   readonly enabled = !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD)
@@ -382,81 +470,7 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
   }
 
   private async fetchOnce(keyword: string, externalSignal?: AbortSignal): Promise<KeywordMetric[] | null> {
-    if (externalSignal?.aborted) return null
-
-    // Combine the caller's overall-deadline signal with this call's own
-    // 12s per-attempt timeout — whichever fires first aborts the request.
-    // No `AbortSignal.any` (Node 20.3+ only, and this repo doesn't pin an
-    // `engines` field) — wired by hand so this works on any Node version
-    // that has native fetch + AbortController.
-    const controller = new AbortController()
-    const onExternalAbort = () => controller.abort()
-    externalSignal?.addEventListener('abort', onExternalAbort)
-    const perCallTimeout = setTimeout(() => controller.abort(), 12_000)
-
-    try {
-      const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64')
-      const res = await fetch(ENDPOINT, {
-        method:  'POST',
-        signal:  controller.signal,
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type':  'application/json',
-        },
-        body: JSON.stringify([{
-          keyword,
-          language_code: 'en',
-          location_code: US_LOCATION_CODE,
-          depth:         2,
-          limit:         100,
-        }]),
-      })
-
-      if (!res.ok) {
-        console.error('DataForSEO HTTP error', { status: res.status, keyword })
-        return null
-      }
-
-      const data: DfsResponse = await res.json()
-      const task = data.tasks?.[0]
-      // CONFIRMED VIA LIVE CALL: DataForSEO's own success code is 20000, not
-      // an HTTP-style "< 400 is fine." The original `status_code >= 400`
-      // check was true for the success code itself (20000 >= 400), so every
-      // real successful call was being discarded as an error — this is the
-      // bug that caused the first live end-to-end test to come back empty.
-      if (!task || task.status_code !== 20000) {
-        console.error('DataForSEO task error', { keyword, status: task?.status_code, message: task?.status_message })
-        return null
-      }
-
-      const items = task.result?.[0]?.items ?? []
-      const metrics = items
-        .map(it => it.keyword_data ? toMetric(it.keyword_data) : null)
-        .filter((m): m is KeywordMetric => m !== null)
-
-      if (metrics.length < MIN_USABLE_KEYWORDS) {
-        console.log('DataForSEO: too few usable keywords for this candidate', { keyword, count: metrics.length })
-        return null
-      }
-      return metrics
-    } catch (e: unknown) {
-      // Distinguish an intentional cancellation (caller's deadline passed,
-      // or this call's own 12s attempt timeout) from a genuine provider
-      // failure — PR review finding: once timeouts can fire from an
-      // external signal too, logging every abort as "provider error" would
-      // make DataForSEO look unreliable in production logs when it was
-      // simply cancelled on purpose.
-      const aborted = e instanceof Error && e.name === 'AbortError'
-      if (aborted) {
-        console.log('DataForSEO call cancelled (timeout or caller deadline)', { keyword })
-      } else {
-        console.error('DataForSEO provider error', { keyword, error: e instanceof Error ? e.message : e })
-      }
-      return null
-    } finally {
-      clearTimeout(perCallTimeout)
-      externalSignal?.removeEventListener('abort', onExternalAbort)
-    }
+    return fetchRelatedKeywords(keyword, externalSignal)
   }
 
   private async fetchSearchVolume(keyword: string, externalSignal?: AbortSignal): Promise<KeywordMetric | null> {

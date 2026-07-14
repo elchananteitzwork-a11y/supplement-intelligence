@@ -4,7 +4,7 @@ import { fetchWeeklyTopPosts } from '../reddit-listing'
 describe('fetchWeeklyTopPosts', () => {
   afterEach(() => { vi.restoreAllMocks() })
 
-  it('parses real listing children into VocRedditPost objects', async () => {
+  it('parses real listing children into VocPost objects (Roadmap M2.13: Reddit\'s own selftext field maps to the shared VocPost.body field)', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
@@ -19,7 +19,7 @@ describe('fetchWeeklyTopPosts', () => {
 
     const posts = await fetchWeeklyTopPosts('Menopause', 'tok')
     expect(posts).toHaveLength(1)
-    expect(posts[0]).toMatchObject({ title: 'Brain fog again', selftext: 'ugh', score: 100, num_comments: 20, subreddit: 'Menopause' })
+    expect(posts[0]).toMatchObject({ title: 'Brain fog again', body: 'ugh', score: 100, num_comments: 20, subreddit: 'Menopause' })
   })
 
   it('returns [] (never fabricated posts) on a non-200 response', async () => {

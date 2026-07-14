@@ -1,30 +1,48 @@
-// ── VOC problem-cluster pipeline — Roadmap M2.7 ──────────────────────────────
+// ── VOC problem-cluster pipeline — Roadmap M2.7, re-sourced Roadmap M2.13 ────
 //
-// V2 Blueprint §6 (repoint). Weekly batch: fetches real "top of week" posts
-// from a seed list of real subreddits (lib/voc-pipeline/subreddits.ts),
-// clusters them by real keyword match against a disclosed problem-topic
-// taxonomy (lib/voc-pipeline/topics.ts), ranks the resulting clusters by
-// real post volume, computes a real week-over-week trend against this
-// pipeline's own prior run, and writes one row per topic into
-// `voc_problem_clusters` (migration 022, append-only). Triggered by Vercel
-// Cron (app/api/cron/voc-pipeline), never called from the request path.
+// V2 Blueprint §6 (repoint). Weekly batch: fetches real posts, clusters
+// them by real keyword match against a disclosed problem-topic taxonomy
+// (lib/voc-pipeline/topics.ts), ranks the resulting clusters by real post
+// volume, computes a real week-over-week trend against this pipeline's own
+// prior run, and writes one row per topic into `voc_problem_clusters`
+// (migration 022, append-only). Triggered by Vercel Cron
+// (app/api/cron/voc-pipeline), never called from the request path.
+//
+// Roadmap M2.13 (2026-07-14): re-sourced from Reddit (deferred — zero
+// credentials configured anywhere, this pipeline's own fetchRedditAccessToken
+// check returned null on every real run since it shipped, see M2.7's and
+// M2.11's own completion notes) onto YouTube comments + DataForSEO
+// problem-aware keywords, both real production data sources. Both new
+// fetches degrade non-fatally to [] on any failure — an improvement over
+// the old design's single all-or-nothing gate (missing Reddit token meant
+// the ENTIRE pipeline aborted before fetching anything); now the pipeline
+// always completes with whatever real data each source produced. Both
+// sources feed the SAME unmodified clusterPosts/rankClusters call — one
+// combined weekly run, not two separate ones, since voc_problem_clusters'
+// (run_week, topic_key) unique constraint has no source column.
+//
+// Amazon Q&A (also named in the original scope) is deliberately NOT built
+// here — no existing scraper/actor/pattern to reuse, unlike the two
+// sources above; it needs its own vetting pass first (same discipline as
+// the Kalodata/FastMoss bake-off, Roadmap M3.5), proposed as a follow-up.
 
-import { fetchRedditAccessToken } from '@/lib/reddit-client/token'
-import { fetchWeeklyTopPosts } from './reddit-listing'
-import type { VocRedditPost } from './reddit-listing'
 import { clusterPosts, rankClusters } from './clustering'
+import type { VocPost } from './clustering'
 import { PROBLEM_TOPICS } from './topics'
-import { VOC_SEED_SUBREDDITS } from './subreddits'
+import { fetchYoutubePosts } from './youtube-listing'
+import { fetchDataForSeoQuestionPosts } from './dataforseo-question-posts'
 import { getPreviousTopicPostCount, writeClusterRun } from './store'
 import type { VocClusterRow } from './store'
 
-export const VOC_PIPELINE_VERSION = 'heuristic-v1'
+export const VOC_PIPELINE_VERSION = 'heuristic-v2-youtube-dataforseo'
 
-const SUBREDDIT_REQUEST_DELAY_MS = 250   // stays well under Reddit's 60 req/min OAuth limit
-
-async function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
+// The 8 existing problem-topic labels double as the real, bounded query
+// seed set for both new sources — reusing an existing taxonomy rather than
+// inventing a new query list. Each source still independently re-verifies
+// every fetched post against the full topic keyword regex set via the
+// unchanged clusterPosts() below, so an imperfect search/seed match never
+// gets a free pass into a topic it doesn't actually belong to.
+const TOPIC_QUERIES = PROBLEM_TOPICS.map(t => t.label)
 
 // ISO week identifier, e.g. "2026-W28" — same real week for every call
 // within a single run (computed once, passed through), so a run that
@@ -42,35 +60,22 @@ export interface VocPipelineResult {
   runWeek:       string
   topicsRanked:  number
   postsFetched:  number
-  subredditsOk:  number
-  subredditsFailed: number
+  youtubePostsFetched:    number
+  dataforseoPostsFetched: number
 }
 
-export async function runVocPipeline(now = new Date()): Promise<VocPipelineResult | null> {
-  const token = await fetchRedditAccessToken()
-  if (!token) {
-    console.error('VOC pipeline: failed to obtain Reddit access token — pipeline did not run')
-    return null
-  }
-
+// No longer returns null on a missing credential — unlike Reddit's single
+// all-or-nothing token gate, each new source degrades independently and
+// non-fatally (see youtube-listing.ts / dataforseo-question-posts.ts), so
+// this always completes with whatever real data was actually available.
+export async function runVocPipeline(now = new Date()): Promise<VocPipelineResult> {
   const runWeek = isoWeekString(now)
-  const allPosts: VocRedditPost[] = []
-  let subredditsOk = 0
-  let subredditsFailed = 0
 
-  // Sequential, not parallel — respects Reddit's shared per-token rate
-  // limit, same principle as lib/science-engine/pubmed.ts's sequential
-  // per-year calls.
-  for (const subreddit of VOC_SEED_SUBREDDITS) {
-    const posts = await fetchWeeklyTopPosts(subreddit, token.value)
-    if (posts.length) {
-      allPosts.push(...posts)
-      subredditsOk++
-    } else {
-      subredditsFailed++
-    }
-    await sleep(SUBREDDIT_REQUEST_DELAY_MS)
-  }
+  const [youtubePosts, dataforseoPosts] = await Promise.all([
+    fetchYoutubePosts(TOPIC_QUERIES),
+    fetchDataForSeoQuestionPosts(TOPIC_QUERIES, now),
+  ])
+  const allPosts: VocPost[] = [...youtubePosts, ...dataforseoPosts]
 
   const clustered = clusterPosts(allPosts, PROBLEM_TOPICS)
   const ranked = rankClusters(clustered)
@@ -103,7 +108,7 @@ export async function runVocPipeline(now = new Date()): Promise<VocPipelineResul
     runWeek,
     topicsRanked: ranked.length,
     postsFetched: allPosts.length,
-    subredditsOk,
-    subredditsFailed,
+    youtubePostsFetched:    youtubePosts.length,
+    dataforseoPostsFetched: dataforseoPosts.length,
   }
 }

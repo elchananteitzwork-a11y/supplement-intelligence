@@ -6,8 +6,13 @@ import { runVocPipeline } from '@/lib/voc-pipeline/pipeline'
 // Triggered by Vercel Cron (see vercel.json's `crons` entry) once weekly.
 // Same CRON_SECRET-protected pattern as app/api/cron/science-pipeline
 // (Roadmap M2.5) — one shared secret protects both cron endpoints.
+//
+// Roadmap M2.13: runVocPipeline() no longer returns null on a missing
+// credential (that was Reddit's single all-or-nothing token gate) — each
+// real source (YouTube, DataForSEO) now degrades independently and
+// non-fatally, so this route always gets a real result back.
 
-export const maxDuration = 60   // ~17 subreddits sequential x (1 real fetch + 250ms delay) — seconds, not minutes
+export const maxDuration = 60   // 8 topic queries x (1 YouTube search + up to 5 comment-thread calls, 1 DataForSEO call) — parallelized per source, seconds not minutes
 export const dynamic = 'force-dynamic'   // see app/api/cron/science-pipeline's own header comment for why this is required
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -24,11 +29,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const startedAt = Date.now()
   const result = await runVocPipeline()
   const durationMs = Date.now() - startedAt
-
-  if (!result) {
-    console.error('VOC pipeline run failed to start', { durationMs })
-    return NextResponse.json({ error: 'Pipeline did not run (see logs)' }, { status: 502 })
-  }
 
   console.log('VOC pipeline run complete', { ...result, durationMs })
   return NextResponse.json({ ...result, durationMs })

@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { runVocPipeline, isoWeekString, VOC_PIPELINE_VERSION } from '../pipeline'
-import { VOC_SEED_SUBREDDITS } from '../subreddits'
+import { PROBLEM_TOPICS } from '../topics'
 
-const fetchRedditAccessToken = vi.fn()
-const fetchWeeklyTopPosts    = vi.fn()
+const fetchYoutubePosts = vi.fn()
+const fetchDataForSeoQuestionPosts = vi.fn()
 const getPreviousTopicPostCount = vi.fn()
 const writeClusterRun = vi.fn().mockResolvedValue(undefined)
 
-vi.mock('@/lib/reddit-client/token', () => ({ fetchRedditAccessToken: (...args: unknown[]) => fetchRedditAccessToken(...args) }))
-vi.mock('../reddit-listing', () => ({ fetchWeeklyTopPosts: (...args: unknown[]) => fetchWeeklyTopPosts(...args) }))
+vi.mock('../youtube-listing', () => ({ fetchYoutubePosts: (...args: unknown[]) => fetchYoutubePosts(...args) }))
+vi.mock('../dataforseo-question-posts', () => ({ fetchDataForSeoQuestionPosts: (...args: unknown[]) => fetchDataForSeoQuestionPosts(...args) }))
 vi.mock('../store', () => ({
   getPreviousTopicPostCount: (...args: unknown[]) => getPreviousTopicPostCount(...args),
   writeClusterRun: (...args: unknown[]) => writeClusterRun(...args),
@@ -27,67 +27,73 @@ describe('isoWeekString', () => {
   })
 })
 
-describe('runVocPipeline', () => {
+describe('runVocPipeline — Roadmap M2.13 (re-sourced from Reddit to YouTube + DataForSEO)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     writeClusterRun.mockResolvedValue(undefined)
+    fetchYoutubePosts.mockResolvedValue([])
+    fetchDataForSeoQuestionPosts.mockResolvedValue([])
+    getPreviousTopicPostCount.mockResolvedValue(null)
   })
 
-  it('returns null (never runs partially against a fabricated token) when Reddit auth fails', async () => {
-    fetchRedditAccessToken.mockResolvedValue(null)
-    const result = await runVocPipeline()
-    expect(result).toBeNull()
-    expect(fetchWeeklyTopPosts).not.toHaveBeenCalled()
-    expect(writeClusterRun).not.toHaveBeenCalled()
+  it('queries both new sources with the same real topic-label seed set, once each — never returns null even when both are empty', async () => {
+    const result = await runVocPipeline(new Date('2026-07-13T12:00:00Z'))
+
+    const expectedQueries = PROBLEM_TOPICS.map(t => t.label)
+    expect(fetchYoutubePosts).toHaveBeenCalledWith(expectedQueries)
+    expect(fetchDataForSeoQuestionPosts).toHaveBeenCalledWith(expectedQueries, expect.any(Date))
+    expect(result).toMatchObject({ topicsRanked: 0, postsFetched: 0, youtubePostsFetched: 0, dataforseoPostsFetched: 0 })
+    expect(writeClusterRun).toHaveBeenCalledWith([])
   })
 
-  it('fetches every seed subreddit sequentially, clusters real posts, and writes ranked rows', async () => {
-    fetchRedditAccessToken.mockResolvedValue({ value: 'tok', expires: Date.now() + 3600_000 })
-    fetchWeeklyTopPosts.mockImplementation(async (subreddit: string) => {
-      if (subreddit === 'Menopause') {
-        return [{ title: 'brain fog perimenopause', score: 10, num_comments: 5, created_utc: 0, subreddit: 'Menopause' }]
-      }
-      return []
-    })
+  it('combines real posts from both sources into one clustered, ranked, written run', async () => {
+    fetchYoutubePosts.mockResolvedValue([
+      { title: 'Real Video', body: 'brain fog perimenopause is so bad', score: 10, num_comments: 5, created_utc: 0, subreddit: 'youtube:abc123' },
+    ])
+    fetchDataForSeoQuestionPosts.mockResolvedValue([
+      { title: 'how to fix perimenopause brain fog', score: 0, num_comments: 0, created_utc: 0, subreddit: 'dataforseo-question-keywords' },
+    ])
     getPreviousTopicPostCount.mockResolvedValue(null)
 
     const now = new Date('2026-07-13T12:00:00Z')
     const result = await runVocPipeline(now)
 
-    expect(fetchWeeklyTopPosts).toHaveBeenCalledTimes(VOC_SEED_SUBREDDITS.length)
-    expect(result).toMatchObject({ runWeek: '2026-W29', topicsRanked: 1, postsFetched: 1, subredditsOk: 1 })
+    expect(result).toMatchObject({
+      runWeek: '2026-W29', topicsRanked: 1, postsFetched: 2,
+      youtubePostsFetched: 1, dataforseoPostsFetched: 1,
+    })
     expect(writeClusterRun).toHaveBeenCalledTimes(1)
     const rows = writeClusterRun.mock.calls[0][0]
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
       run_week: '2026-W29', topic_key: 'perimenopause_hormonal', rank: 1,
-      trend_pct: null, pipeline_version: VOC_PIPELINE_VERSION,
+      post_count: 2, trend_pct: null, pipeline_version: VOC_PIPELINE_VERSION,
     })
+    // The real YouTube comment (engagement 20) must rank ahead of the
+    // score:0 DataForSEO post in sample_quotes.
+    expect(rows[0].sample_quotes[0]).toContain('Real Video')
   }, 15_000)
 
   it('computes a real week-over-week trend_pct when a prior observation exists', async () => {
-    fetchRedditAccessToken.mockResolvedValue({ value: 'tok', expires: Date.now() + 3600_000 })
-    fetchWeeklyTopPosts.mockImplementation(async (subreddit: string) => {
-      if (subreddit === 'Menopause') {
-        return Array.from({ length: 20 }, () => ({ title: 'brain fog perimenopause', score: 1, num_comments: 0, created_utc: 0, subreddit: 'Menopause' }))
-      }
-      return []
-    })
+    fetchYoutubePosts.mockResolvedValue(
+      Array.from({ length: 20 }, () => ({ title: 'brain fog perimenopause', score: 1, num_comments: 0, created_utc: 0, subreddit: 'youtube:x' })),
+    )
     getPreviousTopicPostCount.mockResolvedValue(10)
 
     const result = await runVocPipeline(new Date('2026-07-13T12:00:00Z'))
-    expect(result?.topicsRanked).toBe(1)
+    expect(result.topicsRanked).toBe(1)
     const rows = writeClusterRun.mock.calls[0][0]
     expect(rows[0].trend_pct).toBeCloseTo(((20 - 10) / 10) * 100, 5)
   }, 15_000)
 
-  it('degrades honestly (subredditsFailed counted) when some subreddits return no real posts', async () => {
-    fetchRedditAccessToken.mockResolvedValue({ value: 'tok', expires: Date.now() + 3600_000 })
-    fetchWeeklyTopPosts.mockResolvedValue([])
-    getPreviousTopicPostCount.mockResolvedValue(null)
+  it('completes with only real DataForSEO data when YouTube alone returns nothing (independent, non-fatal degradation — no shared all-or-nothing gate)', async () => {
+    fetchYoutubePosts.mockResolvedValue([])
+    fetchDataForSeoQuestionPosts.mockResolvedValue([
+      { title: 'how to fix perimenopause brain fog', score: 0, num_comments: 0, created_utc: 0, subreddit: 'dataforseo-question-keywords' },
+    ])
 
     const result = await runVocPipeline(new Date('2026-07-13T12:00:00Z'))
-    expect(result).toMatchObject({ topicsRanked: 0, postsFetched: 0, subredditsOk: 0, subredditsFailed: VOC_SEED_SUBREDDITS.length })
-    expect(writeClusterRun).toHaveBeenCalledWith([])
+    expect(result).toMatchObject({ topicsRanked: 1, youtubePostsFetched: 0, dataforseoPostsFetched: 1 })
+    expect(writeClusterRun).toHaveBeenCalledTimes(1)
   }, 15_000)
 })

@@ -70,6 +70,27 @@ describe('Meta Ad Library / TikTok / Reddit — now three distinct channels, not
     expect(distinct.size).toBe(3)
   })
 
+  it("Roadmap M2.10 — social_commerce and video_research are real channel types with labels and coverage notes, reserved ahead of their providers", () => {
+    const newChannels: ChannelType[] = ['social_commerce', 'video_research']
+    for (const channel of newChannels) {
+      expect(CHANNEL_LABELS[channel], `channel "${channel}" has no CHANNEL_LABELS entry`).toBeDefined()
+      expect(CHANNEL_COVERAGE_NOTES[channel], `channel "${channel}" has no CHANNEL_COVERAGE_NOTES entry`).toBeDefined()
+      // Deliberately reserved: no provider registered yet (M3.5 / M2.13 respectively).
+      expect(Object.values(PROVIDER_CHANNEL)).not.toContain(channel)
+    }
+  })
+
+  it('Roadmap M2.10 — TikTok Creative Center and Amazon Q&A deliberately do NOT get their own channels', () => {
+    // Creative Center shares paid_media with meta-ads (both paid/organic attention
+    // mechanics) so the two can never be double-counted as independent witnesses.
+    // Amazon Q&A shares amazon_market with keepa (same marketplace data surface,
+    // same precedent as M2.3's supply-velocity sub-signal). Neither has its own
+    // ChannelType, by design, per the Master Execution Plan.
+    const allChannelTypes = new Set(Object.keys(CHANNEL_LABELS))
+    expect(allChannelTypes.has('creative_center')).toBe(false)
+    expect(allChannelTypes.has('amazon_qa')).toBe(false)
+  })
+
   it("virality's eligible channels include all three, not the old single social_community bucket", () => {
     expect(DIMENSION_ELIGIBLE_CHANNELS.virality).toEqual(['social_attention', 'consumer_voice', 'paid_media'])
     expect(DIMENSION_ELIGIBLE_PROVIDERS.virality).toEqual(['tiktok', 'reddit', 'meta-ads'])

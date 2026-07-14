@@ -13,9 +13,9 @@
 import { describe, it, expect } from 'vitest'
 import { clusterPosts, rankClusters } from '../clustering'
 import { PROBLEM_TOPICS } from '../topics'
-import type { VocRedditPost } from '../reddit-listing'
+import type { VocPost } from '../clustering'
 
-function post(overrides: Partial<VocRedditPost> = {}): VocRedditPost {
+function post(overrides: Partial<VocPost> = {}): VocPost {
   return {
     title: 'Untitled', score: 10, num_comments: 2, created_utc: Date.now() / 1000,
     subreddit: 'test', ...overrides,
@@ -24,14 +24,14 @@ function post(overrides: Partial<VocRedditPost> = {}): VocRedditPost {
 
 describe('clusterPosts — VOC validation anchor', () => {
   it('surfaces the Perimenopause Collapse cluster (voc_problem_clusters.md\'s #1 ranked finding) as the top-ranked cluster from realistic mixed real-shaped input', () => {
-    const perimenopausePosts: VocRedditPost[] = [
+    const perimenopausePosts: VocPost[] = [
       post({ title: 'Brain fog so bad during perimenopause I forgot my own phone number', score: 340, num_comments: 88, subreddit: 'Menopause' }),
-      post({ title: 'Anyone else gaining weight for no reason in perimenopause?', selftext: 'I eat perfectly, sleep, exercise, and still feel like I\'m walking through mud.', score: 210, num_comments: 60, subreddit: 'PerimenopauseRage' }),
+      post({ title: 'Anyone else gaining weight for no reason in perimenopause?', body: 'I eat perfectly, sleep, exercise, and still feel like I\'m walking through mud.', score: 210, num_comments: 60, subreddit: 'PerimenopauseRage' }),
       post({ title: 'Hot flashes and mood swings are ruining my life', score: 150, num_comments: 40, subreddit: 'Menopause' }),
       post({ title: 'Hormonal weight gain at 44, nothing works', score: 95, num_comments: 30, subreddit: 'PerimenopauseRage' }),
       post({ title: 'Brain fog is real, my doctor says my labs are normal', score: 80, num_comments: 25, subreddit: 'Menopause' }),
     ]
-    const noisePosts: VocRedditPost[] = [
+    const noisePosts: VocPost[] = [
       post({ title: 'Check out my new home gym setup!', score: 500, num_comments: 5, subreddit: 'Fitness' }),
       post({ title: 'What supplements do you take daily?', score: 20, num_comments: 3, subreddit: 'Supplements' }),
       post({ title: 'My cat is adorable today', score: 900, num_comments: 2, subreddit: 'cats' }),
@@ -71,6 +71,18 @@ describe('clusterPosts — VOC validation anchor', () => {
     const stats = clusterPosts(posts, PROBLEM_TOPICS)
     const fitness = stats.find(s => s.topic_key === 'fitness_plateau_recovery')
     expect(fitness?.avg_engagement_score).toBeCloseTo((20 + 60) / 2, 5)
+  })
+
+  it('Roadmap M2.13 — a DataForSEO-sourced post (score 0, no invented engagement) never outranks a real-engagement post in sample_quotes', () => {
+    const realComment = post({ title: 'Real human quote', body: 'creatine plateau finally broke after adding recovery days', score: 12, num_comments: 4, subreddit: 'youtube:abc123' })
+    const dataForSeoPost = post({ title: 'creatine plateau recovery gap', score: 0, num_comments: 0, subreddit: 'dataforseo-question-keywords' })
+
+    const stats = clusterPosts([dataForSeoPost, realComment], PROBLEM_TOPICS)
+    const fitness = stats.find(s => s.topic_key === 'fitness_plateau_recovery')
+    expect(fitness?.post_count).toBe(2)
+    // Real comment (engagement 12 + 4*2 = 20) must sort ahead of the
+    // DataForSEO post (engagement 0) in sample_quotes.
+    expect(fitness?.sample_quotes[0]).toContain('Real human quote')
   })
 })
 

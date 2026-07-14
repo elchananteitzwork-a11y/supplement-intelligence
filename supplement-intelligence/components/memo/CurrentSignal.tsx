@@ -31,8 +31,21 @@
 // visually and semantically separate from the legacy BuildDecision pill
 // per explicit instruction, since the two verdict systems are independent
 // and not guaranteed to agree.
+//
+// Roadmap M2.23 (2026-07-14, Analyst Experience Consolidation): the V2
+// verdict/quality row above was rendering unconditionally, which meant
+// this screen showed two complete verdict systems at once — a real
+// violation of the locked "one visible verdict vocabulary" / "progressive
+// disclosure" principles, self-acknowledged by this file's own prior
+// comment ("not guaranteed to agree"). It's now collapsed by default
+// behind TechnicalDetailToggle, same "Show ... more →" idiom already used
+// by shared.tsx's NumList and KeywordIntelligence.tsx's
+// ExpandableKeywordTable — no data, computation, or prop changed, only
+// default visibility. The legacy BuildDecision pill remains the one
+// unconditional, primary verdict on this screen.
 // ═══════════════════════════════════════════════════════════════════════
 
+import { useState } from 'react'
 import type { MemoData, BuildDecision } from '@/types/index'
 import { computeGroundedScore } from '@/lib/scoring'
 import { LifecycleArc, VerdictBadge } from '@/components/ui'
@@ -92,7 +105,7 @@ function V2VerdictRow({ m }: { m: MemoData }) {
   return (
     <div className="flex items-center justify-between gap-3 border-t border-black pt-3 mt-3">
       <div>
-        <span className="text-[10px] font-mono text-outline uppercase tracking-widest">V2 Decision Model</span>
+        <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Alternate Verdict Check</span>
         <p className="text-[9px] text-outline italic mt-0.5">Separate, parallel verdict — not guaranteed to match the pill above.</p>
       </div>
       {v2 ? (
@@ -102,6 +115,26 @@ function V2VerdictRow({ m }: { m: MemoData }) {
           <ProvenanceBadge p={v2VerdictProvenance()} />
         </div>
       ) : <LabNoData label="Not computed for this analysis" />}
+    </div>
+  )
+}
+
+// Roadmap M2.23 — collapsed by default, same "Show ... →" idiom already
+// used by components/memo/shared.tsx's NumList and KeywordIntelligence.tsx's
+// ExpandableKeywordTable, reused here rather than inventing a new pattern.
+// Keeps the legacy build-decision pill as the one unconditional, primary
+// verdict on this screen; the second (V2) verdict system stays fully
+// intact and unchanged, just pulled rather than pushed — per the locked
+// "progressive disclosure" / "one visible verdict vocabulary" principles.
+function TechnicalDetailToggle({ m }: { m: MemoData }) {
+  const [expanded, setExpanded] = useState(false)
+  if (expanded) return <V2VerdictRow m={m} />
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-black pt-3 mt-3">
+      <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Technical Detail</span>
+      <button onClick={() => setExpanded(true)} className="text-[11px] text-black hover:underline transition-colors">
+        Show technical detail →
+      </button>
     </div>
   )
 }
@@ -127,7 +160,7 @@ export default function CurrentSignal({ m }: { m: MemoData; generatedAt?: string
         </div>
 
         <GapVelocityRow m={m} />
-        <V2VerdictRow m={m} />
+        <TechnicalDetailToggle m={m} />
       </div>
 
       {consumerIntelTimedOut && (

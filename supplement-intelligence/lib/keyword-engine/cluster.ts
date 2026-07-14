@@ -16,7 +16,10 @@ const SECONDARY_SIZE = 10
 const LONG_TAIL_MIN_WORDS = 3
 
 const PURCHASE_INTENT_RE = /\b(buy|best|top|cheap|cheapest|price|cost|discount|deal|sale|order|shop|review|reviews|where to buy|near me)\b/i
-const PROBLEM_AWARE_RE   = /\b(why|how to|stop|fix|cure|relief|help with|treatment|symptoms|causes|problem)\b/i
+// Exported (Roadmap M2.13) so lib/voc-pipeline/dataforseo-question-posts.ts
+// can reuse the exact same problem-language pattern for the weekly VOC
+// pipeline, rather than duplicating a second regex literal that could drift.
+export const PROBLEM_AWARE_RE = /\b(why|how to|stop|fix|cure|relief|help with|treatment|symptoms|causes|problem)\b/i
 const COMPARISON_RE      = /\b(vs\.?|versus|compare|comparison|or |better than|alternative)\b/i
 const EMERGING_MIN_GROWTH = 50  // % YoY
 

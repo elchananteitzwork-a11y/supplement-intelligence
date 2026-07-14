@@ -8,19 +8,19 @@
 // client/token.ts), same real API, different endpoint shape for a
 // different real question: "what did people actually post about this
 // week," not "does this specific query show up."
+//
+// Roadmap M2.13: pipeline.ts no longer calls fetchWeeklyTopPosts (Reddit is
+// deferred, per standing decision) — kept fully intact and dormant here,
+// not deleted, same treatment as lib/signal-engine/providers/reddit.ts.
+// Still produces the shared lib/voc-pipeline/clustering.ts VocPost shape
+// (renamed from this file's own VocRedditPost) so it stays typecheck-clean
+// and ready to be reactivated later without being a stale, incompatible
+// relic.
 
 import { redditUserAgent } from '@/lib/reddit-client/token'
+import type { VocPost } from './clustering'
 
 const API_BASE = 'https://oauth.reddit.com'
-
-export interface VocRedditPost {
-  title:        string
-  selftext?:    string
-  score:        number
-  num_comments: number
-  created_utc:  number
-  subreddit:    string
-}
 
 interface RedditListingResponse {
   data?: {
@@ -41,7 +41,7 @@ interface RedditListingResponse {
 // fabricated post list) on any network/parse failure or non-200 response —
 // the caller simply has one less subreddit's worth of real data for this
 // run, not a fake substitute for it.
-export async function fetchWeeklyTopPosts(subreddit: string, token: string, limit = 100): Promise<VocRedditPost[]> {
+export async function fetchWeeklyTopPosts(subreddit: string, token: string, limit = 100): Promise<VocPost[]> {
   const url = `${API_BASE}/r/${subreddit}/top?t=week&limit=${limit}`
 
   let res: Response
@@ -77,7 +77,7 @@ export async function fetchWeeklyTopPosts(subreddit: string, token: string, limi
       !!d && typeof d.title === 'string' && d.title.trim().length > 0 && typeof d.subreddit === 'string')
     .map(d => ({
       title:        d.title,
-      selftext:     d.selftext,
+      body:         d.selftext,
       score:        d.score ?? 0,
       num_comments: d.num_comments ?? 0,
       created_utc:  d.created_utc ?? 0,

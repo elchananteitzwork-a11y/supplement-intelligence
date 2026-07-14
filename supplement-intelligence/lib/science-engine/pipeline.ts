@@ -10,6 +10,7 @@
 // (Vercel Cron), never called from the request path.
 
 import { cacheSet } from '@/lib/provider-cache'
+import { appendObservations } from '@/lib/niche-timeseries/store'
 import { fetchPublicationCountsByYear } from './pubmed'
 import { fetchTrialRegistrationsCount } from './clinicaltrials'
 import { TRACKED_INGREDIENTS } from './tracked-ingredients'
@@ -92,6 +93,15 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
   }
 
   await cacheSet(`science:v1:${ingredient}`, 'science-pipeline', signal, SCIENCE_CACHE_TTL_MS)
+
+  // Roadmap M2.11: append a second, permanent copy of these same real
+  // values into the niche_timeseries history — non-fatal, never blocks
+  // this pipeline (appendObservations already filters out null/NaN).
+  await appendObservations([
+    velocity_pct != null ? { nicheKey: ingredient, source: 'science', metric: 'publication_velocity_pct', value: velocity_pct, observedAt: now } : null,
+    trialCount != null   ? { nicheKey: ingredient, source: 'science', metric: 'trial_registrations_count', value: trialCount, observedAt: now } : null,
+  ])
+
   return { ingredient, success: true }
 }
 
