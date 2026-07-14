@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PROBLEM_TOPICS } from '../topics'
+import { PROBLEM_TOPICS, DATAFORSEO_SEED_PHRASES } from '../topics'
 
 describe('PROBLEM_TOPICS taxonomy', () => {
   it('every topic has a unique key and at least one real keyword pattern', () => {
@@ -35,6 +35,17 @@ describe('PROBLEM_TOPICS taxonomy', () => {
     const unrelated = 'Just wanted to share a photo of my breakfast today, feeling great!'
     for (const topic of PROBLEM_TOPICS) {
       expect(topic.keywords.some(rx => rx.test(unrelated))).toBe(false)
+    }
+  })
+})
+
+describe('DATAFORSEO_SEED_PHRASES (Roadmap M2.13)', () => {
+  it('has a real, non-empty search-style seed phrase for every topic — never the topic label itself (confirmed via live call to return zero usable DataForSEO results)', () => {
+    for (const topic of PROBLEM_TOPICS) {
+      const seed = DATAFORSEO_SEED_PHRASES[topic.key]
+      expect(seed, `no DataForSEO seed phrase defined for topic ${topic.key}`).toBeDefined()
+      expect(seed.length).toBeGreaterThan(0)
+      expect(seed).not.toBe(topic.label)
     }
   })
 })

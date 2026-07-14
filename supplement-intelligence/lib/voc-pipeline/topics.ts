@@ -94,3 +94,25 @@ export const PROBLEM_TOPICS: ProblemTopic[] = [
     ],
   },
 ]
+
+// Roadmap M2.13: real, hand-authored search-style seed phrases for
+// DataForSEO's related_keywords/live endpoint — one per topic, derived
+// from that topic's own existing keyword patterns above, not invented
+// category knowledge. CONFIRMED VIA LIVE CALL (2026-07-14): seeding
+// DataForSEO with a topic's own LABEL (e.g. "Perimenopause / hormonal
+// collapse") returned zero usable keywords for all 8 topics — DataForSEO's
+// related-keyword graph expects a real search-style phrase, not a
+// punctuated category name. This map is used only for the DataForSEO seed
+// (lib/voc-pipeline/dataforseo-question-posts.ts); YouTube's search
+// already works correctly against the plain topic labels (confirmed via
+// the same live run: 578 real posts collected) and is left unchanged.
+export const DATAFORSEO_SEED_PHRASES: Record<string, string> = {
+  perimenopause_hormonal:    'perimenopause symptoms',
+  blood_sugar_energy:        'afternoon energy crash causes',
+  cortisol_sleep:            'cortisol insomnia',
+  gut_skin_inflammation:     'gut health and acne connection',
+  stubborn_weight_gain:      'cant lose weight eating healthy',
+  pet_inflammation:          'dog itching allergies',
+  fitness_plateau_recovery:  'creatine plateau',
+  stress_hair_loss:          'stress hair loss',
+}

@@ -6,6 +6,18 @@
 --
 -- Includes: 009_outcome_tracking · 010_provider_cache · 016_build_now_patterns
 --           · 017_verdict_ledger · 018_verdict_ledger_confidence · 019_billing
+--           · 020_verdict_ledger_lifecycle · 021_verdict_ledger_quality_matrix
+--           · 022_voc_problem_clusters · 023_watchlist
+--           · 024_verdict_ledger_outcomes · 025_niche_timeseries
+--           · 026_discovery_alerts
+--
+-- 2026-07-14: appended 020-026 after live production validation of M2.13
+-- discovered voc_problem_clusters (022) had never actually been applied to
+-- production, despite being recorded "Completed" in the roadmap — this file
+-- had not been kept in sync with supabase/migrations/ past 019. 020-026 are
+-- appended now as a batch so the same gap doesn't silently recur for the
+-- other unapplied migrations (020, 021, 023, 024 predate this session;
+-- 025-026 are this session's own new tables).
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -323,3 +335,252 @@ alter table public.billing_events enable row level security;
 
 create index if not exists billing_events_user_idx
   on public.billing_events (user_id, created_at desc) where user_id is not null;
+
+
+-- ── 020: VERDICT LEDGER — LIFECYCLE AUXILIARY COLUMNS ───────────────────────
+-- Purely additive. See supabase/migrations/020_verdict_ledger_lifecycle.sql.
+
+alter table public.verdict_ledger
+  add column if not exists lifecycle_inputs        jsonb,
+  add column if not exists lifecycle_model_version  text,
+  add column if not exists gap_velocity_demand_acceleration_pct numeric,
+  add column if not exists gap_velocity_supply_acceleration_pct numeric;
+
+
+-- ── 021: VERDICT LEDGER — TWO-AXIS DECISION MODEL COLUMNS ───────────────────
+-- Purely additive. See supabase/migrations/021_verdict_ledger_quality_matrix.sql.
+
+alter table public.verdict_ledger
+  add column if not exists opportunity_quality numeric,
+  add column if not exists quality_tier text
+    check (quality_tier in ('High','Mid','Low') or quality_tier is null),
+  add column if not exists market_verdict text
+    check (market_verdict in (
+      'BUILD_NOW','BUILD_IF_DIFFERENTIATED','WATCH_CLOSELY',
+      'WATCH','INVESTIGATE','AVOID','PASS'
+    ) or market_verdict is null),
+  add column if not exists build_now_gate jsonb,
+  add column if not exists verdict_matrix_version text;
+
+
+-- ── 022: VOC PROBLEM CLUSTERS ────────────────────────────────────────────────
+-- See supabase/migrations/022_voc_problem_clusters.sql.
+
+create table if not exists public.voc_problem_clusters (
+  id                    uuid primary key default gen_random_uuid(),
+  created_at            timestamptz not null default now(),
+
+  run_week              text    not null,
+  topic_key             text    not null,
+  topic_label           text    not null,
+
+  post_count            integer not null check (post_count >= 0),
+  avg_engagement_score  numeric not null,
+  trend_pct             numeric,
+  rank                  integer not null check (rank >= 1),
+
+  sample_quotes         jsonb   not null default '[]'::jsonb,
+  subreddits_seen       text[]  not null default '{}',
+
+  pipeline_version      text    not null
+);
+
+alter table public.voc_problem_clusters enable row level security;
+-- No RLS policies -> service role bypasses RLS; all other roles denied.
+
+create unique index if not exists voc_clusters_run_topic_uniq on public.voc_problem_clusters (run_week, topic_key);
+create index if not exists voc_clusters_run_week_idx         on public.voc_problem_clusters (run_week, rank);
+create index if not exists voc_clusters_topic_history_idx    on public.voc_problem_clusters (topic_key, run_week desc);
+
+
+-- ── 023: WATCHLIST + ALERTS ──────────────────────────────────────────────────
+-- See supabase/migrations/023_watchlist.sql.
+
+create table if not exists public.watchlist (
+  id                  uuid primary key default gen_random_uuid(),
+  created_at          timestamptz not null default now(),
+
+  user_id             uuid not null references auth.users(id) on delete cascade,
+  analysis_id         uuid not null references public.analyses(id) on delete cascade,
+
+  category_name       text not null,
+  category_id         text not null,
+
+  active              boolean not null default true,
+
+  lifecycle_stage_at_watch text,
+  kill_criteria            jsonb not null default '[]'::jsonb,
+
+  last_checked_at          timestamptz,
+  last_lifecycle_stage     text,
+
+  unique (user_id, analysis_id)
+);
+
+alter table public.watchlist enable row level security;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'watchlist' and policyname = 'owner all'
+  ) then
+    create policy "owner all" on public.watchlist for all using (auth.uid() = user_id);
+  end if;
+end $$;
+
+create index if not exists watchlist_active_idx on public.watchlist (active) where active = true;
+create index if not exists watchlist_user_idx   on public.watchlist (user_id, created_at desc);
+
+create table if not exists public.watchlist_alerts (
+  id                  uuid primary key default gen_random_uuid(),
+  created_at          timestamptz not null default now(),
+
+  watchlist_id        uuid not null references public.watchlist(id) on delete cascade,
+  user_id             uuid not null references auth.users(id) on delete cascade,
+
+  alert_type          text not null check (alert_type in ('stage_transition', 'kill_criteria_triggered')),
+
+  previous_stage      text,
+  new_stage           text,
+
+  kill_criterion_key   text,
+  kill_criterion_label text,
+
+  acknowledged        boolean not null default false
+);
+
+alter table public.watchlist_alerts enable row level security;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'watchlist_alerts' and policyname = 'owner select'
+  ) then
+    create policy "owner select" on public.watchlist_alerts for select using (auth.uid() = user_id);
+  end if;
+end $$;
+
+create index if not exists watchlist_alerts_user_idx       on public.watchlist_alerts (user_id, created_at desc);
+create index if not exists watchlist_alerts_watchlist_idx  on public.watchlist_alerts (watchlist_id, created_at desc);
+
+
+-- ── 024: VERDICT LEDGER OUTCOMES ─────────────────────────────────────────────
+-- See supabase/migrations/024_verdict_ledger_outcomes.sql.
+
+create table if not exists public.verdict_ledger_outcomes (
+  id                  uuid primary key default gen_random_uuid(),
+  created_at          timestamptz not null default now(),
+
+  verdict_ledger_id   uuid not null references public.verdict_ledger(id) on delete cascade,
+
+  checkpoint_months   integer not null check (checkpoint_months in (3, 6, 12)),
+  days_since_verdict  integer not null,
+
+  entry_velocity              text check (entry_velocity in ('Accelerating', 'Stable', 'Decelerating') or entry_velocity is null),
+  young_listing_pct_24m       numeric,
+  avg_review_count_at_measurement numeric,
+  avg_review_count_at_verdict     numeric,
+  avg_price_at_measurement        numeric,
+  avg_price_at_verdict            numeric,
+  price_movement_pct              numeric,
+
+  outcome_label       text not null check (outcome_label in ('meaningful_traction', 'no_meaningful_traction', 'too_early_to_tell')),
+
+  keepa_tokens_used_estimate integer not null,
+
+  unique (verdict_ledger_id, checkpoint_months)
+);
+
+alter table public.verdict_ledger_outcomes enable row level security;
+-- No RLS policies -> service role bypasses RLS; all other roles denied.
+
+create index if not exists vlo_ledger_idx     on public.verdict_ledger_outcomes (verdict_ledger_id, checkpoint_months);
+create index if not exists vlo_outcome_idx    on public.verdict_ledger_outcomes (outcome_label);
+
+
+-- ── 025: NICHE TIME-SERIES STORE — Roadmap M2.11 ────────────────────────────
+-- See supabase/migrations/025_niche_timeseries.sql.
+
+create table if not exists public.niche_timeseries (
+  id           uuid primary key default gen_random_uuid(),
+  created_at   timestamptz not null default now(),
+
+  niche_key    text not null,
+  source       text not null,
+  metric       text not null,
+  value        numeric not null,
+  observed_at  timestamptz not null,
+
+  unique (niche_key, source, metric, observed_at)
+);
+
+create or replace function public.niche_timeseries_block_mutation()
+returns trigger language plpgsql as $$
+begin
+  raise exception 'niche_timeseries rows are immutable — % is not permitted', tg_op;
+end;
+$$;
+
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'niche_timeseries_no_update') then
+    create trigger niche_timeseries_no_update
+      before update on public.niche_timeseries
+      for each row execute function public.niche_timeseries_block_mutation();
+  end if;
+  if not exists (select 1 from pg_trigger where tgname = 'niche_timeseries_no_delete') then
+    create trigger niche_timeseries_no_delete
+      before delete on public.niche_timeseries
+      for each row execute function public.niche_timeseries_block_mutation();
+  end if;
+end $$;
+
+alter table public.niche_timeseries enable row level security;
+-- No RLS policies -> service role bypasses RLS; all other roles denied.
+
+create index if not exists nts_niche_metric_time_idx on public.niche_timeseries (niche_key, metric, observed_at);
+create index if not exists nts_source_idx            on public.niche_timeseries (source);
+
+
+-- ── 026: DISCOVERY ALERTS — Roadmap M2.12 ───────────────────────────────────
+-- See supabase/migrations/026_discovery_alerts.sql.
+
+create table if not exists public.discovery_alerts (
+  id           uuid primary key default gen_random_uuid(),
+  created_at   timestamptz not null default now(),
+
+  niche_key    text not null,
+  source       text not null,
+  metric       text not null,
+
+  prior_value  numeric not null,
+  latest_value numeric not null,
+  change_pct   numeric not null,
+
+  detected_at  timestamptz not null,
+
+  unique (niche_key, source, metric, detected_at)
+);
+
+create or replace function public.discovery_alerts_block_mutation()
+returns trigger language plpgsql as $$
+begin
+  raise exception 'discovery_alerts rows are immutable — % is not permitted', tg_op;
+end;
+$$;
+
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'discovery_alerts_no_update') then
+    create trigger discovery_alerts_no_update
+      before update on public.discovery_alerts
+      for each row execute function public.discovery_alerts_block_mutation();
+  end if;
+  if not exists (select 1 from pg_trigger where tgname = 'discovery_alerts_no_delete') then
+    create trigger discovery_alerts_no_delete
+      before delete on public.discovery_alerts
+      for each row execute function public.discovery_alerts_block_mutation();
+  end if;
+end $$;
+
+alter table public.discovery_alerts enable row level security;
+-- No RLS policies -> service role bypasses RLS; all other roles denied.
+
+create index if not exists da_niche_idx      on public.discovery_alerts (niche_key, detected_at desc);
+create index if not exists da_detected_idx   on public.discovery_alerts (detected_at desc);

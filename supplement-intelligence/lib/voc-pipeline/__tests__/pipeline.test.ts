@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { runVocPipeline, isoWeekString, VOC_PIPELINE_VERSION } from '../pipeline'
-import { PROBLEM_TOPICS } from '../topics'
+import { PROBLEM_TOPICS, DATAFORSEO_SEED_PHRASES } from '../topics'
 
 const fetchYoutubePosts = vi.fn()
 const fetchDataForSeoQuestionPosts = vi.fn()
@@ -36,12 +36,13 @@ describe('runVocPipeline — Roadmap M2.13 (re-sourced from Reddit to YouTube + 
     getPreviousTopicPostCount.mockResolvedValue(null)
   })
 
-  it('queries both new sources with the same real topic-label seed set, once each — never returns null even when both are empty', async () => {
+  it('queries YouTube with real topic labels and DataForSEO with real search-style seed phrases (not the same list) — never returns null even when both are empty', async () => {
     const result = await runVocPipeline(new Date('2026-07-13T12:00:00Z'))
 
-    const expectedQueries = PROBLEM_TOPICS.map(t => t.label)
-    expect(fetchYoutubePosts).toHaveBeenCalledWith(expectedQueries)
-    expect(fetchDataForSeoQuestionPosts).toHaveBeenCalledWith(expectedQueries, expect.any(Date))
+    const expectedYoutubeQueries = PROBLEM_TOPICS.map(t => t.label)
+    const expectedDataforseoSeeds = PROBLEM_TOPICS.map(t => DATAFORSEO_SEED_PHRASES[t.key])
+    expect(fetchYoutubePosts).toHaveBeenCalledWith(expectedYoutubeQueries)
+    expect(fetchDataForSeoQuestionPosts).toHaveBeenCalledWith(expectedDataforseoSeeds, expect.any(Date))
     expect(result).toMatchObject({ topicsRanked: 0, postsFetched: 0, youtubePostsFetched: 0, dataforseoPostsFetched: 0 })
     expect(writeClusterRun).toHaveBeenCalledWith([])
   })
