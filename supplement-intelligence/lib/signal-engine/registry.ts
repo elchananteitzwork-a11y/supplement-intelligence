@@ -1,6 +1,7 @@
 import { SignalEngine }              from './engine'
 import { KeepaProvider }             from './providers/keepa'
 import { GoogleTrendsProvider }      from './providers/google-trends'
+import { DataForSeoTrendsProvider }  from './providers/dataforseo-trends'
 import { TikTokProvider }            from './providers/tiktok'
 import { RedditProvider }            from './providers/reddit'
 import { MetaAdsProvider }           from './providers/meta-ads'
@@ -13,9 +14,14 @@ import { ScienceProvider }           from './providers/science'
 //   3. Instantiate and add it to the array below
 //   Nothing else needs to change — the engine and routes pick it up automatically.
 
+// Roadmap M2.14: DataForSeoTrendsProvider is registered but disabled by
+// default (DATAFORSEO_TRENDS_ENABLED unset) — coexists with the live
+// GoogleTrendsProvider without affecting any real analysis until
+// explicitly enabled for validation.
 const providers = [
   new KeepaProvider(),
   new GoogleTrendsProvider(),
+  new DataForSeoTrendsProvider(),
   new TikTokProvider(),
   new RedditProvider(),
   new MetaAdsProvider(),

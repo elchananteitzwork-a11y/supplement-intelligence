@@ -22,6 +22,7 @@ import { computeConfidenceAssessment } from '../confidence'
 import { DIMENSION_ELIGIBLE_CHANNELS, DIMENSION_ELIGIBLE_PROVIDERS } from '../confidence/eligibility'
 import { KeepaProvider } from '../signal-engine/providers/keepa'
 import { GoogleTrendsProvider } from '../signal-engine/providers/google-trends'
+import { DataForSeoTrendsProvider } from '../signal-engine/providers/dataforseo-trends'
 import { TikTokProvider } from '../signal-engine/providers/tiktok'
 import { RedditProvider } from '../signal-engine/providers/reddit'
 import { MetaAdsProvider } from '../signal-engine/providers/meta-ads'
@@ -31,6 +32,7 @@ import type { GroundedScore } from '../scoring'
 const REGISTERED_PROVIDERS = [
   new KeepaProvider(),
   new GoogleTrendsProvider(),
+  new DataForSeoTrendsProvider(),
   new TikTokProvider(),
   new RedditProvider(),
   new MetaAdsProvider(),

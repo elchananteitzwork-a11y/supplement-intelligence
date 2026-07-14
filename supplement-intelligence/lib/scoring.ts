@@ -341,6 +341,7 @@ export const PROVIDER_CHANNEL: Record<string, ChannelType> = {
   'apify-amazon-reviews': 'amazon_market',
   dataforseo:             'search_intent',
   'google-trends':        'search_intent',
+  'dataforseo-trends':    'search_intent',   // Roadmap M2.14, registered but disabled by default — see providers/dataforseo-trends.ts
   tiktok:                 'social_attention',
   reddit:                 'consumer_voice',
   'meta-ads':             'paid_media',
