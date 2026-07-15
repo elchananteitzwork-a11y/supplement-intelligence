@@ -14,6 +14,7 @@ import { appendObservations } from '@/lib/niche-timeseries/store'
 import { fetchPublicationCountsByYear } from './pubmed'
 import { fetchTrialRegistrationsCount } from './clinicaltrials'
 import { TRACKED_INGREDIENTS } from './tracked-ingredients'
+import { getIngredientProfile } from '@/lib/ingredient-registry'
 import type { ScienceSignal } from '@/lib/signal-engine/types'
 
 export const SCIENCE_CACHE_TTL_MS = 30 * 60 * 60 * 1000  // 30h — outlives one missed nightly run, still honestly expires
@@ -70,9 +71,18 @@ export interface ScienceIngestionResult {
 }
 
 export async function ingestScienceSignal(ingredient: string, now = new Date()): Promise<ScienceIngestionResult> {
+  // Roadmap M2.15: the real external-database search term now comes from
+  // the ingredient registry, not the bare tracked-ingredient string
+  // directly — identical value for all 3 tracked ingredients today (zero
+  // behavior change), but a future ingredient whose common name and
+  // external-database search term diverge has a real place to do that.
+  // Falls back to the bare string for a not-yet-registered ingredient
+  // (never throws, never blocks the pipeline).
+  const searchTerm = getIngredientProfile(ingredient)?.canonicalSearchTerm ?? ingredient
+
   const [publicationCounts, trialCount] = await Promise.all([
-    fetchPublicationCountsByYear(ingredient, 6, now),
-    fetchTrialRegistrationsCount(ingredient),
+    fetchPublicationCountsByYear(searchTerm, 6, now),
+    fetchTrialRegistrationsCount(searchTerm),
   ])
 
   if (publicationCounts === null && trialCount === null) {

@@ -87,6 +87,25 @@ describe('ingestScienceSignal', () => {
     expect(result.success).toBe(false)
     expect(cacheSet).not.toHaveBeenCalled()
   })
+
+  it('Roadmap M2.15: calls PubMed/ClinicalTrials.gov with the registry\'s canonicalSearchTerm for a real tracked ingredient', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+
+    await ingestScienceSignal('magnesium')
+    expect(fetchPublicationCountsByYear).toHaveBeenCalledWith('magnesium', 6, expect.any(Date))
+    expect(fetchTrialRegistrationsCount).toHaveBeenCalledWith('magnesium')
+  })
+
+  it('Roadmap M2.15: falls back to the bare ingredient string (never throws) for an ingredient not in the registry', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 10, '2024': 11 })
+    fetchTrialRegistrationsCount.mockResolvedValue(1)
+
+    const result = await ingestScienceSignal('ashwagandha')
+    expect(result.success).toBe(true)
+    expect(fetchPublicationCountsByYear).toHaveBeenCalledWith('ashwagandha', 6, expect.any(Date))
+    expect(fetchTrialRegistrationsCount).toHaveBeenCalledWith('ashwagandha')
+  })
 })
 
 describe('runScienceIngestionPipeline', () => {
