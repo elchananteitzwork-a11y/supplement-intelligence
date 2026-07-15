@@ -1,6 +1,6 @@
 ---
 Title: Master Execution Plan
-Version: 1.5
+Version: 1.6
 Status: Approved
 Last Updated: 2026-07-14
 Supersedes:
@@ -13,6 +13,7 @@ Amendment Log:
   - "v1.3 (2026-07-14): M2.12 and M2.23 shipped (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for full completion write-ups). M2.23's R&D pass found the real codebase has four verdict vocabularies, not the two this plan originally assumed, and that the 'FirstScreen' component §12 referenced no longer exists — M2.23 was narrowed at implementation time to the one confirmed violation (components/memo/CurrentSignal.tsx) rather than the full front-door/vocabulary unification originally described; that larger scope remains open, unassigned, for a future milestone."
   - "v1.4 (2026-07-14): M2.13 shipped (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). Re-sourced the weekly VOC pipeline from Reddit onto YouTube comments + DataForSEO problem-aware keywords, both real production data sources; Amazon Q&A (also named in the original scope) deferred — no existing pattern to reuse, needs its own vetting pass first. Requires a new YOUTUBE_API_KEY to be provisioned in production before this pipeline produces real data live; code is fully built and tested against mocks in the meantime."
   - "v1.5 (2026-07-14): M2.14 shipped as a build+validate phase, deliberately not a cutover (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). New DataForSeoTrendsProvider built, registered disabled by default, live-validated with the feature briefly enabled (real cost confirmed: ~$0.011/call), then disabled again per explicit instruction. google-trends.ts remains the sole live search_intent Trends source; making the new provider the default is an explicit, separate future decision, not bundled into this milestone."
+  - "v1.6 (2026-07-14): M2.15 shipped — the first Evidence Depth Cluster milestone (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). New lib/ingredient-registry/ with real alias/canonical-search-term profiles for the 3 tracked ingredients, wired into science-engine/pipeline.ts's real PubMed/ClinicalTrials.gov calls. Narrowed at the R&D stage from 'aggregate demand across every product variant' to just the registry foundation, since no real consumer for that aggregation exists anywhere in the codebase yet. Live-validated via a real science-pipeline cron trigger, zero regression."
 ---
 
 > **This document is the single source of truth for execution. In the event of any conflict with older planning documents, this document takes precedence unless explicitly superseded.**
