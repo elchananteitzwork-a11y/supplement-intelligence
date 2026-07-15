@@ -4,8 +4,9 @@
 -- where possible; the build_decision constraint uses dynamic lookup to avoid
 -- errors if the constraint was already dropped).
 --
--- Includes: 009_outcome_tracking · 010_provider_cache · 016_build_now_patterns
---           · 017_verdict_ledger · 018_verdict_ledger_confidence · 019_billing
+-- Includes: 006_theses · 009_outcome_tracking · 010_provider_cache
+--           · 016_build_now_patterns · 017_verdict_ledger
+--           · 018_verdict_ledger_confidence · 019_billing
 --           · 020_verdict_ledger_lifecycle · 021_verdict_ledger_quality_matrix
 --           · 022_voc_problem_clusters · 023_watchlist
 --           · 024_verdict_ledger_outcomes · 025_niche_timeseries
@@ -18,6 +19,12 @@
 -- appended now as a batch so the same gap doesn't silently recur for the
 -- other unapplied migrations (020, 021, 023, 024 predate this session;
 -- 025-026 are this session's own new tables).
+--
+-- 2026-07-14 (same day): a full-platform audit found 006_theses had ALSO
+-- never been applied — a real, pre-existing gap predating even this file's
+-- original 009-019 coverage, confirmed via a direct real PostgREST schema
+-- check against production plus corroborating real log evidence. Appended
+-- at the end (order doesn't matter here — 006 has no dependency on 009+).
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -584,3 +591,53 @@ alter table public.discovery_alerts enable row level security;
 
 create index if not exists da_niche_idx      on public.discovery_alerts (niche_key, detected_at desc);
 create index if not exists da_detected_idx   on public.discovery_alerts (detected_at desc);
+
+
+-- ── 006: MARKET THESES (found missing during the 2026-07-14 full-platform audit) ──
+-- See supabase/migrations/006_theses.sql. Predates this file's original
+-- 009-019 coverage — never included in any prior pasted run, confirmed via
+-- a direct real PostgREST check against production (PGRST205 "Could not
+-- find the table 'public.theses' in the schema cache") and corroborated by
+-- real production logs: "[ThesisCache] write error (non-fatal): Could not
+-- find the table 'public.theses' in the schema cache". The write path is
+-- already non-fatal (thesis generation still completes, just without
+-- caching), so this is a real but non-critical gap — thesis caching has
+-- silently never worked in production.
+
+create table if not exists public.theses (
+  id                text        primary key,
+  query             text        not null,
+  query_normalized  text        not null,
+  depth             text        not null check (depth in ('preliminary','standard','deep')),
+  analysis_version  text        not null,
+
+  thesis            jsonb       not null,
+
+  user_id           uuid        references auth.users(id) on delete set null,
+
+  created_at        timestamptz not null default now(),
+  refresh_after     timestamptz not null
+);
+
+create index if not exists idx_theses_cache_key
+  on public.theses (query_normalized, depth, analysis_version);
+create index if not exists idx_theses_refresh
+  on public.theses (refresh_after);
+create index if not exists idx_theses_user
+  on public.theses (user_id, created_at desc)
+  where user_id is not null;
+
+alter table public.theses enable row level security;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'theses' and policyname = 'authenticated read'
+  ) then
+    create policy "authenticated read" on public.theses for select using (auth.role() = 'authenticated');
+  end if;
+  if not exists (
+    select 1 from pg_policies where tablename = 'theses' and policyname = 'authenticated insert'
+  ) then
+    create policy "authenticated insert" on public.theses for insert with check (auth.role() = 'authenticated');
+  end if;
+end $$;
