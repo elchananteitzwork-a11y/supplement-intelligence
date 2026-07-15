@@ -25,18 +25,22 @@ interface StudiesResponse {
   totalCount?: number
 }
 
-interface DesignField { studyType?: string }
+interface DesignField { studyType?: string; phases?: string[] }
 interface StatusModule { overallStatus?: string }
-interface PhaseModule { phases?: string[] }
-interface ProtocolSection { designModule?: DesignField; statusModule?: StatusModule; phaseModule?: PhaseModule }
+interface ProtocolSection { designModule?: DesignField; statusModule?: StatusModule }
 interface StudyRecord { protocolSection?: ProtocolSection }
 interface StudiesListResponse { studies?: StudyRecord[] }
 
-// NCI's real phase vocabulary (CONFIRMED VIA LIVE CALL 2026-07-14 against
-// ClinicalTrials.gov API v2): 'NA', 'EARLY_PHASE1', 'PHASE1', 'PHASE2',
-// 'PHASE3', 'PHASE4' — ordered low to high so the real highest phase
-// actually observed in the sample can be picked out, never guessed.
-const PHASE_ORDER = ['NA', 'EARLY_PHASE1', 'PHASE1', 'PHASE2', 'PHASE3', 'PHASE4']
+// NCI's real phase vocabulary, live under protocolSection.designModule.phases
+// (CONFIRMED VIA LIVE CALL 2026-07-14 against ClinicalTrials.gov API v2 —
+// the field does NOT live under a separate phaseModule, a real 400 the
+// first implementation attempt hit). Real values seen: 'NA' (most
+// supplement/behavioral trials — the FDA phase system applies to drugs, not
+// dietary ingredients), 'EARLY_PHASE1', 'PHASE1'..'PHASE4'. 'NA' is
+// deliberately excluded from the max-phase comparison below — it means "not
+// applicable," not "phase zero," so counting it as a reached phase would be
+// a fabricated signal, not a real one.
+const PHASE_ORDER = ['EARLY_PHASE1', 'PHASE1', 'PHASE2', 'PHASE3', 'PHASE4']
 
 export interface TrialDesignBreakdown {
   trial_study_types:        { interventional: number; observational: number }
@@ -68,16 +72,16 @@ export async function fetchTrialRegistrationsCount(ingredient: string): Promise<
 // Real studyType/phases breakdown for a bounded, recent sample of this
 // ingredient's registered trials (CONFIRMED VIA LIVE CALL 2026-07-14:
 // protocolSection.designModule.studyType returns real 'INTERVENTIONAL' /
-// 'OBSERVATIONAL' values; protocolSection.phaseModule.phases returns a real
-// array like ['PHASE2']). Counts, not a fabricated ratio — a study whose
-// studyType is neither real value is simply excluded from the tally rather
-// than guessed into one bucket. trial_max_phase_reached is undefined (never
-// a fabricated "N/A") when no sampled trial reported a phase.
+// 'OBSERVATIONAL' values; protocolSection.designModule.phases returns a real
+// array like ['PHASE2'] or ['NA']). Counts, not a fabricated ratio — a study
+// whose studyType is neither real value is simply excluded from the tally
+// rather than guessed into one bucket. trial_max_phase_reached is undefined
+// (never a fabricated value) when no sampled trial reported a real phase.
 export async function fetchTrialDesignBreakdown(ingredient: string): Promise<TrialDesignBreakdown | null> {
   const params = new URLSearchParams({
     'query.term': ingredient,
     pageSize:     String(DESIGN_SAMPLE_SIZE),
-    fields:       'protocolSection.designModule.studyType,protocolSection.statusModule.overallStatus,protocolSection.phaseModule.phases',
+    fields:       'protocolSection.designModule.studyType,protocolSection.designModule.phases,protocolSection.statusModule.overallStatus',
   })
 
   try {
@@ -98,7 +102,7 @@ export async function fetchTrialDesignBreakdown(ingredient: string): Promise<Tri
       if (studyType === 'INTERVENTIONAL') interventional++
       else if (studyType === 'OBSERVATIONAL') observational++
 
-      for (const phase of study.protocolSection?.phaseModule?.phases ?? []) {
+      for (const phase of study.protocolSection?.designModule?.phases ?? []) {
         const idx = PHASE_ORDER.indexOf(phase)
         if (idx > maxPhaseIdx) maxPhaseIdx = idx
       }

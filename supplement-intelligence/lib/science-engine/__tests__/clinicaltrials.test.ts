@@ -43,8 +43,8 @@ describe('fetchTrialDesignBreakdown', () => {
 
   it('counts real interventional vs observational studyType values and picks the real highest phase', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(mockStudies([
-      { protocolSection: { designModule: { studyType: 'INTERVENTIONAL' }, phaseModule: { phases: ['PHASE2'] } } },
-      { protocolSection: { designModule: { studyType: 'INTERVENTIONAL' }, phaseModule: { phases: ['PHASE3'] } } },
+      { protocolSection: { designModule: { studyType: 'INTERVENTIONAL', phases: ['PHASE2'] } } },
+      { protocolSection: { designModule: { studyType: 'INTERVENTIONAL', phases: ['PHASE3'] } } },
       { protocolSection: { designModule: { studyType: 'OBSERVATIONAL' } } },
     ]))
 
@@ -56,6 +56,9 @@ describe('fetchTrialDesignBreakdown', () => {
     const url = fetchSpy.mock.calls[0][0] as string
     expect(url).toContain('query.term=berberine')
     expect(url).toContain('pageSize=10')
+    // CONFIRMED VIA LIVE CALL 2026-07-14: phases lives under designModule,
+    // not a separate phaseModule (a real 400 the first attempt hit).
+    expect(url).toContain('protocolSection.designModule.phases')
   })
 
   it('returns undefined max phase (never a fabricated N/A) when no sampled trial reported one', async () => {
@@ -65,6 +68,16 @@ describe('fetchTrialDesignBreakdown', () => {
     const result = await fetchTrialDesignBreakdown('creatine')
     expect(result?.trial_max_phase_reached).toBeUndefined()
     expect(result?.trial_study_types).toEqual({ interventional: 1, observational: 0 })
+  })
+
+  it('excludes real "NA" phase values (not applicable, common for supplement trials) from the max-phase comparison', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(mockStudies([
+      { protocolSection: { designModule: { studyType: 'INTERVENTIONAL', phases: ['NA'] } } },
+      { protocolSection: { designModule: { studyType: 'INTERVENTIONAL', phases: ['NA'] } } },
+    ]))
+    const result = await fetchTrialDesignBreakdown('berberine')
+    expect(result?.trial_max_phase_reached).toBeUndefined()
+    expect(result?.trial_study_types).toEqual({ interventional: 2, observational: 0 })
   })
 
   it('returns real zero counts (not null) when the sample has no studies at all', async () => {

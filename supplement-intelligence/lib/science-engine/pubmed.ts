@@ -56,7 +56,7 @@ async function fetchYearCount(ingredient: string, year: number): Promise<number 
   if (process.env.PUBMED_API_KEY) params.set('api_key', process.env.PUBMED_API_KEY)
 
   try {
-    const res = await fetch(`${EUTILS_BASE}?${params.toString()}`)
+    const res = await fetch(`${ESEARCH_URL}?${params.toString()}`)
     if (!res.ok) {
       console.warn('PubMed: non-200 response', { ingredient, year, status: res.status })
       return null
