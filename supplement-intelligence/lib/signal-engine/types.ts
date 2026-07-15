@@ -169,6 +169,31 @@ export interface ScienceSignal extends SignalScore {
   // total, not a fabricated multi-year series (see lib/science-engine/
   // clinicaltrials.ts for why trial registrations don't get a velocity read).
   trial_registrations_count?: number
+
+  // Roadmap M2.16 — Clinical Evidence Engine. Real PubMed pubtype[]
+  // classification (see lib/science-engine/pubmed.ts's
+  // fetchStrongestEvidenceType, reusing the STUDY_TYPE_PRIORITY/
+  // pickStudyType logic already live in lib/news-engine/providers/
+  // pubmed.ts) across a bounded, recent sample of this ingredient's
+  // literature. Undefined when nothing in the sample matched a real
+  // methodologically-specific pubtype — never a fabricated "anecdotal" or
+  // "in-vitro" label, since PubMed's real vocabulary has no such category.
+  strongest_evidence_type?: string
+  // Real count of articles actually classified to produce the field above —
+  // lets a consumer distinguish "0 found" from "found some, none had a
+  // specific type" rather than reading undefined either way.
+  evidence_sample_size?: number
+  // Real ClinicalTrials.gov v2 studyType counts across a bounded, recent
+  // sample of this ingredient's registered trials (see lib/science-engine/
+  // clinicaltrials.ts's fetchTrialDesignBreakdown). Counts, not a fabricated
+  // ratio — a trial whose real studyType is neither value is excluded from
+  // the tally rather than guessed into one bucket.
+  trial_study_types?: { interventional: number; observational: number }
+  // Highest real phase (NCI vocabulary: EARLY_PHASE1..PHASE4) observed
+  // anywhere in that same sample. Undefined (never "N/A") when no sampled
+  // trial reported a phase.
+  trial_max_phase_reached?: string
+
   as_of?: string   // ISO timestamp of the nightly batch run that produced this cache entry
 }
 

@@ -11,8 +11,8 @@
 
 import { cacheSet } from '@/lib/provider-cache'
 import { appendObservations } from '@/lib/niche-timeseries/store'
-import { fetchPublicationCountsByYear } from './pubmed'
-import { fetchTrialRegistrationsCount } from './clinicaltrials'
+import { fetchPublicationCountsByYear, fetchStrongestEvidenceType } from './pubmed'
+import { fetchTrialRegistrationsCount, fetchTrialDesignBreakdown } from './clinicaltrials'
 import { TRACKED_INGREDIENTS } from './tracked-ingredients'
 import { getIngredientProfile } from '@/lib/ingredient-registry'
 import type { ScienceSignal } from '@/lib/signal-engine/types'
@@ -80,9 +80,14 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
   // (never throws, never blocks the pipeline).
   const searchTerm = getIngredientProfile(ingredient)?.canonicalSearchTerm ?? ingredient
 
-  const [publicationCounts, trialCount] = await Promise.all([
+  const [publicationCounts, trialCount, evidenceType, trialDesign] = await Promise.all([
     fetchPublicationCountsByYear(searchTerm, 6, now),
     fetchTrialRegistrationsCount(searchTerm),
+    // Roadmap M2.16: additive, non-fatal — a failure here (null) never
+    // blocks the pipeline or the existing success/failure condition below,
+    // same "partial, honest signal" treatment as the two original calls.
+    fetchStrongestEvidenceType(searchTerm),
+    fetchTrialDesignBreakdown(searchTerm),
   ])
 
   if (publicationCounts === null && trialCount === null) {
@@ -99,6 +104,10 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
     publication_velocity_pct:   velocity_pct ?? undefined,
     publication_trend:          trend,
     trial_registrations_count:  trialCount ?? undefined,
+    strongest_evidence_type:    evidenceType?.strongest_evidence_type,
+    evidence_sample_size:       evidenceType?.evidence_sample_size,
+    trial_study_types:          trialDesign?.trial_study_types,
+    trial_max_phase_reached:    trialDesign?.trial_max_phase_reached,
     as_of: now.toISOString(),
   }
 
@@ -110,6 +119,11 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
   await appendObservations([
     velocity_pct != null ? { nicheKey: ingredient, source: 'science', metric: 'publication_velocity_pct', value: velocity_pct, observedAt: now } : null,
     trialCount != null   ? { nicheKey: ingredient, source: 'science', metric: 'trial_registrations_count', value: trialCount, observedAt: now } : null,
+    // Roadmap M2.16: real evidence-sample-size and trial-design counts,
+    // same non-fatal append pattern.
+    evidenceType?.evidence_sample_size != null ? { nicheKey: ingredient, source: 'science', metric: 'evidence_sample_size', value: evidenceType.evidence_sample_size, observedAt: now } : null,
+    trialDesign ? { nicheKey: ingredient, source: 'science', metric: 'trial_interventional_count', value: trialDesign.trial_study_types.interventional, observedAt: now } : null,
+    trialDesign ? { nicheKey: ingredient, source: 'science', metric: 'trial_observational_count', value: trialDesign.trial_study_types.observational, observedAt: now } : null,
   ])
 
   return { ingredient, success: true }

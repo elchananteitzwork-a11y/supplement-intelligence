@@ -15,12 +15,25 @@
 // science-pipeline), never live inside a request — N sequential calls at
 // ~350ms apart cannot fit the fast tier's <500ms budget.
 
-const EUTILS_BASE = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi'
+import { STUDY_TYPE_PRIORITY, pickStudyType } from '@/lib/news-engine/providers/pubmed'
+
+const EUTILS_BASE     = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils'
+const ESEARCH_URL      = `${EUTILS_BASE}/esearch.fcgi`
+const ESUMMARY_URL     = `${EUTILS_BASE}/esummary.fcgi`
 const REQUEST_DELAY_MS = 350   // keeps us under the keyless 3 req/s limit with margin
 
+// Roadmap M2.16: bounded, disclosed sample size for the strongest-evidence-
+// type read below — real recent PMIDs, not exhaustive (the fast-tier <500ms
+// budget doesn't apply here either way, since this pipeline is nightly-only,
+// but an unbounded esummary batch would still be an unnecessary real cost).
+const EVIDENCE_SAMPLE_SIZE = 20
+
 interface EsearchResponse {
-  esearchresult?: { count?: string }
+  esearchresult?: { count?: string; idlist?: string[] }
 }
+
+interface EsummaryItem { pubtype?: string[] }
+interface EsummaryResponse { result?: Record<string, EsummaryItem | string[]> }
 
 async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -81,4 +94,67 @@ export async function fetchPublicationCountsByYear(
   }
 
   return Object.keys(counts).length ? counts : null
+}
+
+export interface StrongestEvidenceResult {
+  strongest_evidence_type?: string
+  evidence_sample_size:     number
+}
+
+// ── Roadmap M2.16: Clinical Evidence Engine ──────────────────────────────────
+// Real PubMed pubtype[] classification for a bounded, recent sample of this
+// ingredient's literature — esearch (real PMIDs) then one batched esummary
+// call, reusing the exact STUDY_TYPE_PRIORITY/pickStudyType logic already
+// live in lib/news-engine/providers/pubmed.ts (CONFIRMED VIA LIVE CALL
+// 2026-07-14: esummary's pubtype[] returns real values like
+// ["Journal Article", "Randomized Controlled Trial"] for this exact term).
+// Returns the single strongest real classification found across the sample,
+// or undefined (never a fabricated "anecdotal"/"in-vitro" label — PubMed's
+// real vocabulary has no such category) when nothing in the sample matches
+// the priority list. evidence_sample_size is always the real count of
+// articles actually classified, so a caller can tell "0 found" apart from
+// "found some, none had a specific type."
+export async function fetchStrongestEvidenceType(ingredient: string): Promise<StrongestEvidenceResult | null> {
+  const searchParams = new URLSearchParams({
+    db:      'pubmed',
+    term:    ingredient,
+    retmax:  String(EVIDENCE_SAMPLE_SIZE),
+    retmode: 'json',
+  })
+  if (process.env.PUBMED_API_KEY) searchParams.set('api_key', process.env.PUBMED_API_KEY)
+
+  try {
+    const searchRes = await fetch(`${ESEARCH_URL}?${searchParams.toString()}`)
+    if (!searchRes.ok) {
+      console.warn('PubMed: non-200 esearch response (evidence type)', { ingredient, status: searchRes.status })
+      return null
+    }
+    const searchData = await searchRes.json() as EsearchResponse
+    const ids = searchData.esearchresult?.idlist ?? []
+    if (!ids.length) return { evidence_sample_size: 0 }
+
+    const summaryParams = new URLSearchParams({ db: 'pubmed', id: ids.join(','), retmode: 'json' })
+    if (process.env.PUBMED_API_KEY) summaryParams.set('api_key', process.env.PUBMED_API_KEY)
+
+    const summaryRes = await fetch(`${ESUMMARY_URL}?${summaryParams.toString()}`)
+    if (!summaryRes.ok) {
+      console.warn('PubMed: non-200 esummary response (evidence type)', { ingredient, status: summaryRes.status })
+      return null
+    }
+    const summaryData = await summaryRes.json() as EsummaryResponse
+
+    const priorityRank = (t: string | undefined) => t ? STUDY_TYPE_PRIORITY.indexOf(t) : -1
+    let strongest: string | undefined
+    for (const pmid of ids) {
+      const entry = summaryData.result?.[pmid]
+      if (!entry || Array.isArray(entry)) continue
+      const type = pickStudyType(entry.pubtype)
+      if (type && (strongest === undefined || priorityRank(type) < priorityRank(strongest))) strongest = type
+    }
+
+    return { strongest_evidence_type: strongest, evidence_sample_size: ids.length }
+  } catch (e: unknown) {
+    console.warn('PubMed: request failed (evidence type)', { ingredient, error: e instanceof Error ? e.message : e })
+    return null
+  }
 }

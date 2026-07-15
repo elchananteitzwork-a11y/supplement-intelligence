@@ -3,7 +3,7 @@
 // this codebase's established convention (see meta-ads.test.ts).
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { fetchPublicationCountsByYear } from '../pubmed'
+import { fetchPublicationCountsByYear, fetchStrongestEvidenceType } from '../pubmed'
 
 function mockEsearchResponse(count: string): Response {
   return {
@@ -53,4 +53,48 @@ describe('fetchPublicationCountsByYear', () => {
     const counts = await fetchPublicationCountsByYear('berberine', 2, new Date('2026-07-13T00:00:00Z'))
     expect(counts).toBeNull()
   }, 10_000)
+})
+
+// Roadmap M2.16: Clinical Evidence Engine.
+describe('fetchStrongestEvidenceType', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+
+  function mockEsearch(idlist: string[]): Response {
+    return { ok: true, json: () => Promise.resolve({ esearchresult: { idlist } }) } as Response
+  }
+  function mockEsummary(result: Record<string, { pubtype?: string[] }>): Response {
+    return { ok: true, json: () => Promise.resolve({ result }) } as Response
+  }
+
+  it('picks the real strongest classification across the sample (Meta-Analysis over a lone RCT)', async () => {
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(mockEsearch(['1', '2']))
+      .mockResolvedValueOnce(mockEsummary({
+        '1': { pubtype: ['Journal Article', 'Randomized Controlled Trial'] },
+        '2': { pubtype: ['Journal Article', 'Meta-Analysis'] },
+      }))
+
+    const result = await fetchStrongestEvidenceType('berberine')
+    expect(result).toEqual({ strongest_evidence_type: 'Meta-Analysis', evidence_sample_size: 2 })
+  })
+
+  it('returns undefined evidence type (never a fabricated label) when no article in the sample matches the priority list', async () => {
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(mockEsearch(['1']))
+      .mockResolvedValueOnce(mockEsummary({ '1': { pubtype: ['Journal Article'] } }))
+
+    const result = await fetchStrongestEvidenceType('creatine')
+    expect(result).toEqual({ strongest_evidence_type: undefined, evidence_sample_size: 1 })
+  })
+
+  it('returns a real zero sample size (not null) when esearch finds no articles at all', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockEsearch([]))
+    const result = await fetchStrongestEvidenceType('magnesium')
+    expect(result).toEqual({ evidence_sample_size: 0 })
+  })
+
+  it('returns null on a network failure', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'))
+    expect(await fetchStrongestEvidenceType('berberine')).toBeNull()
+  })
 })

@@ -32,7 +32,12 @@ function parsePubmedDate(sortpubdate: string | undefined): string | null {
 // first so "Meta-Analysis" wins over "Journal Article" when both are present;
 // a study with only generic types gets no study_type rather than a label
 // that doesn't actually say anything about methodology.
-const STUDY_TYPE_PRIORITY = [
+// Exported (Roadmap M2.16): lib/science-engine/pubmed.ts reuses this exact
+// priority list/function to classify PubMed's real pubtype[] field for the
+// Clinical Evidence Engine, rather than duplicating it — same real NLM
+// vocabulary, same "most-informative-first" judgment call, one source of
+// truth. Purely additive (export keyword only) — no behavior change here.
+export const STUDY_TYPE_PRIORITY = [
   'Meta-Analysis',
   'Systematic Review',
   'Randomized Controlled Trial',
@@ -45,7 +50,7 @@ const STUDY_TYPE_PRIORITY = [
   'Case Reports',
 ]
 
-function pickStudyType(pubtype: string[] | undefined): string | undefined {
+export function pickStudyType(pubtype: string[] | undefined): string | undefined {
   if (!pubtype?.length) return undefined
   return STUDY_TYPE_PRIORITY.find(t => pubtype.includes(t))
 }

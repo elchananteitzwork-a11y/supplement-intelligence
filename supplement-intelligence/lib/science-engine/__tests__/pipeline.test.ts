@@ -14,11 +14,21 @@ import { computePublicationVelocity, ingestScienceSignal, runScienceIngestionPip
 
 const fetchPublicationCountsByYear = vi.fn()
 const fetchTrialRegistrationsCount = vi.fn()
+const fetchStrongestEvidenceType   = vi.fn()
+const fetchTrialDesignBreakdown    = vi.fn()
 const cacheSet = vi.fn().mockResolvedValue(undefined)
+const appendObservations = vi.fn().mockResolvedValue(undefined)
 
-vi.mock('../pubmed', () => ({ fetchPublicationCountsByYear: (...args: unknown[]) => fetchPublicationCountsByYear(...args) }))
-vi.mock('../clinicaltrials', () => ({ fetchTrialRegistrationsCount: (...args: unknown[]) => fetchTrialRegistrationsCount(...args) }))
+vi.mock('../pubmed', () => ({
+  fetchPublicationCountsByYear: (...args: unknown[]) => fetchPublicationCountsByYear(...args),
+  fetchStrongestEvidenceType:   (...args: unknown[]) => fetchStrongestEvidenceType(...args),
+}))
+vi.mock('../clinicaltrials', () => ({
+  fetchTrialRegistrationsCount: (...args: unknown[]) => fetchTrialRegistrationsCount(...args),
+  fetchTrialDesignBreakdown:    (...args: unknown[]) => fetchTrialDesignBreakdown(...args),
+}))
 vi.mock('@/lib/provider-cache', () => ({ cacheSet: (...args: unknown[]) => cacheSet(...args) }))
+vi.mock('@/lib/niche-timeseries/store', () => ({ appendObservations: (...args: unknown[]) => appendObservations(...args) }))
 
 describe('computePublicationVelocity — real berberine PubMed data', () => {
   it('computes velocity from the last two complete years actually present (2024 vs 2023: 796 vs 683)', () => {
@@ -47,7 +57,15 @@ describe('computePublicationVelocity — real berberine PubMed data', () => {
 })
 
 describe('ingestScienceSignal', () => {
-  beforeEach(() => { vi.clearAllMocks(); cacheSet.mockResolvedValue(undefined) })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    cacheSet.mockResolvedValue(undefined)
+    appendObservations.mockResolvedValue(undefined)
+    // Roadmap M2.16 additive calls — default to "found nothing" so existing
+    // tests that don't care about them stay unaffected.
+    fetchStrongestEvidenceType.mockResolvedValue(null)
+    fetchTrialDesignBreakdown.mockResolvedValue(null)
+  })
 
   it('writes a real, complete ScienceSignal to the cache when both real sources succeed', async () => {
     fetchPublicationCountsByYear.mockResolvedValue({ '2023': 683, '2024': 796 })
@@ -105,6 +123,41 @@ describe('ingestScienceSignal', () => {
     expect(result.success).toBe(true)
     expect(fetchPublicationCountsByYear).toHaveBeenCalledWith('ashwagandha', 6, expect.any(Date))
     expect(fetchTrialRegistrationsCount).toHaveBeenCalledWith('ashwagandha')
+  })
+
+  it('Roadmap M2.16: populates the real evidence-type and trial-design fields on the cached signal', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+    fetchStrongestEvidenceType.mockResolvedValue({ strongest_evidence_type: 'Meta-Analysis', evidence_sample_size: 20 })
+    fetchTrialDesignBreakdown.mockResolvedValue({ trial_study_types: { interventional: 6, observational: 2 }, trial_max_phase_reached: 'PHASE3' })
+
+    await ingestScienceSignal('berberine')
+    const payload = cacheSet.mock.calls[0][2] as Record<string, unknown>
+    expect(payload).toMatchObject({
+      strongest_evidence_type: 'Meta-Analysis',
+      evidence_sample_size: 20,
+      trial_study_types: { interventional: 6, observational: 2 },
+      trial_max_phase_reached: 'PHASE3',
+    })
+    expect(appendObservations).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ metric: 'evidence_sample_size', value: 20 }),
+      expect.objectContaining({ metric: 'trial_interventional_count', value: 6 }),
+      expect.objectContaining({ metric: 'trial_observational_count', value: 2 }),
+    ]))
+  })
+
+  it('Roadmap M2.16: never blocks a successful signal when the new evidence-type/trial-design calls fail (additive, non-fatal)', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+    fetchStrongestEvidenceType.mockResolvedValue(null)
+    fetchTrialDesignBreakdown.mockResolvedValue(null)
+
+    const result = await ingestScienceSignal('creatine')
+    expect(result.success).toBe(true)
+    const payload = cacheSet.mock.calls[0][2] as Record<string, unknown>
+    expect(payload.strongest_evidence_type).toBeUndefined()
+    expect(payload.trial_study_types).toBeUndefined()
+    expect(payload.trial_max_phase_reached).toBeUndefined()
   })
 })
 
