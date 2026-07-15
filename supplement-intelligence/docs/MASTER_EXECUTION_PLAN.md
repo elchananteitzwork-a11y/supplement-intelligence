@@ -1,6 +1,6 @@
 ---
 Title: Master Execution Plan
-Version: 1.6
+Version: 1.7
 Status: Approved
 Last Updated: 2026-07-14
 Supersedes:
@@ -14,6 +14,7 @@ Amendment Log:
   - "v1.4 (2026-07-14): M2.13 shipped (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). Re-sourced the weekly VOC pipeline from Reddit onto YouTube comments + DataForSEO problem-aware keywords, both real production data sources; Amazon Q&A (also named in the original scope) deferred — no existing pattern to reuse, needs its own vetting pass first. Requires a new YOUTUBE_API_KEY to be provisioned in production before this pipeline produces real data live; code is fully built and tested against mocks in the meantime."
   - "v1.5 (2026-07-14): M2.14 shipped as a build+validate phase, deliberately not a cutover (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). New DataForSeoTrendsProvider built, registered disabled by default, live-validated with the feature briefly enabled (real cost confirmed: ~$0.011/call), then disabled again per explicit instruction. google-trends.ts remains the sole live search_intent Trends source; making the new provider the default is an explicit, separate future decision, not bundled into this milestone."
   - "v1.6 (2026-07-14): M2.15 shipped — the first Evidence Depth Cluster milestone (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). New lib/ingredient-registry/ with real alias/canonical-search-term profiles for the 3 tracked ingredients, wired into science-engine/pipeline.ts's real PubMed/ClinicalTrials.gov calls. Narrowed at the R&D stage from 'aggregate demand across every product variant' to just the registry foundation, since no real consumer for that aggregation exists anywhere in the codebase yet. Live-validated via a real science-pipeline cron trigger, zero regression."
+  - "v1.7 (2026-07-14): M2.16 shipped — the second Evidence Depth Cluster milestone (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). Extended the science pipeline with real PubMed pubtype[] classification (strongest study type across a bounded sample, reusing existing lib/news-engine/providers/pubmed.ts logic) and real ClinicalTrials.gov studyType/phases breakdown. First deploy's live validation surfaced and fixed two real defects a mocked test suite couldn't catch: a broken EUTILS_BASE reference that silently 404'd the pre-existing publication-count fetcher, and a fictitious ClinicalTrials.gov field path that 400'd. Re-validated clean after the fix, zero regression to the existing publication_counts_by_year/trial_registrations_count fields."
 ---
 
 > **This document is the single source of truth for execution. In the event of any conflict with older planning documents, this document takes precedence unless explicitly superseded.**
