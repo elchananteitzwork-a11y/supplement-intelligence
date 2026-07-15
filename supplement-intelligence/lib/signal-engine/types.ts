@@ -194,6 +194,30 @@ export interface ScienceSignal extends SignalScore {
   // trial reported a phase.
   trial_max_phase_reached?: string
 
+  // Roadmap M2.17 — Dosage Adequacy. Real, observed market dosing landscape
+  // from NIH's Dietary Supplement Label Database (see lib/science-engine/
+  // dsld.ts's fetchMarketDoseDistribution) over a bounded, recent sample of
+  // real on-market products. NOT a "clinically effective dose" — no honest
+  // source for that exists for non-essential-nutrient ingredients
+  // (berberine/creatine have no RDA); this is what real products actually
+  // contain, nothing more.
+  market_dose_mg?: { median: number; min: number; max: number }
+  // Real count of sampled products that actually yielded an extractable mg
+  // dose — distinct from how many were fetched, same "0 found vs.
+  // found-but-unclassifiable" honesty distinction as evidence_sample_size.
+  market_dose_sample_size?: number
+  // Magnesium only — the one static (not live-fetched) fact in this
+  // milestone: NIH ODS's published adult RDA range (310-420 mg/day across
+  // sexes), hand-entered with citation since no structured API exposes it
+  // (see dsld.ts's MAGNESIUM_RDA_RANGE_MG for the exact source). Undefined
+  // for berberine/creatine — neither is an essential nutrient, so no
+  // official RDA/UL exists to cite.
+  rda_range_mg?: { min: number; max: number }
+  // Real comparison of market_dose_mg.median against rda_range_mg.
+  // Undefined whenever rda_range_mg is (i.e. for every ingredient except
+  // magnesium) or when no real market dose was found.
+  market_dose_vs_rda?: 'Below' | 'Within' | 'Above'
+
   as_of?: string   // ISO timestamp of the nightly batch run that produced this cache entry
 }
 

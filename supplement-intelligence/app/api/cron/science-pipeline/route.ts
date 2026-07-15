@@ -25,7 +25,13 @@ import { runDiscoveryDetection } from '@/lib/discovery-engine/run'
 // candidate list as a parameter); TRACKED_INGREDIENTS is supplied here,
 // at the call site, not assumed inside the engine.
 
-export const maxDuration = 60   // 3 ingredients x (6 sequential PubMed calls + 1 ClinicalTrials.gov call) — seconds, not minutes, but real network I/O
+// 3 ingredients, each running PubMed (6 sequential year calls + a bounded
+// evidence-type sample), ClinicalTrials.gov (2 calls), and DSLD (Roadmap
+// M2.17: 1 search + up to 20 bounded, concurrency-capped label detail
+// calls) concurrently via Promise.all — real network I/O, seconds not
+// minutes; M2.16's live validation measured ~8s for all 3 ingredients
+// before DSLD was added, so 60s retains real headroom.
+export const maxDuration = 60
 // Without this, Next.js's build-time static-render detection doesn't
 // recognize req.headers.get() (a NextRequest method, not next/headers'
 // cookies()/headers()) as dynamic — it actually invoked this route once

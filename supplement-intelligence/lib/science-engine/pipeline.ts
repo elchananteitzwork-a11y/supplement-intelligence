@@ -13,6 +13,7 @@ import { cacheSet } from '@/lib/provider-cache'
 import { appendObservations } from '@/lib/niche-timeseries/store'
 import { fetchPublicationCountsByYear, fetchStrongestEvidenceType } from './pubmed'
 import { fetchTrialRegistrationsCount, fetchTrialDesignBreakdown } from './clinicaltrials'
+import { fetchMarketDoseDistribution } from './dsld'
 import { TRACKED_INGREDIENTS } from './tracked-ingredients'
 import { getIngredientProfile } from '@/lib/ingredient-registry'
 import type { ScienceSignal } from '@/lib/signal-engine/types'
@@ -80,7 +81,7 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
   // (never throws, never blocks the pipeline).
   const searchTerm = getIngredientProfile(ingredient)?.canonicalSearchTerm ?? ingredient
 
-  const [publicationCounts, trialCount, evidenceType, trialDesign] = await Promise.all([
+  const [publicationCounts, trialCount, evidenceType, trialDesign, marketDose] = await Promise.all([
     fetchPublicationCountsByYear(searchTerm, 6, now),
     fetchTrialRegistrationsCount(searchTerm),
     // Roadmap M2.16: additive, non-fatal — a failure here (null) never
@@ -88,6 +89,11 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
     // same "partial, honest signal" treatment as the two original calls.
     fetchStrongestEvidenceType(searchTerm),
     fetchTrialDesignBreakdown(searchTerm),
+    // Roadmap M2.17: same additive, non-fatal treatment. Takes the raw
+    // `ingredient` key (not `searchTerm`) — dsld.ts needs the full
+    // registry profile (displayName/aliases/canonicalSearchTerm), not just
+    // the resolved search term alone.
+    fetchMarketDoseDistribution(ingredient),
   ])
 
   if (publicationCounts === null && trialCount === null) {
@@ -108,6 +114,10 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
     evidence_sample_size:       evidenceType?.evidence_sample_size,
     trial_study_types:          trialDesign?.trial_study_types,
     trial_max_phase_reached:    trialDesign?.trial_max_phase_reached,
+    market_dose_mg:             marketDose?.market_dose_mg,
+    market_dose_sample_size:    marketDose?.market_dose_sample_size,
+    rda_range_mg:               marketDose?.rda_range_mg,
+    market_dose_vs_rda:         marketDose?.market_dose_vs_rda,
     as_of: now.toISOString(),
   }
 
@@ -124,6 +134,10 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
     evidenceType?.evidence_sample_size != null ? { nicheKey: ingredient, source: 'science', metric: 'evidence_sample_size', value: evidenceType.evidence_sample_size, observedAt: now } : null,
     trialDesign ? { nicheKey: ingredient, source: 'science', metric: 'trial_interventional_count', value: trialDesign.trial_study_types.interventional, observedAt: now } : null,
     trialDesign ? { nicheKey: ingredient, source: 'science', metric: 'trial_observational_count', value: trialDesign.trial_study_types.observational, observedAt: now } : null,
+    // Roadmap M2.17: real market-dose median and sample size, same
+    // non-fatal append pattern.
+    marketDose?.market_dose_mg ? { nicheKey: ingredient, source: 'science', metric: 'market_dose_median_mg', value: marketDose.market_dose_mg.median, observedAt: now } : null,
+    marketDose?.market_dose_sample_size != null ? { nicheKey: ingredient, source: 'science', metric: 'market_dose_sample_size', value: marketDose.market_dose_sample_size, observedAt: now } : null,
   ])
 
   return { ingredient, success: true }

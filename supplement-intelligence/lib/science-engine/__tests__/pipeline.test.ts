@@ -16,6 +16,7 @@ const fetchPublicationCountsByYear = vi.fn()
 const fetchTrialRegistrationsCount = vi.fn()
 const fetchStrongestEvidenceType   = vi.fn()
 const fetchTrialDesignBreakdown    = vi.fn()
+const fetchMarketDoseDistribution  = vi.fn()
 const cacheSet = vi.fn().mockResolvedValue(undefined)
 const appendObservations = vi.fn().mockResolvedValue(undefined)
 
@@ -27,6 +28,7 @@ vi.mock('../clinicaltrials', () => ({
   fetchTrialRegistrationsCount: (...args: unknown[]) => fetchTrialRegistrationsCount(...args),
   fetchTrialDesignBreakdown:    (...args: unknown[]) => fetchTrialDesignBreakdown(...args),
 }))
+vi.mock('../dsld', () => ({ fetchMarketDoseDistribution: (...args: unknown[]) => fetchMarketDoseDistribution(...args) }))
 vi.mock('@/lib/provider-cache', () => ({ cacheSet: (...args: unknown[]) => cacheSet(...args) }))
 vi.mock('@/lib/niche-timeseries/store', () => ({ appendObservations: (...args: unknown[]) => appendObservations(...args) }))
 
@@ -61,10 +63,11 @@ describe('ingestScienceSignal', () => {
     vi.clearAllMocks()
     cacheSet.mockResolvedValue(undefined)
     appendObservations.mockResolvedValue(undefined)
-    // Roadmap M2.16 additive calls — default to "found nothing" so existing
-    // tests that don't care about them stay unaffected.
+    // Roadmap M2.16/M2.17 additive calls — default to "found nothing" so
+    // existing tests that don't care about them stay unaffected.
     fetchStrongestEvidenceType.mockResolvedValue(null)
     fetchTrialDesignBreakdown.mockResolvedValue(null)
+    fetchMarketDoseDistribution.mockResolvedValue(null)
   })
 
   it('writes a real, complete ScienceSignal to the cache when both real sources succeed', async () => {
@@ -115,6 +118,14 @@ describe('ingestScienceSignal', () => {
     expect(fetchTrialRegistrationsCount).toHaveBeenCalledWith('magnesium')
   })
 
+  it('Roadmap M2.17: calls fetchMarketDoseDistribution with the raw ingredient key, not the resolved search term', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+
+    await ingestScienceSignal('magnesium')
+    expect(fetchMarketDoseDistribution).toHaveBeenCalledWith('magnesium')
+  })
+
   it('Roadmap M2.15: falls back to the bare ingredient string (never throws) for an ingredient not in the registry', async () => {
     fetchPublicationCountsByYear.mockResolvedValue({ '2023': 10, '2024': 11 })
     fetchTrialRegistrationsCount.mockResolvedValue(1)
@@ -158,6 +169,43 @@ describe('ingestScienceSignal', () => {
     expect(payload.strongest_evidence_type).toBeUndefined()
     expect(payload.trial_study_types).toBeUndefined()
     expect(payload.trial_max_phase_reached).toBeUndefined()
+  })
+
+  it('Roadmap M2.17: populates the real market-dose fields on the cached signal, including the magnesium-only RDA comparison', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+    fetchMarketDoseDistribution.mockResolvedValue({
+      market_dose_mg: { median: 350, min: 100, max: 500 },
+      market_dose_sample_size: 20,
+      rda_range_mg: { min: 310, max: 420 },
+      market_dose_vs_rda: 'Within',
+    })
+
+    await ingestScienceSignal('magnesium')
+    const payload = cacheSet.mock.calls[0][2] as Record<string, unknown>
+    expect(payload).toMatchObject({
+      market_dose_mg: { median: 350, min: 100, max: 500 },
+      market_dose_sample_size: 20,
+      rda_range_mg: { min: 310, max: 420 },
+      market_dose_vs_rda: 'Within',
+    })
+    expect(appendObservations).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ metric: 'market_dose_median_mg', value: 350 }),
+      expect.objectContaining({ metric: 'market_dose_sample_size', value: 20 }),
+    ]))
+  })
+
+  it('Roadmap M2.17: never blocks a successful signal when fetchMarketDoseDistribution fails (additive, non-fatal)', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+    fetchMarketDoseDistribution.mockResolvedValue(null)
+
+    const result = await ingestScienceSignal('berberine')
+    expect(result.success).toBe(true)
+    const payload = cacheSet.mock.calls[0][2] as Record<string, unknown>
+    expect(payload.market_dose_mg).toBeUndefined()
+    expect(payload.market_dose_sample_size).toBeUndefined()
+    expect(payload.rda_range_mg).toBeUndefined()
   })
 })
 
