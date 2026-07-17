@@ -2,6 +2,8 @@
 // Every quantified signal dimension carries a 0–10 score (matching the
 // discovery prompt scoring rubric) and a 0–1 confidence value.
 
+import type { RegulatoryIntelligence } from '@/lib/regulatory-engine/types'
+
 export interface SignalScore {
   score:      number  // 0–10
   confidence: number  // 0–1
@@ -217,6 +219,25 @@ export interface ScienceSignal extends SignalScore {
   // Undefined whenever rda_range_mg is (i.e. for every ingredient except
   // magnesium) or when no real market dose was found.
   market_dose_vs_rda?: 'Below' | 'Within' | 'Above'
+
+  // Roadmap M2.18 — Interaction/Safety (narrowed to real safety data; see
+  // the approved R&D document — no honest structured drug-interaction
+  // source exists today, NLM's own real API was discontinued 2024-01 and
+  // DailyMed has no full-text search). Reuses the existing, already-live
+  // lib/regulatory-engine (real openFDA CAERS adverse events + enforcement
+  // recalls) verbatim — the SAME type its one prior consumer
+  // (app/api/research/market-signal/route.ts) already renders, zero new
+  // fields re-derived here.
+  //
+  // IMPORTANT: this is a real, structured REGULATORY / SAFETY SIGNAL only
+  // — real adverse-event report counts and real recall records, nothing
+  // more. It is never medical advice, never clinical proof, never proof of
+  // causation, and never a definitive safety conclusion — CAERS reports
+  // are unverified, submitter-reported associations, not confirmed
+  // causal events (see the object's own real `disclaimer`/`risk_summary`
+  // fields, which travel with the data and must never be stripped or
+  // re-labeled by any consumer as a stronger claim than this).
+  regulatory?: RegulatoryIntelligence
 
   as_of?: string   // ISO timestamp of the nightly batch run that produced this cache entry
 }

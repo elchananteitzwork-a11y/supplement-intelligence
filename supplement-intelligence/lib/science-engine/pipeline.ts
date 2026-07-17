@@ -14,6 +14,7 @@ import { appendObservations } from '@/lib/niche-timeseries/store'
 import { fetchPublicationCountsByYear, fetchStrongestEvidenceType } from './pubmed'
 import { fetchTrialRegistrationsCount, fetchTrialDesignBreakdown } from './clinicaltrials'
 import { fetchMarketDoseDistribution } from './dsld'
+import { fetchRegulatoryIntelligence } from '@/lib/regulatory-engine'
 import { TRACKED_INGREDIENTS } from './tracked-ingredients'
 import { getIngredientProfile } from '@/lib/ingredient-registry'
 import type { ScienceSignal } from '@/lib/signal-engine/types'
@@ -81,7 +82,7 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
   // (never throws, never blocks the pipeline).
   const searchTerm = getIngredientProfile(ingredient)?.canonicalSearchTerm ?? ingredient
 
-  const [publicationCounts, trialCount, evidenceType, trialDesign, marketDose] = await Promise.all([
+  const [publicationCounts, trialCount, evidenceType, trialDesign, marketDose, regulatory] = await Promise.all([
     fetchPublicationCountsByYear(searchTerm, 6, now),
     fetchTrialRegistrationsCount(searchTerm),
     // Roadmap M2.16: additive, non-fatal — a failure here (null) never
@@ -94,6 +95,12 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
     // registry profile (displayName/aliases/canonicalSearchTerm), not just
     // the resolved search term alone.
     fetchMarketDoseDistribution(ingredient),
+    // Roadmap M2.18: reuses the existing, already-live lib/regulatory-engine
+    // (real openFDA CAERS adverse events + enforcement recalls, previously
+    // wired only into the on-demand research pipeline) — zero new fetch
+    // logic, same additive/non-fatal treatment. Its own extractIngredient()
+    // is a no-op on a bare tracked-ingredient string like "berberine".
+    fetchRegulatoryIntelligence(searchTerm),
   ])
 
   if (publicationCounts === null && trialCount === null) {
@@ -118,6 +125,11 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
     market_dose_sample_size:    marketDose?.market_dose_sample_size,
     rda_range_mg:               marketDose?.rda_range_mg,
     market_dose_vs_rda:         marketDose?.market_dose_vs_rda,
+    // Roadmap M2.18: the full existing RegulatoryIntelligence object,
+    // unmodified — its own real disclaimer/risk_summary/warning_flags
+    // travel with it unchanged, so this is never re-labeled as a
+    // conclusion here (see ScienceSignal['regulatory']'s own doc comment).
+    regulatory:                 regulatory ?? undefined,
     as_of: now.toISOString(),
   }
 
@@ -138,6 +150,11 @@ export async function ingestScienceSignal(ingredient: string, now = new Date()):
     // non-fatal append pattern.
     marketDose?.market_dose_mg ? { nicheKey: ingredient, source: 'science', metric: 'market_dose_median_mg', value: marketDose.market_dose_mg.median, observedAt: now } : null,
     marketDose?.market_dose_sample_size != null ? { nicheKey: ingredient, source: 'science', metric: 'market_dose_sample_size', value: marketDose.market_dose_sample_size, observedAt: now } : null,
+    // Roadmap M2.18: real CAERS adverse-event and recall counts — a
+    // regulatory/safety SIGNAL only (see ScienceSignal['regulatory']'s doc
+    // comment), same non-fatal append pattern as every other real count.
+    regulatory?.adverse_events ? { nicheKey: ingredient, source: 'science', metric: 'regulatory_adverse_event_count', value: regulatory.adverse_events.total_reports, observedAt: now } : null,
+    regulatory?.recalls ? { nicheKey: ingredient, source: 'science', metric: 'regulatory_recall_count', value: regulatory.recalls.total_recalls, observedAt: now } : null,
   ])
 
   return { ingredient, success: true }

@@ -17,6 +17,7 @@ const fetchTrialRegistrationsCount = vi.fn()
 const fetchStrongestEvidenceType   = vi.fn()
 const fetchTrialDesignBreakdown    = vi.fn()
 const fetchMarketDoseDistribution  = vi.fn()
+const fetchRegulatoryIntelligence  = vi.fn()
 const cacheSet = vi.fn().mockResolvedValue(undefined)
 const appendObservations = vi.fn().mockResolvedValue(undefined)
 
@@ -29,6 +30,7 @@ vi.mock('../clinicaltrials', () => ({
   fetchTrialDesignBreakdown:    (...args: unknown[]) => fetchTrialDesignBreakdown(...args),
 }))
 vi.mock('../dsld', () => ({ fetchMarketDoseDistribution: (...args: unknown[]) => fetchMarketDoseDistribution(...args) }))
+vi.mock('@/lib/regulatory-engine', () => ({ fetchRegulatoryIntelligence: (...args: unknown[]) => fetchRegulatoryIntelligence(...args) }))
 vi.mock('@/lib/provider-cache', () => ({ cacheSet: (...args: unknown[]) => cacheSet(...args) }))
 vi.mock('@/lib/niche-timeseries/store', () => ({ appendObservations: (...args: unknown[]) => appendObservations(...args) }))
 
@@ -68,6 +70,7 @@ describe('ingestScienceSignal', () => {
     fetchStrongestEvidenceType.mockResolvedValue(null)
     fetchTrialDesignBreakdown.mockResolvedValue(null)
     fetchMarketDoseDistribution.mockResolvedValue(null)
+    fetchRegulatoryIntelligence.mockResolvedValue(null)
   })
 
   it('writes a real, complete ScienceSignal to the cache when both real sources succeed', async () => {
@@ -206,6 +209,50 @@ describe('ingestScienceSignal', () => {
     expect(payload.market_dose_mg).toBeUndefined()
     expect(payload.market_dose_sample_size).toBeUndefined()
     expect(payload.rda_range_mg).toBeUndefined()
+  })
+
+  it('Roadmap M2.18: populates the real, unmodified RegulatoryIntelligence object on the cached signal (a safety signal, not re-derived)', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+    const regulatoryResult = {
+      query_term: 'berberine', ingredient_searched: 'berberine',
+      adverse_events: { total_reports: 42, serious_reports: 5, hospitalization_count: 2, death_count: 0, top_reactions: ['Nausea'], recent_trend: 'Stable' as const },
+      recalls: { total_recalls: 1, class_i_recalls: 0, class_ii_recalls: 1, class_iii_recalls: 0, recent_recall_descriptions: ['Undeclared allergen'] },
+      risk_level: 'Medium' as const,
+      risk_summary: '1 Class II recall(s) on record — moderate risk; monitor regulatory activity',
+      warning_flags: [], confidence: 0.65,
+      data_sources: ['https://api.fda.gov/food/event.json'],
+      fetched_at: '2026-07-17T00:00:00.000Z',
+      disclaimer: 'Regulatory signal from OpenFDA / CAERS — adverse event reports are not proof of causation.',
+    }
+    fetchRegulatoryIntelligence.mockResolvedValue(regulatoryResult)
+
+    await ingestScienceSignal('berberine')
+    const payload = cacheSet.mock.calls[0][2] as Record<string, unknown>
+    expect(payload.regulatory).toEqual(regulatoryResult)   // unmodified — never re-labeled/re-derived
+    expect(appendObservations).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ metric: 'regulatory_adverse_event_count', value: 42 }),
+      expect.objectContaining({ metric: 'regulatory_recall_count', value: 1 }),
+    ]))
+  })
+
+  it('Roadmap M2.18: calls fetchRegulatoryIntelligence with the resolved search term, reusing lib/regulatory-engine unmodified', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+
+    await ingestScienceSignal('magnesium')
+    expect(fetchRegulatoryIntelligence).toHaveBeenCalledWith('magnesium')
+  })
+
+  it('Roadmap M2.18: never blocks a successful signal when fetchRegulatoryIntelligence fails (additive, non-fatal)', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+    fetchRegulatoryIntelligence.mockResolvedValue(null)
+
+    const result = await ingestScienceSignal('creatine')
+    expect(result.success).toBe(true)
+    const payload = cacheSet.mock.calls[0][2] as Record<string, unknown>
+    expect(payload.regulatory).toBeUndefined()
   })
 })
 
