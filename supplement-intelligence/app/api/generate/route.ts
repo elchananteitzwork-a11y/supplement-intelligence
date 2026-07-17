@@ -20,6 +20,8 @@ import { computeConcordanceMatrix } from '@/lib/concordance'
 import { computeLifecycle } from '@/lib/lifecycle'
 import { computeOpportunityQuality, computeMarketVerdict } from '@/lib/verdict-matrix'
 import { computeKillCriteria } from '@/lib/kill-criteria'
+import { computeEvidenceDepthScore } from '@/lib/evidence-depth-score'
+import { matchTrackedIngredient } from '@/lib/science-engine/tracked-ingredients'
 import { normalizeQuery } from '@/lib/thesis-engine'
 import { synthesizeReviewNarrative } from '@/lib/review-narrative'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
@@ -733,6 +735,25 @@ export async function POST(req: Request) {
     // as category_creation_broad_evidence above.
     const matrix = computeConcordanceMatrix(signals)
     if (matrix) memo.concordance_matrix = matrix
+  }
+  // Roadmap M2.21 — Evidence Depth Score (lib/evidence-depth-score),
+  // additive and parallel to opportunity_quality/market_verdict below: reads
+  // the 6 real Evidence Depth Cluster fields (M2.15-M2.20) already available
+  // at this point in the request — ingredient canonicalization
+  // (matchTrackedIngredient, same matcher ScienceProvider itself already
+  // uses), ScienceSignal.strongest_evidence_type/market_dose_mg/regulatory
+  // (signals.science, M2.16-M2.18), and topCompetitors[].claim_risk_flags/
+  // manufacturer_recall_flags (M2.19-M2.20, already computed above at line
+  // ~558). Zero new fetch logic; never touches scoring or any verdict.
+  if (!skipReason) {
+    const science = signals?.science?.value
+    memo.evidence_depth_score = computeEvidenceDepthScore({
+      ingredient_tracked:      matchTrackedIngredient(input.trim()) !== null,
+      strongest_evidence_type: science?.strongest_evidence_type,
+      market_dose_mg:          science?.market_dose_mg,
+      regulatory:              science?.regulatory,
+      competitors:             topCompetitors,
+    })
   }
   if (!skipReason && enrichedKeywordIntelligence) {
     const keywordAiInsights = await keywordInsightsPromise

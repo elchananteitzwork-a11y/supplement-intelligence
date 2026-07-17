@@ -333,6 +333,18 @@ export interface MemoData {
   // absent whenever synthesis was skipped, failed, or timed out (never a
   // partial/fabricated object).
   review_narrative?: import('@/lib/review-narrative').ReviewNarrativeSynthesis
+
+  // ── Evidence Depth Score (Roadmap M2.21) — additive, standalone ──────────
+  // Server-computed by lib/evidence-depth-score from the six real Evidence
+  // Depth Cluster fields (M2.15-M2.20) already fetched elsewhere in this
+  // generation (ingredient canonicalization, ScienceSignal.strongest_
+  // evidence_type/market_dose_mg/regulatory, competitor claim-risk/
+  // manufacturer-recall flags). Same "new, parallel decision surface"
+  // precedent as opportunity_quality/market_verdict above — never read by
+  // lib/scoring.ts, GroundedScore, or any existing verdict. Optional and
+  // absent for any memo generated before this existed, or whenever none of
+  // the 6 inputs were available (see EvidenceDepthScore.available).
+  evidence_depth_score?: import('@/lib/evidence-depth-score').EvidenceDepthScore
 }
 
 export interface Analysis {
