@@ -367,6 +367,19 @@ export interface ReviewVelocitySignal extends SignalScore {
     // candidate language only, not a legal compliance determination — see
     // CLAIM_RISK_DISCLAIMER in that module.
     claim_risk_flags?: string[]
+    // M2.20 (Manufacturer Recall History, narrowed from "Manufacturing
+    // Credibility" — facility registration/GMP/inspection has no live
+    // structured source). Real per-class OpenFDA recall counts for this
+    // competitor's manufacturer/brand identity, from
+    // lib/regulatory-engine/manufacturer-credibility.ts's firm-scoped
+    // food/enforcement.json lookup (search=recalling_firm:"{name}").
+    // Undefined/absent means "not looked up" or "no recalls found for this
+    // exact firm-name string" — never a guessed default. Exact-string match
+    // only: `recalling_firm` is a legal/filer name that frequently differs
+    // from the marketplace brand string, so this has real, disclosed
+    // false-negative risk — see MANUFACTURER_RECALL_DISCLAIMER in that
+    // module for the full disclosure.
+    manufacturer_recall_flags?: { class: string; count: number }[]
   }[]
 }
 

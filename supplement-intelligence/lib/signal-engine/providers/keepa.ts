@@ -13,6 +13,10 @@ import type {
 } from '../types'
 import { checkKeywordRelevance } from '../../keyword-engine/relevance-guard'
 import { scanForClaimRiskLanguage } from '../../regulatory-engine/claim-risk'
+import {
+  fetchManufacturerRecallHistoryBatch,
+  toManufacturerRecallFlags,
+} from '../../regulatory-engine/manufacturer-credibility'
 
 // ── Keepa API constants ───────────────────────────────────────────
 
@@ -412,10 +416,10 @@ function computeSeasonality(
 // Confidence: 0.60 (≥5 products with review data) / 0.45 (3–4) / skip < 3.
 // Lower than Apify (0.80/0.60) because ranking is Keepa's algorithm, not Amazon's.
 // When both are present the engine blends them — Apify's higher confidence dominates.
-function computeKeepaReviewVelocity(
+async function computeKeepaReviewVelocity(
   queryProducts: KeepaProduct[],
   query:         string,
-): ReviewVelocitySignal & { sourceLabel: string } | null {
+): Promise<ReviewVelocitySignal & { sourceLabel: string } | null> {
   // Only include products that have review and rating data AND pass the
   // same relevance gate used for bestsellers.
   const withReviews = queryProducts.filter(p => {
@@ -464,7 +468,7 @@ function computeKeepaReviewVelocity(
   // Consumer Intelligence know which products to scrape reviews for.
   // Sprint 3: enrich with bullets, ingredients_label, breadcrumb, listing_age_months,
   // variation_count — all CONFIRMED live in Keepa /product response 2026-07-08.
-  const topCompetitors = withReviews
+  const preCompetitors = withReviews
     .slice(0, 10)
     .map(p => {
       const reviews = statVal(p.stats, 'current', CSV.COUNT_REVIEWS) ?? 0
@@ -493,6 +497,18 @@ function computeKeepaReviewVelocity(
       if (typeof p.ingredients === 'string') scanTexts.push(p.ingredients)
       const claimRiskFlags = scanForClaimRiskLanguage(scanTexts)
 
+      // M2.20 (Manufacturer Recall History): CONFIRMED VIA LIVE CALL
+      // 2026-07-17 (real /search and /product responses, e.g. real ASIN
+      // B0DT1JKGPH: brand "Nature's Bounty", manufacturer "Nestle Health
+      // Science") that p.manufacturer is real and populated, and can
+      // legitimately differ from p.brand. Prefer the more specific
+      // manufacturer legal name when present; fall back to brand. Uses
+      // `||` (not `??`) so a real-but-blank/whitespace-only manufacturer
+      // string correctly falls back to the valid brand instead of becoming
+      // an empty firmKey that gets silently dropped by the batch lookup's
+      // blank-name filter.
+      const firmKey = p.manufacturer?.trim() || p.brand
+
       return {
         productId:          p.asin,
         brand:              p.brand,
@@ -519,9 +535,28 @@ function computeKeepaReviewVelocity(
         // M2.19: real matched DSHEA disease-claim-language phrases, or
         // undefined if none found — never a guessed default.
         claim_risk_flags:   claimRiskFlags.length ? claimRiskFlags : undefined,
+        firmKey,
       }
     })
     .filter((c): c is NonNullable<typeof c> => c !== null)
+
+  // M2.20: dedupe to exactly one live recalling_firm call per unique
+  // manufacturer/brand string within this response before issuing requests.
+  const recallHistoryByFirm = await fetchManufacturerRecallHistoryBatch(
+    preCompetitors.map(c => c.firmKey),
+  )
+
+  const topCompetitors = preCompetitors.map(({ firmKey, ...c }) => ({
+    ...c,
+    // M2.20: real per-class OpenFDA recall counts for firmKey, or undefined
+    // if none found for this exact firm-name string — never a guessed
+    // default. See MANUFACTURER_RECALL_DISCLAIMER for the exact-string-match
+    // false-negative risk. recallHistoryByFirm is keyed by trimmed firm name
+    // (see fetchManufacturerRecallHistoryBatch) — trim here too so a real
+    // brand/manufacturer string with incidental whitespace doesn't silently
+    // miss its own successfully-fetched recall data.
+    manufacturer_recall_flags: toManufacturerRecallFlags(recallHistoryByFirm.get(firmKey.trim())),
+  }))
 
   return {
     score:                      accessScore,
@@ -840,7 +875,7 @@ export class KeepaProvider implements SignalProvider {
         return null
       }
 
-      return this.computeSignals(signaledProducts, queryProducts, category, categoryStats ?? undefined)
+      return await this.computeSignals(signaledProducts, queryProducts, category, categoryStats ?? undefined)
     } catch (e) {
       console.error('Keepa provider error', { category, error: e instanceof Error ? e.message : e })
       return null
@@ -961,12 +996,12 @@ export class KeepaProvider implements SignalProvider {
   // queryProducts:      from /search — drives review_velocity (query-specific
   //                     competition and top_competitors list for Consumer Intelligence)
 
-  private computeSignals(
+  private async computeSignals(
     bestsellerProducts: KeepaProduct[],
     queryProducts:      KeepaProduct[],
     query:              string,
     categoryStats?:     KeepaCategoryData,
-  ): ProviderSignals {
+  ): Promise<ProviderSignals> {
     // ── Arrays for category-level signals (bestsellerProducts) ──────────────
     const bsrs90:       number[] = []
     const bsrs365:      number[] = []
@@ -1451,7 +1486,7 @@ export class KeepaProvider implements SignalProvider {
     // Only populated when /search returned usable products — absent otherwise.
     // When Apify also runs and returns its own review_velocity, the signal engine
     // blends them (Apify's higher confidence dominates the string fields).
-    const rvResult = computeKeepaReviewVelocity(queryProducts, query)
+    const rvResult = await computeKeepaReviewVelocity(queryProducts, query)
     const review_velocity: ReviewVelocitySignal | undefined = rvResult
       ? {
           score:                      rvResult.score,

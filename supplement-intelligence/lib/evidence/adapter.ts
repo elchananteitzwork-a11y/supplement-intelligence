@@ -72,6 +72,12 @@ export interface Stage1Evidence {
     // lib/regulatory-engine/claim-risk.ts's deterministic scanner.
     // Purely additive — undefined means "not scanned" or "no matches."
     claim_risk_flags?: string[]
+    // M2.20: real per-class OpenFDA recall counts for this competitor's
+    // manufacturer/brand identity, per
+    // lib/regulatory-engine/manufacturer-credibility.ts's firm-scoped
+    // recalling_firm lookup. Purely additive — undefined means "not looked
+    // up" or "no recalls found for this exact firm-name string."
+    manufacturer_recall_flags?: { class: string; count: number }[]
   }>>
 
   // Overall aggregation metadata

@@ -1,6 +1,10 @@
 import type { SignalProvider, SignalContext, ProviderSignals, ReviewVelocitySignal } from '../types'
 import { cacheGet, cacheSet } from '../../provider-cache'
 import { scanForClaimRiskLanguage } from '../../regulatory-engine/claim-risk'
+import {
+  fetchManufacturerRecallHistoryBatch,
+  toManufacturerRecallFlags,
+} from '../../regulatory-engine/manufacturer-credibility'
 
 // ── Apify `junglee/amazon-crawler` — real Amazon search results for the
 // user's EXACT query, not a category-wide average. ──
@@ -178,7 +182,7 @@ export class CompetitionSignalProvider implements SignalProvider {
         return null
       }
 
-      const result = this.computeSignals(items)
+      const result = await this.computeSignals(items)
       cacheSet(cacheKey, 'junglee-crawler', result, SERP_CACHE_TTL_MS).catch(() => {})
       return result
     } catch (e: unknown) {
@@ -187,7 +191,7 @@ export class CompetitionSignalProvider implements SignalProvider {
     }
   }
 
-  private computeSignals(items: JungleeResult[]): ProviderSignals {
+  private async computeSignals(items: JungleeResult[]): Promise<ProviderSignals> {
     // Real search-result rank, captured BEFORE any filtering/re-sorting —
     // items[] is already in the actor's real Amazon search-result order
     // (confirmed via live call: no separate position/rank field exists),
@@ -215,11 +219,22 @@ export class CompetitionSignalProvider implements SignalProvider {
     const ratings   = withReviews.filter(r => typeof r.stars === 'number').map(r => r.stars!)
     const avgRating = avg(ratings)
 
-    const topCompetitors = [...withReviews]
+    const filteredResults = [...withReviews]
       .sort((a, b) => a._position - b._position)
       .slice(0, 10)
       .filter(r => typeof r.stars === 'number' && typeof r.price?.value === 'number' && !!r.asin)
-      .map(r => {
+
+    // M2.20 (Manufacturer Recall History): real per-class OpenFDA recall
+    // counts for each competitor's manufacturer identity. Apify's
+    // junglee/amazon-crawler exposes no separate manufacturer field — real,
+    // disclosed limitation, not worked around — so this is keyed on r.brand
+    // only. Deduped to exactly one live call per unique brand string within
+    // this response before issuing any requests.
+    const recallHistoryByFirm = await fetchManufacturerRecallHistoryBatch(
+      filteredResults.map(r => r.brand),
+    )
+
+    const topCompetitors = filteredResults.map(r => {
         // M2.19: deterministic DSHEA claim-risk scan over this listing's
         // own real features + extracted ingredients label text — no AI
         // call, no external call.
@@ -242,6 +257,15 @@ export class CompetitionSignalProvider implements SignalProvider {
           // M2.19: real matched DSHEA disease-claim-language phrases, or
           // undefined if none found — never a guessed default.
           claim_risk_flags: claimRiskFlags.length ? claimRiskFlags : undefined,
+          // M2.20: real per-class OpenFDA recall counts for r.brand, or
+          // undefined if none found for this exact firm-name string — never
+          // a guessed default. See MANUFACTURER_RECALL_DISCLAIMER for the
+          // exact-string-match false-negative risk.
+          // recallHistoryByFirm is keyed by trimmed firm name (see
+          // fetchManufacturerRecallHistoryBatch) — trim here too so a
+          // real brand string with incidental leading/trailing whitespace
+          // doesn't silently miss its own successfully-fetched recall data.
+          manufacturer_recall_flags: toManufacturerRecallFlags(recallHistoryByFirm.get(r.brand.trim())),
         }
       })
 

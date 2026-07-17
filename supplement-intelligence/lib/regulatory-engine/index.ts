@@ -8,7 +8,10 @@ import type {
 
 export type { RegulatoryIntelligence, RegulatoryRiskLevel } from './types'
 
-const OPENFDA_BASE  = 'https://api.fda.gov'
+// Exported (additive, M2.20) so lib/regulatory-engine/manufacturer-credibility.ts
+// can reuse the same openFDA client instead of duplicating it — see that
+// module's imports. No behavior change to this file.
+export const OPENFDA_BASE  = 'https://api.fda.gov'
 const CACHE_TTL_MS  = 24 * 60 * 60 * 1000   // 24 h — FDA data is stable
 const REQUEST_TIMEOUT_MS = 8_000
 
@@ -40,11 +43,11 @@ function extractIngredient(query: string): string {
 
 // ── OpenFDA fetch helpers ─────────────────────────────────────────────────
 
-function apiKey(): string {
+export function apiKey(): string {
   return process.env.OPENFDA_API_KEY ? `&api_key=${process.env.OPENFDA_API_KEY}` : ''
 }
 
-async function openfdaFetch(url: string): Promise<Record<string, unknown> | null> {
+export async function openfdaFetch(url: string): Promise<Record<string, unknown> | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
