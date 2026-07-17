@@ -10,7 +10,7 @@
 --           · 020_verdict_ledger_lifecycle · 021_verdict_ledger_quality_matrix
 --           · 022_voc_problem_clusters · 023_watchlist
 --           · 024_verdict_ledger_outcomes · 025_niche_timeseries
---           · 026_discovery_alerts
+--           · 026_discovery_alerts · 027_divergence_alerts
 --
 -- 2026-07-14: appended 020-026 after live production validation of M2.13
 -- discovered voc_problem_clusters (022) had never actually been applied to
@@ -25,6 +25,13 @@
 -- original 009-019 coverage, confirmed via a direct real PostgREST schema
 -- check against production plus corroborating real log evidence. Appended
 -- at the end (order doesn't matter here — 006 has no dependency on 009+).
+--
+-- 2026-07-18: appended 027 (M2.22 Divergence Alerts) as its own new table,
+-- created alongside supabase/migrations/027_divergence_alerts.sql in the
+-- same commit — not yet applied to production. Per this file's own
+-- documented history above, "recorded in the roadmap" is never treated as
+-- equivalent to "actually pasted and run" — the project owner must run this
+-- file's full contents before divergence_alerts exists live.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -591,6 +598,63 @@ alter table public.discovery_alerts enable row level security;
 
 create index if not exists da_niche_idx      on public.discovery_alerts (niche_key, detected_at desc);
 create index if not exists da_detected_idx   on public.discovery_alerts (detected_at desc);
+
+
+-- ── 027: DIVERGENCE ALERTS — Roadmap M2.22 ──────────────────────────────────
+-- See supabase/migrations/027_divergence_alerts.sql. Mechanical sibling of
+-- 026_discovery_alerts, mirrored field-for-field, with a second
+-- (source, metric) trajectory added for the two sides being compared.
+
+create table if not exists public.divergence_alerts (
+  id           uuid primary key default gen_random_uuid(),
+  created_at   timestamptz not null default now(),
+
+  niche_key    text not null,
+
+  source_a       text not null,
+  metric_a       text not null,
+  prior_value_a  numeric not null,
+  latest_value_a numeric not null,
+  change_pct_a   numeric not null,
+
+  source_b       text not null,
+  metric_b       text not null,
+  prior_value_b  numeric not null,
+  latest_value_b numeric not null,
+  change_pct_b   numeric not null,
+
+  divergence_pct numeric not null,
+
+  detected_at  timestamptz not null,
+
+  unique (niche_key, source_a, metric_a, source_b, metric_b, detected_at)
+);
+
+create or replace function public.divergence_alerts_block_mutation()
+returns trigger language plpgsql as $$
+begin
+  raise exception 'divergence_alerts rows are immutable — % is not permitted', tg_op;
+end;
+$$;
+
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'divergence_alerts_no_update') then
+    create trigger divergence_alerts_no_update
+      before update on public.divergence_alerts
+      for each row execute function public.divergence_alerts_block_mutation();
+  end if;
+  if not exists (select 1 from pg_trigger where tgname = 'divergence_alerts_no_delete') then
+    create trigger divergence_alerts_no_delete
+      before delete on public.divergence_alerts
+      for each row execute function public.divergence_alerts_block_mutation();
+  end if;
+end $$;
+
+alter table public.divergence_alerts enable row level security;
+-- No RLS policies -> service role bypasses RLS; all other roles denied.
+
+create index if not exists dva_niche_idx      on public.divergence_alerts (niche_key, detected_at desc);
+create index if not exists dva_detected_idx   on public.divergence_alerts (detected_at desc);
 
 
 -- ── 006: MARKET THESES (found missing during the 2026-07-14 full-platform audit) ──

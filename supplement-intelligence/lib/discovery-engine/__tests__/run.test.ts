@@ -63,4 +63,41 @@ describe('lib/discovery-engine/run', () => {
     expect(result.alertsRecorded).toBe(0)
     expect(writeDiscoveryAlert).not.toHaveBeenCalled()
   })
+
+  it('uses pre-fetched series from observationsByNicheKey instead of self-fetching, when supplied for a candidate', async () => {
+    const observationsByNicheKey = new Map([
+      ['berberine', [
+        {
+          source: 'science', metric: 'publication_velocity_pct',
+          points: [
+            { value: 10, observedAt: '2026-07-01T00:00:00Z' },
+            { value: 30, observedAt: '2026-07-08T00:00:00Z' },
+          ],
+        },
+      ]],
+    ])
+
+    const { runDiscoveryDetection } = await import('../run')
+    const now = new Date('2026-07-14T08:00:00Z')
+    const result = await runDiscoveryDetection(['berberine'], now, observationsByNicheKey)
+
+    expect(getRecentObservations).not.toHaveBeenCalled()
+    expect(result).toEqual({ candidatesChecked: 1, seriesEvaluated: 1, alertsRecorded: 1 })
+    expect(writeDiscoveryAlert).toHaveBeenCalledWith({
+      nicheKey: 'berberine', source: 'science', metric: 'publication_velocity_pct',
+      priorValue: 10, latestValue: 30, changePct: 200, detectedAt: now,
+    })
+  })
+
+  it('falls back to self-fetching a candidate missing from observationsByNicheKey (never fabricates its series)', async () => {
+    getRecentObservations.mockResolvedValue([])
+    const observationsByNicheKey = new Map([['berberine', []]])
+
+    const { runDiscoveryDetection } = await import('../run')
+    const result = await runDiscoveryDetection(['berberine', 'creatine'], new Date(), observationsByNicheKey)
+
+    expect(getRecentObservations).toHaveBeenCalledTimes(1)
+    expect(getRecentObservations).toHaveBeenCalledWith('creatine')
+    expect(result.candidatesChecked).toBe(2)
+  })
 })

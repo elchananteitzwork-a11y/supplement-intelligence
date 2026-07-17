@@ -20,8 +20,18 @@
 // a sustained/hype-window requirement (would delay any real alert for
 // weeks with no evidence it's needed), a Decision Engine handoff, and a
 // calibration worker — none have real data to operate on yet.
+//
+// Roadmap M2.22 review fix: app/api/cron/science-pipeline now runs this
+// AND runDivergenceDetection over the identical candidate list in the same
+// request, which would otherwise issue two separate niche_timeseries reads
+// per candidate. The optional observationsByNicheKey parameter lets that
+// one real call site fetch each candidate's series once and hand the same
+// already-fetched result to both detectors. Falls back to this function's
+// original self-fetch per candidate when the map is absent, or when a
+// given candidate has no entry in it — fully backward-compatible with
+// every existing caller and test.
 
-import { getRecentObservations, writeDiscoveryAlert } from './service-store'
+import { getRecentObservations, writeDiscoveryAlert, type NicheSeries } from './service-store'
 import { detectAcceleration } from './detector'
 
 export interface DiscoveryDetectionResult {
@@ -30,11 +40,15 @@ export interface DiscoveryDetectionResult {
   alertsRecorded:    number
 }
 
-export async function runDiscoveryDetection(candidateNicheKeys: string[], now = new Date()): Promise<DiscoveryDetectionResult> {
+export async function runDiscoveryDetection(
+  candidateNicheKeys: string[],
+  now = new Date(),
+  observationsByNicheKey?: Map<string, NicheSeries[]>,
+): Promise<DiscoveryDetectionResult> {
   const result: DiscoveryDetectionResult = { candidatesChecked: 0, seriesEvaluated: 0, alertsRecorded: 0 }
 
   for (const nicheKey of candidateNicheKeys) {
-    const series = await getRecentObservations(nicheKey)
+    const series = observationsByNicheKey?.get(nicheKey) ?? await getRecentObservations(nicheKey)
     result.candidatesChecked++
 
     for (const s of series) {
