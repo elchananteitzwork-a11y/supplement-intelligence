@@ -1,8 +1,8 @@
 ---
 Title: Master Execution Plan
-Version: 1.8
+Version: 1.9
 Status: Approved
-Last Updated: 2026-07-15
+Last Updated: 2026-07-17
 Supersedes:
   - Commerce Intelligence Strategy
   - Roadmap Integration Plan
@@ -16,6 +16,7 @@ Amendment Log:
   - "v1.6 (2026-07-14): M2.15 shipped — the first Evidence Depth Cluster milestone (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). New lib/ingredient-registry/ with real alias/canonical-search-term profiles for the 3 tracked ingredients, wired into science-engine/pipeline.ts's real PubMed/ClinicalTrials.gov calls. Narrowed at the R&D stage from 'aggregate demand across every product variant' to just the registry foundation, since no real consumer for that aggregation exists anywhere in the codebase yet. Live-validated via a real science-pipeline cron trigger, zero regression."
   - "v1.7 (2026-07-14): M2.16 shipped — the second Evidence Depth Cluster milestone (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). Extended the science pipeline with real PubMed pubtype[] classification (strongest study type across a bounded sample, reusing existing lib/news-engine/providers/pubmed.ts logic) and real ClinicalTrials.gov studyType/phases breakdown. First deploy's live validation surfaced and fixed two real defects a mocked test suite couldn't catch: a broken EUTILS_BASE reference that silently 404'd the pre-existing publication-count fetcher, and a fictitious ClinicalTrials.gov field path that 400'd. Re-validated clean after the fix, zero regression to the existing publication_counts_by_year/trial_registrations_count fields."
   - "v1.8 (2026-07-15): M2.17 shipped — the third Evidence Depth Cluster milestone (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). Added a real, observed market-dosing signal (median/min/max mg, real sample size) sourced from NIH's Dietary Supplement Label Database (DSLD), reusing the M2.15 ingredient registry for real displayName/alias row-matching. Narrowed at the R&D stage from 'dose-adequacy analysis against clinical literature' to real market dosing for all 3 ingredients plus a real, cited RDA-range comparison for magnesium only — no honest clinically-effective-dose benchmark exists for creatine or berberine. Live-validated via a real science-pipeline cron trigger, zero regression."
+  - "v1.9 (2026-07-17): M2.18 shipped — the fourth Evidence Depth Cluster milestone (see docs/PRODUCT_INTELLIGENCE_V2_ROADMAP.md for the full completion write-up). Wired the existing, already-live lib/regulatory-engine (real openFDA CAERS adverse events + enforcement recalls) into the nightly science pipeline for the 3 tracked ingredients — zero new fetch logic, pure reuse. Narrowed at the R&D stage, confirmed directly with the owner, from 'interaction/safety' to safety only: NLM's real drug-interaction API was discontinued 2024-01 and DailyMed has no full-text search, so no honest structured interaction-checking source exists. Data is explicitly documented and treated everywhere as a regulatory/safety signal only, never medical advice, clinical proof, causation, or a definitive safety conclusion — per the owner's explicit requirement. Live-validated via a real science-pipeline cron trigger, zero regression."
 ---
 
 > **This document is the single source of truth for execution. In the event of any conflict with older planning documents, this document takes precedence unless explicitly superseded.**
