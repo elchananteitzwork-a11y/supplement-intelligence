@@ -12,6 +12,7 @@ import type {
   SupplyVelocitySignal,
 } from '../types'
 import { checkKeywordRelevance } from '../../keyword-engine/relevance-guard'
+import { scanForClaimRiskLanguage } from '../../regulatory-engine/claim-risk'
 
 // ── Keepa API constants ───────────────────────────────────────────
 
@@ -481,6 +482,17 @@ function computeKeepaReviewVelocity(
         ? [...tree].reverse().map(c => c.name).join(' > ')
         : undefined
 
+      // M2.19: deterministic DSHEA claim-risk scan over this listing's own
+      // real bullets + ingredients label text — no AI call, no external call.
+      // Scans only the same first-5 features returned below as `bullets`
+      // (not the full, unsliced p.features array) — a flag must always be
+      // traceable to a bullet the caller can actually see in this same
+      // competitor object, never to text truncated out of it.
+      const scanTexts: string[] = []
+      if (Array.isArray(p.features)) scanTexts.push(...(p.features as string[]).slice(0, 5))
+      if (typeof p.ingredients === 'string') scanTexts.push(p.ingredients)
+      const claimRiskFlags = scanForClaimRiskLanguage(scanTexts)
+
       return {
         productId:          p.asin,
         brand:              p.brand,
@@ -504,6 +516,9 @@ function computeKeepaReviewVelocity(
         variation_count:    Array.isArray(p.variations)
           ? (p.variations as unknown[]).length
           : undefined,
+        // M2.19: real matched DSHEA disease-claim-language phrases, or
+        // undefined if none found — never a guessed default.
+        claim_risk_flags:   claimRiskFlags.length ? claimRiskFlags : undefined,
       }
     })
     .filter((c): c is NonNullable<typeof c> => c !== null)

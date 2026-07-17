@@ -67,6 +67,11 @@ export interface Stage1Evidence {
     breadcrumb?: string
     bullets?: string[]
     ingredients_label?: string
+    // M2.19: real matched DSHEA disease-claim-language phrases from this
+    // listing's own bullets/ingredients_label, per
+    // lib/regulatory-engine/claim-risk.ts's deterministic scanner.
+    // Purely additive — undefined means "not scanned" or "no matches."
+    claim_risk_flags?: string[]
   }>>
 
   // Overall aggregation metadata

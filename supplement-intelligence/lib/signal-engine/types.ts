@@ -359,6 +359,14 @@ export interface ReviewVelocitySignal extends SignalScore {
     // listing_age_months decoded from Keepa listedSince field (keepa minutes).
     listing_age_months?: number   // how old this product listing is in months
     variation_count?:    number   // variation family size from Keepa variations[] array
+    // M2.19 (DSHEA claim-risk language checks): real matched phrases from
+    // this listing's own `bullets`/`ingredients_label` text, flagged by
+    // lib/regulatory-engine/claim-risk.ts's deterministic verb+disease
+    // co-occurrence scanner. Undefined/absent means "not scanned" or
+    // "scanned, no matches" — never a guessed default. Pattern-matched
+    // candidate language only, not a legal compliance determination — see
+    // CLAIM_RISK_DISCLAIMER in that module.
+    claim_risk_flags?: string[]
   }[]
 }
 

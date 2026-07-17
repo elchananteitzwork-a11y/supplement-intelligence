@@ -1,5 +1,6 @@
 import type { SignalProvider, SignalContext, ProviderSignals, ReviewVelocitySignal } from '../types'
 import { cacheGet, cacheSet } from '../../provider-cache'
+import { scanForClaimRiskLanguage } from '../../regulatory-engine/claim-risk'
 
 // ── Apify `junglee/amazon-crawler` — real Amazon search results for the
 // user's EXACT query, not a category-wide average. ──
@@ -218,17 +219,31 @@ export class CompetitionSignalProvider implements SignalProvider {
       .sort((a, b) => a._position - b._position)
       .slice(0, 10)
       .filter(r => typeof r.stars === 'number' && typeof r.price?.value === 'number' && !!r.asin)
-      .map(r => ({
-        productId:   r.asin!,   // r.asin is Apify's real Amazon ASIN — productId is the generic core-model field it populates
-        brand:       r.brand,
-        reviewCount: r.reviewsCount,
-        rating:      r.stars!,
-        price:       r.price!.value!,
-        position:    r._position,
-        breadcrumb:  r.breadCrumbs || undefined,
-        bullets:     r.features?.length ? r.features : undefined,
-        ingredients_label: extractIngredientsLabel(r),
-      }))
+      .map(r => {
+        // M2.19: deterministic DSHEA claim-risk scan over this listing's
+        // own real features + extracted ingredients label text — no AI
+        // call, no external call.
+        const ingredientsLabel = extractIngredientsLabel(r)
+        const scanTexts: string[] = []
+        if (r.features?.length) scanTexts.push(...r.features)
+        if (ingredientsLabel) scanTexts.push(ingredientsLabel)
+        const claimRiskFlags = scanForClaimRiskLanguage(scanTexts)
+
+        return {
+          productId:   r.asin!,   // r.asin is Apify's real Amazon ASIN — productId is the generic core-model field it populates
+          brand:       r.brand,
+          reviewCount: r.reviewsCount,
+          rating:      r.stars!,
+          price:       r.price!.value!,
+          position:    r._position,
+          breadcrumb:  r.breadCrumbs || undefined,
+          bullets:     r.features?.length ? r.features : undefined,
+          ingredients_label: ingredientsLabel,
+          // M2.19: real matched DSHEA disease-claim-language phrases, or
+          // undefined if none found — never a guessed default.
+          claim_risk_flags: claimRiskFlags.length ? claimRiskFlags : undefined,
+        }
+      })
 
     const score      = accessibilityScore(meaningfulBrands.size, concentration)
     const confidence = withReviews.length >= 10 ? 0.8 : withReviews.length >= 5 ? 0.6 : 0.4
