@@ -302,15 +302,22 @@ function unitPrice(price: number, numberOfItems: number | undefined): number {
 // 3-point seller-count trend from offer-count history.
 // Returns null when insufficient data — "no sellers" is indistinguishable
 // from "data absent" without a positive reference point.
-function sellerCountTrend(
+//
+// avg365 is the only valid REFERENCE point — it's the real prior baseline
+// being compared against. Previously this fell back to `avg90` when
+// `avg365` was null, which made `reference` and `recent` collapse to the
+// SAME value by construction (both defaulting to avg90), forcing
+// pctChange === 0 and always returning a false 'Stable' — masking a real
+// data gap as a confident competition-trend read. Now: no avg365, no trend.
+export function sellerCountTrend(
   current: number | null,
   avg90:   number | null,
   avg365:  number | null,
 ): 'Growing' | 'Stable' | 'Shrinking' | null {
-  const reference = avg365 ?? avg90
-  const recent    = avg90  ?? current
-  if (reference === null || recent === null || reference === 0) return null
-  const pctChange = ((recent - reference) / reference) * 100
+  if (avg365 === null || avg365 === 0) return null
+  const recent = avg90 ?? current
+  if (recent === null) return null
+  const pctChange = ((recent - avg365) / avg365) * 100
   if (pctChange > 15)  return 'Growing'
   if (pctChange < -15) return 'Shrinking'
   return 'Stable'
@@ -612,16 +619,39 @@ function bucketsFromHistory(msh: number[]): Array<{ ym: string; avg: number }> {
 // True year-over-year unit growth: compare the SAME 3-calendar-month window
 // from this year against last year. Requires at least 14 distinct monthly
 // buckets (12 months of history + 2 for alignment buffer).
-// Returns null when insufficient data or flat base (division by zero).
-function computeAnnualGrowthFromHistory(msh: number[]): number | null {
+// Returns null when insufficient data, an exact year-ago month is missing,
+// or flat base (division by zero).
+//
+// Year-ago months are matched by their real YYYY-MM label exactly 12 months
+// before each "recent" bucket's real month — NOT by a fixed array offset.
+// bucketsFromHistory silently omits calendar months with zero valid
+// readings, so the array is not guaranteed to be a consecutive month
+// sequence; a fixed offset (e.g. slice(-15,-12)) desyncs from real calendar
+// time whenever any earlier month is missing, even if the "recent" window
+// itself is fully intact. Live-confirmed: this previously produced +958.7%
+// on a real ASIN with 2 real missing months vs. the true calendar-correct
+// +507.7% — see this file's regression test for a reproducible fixture.
+export function computeAnnualGrowthFromHistory(msh: number[]): number | null {
   const monthly = bucketsFromHistory(msh)
   if (monthly.length < 14) return null
-  // "Recent" = last 3 calendar months available; "year ago" = same months -12
-  const recent  = monthly.slice(-3)
-  const yearAgo = monthly.slice(-15, -12)
-  if (recent.length < 3 || yearAgo.length < 3) return null
+
+  const recent = monthly.slice(-3)
+  if (recent.length < 3) return null
+
+  const byYearMonth = new Map(monthly.map(m => [m.ym, m.avg]))
+  const yearAgoAvgs: number[] = []
+  for (const m of recent) {
+    const [y, mo] = m.ym.split('-').map(Number)
+    const yearAgoYm = `${y - 1}-${String(mo).padStart(2, '0')}`
+    const v = byYearMonth.get(yearAgoYm)
+    // Exact year-ago month absent from real data — honest "insufficient
+    // data" (null), never a comparison against a misaligned neighbor month.
+    if (v === undefined) return null
+    yearAgoAvgs.push(v)
+  }
+
   const recentAvg  = recent.reduce((s, m) => s + m.avg, 0) / recent.length
-  const yearAgoAvg = yearAgo.reduce((s, m) => s + m.avg, 0) / yearAgo.length
+  const yearAgoAvg = yearAgoAvgs.reduce((a, b) => a + b, 0) / yearAgoAvgs.length
   if (yearAgoAvg === 0) return null
   return Math.round(((recentAvg - yearAgoAvg) / yearAgoAvg) * 100 * 10) / 10
 }
@@ -803,6 +833,32 @@ export function computeSupplyVelocity(listedSinceMonths: number[]): SupplyVeloci
   }
 }
 
+// Builds the exact ASIN sets fetch() uses to request /product and to later
+// split the response into catProducts (bestseller-driven, category signals)
+// vs queryProducts (search-driven, review_velocity). Extracted as its own
+// pure function (audit Finding 1 fix) so catProducts is always derived from
+// bestsellerAsinsUsed — the SAME filtered/backfilled bestseller ASINs that
+// were actually placed into combinedAsins and fetched — never a separately
+// re-derived, unfiltered `bestsellerAsins.slice(0, 5)` that can silently
+// diverge from what was really requested (dropping real backfilled ASINs
+// that spent real Keepa tokens, or double-counting an ASIN present in both
+// bestsellers and search results into both catProducts and queryProducts).
+// An ASIN present in both sets is deduped here — excluded from the
+// bestseller portion by `!searchSet.has(a)` — so it counts exactly once, as
+// a queryProduct (query relevance takes precedence).
+export function buildAsinSets(
+  searchAsins:     string[],
+  bestsellerAsins: string[],
+): { combinedAsins: string[]; bestsellerAsinsUsed: string[]; searchSet: Set<string> } {
+  const searchSet = new Set(searchAsins)
+  const bestsellerAsinsUsed = bestsellerAsins.filter(a => !searchSet.has(a)).slice(0, 5)
+  const combinedAsins = [
+    ...searchAsins.slice(0, 5),
+    ...bestsellerAsinsUsed,
+  ].slice(0, 10)
+  return { combinedAsins, bestsellerAsinsUsed, searchSet }
+}
+
 // ── Core provider class ───────────────────────────────────────────
 
 export class KeepaProvider implements SignalProvider {
@@ -839,11 +895,10 @@ export class KeepaProvider implements SignalProvider {
 
       // Merge: search-specific first (more query-relevant), then bestsellers not
       // already in the search results. Cap at 10 total for a single /product call.
-      const searchSet     = new Set(searchAsins)
-      const combinedAsins = [
-        ...searchAsins.slice(0, 5),
-        ...bestsellerAsins.filter(a => !searchSet.has(a)).slice(0, 5),
-      ].slice(0, 10)
+      // See buildAsinSets's own comment for why bestsellerAsinsUsed (not a
+      // freshly re-derived bestsellerAsins.slice(0,5)) is what catProducts
+      // must be filtered against below (audit Finding 1 fix).
+      const { combinedAsins, bestsellerAsinsUsed, searchSet } = buildAsinSets(searchAsins, bestsellerAsins)
 
       if (combinedAsins.length === 0) return null
 
@@ -856,7 +911,7 @@ export class KeepaProvider implements SignalProvider {
 
       // Split: category-level signals use bestseller products;
       // review_velocity uses query-specific products.
-      const catProducts   = allProducts.filter(p => bestsellerAsins.slice(0, 5).includes(p.asin))
+      const catProducts   = allProducts.filter(p => bestsellerAsinsUsed.includes(p.asin))
       const queryProducts = allProducts.filter(p => searchSet.has(p.asin))
 
       // Need at least some valid data to proceed
@@ -1069,20 +1124,30 @@ export class KeepaProvider implements SignalProvider {
       const usedCount = statVal(s, 'current', CSV.COUNT_USED)
       if (usedCount !== null && usedCount > 0) usedCounts.push(usedCount)
 
-      const priceAmazon = keepaPrice(statVal(s, 'avg90', CSV.AMAZON_PRICE) ?? undefined)
-      const priceBuyBox = keepaPrice(statVal(s, 'avg90', CSV.BUYBOX_PRICE) ?? undefined)
-      const price = priceAmazon ?? priceBuyBox
-      if (price !== null && price > 0) allPrices.push(price)
-
-      // Phase 1: FBA floor price and list price
+      // Phase 1: FBA floor price and list price. Computed before `price`
+      // below because `price` now prefers this same FBA value first (Finding
+      // 4 audit fix — see comment there).
       const fbaFloor  = keepaPrice(statVal(s, 'avg90', CSV.NEW_FBA)     ?? undefined)
       const listPrice = keepaPrice(statVal(s, 'avg90', CSV.LIST_PRICE)   ?? undefined)
       if (fbaFloor  !== null && fbaFloor  > 0) fbaFloors.push(fbaFloor)
       if (listPrice !== null && listPrice > 0) listPrices.push(listPrice)
 
-      const price365Amazon = keepaPrice(statVal(s, 'avg365', CSV.AMAZON_PRICE) ?? undefined)
+      // Market price preference: FBA (what a buyer actually pays) > Buy Box >
+      // Amazon direct. Aligned with computeKeepaReviewVelocity's competitor-
+      // list pricing below — same real-world "market price" concept on the
+      // same underlying products previously used two different, undocumented
+      // orderings (audit Finding 4). avg365 uses the identical preference for
+      // the same reason: price and price365 feed the same price_compression_pct
+      // comparison and must share one price basis, not drift onto different ones.
+      const priceBuyBox = keepaPrice(statVal(s, 'avg90', CSV.BUYBOX_PRICE) ?? undefined)
+      const priceAmazon = keepaPrice(statVal(s, 'avg90', CSV.AMAZON_PRICE) ?? undefined)
+      const price = fbaFloor ?? priceBuyBox ?? priceAmazon
+      if (price !== null && price > 0) allPrices.push(price)
+
+      const price365Fba    = keepaPrice(statVal(s, 'avg365', CSV.NEW_FBA)     ?? undefined)
       const price365BuyBox = keepaPrice(statVal(s, 'avg365', CSV.BUYBOX_PRICE) ?? undefined)
-      const price365 = price365Amazon ?? price365BuyBox
+      const price365Amazon = keepaPrice(statVal(s, 'avg365', CSV.AMAZON_PRICE) ?? undefined)
+      const price365 = price365Fba ?? price365BuyBox ?? price365Amazon
 
       if (p.monthlySold && p.monthlySold > 0) monthlySolds.push(p.monthlySold)
 
