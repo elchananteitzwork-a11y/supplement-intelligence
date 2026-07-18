@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 //   reviews:v1:{asin}              — CollectedReview[] from Amazon review providers
 //   serp:v1:{query}                — ProviderSignals from junglee~amazon-crawler
 //   keywords:v1:{query}            — KeywordIntelligence from DataForSEO
-//   mfg:v1:{product}:{category}    — ManufacturingEstimate from Apify/Alibaba
+//   mfg:v1:{product}:{category}:{complexity} — ManufacturingEstimate from Apify/Alibaba
 //   science:v1:{ingredient}        — ScienceSignal from lib/science-engine's
 //                                    nightly batch (Roadmap M2.5) — the only
 //                                    entry here NOT written lazily on a

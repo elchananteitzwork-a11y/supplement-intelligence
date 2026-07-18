@@ -13,7 +13,13 @@ import { cacheGet, cacheSet } from '../provider-cache'
 const MFG_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 function cacheKey(req: ManufacturingRequest): string {
-  return `mfg:v1:${req.product.toLowerCase().trim().replace(/\s+/g, '-')}:${req.category}`
+  // BUGFIX (2026-07-18, Finding 5): complexity affects both the returned
+  // complexity field and estimateLeadTime()'s multiplier — omitting it from
+  // the key meant a re-analysis of the same product/category with a
+  // different complexity hint would silently serve a stale result computed
+  // under the first complexity value for up to the 7-day cache TTL.
+  const complexity = (req.complexity ?? 'default').toLowerCase()
+  return `mfg:v1:${req.product.toLowerCase().trim().replace(/\s+/g, '-')}:${req.category}:${complexity}`
 }
 
 export async function fetchManufacturingEstimate(

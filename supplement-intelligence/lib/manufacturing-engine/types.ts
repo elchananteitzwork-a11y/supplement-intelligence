@@ -44,6 +44,13 @@ export interface ManufacturingEstimate {
   supplier_count?:     { estimate: number; confidence: ConfidenceLabel }
   top_supplier_rating: number | null   // 0–5, null if unknown or unverified
   lead_time_days?:     LeadTimeRange
+  // BUGFIX (2026-07-18, Finding 4): lead_time_days from the Apify provider
+  // is always a fixed category/complexity lookup-table estimate — the actor
+  // doesn't expose real per-listing lead time — unlike this object's other
+  // fields, which are either real scraped data or undefined. This marker
+  // lets downstream consumers distinguish an estimate from real data.
+  // Absent when lead_time_days itself is absent (e.g. ai_synthesis).
+  lead_time_source?:  'category_estimate'
   complexity:         ManufacturingComplexity
   confidence:         number           // 0–1
   confidence_label:   ConfidenceLabel

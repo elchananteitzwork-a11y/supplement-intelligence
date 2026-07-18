@@ -25,7 +25,12 @@ const ACTOR_ENDPOINT =
 interface ApifyProduct {
   title?:             string
   priceFormatted?:    string   // e.g. "R 25,13-40,21" or "JMD 237.07-379.30"
-  minOrderQuantity?:  string   // e.g. "Min. order: 500 boxes"
+  minOrderQuantity?:  string   // CONFIRMED VIA LIVE CALL 2026-07-18: real field is a bare
+                                // number string, e.g. "5" — NOT "Min. order: 500 boxes"
+  // CONFIRMED VIA LIVE CALL 2026-07-18: real, separate field carrying the MOQ's
+  // unit (e.g. "pieces"). minOrderQuantity never contains a unit to split out —
+  // it's a bare number — so the unit must be read from here, not guessed from it.
+  minOrderUnit?:      string
   companyName?:       string
   tradeAssurance?:    boolean
   goldSupplierYears?: string   // e.g. "6 yrs"
@@ -205,7 +210,19 @@ function parseMOQ(products: ApifyProduct[]): { low: number; high: number; unit: 
     if (!qtyMatch) continue
     const qty = parseInt(qtyMatch[0].replace(/,/g, ''), 10)
     if (!qty || qty > 1_000_000) continue
-    const rawUnit = (p.minOrderQuantity.split(/\s+/).pop() ?? 'units').toLowerCase().replace(/s$/, '')
+    // BUGFIX (2026-07-18, Finding 2): minOrderUnit is the real field for the
+    // unit ("pieces"); minOrderQuantity is a bare number string on the real
+    // actor output and never contained a unit to split out, so the old
+    // `.split(/\s+/).pop()` on minOrderQuantity always fell back to 'units'.
+    // Kept as a fallback here only for the case where minOrderUnit is
+    // genuinely absent on a given listing. Checked by trimmed truthiness,
+    // not `??` — an empty/whitespace-only string is "absent" too, matching
+    // how countDistinctSuppliers() below already treats companyName (a `??`
+    // here would let `minOrderUnit: ""` silently short-circuit past the
+    // fallback and reproduce this exact bug for that one input shape).
+    const realUnit = p.minOrderUnit?.trim()
+    const rawUnit = (realUnit || p.minOrderQuantity.split(/\s+/).pop() || 'units')
+      .toLowerCase().replace(/s$/, '')
     parsed.push({ qty, unit: UNIT_MAP[rawUnit] ?? 'units' })
   }
 
@@ -294,6 +311,24 @@ function topSuppliers(products: ApifyProduct[]): ManufacturingEstimate['top_supp
   return result
 }
 
+// ── Distinct supplier count ────────────────────────────────────────────────
+// BUGFIX (2026-07-18, Finding 3): products.length is a listing count, not a
+// supplier count — one supplier can post many listings. topSuppliers() above
+// already dedupes by companyName correctly; supplier_count and the
+// confidence calculation must use the same dedup, or a single supplier with
+// many listings inflates both the displayed "Supplier Count" and the
+// confidence number (which extractManufacturingContext() in
+// lib/ai-interpretation/builder.ts thresholds directly to set
+// HIGH/MODERATE/LOW/UNKNOWN feasibility). Products missing companyName can't
+// be deduped by identity, so each is conservatively counted as its own
+// supplier rather than folded away or dropped.
+function countDistinctSuppliers(products: ApifyProduct[]): number {
+  const named = products.filter(p => p.companyName?.trim())
+  const unnamed = products.length - named.length
+  const distinctNamed = new Set(named.map(p => p.companyName!.trim())).size
+  return distinctNamed + unnamed
+}
+
 // ── Lead time (category fallback — Apify actor doesn't expose this field) ─────
 
 function estimateLeadTime(req: ManufacturingRequest): { low: number; high: number } {
@@ -380,7 +415,8 @@ export class ApifyProvider implements ManufacturingProvider {
     const rating    = topRating(products)
     const suppliers = topSuppliers(products)
     const realisticUnitCost = extractRealisticUnitCost(products)
-    const { confidence, confidence_label } = scoreConfidence(priced, products.length, rating !== null)
+    const supplierCount = countDistinctSuppliers(products)
+    const { confidence, confidence_label } = scoreConfidence(priced, supplierCount, rating !== null)
 
     const complexity: ManufacturingComplexity =
       req.complexity === 'Low'  ? 'Low'  :
@@ -405,11 +441,18 @@ export class ApifyProvider implements ManufacturingProvider {
       realistic_unit_cost: realisticUnitCost ? { ...realisticUnitCost, currency: 'USD' } : undefined,
       moq,
       supplier_count:      {
-        estimate:   products.length,
-        confidence: products.length >= 30 ? 'High' : products.length >= 10 ? 'Medium' : 'Low',
+        estimate:   supplierCount,
+        confidence: supplierCount >= 30 ? 'High' : supplierCount >= 10 ? 'Medium' : 'Low',
       },
       top_supplier_rating: rating,
       lead_time_days:      leadTime,
+      // BUGFIX (2026-07-18, Finding 4): estimateLeadTime() is a fixed
+      // category/complexity lookup table — it never reads real per-listing
+      // data (the Apify actor doesn't expose lead time). Unlike every other
+      // optional field here, it was unconditionally populated with no
+      // marker distinguishing it from genuinely scraped data. This field
+      // makes that provenance explicit for downstream consumers.
+      lead_time_source:    'category_estimate',
       complexity,
       confidence,
       confidence_label,
