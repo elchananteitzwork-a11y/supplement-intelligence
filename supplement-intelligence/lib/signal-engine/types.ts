@@ -444,6 +444,23 @@ export interface ReviewVelocitySignal extends SignalScore {
     // module for the full disclosure.
     manufacturer_recall_flags?: { class: string; count: number }[]
   }[]
+  // Bug-fix audit Finding 2 (2026-07-18) — revised, purely-additive fix:
+  // top_competitors[] above stays exactly as it was (requires real
+  // stars+price+asin, unchanged shape/types — no ripple into
+  // ai-interpretation, evidence/adapter.ts, or any UI file). This is a
+  // SEPARATE, additive field covering the real gap: a listing with a real
+  // asin+brand and real scannable text (features/ingredients_label) but no
+  // current price/rating (e.g. temporarily out of stock) still gets run
+  // through the M2.19 claim-risk scan and M2.20 recall lookup in
+  // lib/signal-engine/providers/competition.ts — this field is how that
+  // extra, real coverage surfaces, without touching top_competitors[]'s
+  // existing contract. Present only when that excluded subset actually
+  // produced ≥1 real claim-risk or recall flag; undefined otherwise —
+  // never a fabricated `{ count: 0 }`.
+  unlisted_competitor_safety_flags?: {
+    count: number   // real count of excluded competitor listings (missing only price/rating data) that had ≥1 real claim-risk or recall flag
+    note:  string    // one-line human-readable disclosure of what this count means
+  }
 }
 
 // ── Provider output ───────────────────────────────────────────────

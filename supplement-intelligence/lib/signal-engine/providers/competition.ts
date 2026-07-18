@@ -23,6 +23,18 @@ import {
 //     the two) — brand populated correctly on 15/15 test items (real brands:
 //     "Nutricost", "Natrol", "Nature Made", etc.). Chosen.
 //
+// Cost note (bug-fix audit finding 5, 2026-07-18): the $0.003/result figure
+// above and the `cost_estimate_usd` log below cover ONLY the actor's
+// `result` PAY_PER_EVENT charge. The actor's real, live-confirmed pricing
+// model (changed 2026-04-14) ALSO bills `offer` ($0.0015/offer) and
+// `seller` ($0.0015/seller) events separately whenever the response
+// includes that sub-data. This is therefore a LOWER-BOUND estimate only —
+// real spend may be higher if offer/seller sub-data is present in the
+// response. Not corrected to an exact figure here because this actor's
+// response shape (JungleeResult, above) doesn't surface offer/seller counts
+// for us to multiply against — that would require its own live
+// confirmation, not a guess.
+//
 // KNOWN LIMITATION, disclosed rather than worked around: this actor exposes
 // no sponsored/ad flag at all (confirmed: field absent on every test item).
 // automation-lab does expose isSponsored (confirmed real: 4/5 top results
@@ -116,6 +128,49 @@ function avg(arr: number[]): number | null {
   return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null
 }
 
+// Bug-fix audit Finding 4 (2026-07-18): `price.currency` was typed but never
+// read — `price.value` was emitted as a bare number with no currency check,
+// silently assuming USD. CONFIRMED VIA LIVE-FETCHED APIFY DOCS: for the
+// amazon.com domain (the only domain this provider ever queries — see the
+// hardcoded `amazon.com` search URL in fetch()), this actor's real currency
+// symbol is `'$'`. Only `'$'`/`'USD'` are trusted as confirmed-USD; any
+// other or missing currency value means we cannot honestly assert this is a
+// real USD price, so the price is dropped (treated as absent) rather than
+// assumed.
+function usdPrice(price: JungleeResult['price']): number | undefined {
+  if (!price || typeof price.value !== 'number') return undefined
+  const currency = price.currency?.trim()
+  if (currency !== '$' && currency !== 'USD') return undefined
+  return price.value
+}
+
+// Bug-fix audit Finding 3 (2026-07-18): sponsored + organic placements for
+// the same ASIN on one real Amazon SERP is a real, documented phenomenon —
+// with no dedupe, that single real listing would double-count in
+// totalReviews/review_concentration_ratio and appear twice in
+// top_competitors. Keeps the FIRST occurrence of each real ASIN — i.e. the
+// earliest (highest-ranked/lowest `_position`) real appearance of that
+// listing in this exact SERP, since callers already run this over an
+// array tagged with `_position` in original search-result order. A
+// sponsored placement for a given ASIN typically appears before its own
+// organic listing, so this also tends to keep the sponsored slot's real
+// position — still a real, non-invented value, never a synthesized
+// "merged" one. Items with no real `asin` at all have nothing reliable to
+// dedupe against, so they all pass through unchanged.
+function dedupeByAsin<T extends { asin?: string }>(items: T[]): T[] {
+  const seenAsins = new Set<string>()
+  const result: T[] = []
+  for (const r of items) {
+    const asin = r.asin?.trim()
+    if (asin) {
+      if (seenAsins.has(asin)) continue
+      seenAsins.add(asin)
+    }
+    result.push(r)
+  }
+  return result
+}
+
 // Higher score = easier to enter. Penalized by how many established (not
 // just present) competitors exist, and by how concentrated reviews are in
 // the top 3 — a market where 3 incumbents hold most of the reviews is
@@ -177,12 +232,29 @@ export class CompetitionSignalProvider implements SignalProvider {
       }
 
       const items: JungleeResult[] = await res.json()
-      if (items.length < MIN_RESULTS) {
-        console.log('Apify amazon-crawler: too few results', { category, count: items.length })
+
+      // Bug-fix audit Finding 1 (2026-07-18): MIN_RESULTS must gate on the
+      // USABLE count (real reviewsCount>0 + real brand), not the raw Apify
+      // item count. review_velocity is currently an uncontested
+      // single-provider dimension (see header comment) — engine.ts's
+      // aggregateDimension() passes its score straight through with no
+      // confidence-weighting from a second provider. If the actor's
+      // `brand` field goes empty for a batch (a real, documented failure
+      // mode — see the automation-lab/amazon-scraper rejection above),
+      // withReviews would become empty while raw items.length still
+      // cleared the old gate, silently producing a confident-looking score
+      // off zero real usable competitors. Same class of fix already
+      // applied to keepa.ts (Finding 1) and tiktok-shop.ts (MIN_RESULTS)
+      // this session.
+      const withReviews = this.filterWithReviews(items)
+      if (withReviews.length < MIN_RESULTS) {
+        console.log('Apify amazon-crawler: too few usable results', {
+          category, rawCount: items.length, usableCount: withReviews.length,
+        })
         return null
       }
 
-      const result = await this.computeSignals(items)
+      const result = await this.computeSignals(withReviews, items.length)
       cacheSet(cacheKey, 'junglee-crawler', result, SERP_CACHE_TTL_MS).catch(() => {})
       return result
     } catch (e: unknown) {
@@ -191,19 +263,37 @@ export class CompetitionSignalProvider implements SignalProvider {
     }
   }
 
-  private async computeSignals(items: JungleeResult[]): Promise<ProviderSignals> {
-    // Real search-result rank, captured BEFORE any filtering/re-sorting —
-    // items[] is already in the actor's real Amazon search-result order
-    // (confirmed via live call: no separate position/rank field exists),
-    // so the 1-indexed array position here is the real rank for this exact
-    // query, not invented.
+  // Real search-result rank is captured BEFORE any dedupe/filtering —
+  // items[] is already in the actor's real Amazon search-result order
+  // (confirmed via live call: no separate position/rank field exists), so
+  // the 1-indexed array position here is the real rank for this exact
+  // query, not invented. Dedupe (Finding 3) runs AFTER position-tagging so
+  // a kept ASIN's `_position` always reflects its real, earliest SERP
+  // index rather than a post-dedupe, compacted index.
+  //
+  // Extracted as its own method (mirrors tiktok-shop.ts's filterUsable)
+  // specifically so fetch()'s MIN_RESULTS gate can check the real usable
+  // count AFTER dedupe/filtering, not the raw Apify item count — see
+  // fetch()'s own comment (Finding 1).
+  private filterWithReviews(items: JungleeResult[]) {
     const withPosition = items.map((r, i) => ({ ...r, _position: i + 1 }))
-
-    const withReviews = withPosition.filter(
-      (r): r is typeof withPosition[number] & { reviewsCount: number; brand: string } =>
+    const deduped = dedupeByAsin(withPosition)
+    return deduped.filter(
+      (r): r is typeof deduped[number] & { reviewsCount: number; brand: string } =>
         typeof r.reviewsCount === 'number' && r.reviewsCount > 0 && !!r.brand?.trim(),
     )
+  }
 
+  // `withReviews` is ALREADY the post-filterWithReviews, deduped set (see
+  // fetch()) — never re-derived here, so this method's own competitor
+  // count can never diverge from what fetch()'s MIN_RESULTS gate actually
+  // checked. `rawCount` is passed through only for logging (real total
+  // Apify items vs. real usable count), never used in any threshold
+  // decision.
+  private async computeSignals(
+    withReviews: ReturnType<CompetitionSignalProvider['filterWithReviews']>,
+    rawCount: number,
+  ): Promise<ProviderSignals> {
     const reviewCounts   = withReviews.map(r => r.reviewsCount)
     const avgReviewCount = avg(reviewCounts)
     const totalReviews   = reviewCounts.reduce((a, b) => a + b, 0)
@@ -219,10 +309,45 @@ export class CompetitionSignalProvider implements SignalProvider {
     const ratings   = withReviews.filter(r => typeof r.stars === 'number').map(r => r.stars!)
     const avgRating = avg(ratings)
 
+    // Finding 4 (currency): `usdPrice` drops any price whose currency isn't
+    // confirmed USD, rather than assuming — see usdPrice()'s own comment.
+    //
+    // Bug-fix audit Finding 2 (2026-07-18): an earlier attempt at this fix
+    // widened top_competitors[].rating/.price to optional so this exact
+    // set could include price/stars-less listings — that was implemented,
+    // then REVERTED this same session after a full-repo `tsc --noEmit` run
+    // surfaced real, unauthorized-scope breakage in lib/evidence/adapter.ts
+    // (decision-engine-agent's owned file), components/memo/SupplyLandscape.tsx,
+    // and lib/ai-interpretation/writer/output-validator.ts. Per the
+    // Planner's revised, narrower instruction: `filteredResults` and
+    // `top_competitors[]` below are UNCHANGED from before that attempt —
+    // same shape, same stars/price/asin gate, zero ripple into any other
+    // file. The real scan-coverage gap is now covered by a separate,
+    // additive block below (`unlisted_competitor_safety_flags`) instead.
     const filteredResults = [...withReviews]
       .sort((a, b) => a._position - b._position)
       .slice(0, 10)
-      .filter(r => typeof r.stars === 'number' && typeof r.price?.value === 'number' && !!r.asin)
+      .filter(r => typeof r.stars === 'number' && usdPrice(r.price) !== undefined && !!r.asin)
+
+    // Bug-fix audit Finding 2 (2026-07-18, revised) — purely additive fix:
+    // real competitors in the SAME top-10-by-position candidate window
+    // (`filteredResults` was sliced from) that have a real asin+brand and
+    // real scannable text (features or extractIngredientsLabel), but were
+    // excluded from `filteredResults`/`topCompetitors` below ONLY because
+    // they're missing a real star rating or confirmed-USD price (e.g.
+    // temporarily out of stock) — price/rating has no logical bearing on
+    // claim-risk-scan/recall-lookup eligibility. Scanned separately below so
+    // `top_competitors[]`'s existing shape/type is completely untouched.
+    // Computed here (before the recall batch call) so its brands can be
+    // folded into ONE shared lookup rather than a second, separate one.
+    const candidatePool = [...withReviews].sort((a, b) => a._position - b._position).slice(0, 10)
+    const excludedScanEligible = candidatePool.filter(r => {
+      if (!r.asin || !r.brand?.trim()) return false
+      const hasScannableText = (r.features?.length ?? 0) > 0 || !!extractIngredientsLabel(r)
+      if (!hasScannableText) return false
+      const inFilteredResults = typeof r.stars === 'number' && usdPrice(r.price) !== undefined
+      return !inFilteredResults
+    })
 
     // M2.20 (Manufacturer Recall History): real per-class OpenFDA recall
     // counts for each competitor's manufacturer identity. Apify's
@@ -230,9 +355,22 @@ export class CompetitionSignalProvider implements SignalProvider {
     // disclosed limitation, not worked around — so this is keyed on r.brand
     // only. Deduped to exactly one live call per unique brand string within
     // this response before issuing any requests.
-    const recallHistoryByFirm = await fetchManufacturerRecallHistoryBatch(
-      filteredResults.map(r => r.brand),
-    )
+    //
+    // Efficiency audit fix (2026-07-18): a single batch call over the UNION
+    // of filteredResults's and excludedScanEligible's brands, not two
+    // independent batch calls. fetchManufacturerRecallHistory's own cache
+    // write fires `cacheSet(...).catch(() => {})` without awaiting it (see
+    // lib/regulatory-engine/manufacturer-credibility.ts), so a second,
+    // separate batch call issued right after the first — as this file
+    // previously did — could miss that still-in-flight cache write and
+    // re-fetch the SAME brand's recall history live from api.fda.gov twice
+    // within one request (real scenario: the same brand appears on both a
+    // priced listing in filteredResults and an out-of-stock listing in
+    // excludedScanEligible). Both consumers below read from this one map.
+    const recallHistoryByFirm = await fetchManufacturerRecallHistoryBatch([
+      ...filteredResults.map(r => r.brand),
+      ...excludedScanEligible.map(r => r.brand),
+    ])
 
     const topCompetitors = filteredResults.map(r => {
         // M2.19: deterministic DSHEA claim-risk scan over this listing's
@@ -249,7 +387,10 @@ export class CompetitionSignalProvider implements SignalProvider {
           brand:       r.brand,
           reviewCount: r.reviewsCount,
           rating:      r.stars!,
-          price:       r.price!.value!,
+          // Finding 4: usdPrice(r.price) is guaranteed defined here — this
+          // row only exists because filteredResults's filter above already
+          // confirmed it — never a bare, currency-unchecked r.price.value.
+          price:       usdPrice(r.price)!,
           position:    r._position,
           breadcrumb:  r.breadCrumbs || undefined,
           bullets:     r.features?.length ? r.features : undefined,
@@ -269,6 +410,31 @@ export class CompetitionSignalProvider implements SignalProvider {
         }
       })
 
+    // excludedScanEligible (computed above, before the shared recall batch
+    // call) — scan it here using that SAME recallHistoryByFirm map, not a
+    // second, separate lookup (see the efficiency-fix comment above).
+    let unlistedFlaggedCount = 0
+    for (const r of excludedScanEligible) {
+      const ingredientsLabel = extractIngredientsLabel(r)
+      const scanTexts: string[] = []
+      if (r.features?.length) scanTexts.push(...r.features)
+      if (ingredientsLabel) scanTexts.push(ingredientsLabel)
+      const claimRiskFlags = scanForClaimRiskLanguage(scanTexts)
+      const recallFlags    = toManufacturerRecallFlags(recallHistoryByFirm.get(r.brand.trim()))
+      if (claimRiskFlags.length > 0 || (recallFlags && recallFlags.length > 0)) {
+        unlistedFlaggedCount++
+      }
+    }
+    // Present only when this excluded subset actually produced ≥1 real
+    // flag — never a fabricated `{ count: 0 }` shown as if it were
+    // meaningful.
+    const unlisted_competitor_safety_flags = unlistedFlaggedCount > 0
+      ? {
+          count: unlistedFlaggedCount,
+          note: `${unlistedFlaggedCount} additional competitor listing(s) with real claim-risk or recall history were found but excluded from the displayed table due to missing price/rating data.`,
+        }
+      : undefined
+
     const score      = accessibilityScore(meaningfulBrands.size, concentration)
     const confidence = withReviews.length >= 10 ? 0.8 : withReviews.length >= 5 ? 0.6 : 0.4
 
@@ -281,10 +447,11 @@ export class CompetitionSignalProvider implements SignalProvider {
       avg_review_count:            avgReviewCount !== null ? Math.round(avgReviewCount) : undefined,
       review_concentration_ratio:  concentration ?? undefined,
       top_competitors:             topCompetitors.length ? topCompetitors : undefined,
+      unlisted_competitor_safety_flags,
     }
 
     console.log('Apify amazon-crawler signals computed', {
-      total_results:        items.length,
+      total_results:        rawCount,
       with_reviews_and_brand: withReviews.length,
       meaningful_brands:     meaningfulBrands.size,
       avg_review_count:      avgReviewCount !== null ? Math.round(avgReviewCount) : null,
@@ -292,7 +459,9 @@ export class CompetitionSignalProvider implements SignalProvider {
       avg_rating:            avgRating !== null ? avgRating.toFixed(1) : null,
       accessibility_score:   score,
       confidence:            Math.round(confidence * 100) + '%',
-      cost_estimate_usd:     Math.round(items.length * 0.003 * 1000) / 1000,
+      // Finding 5: LOWER-BOUND only — covers the actor's `result` charge
+      // event alone. See header comment for why real spend may be higher.
+      cost_estimate_usd_lower_bound: Math.round(rawCount * 0.003 * 1000) / 1000,
     })
 
     return {
