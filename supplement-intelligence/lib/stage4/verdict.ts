@@ -38,6 +38,15 @@ export interface FounderVerdict {
   headline:     string
   rationale:    string[]
   requirements: string[]   // what the founder must do/have before proceeding
+  // 2026-07-18 audit Finding 5 — middle/borderline fit states (capital
+  // 'tight', channel 'partial'/'weak', timeline 'stretched') are real signals
+  // the code has data for, but are neither a strength (rationale, which only
+  // fires on the BEST level per dimension) nor a hard blocker (requirements,
+  // which only fires on the WORST capital/timeline level). Without this
+  // field they silently vanished from founder-facing output. Mirrors the
+  // existing MarketVerdict.conditions precedent (warn-level items distinct
+  // from rationale/blockers).
+  caveats:      string[]
   divergence?:  string     // if market verdict and founder verdict diverge significantly
 }
 
@@ -154,15 +163,30 @@ export function determineFounderVerdict(
       headline:     'Market verdict blocks this opportunity regardless of founder fit',
       rationale:    ['Market-level blockers must be resolved before founder fit is relevant'],
       requirements: marketVerdict.blockers,
+      caveats:      [],
     }
   }
+
+  const caveats: string[] = []
 
   // Capital check
   if (fit.capital_fit.level === 'insufficient') {
     requirements.push(`Raise or secure ${fit.capital_fit.note}`)
+  } else if (fit.capital_fit.level === 'tight') {
+    caveats.push(`Capital fit is tight: ${fit.capital_fit.note}`)
   }
   if (fit.timeline_fit.level === 'infeasible') {
     requirements.push(`Extend time horizon — ${fit.timeline_fit.note}`)
+  } else if (fit.timeline_fit.level === 'stretched') {
+    caveats.push(`Timeline is stretched: ${fit.timeline_fit.note}`)
+  }
+  // Channel has no requirements-level hard blocker in this codebase (no
+  // channel_fit level maps to a hard "insufficient"-style block) — 'partial'
+  // and 'weak' both previously vanished entirely (rationale only fires on
+  // 'strong'; requirements never checked channel_fit at all — see Finding 1
+  // below). Surface both as caveats so the real signal is never dropped.
+  if (fit.channel_fit.level === 'partial' || fit.channel_fit.level === 'weak') {
+    caveats.push(`Channel fit is ${fit.channel_fit.level}: ${fit.channel_fit.note}`)
   }
   fit.experience_gaps.forEach(g => requirements.push(g))
 
@@ -175,7 +199,19 @@ export function determineFounderVerdict(
   let code: FounderVerdictCode
   let headline: string
 
-  if (fit.fit_rank >= 4 && requirements.length === 0) {
+  // 2026-07-18 audit Finding 1: STRONG_FIT's headline explicitly claims
+  // "capital, channel, and timeline all confirmed" — it must be gated on
+  // those three underlying levels directly, not on the composite fit_rank
+  // score. fit_rank >= 4 alone let a 'weak' channel_fit (e.g. "no existing
+  // channel — cold launch requires paid acquisition budget") still reach
+  // STRONG_FIT via other positive factors (advantages, capital, timeline),
+  // overstating confidence versus the real underlying signal.
+  if (
+    fit.capital_fit.level === 'sufficient' &&
+    fit.channel_fit.level === 'strong' &&
+    fit.timeline_fit.level === 'feasible' &&
+    requirements.length === 0
+  ) {
     code     = 'STRONG_FIT'
     headline = 'Your profile aligns well with this opportunity — capital, channel, and timeline all confirmed'
   } else if (fit.fit_rank >= 3 && requirements.length <= 2) {
@@ -198,5 +234,5 @@ export function determineFounderVerdict(
     divergence = 'Your profile is well-suited but the market has specific risks — proceed only after resolving market-level blockers.'
   }
 
-  return { code, headline, rationale: rationale.slice(0, 4), requirements, divergence }
+  return { code, headline, rationale: rationale.slice(0, 4), requirements, caveats, divergence }
 }

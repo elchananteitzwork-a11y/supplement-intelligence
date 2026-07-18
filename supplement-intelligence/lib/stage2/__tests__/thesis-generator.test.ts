@@ -6,9 +6,18 @@
 // additively for testability — see its export comment) is exercised here;
 // generateTheses itself calls the Anthropic SDK and is out of scope for
 // this display-string-only fix.
+//
+// 2026-07-18 audit Finding 2 follow-up: buildEvidenceSummary's regulatory
+// lines now delegate to the shared lib/evidence/format.ts implementation
+// (the same one lib/stage4/memo-generator.ts's formatRegulatoryLinesForMemo
+// uses), so the expected strings below match that shared function's real
+// output — not the old, independently-drifting inline copy this file used
+// to maintain.
 
 import { describe, it, expect } from 'vitest'
 import { buildEvidenceSummary } from '../thesis-generator'
+import { formatRegulatoryIntelligence } from '../../evidence/format'
+import { formatRegulatoryLinesForMemo } from '../../stage4/memo-generator'
 import type { Stage1Evidence } from '../../evidence/adapter'
 import type { RegulatoryIntelligence } from '../../regulatory-engine/types'
 
@@ -59,7 +68,7 @@ const BASE_REG: RegulatoryIntelligence = {
   },
   risk_level: 'Medium',
   risk_summary: 'test',
-  warning_flags: [],
+  warning_flags: ['test flag'],
   confidence: 0.7,
   data_sources: ['openFDA'],
   fetched_at: new Date().toISOString(),
@@ -69,18 +78,57 @@ const BASE_REG: RegulatoryIntelligence = {
 describe('buildEvidenceSummary — Finding 3 (implicated vs raw total inline context) + CAERS label', () => {
   it('CAERS line (not FAERS) states the implicated count alongside the raw total', () => {
     const text = buildEvidenceSummary(regEvidence(BASE_REG), 'magnesium supplement')
-    expect(text).toContain('CAERS: 48 implicated of 1,799 total reports')
+    expect(text).toContain('CAERS reports: 48 implicated of 1,799 total')
     expect(text).not.toContain('FAERS')
   })
 
   it('Recalls line states the implicated count alongside the raw total, not the raw total alone', () => {
     const text = buildEvidenceSummary(regEvidence(BASE_REG), 'magnesium supplement')
-    expect(text).toContain('Recalls: 1 implicated of 28 total (Class I: 0, Class II: 1)')
-    expect(text).not.toMatch(/Recalls: 28 total \(Class I/)
+    expect(text).toContain('Recalls on record: 1 implicated of 28 total (Class I: 0, Class II: 1)')
+    expect(text).not.toMatch(/Recalls on record: 28 total \(Class I/)
   })
 
-  it('still includes the honest serious_reports proxy value verbatim', () => {
+  it('includes the shared formatter\'s warning-flags line', () => {
     const text = buildEvidenceSummary(regEvidence(BASE_REG), 'magnesium supplement')
-    expect(text).toContain('10 serious')
+    expect(text).toContain('Regulatory flags: test flag')
+  })
+})
+
+describe('buildEvidenceSummary — regulatory formatting is delegated to the shared formatter (2026-07-18 audit Finding 2)', () => {
+  it('produces regulatory lines identical to lib/evidence/format.ts\'s formatRegulatoryIntelligence for the same input', () => {
+    const text = buildEvidenceSummary(regEvidence(BASE_REG), 'magnesium supplement')
+    const expectedLines = formatRegulatoryIntelligence(BASE_REG)
+    for (const line of expectedLines) {
+      expect(text).toContain(line)
+    }
+  })
+
+  it('thesis-generator.ts and memo-generator.ts produce identical formatted regulatory text for the same input (both delegate to the shared function)', () => {
+    const text = buildEvidenceSummary(regEvidence(BASE_REG), 'magnesium supplement')
+    const memoLines = formatRegulatoryLinesForMemo(BASE_REG)
+    for (const line of memoLines) {
+      expect(text).toContain(line)
+    }
+    // And both delegate to the exact same underlying implementation.
+    expect(formatRegulatoryLinesForMemo(BASE_REG)).toEqual(formatRegulatoryIntelligence(BASE_REG))
+  })
+
+  it('omits regulatory lines entirely when no regulatory_intelligence is present', () => {
+    const evidence: Stage1Evidence = {
+      providers_used: {
+        value: ['openFDA'],
+        source: 'test',
+        source_type: 'computed',
+        freshness_date: new Date().toISOString(),
+      },
+      overall_confidence: {
+        value: 0.7,
+        source: 'test',
+        source_type: 'computed',
+        freshness_date: new Date().toISOString(),
+      },
+    }
+    const text = buildEvidenceSummary(evidence, 'magnesium supplement')
+    expect(text).not.toContain('Regulatory risk')
   })
 })

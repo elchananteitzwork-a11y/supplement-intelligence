@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { Stage1Evidence } from '../evidence/adapter'
 import type { InvestmentThesis, ThesisGenerationResult } from './types'
 import type { MarketReport } from '../competitive-review-engine/types'
+import { formatRegulatoryIntelligence } from '../evidence/format'
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL = 'claude-sonnet-4-6'
@@ -118,21 +119,14 @@ export function buildEvidenceSummary(evidence: Stage1Evidence, query: string): s
   }
 
   // Regulatory intelligence
-  const reg = evidence.regulatory_intelligence?.value
-  if (reg) {
-    lines.push(`Regulatory risk (OpenFDA): ${reg.risk_level} — ${reg.risk_summary}`)
-    if (reg.warning_flags.length) {
-      reg.warning_flags.forEach(f => lines.push(`  ⚑ ${f}`))
-    }
-    if (reg.adverse_events) {
-      const ae = reg.adverse_events
-      lines.push(`  CAERS: ${ae.implicated_reports} implicated of ${ae.total_reports.toLocaleString()} total reports · ${ae.serious_reports} serious · ${ae.hospitalization_count} hospitalizations · ${ae.death_count} deaths`)
-      if (ae.top_reactions.length) lines.push(`  Top reactions: ${ae.top_reactions.slice(0, 4).join(', ')}`)
-    }
-    if (reg.recalls && reg.recalls.total_recalls > 0) {
-      lines.push(`  Recalls: ${reg.recalls.implicated_recalls} implicated of ${reg.recalls.total_recalls} total (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
-    }
-  }
+  // 2026-07-18 audit Finding 2: delegates to the shared lib/evidence/format.ts
+  // implementation (same one lib/stage4/memo-generator.ts uses via
+  // formatRegulatoryLinesForMemo) so stage2 and stage4 no longer maintain
+  // independently-drifting copies of this formatting logic. This changes the
+  // exact prose emitted (e.g. "CAERS reports:" instead of "CAERS:", a joined
+  // "Regulatory flags:" line instead of a per-flag ⚑ line) — intentional,
+  // see the approved fix scope.
+  lines.push(...formatRegulatoryIntelligence(evidence.regulatory_intelligence?.value))
 
   // Top competitors
   const competitors = evidence.top_competitors?.value

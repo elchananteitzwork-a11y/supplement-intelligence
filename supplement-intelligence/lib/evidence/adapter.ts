@@ -104,7 +104,14 @@ export function adaptAggregatedSignals(signals: AggregatedSignals, fetchedAt: st
       signals.overall_confidence,
       'signal-engine',
       'computed',
-      { freshness_date: today, methodology: 'weighted average of per-dimension confidence scores' }
+      // Honesty fix (2026-07-18 audit, Finding 4): the real computation
+      // (lib/signal-engine/engine.ts aggregate(), dimValues.reduce((s,d) =>
+      // s+d.confidence,0)/dimValues.length) applies no weights at all — a
+      // plain arithmetic mean across populated dimensions. A separate,
+      // unrelated SIGNAL_WEIGHTS constant exists in lib/evidence/select.ts
+      // but is never referenced by this aggregation. The previous
+      // "weighted average" label was a false provenance claim.
+      { freshness_date: today, methodology: 'unweighted average of per-dimension confidence scores' }
     ),
   }
 

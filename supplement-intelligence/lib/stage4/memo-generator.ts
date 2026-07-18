@@ -6,6 +6,7 @@ import type { FullUnitEconomics } from './unit-economics'
 import type { MarketVerdict, FounderVerdict } from './verdict'
 import type { FounderFitAnnotation } from '../stage2/types'
 import type { RegulatoryIntelligence } from '../regulatory-engine/types'
+import { formatRegulatoryIntelligence } from '../evidence/format'
 
 const ai    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL = 'claude-sonnet-4-6'
@@ -53,23 +54,14 @@ export interface InvestmentMemo {
 // testable without mocking the Anthropic SDK / building unrelated
 // InvestmentThesis/FullUnitEconomics/MarketVerdict fixtures that
 // buildMemoPrompt otherwise requires.
+// 2026-07-18 audit Finding 2: delegates to the shared lib/evidence/format.ts
+// implementation (exact same formatting this function used previously) so
+// stage2 and stage4 no longer maintain independently-drifting copies. Kept
+// as a thin, exported wrapper (rather than inlining the shared import at
+// every call site) to avoid touching this function's existing call sites /
+// tests.
 export function formatRegulatoryLinesForMemo(reg: RegulatoryIntelligence | null | undefined): string[] {
-  const lines: string[] = []
-  if (!reg) return lines
-  lines.push(`Regulatory risk (OpenFDA/CAERS): ${reg.risk_level} — ${reg.risk_summary}`)
-  if (reg.adverse_events) {
-    const ae = reg.adverse_events
-    lines.push(`  CAERS reports: ${ae.implicated_reports} implicated of ${ae.total_reports.toLocaleString()} total · deaths: ${ae.death_count} · hospitalizations: ${ae.hospitalization_count}`)
-    if (ae.top_reactions.length) lines.push(`  Top reported reactions: ${ae.top_reactions.slice(0, 4).join(', ')}`)
-  }
-  if (reg.recalls && reg.recalls.total_recalls > 0) {
-    lines.push(`  Recalls on record: ${reg.recalls.implicated_recalls} implicated of ${reg.recalls.total_recalls} total (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
-  }
-  if (reg.warning_flags.length) {
-    lines.push(`  Regulatory flags: ${reg.warning_flags.join(' | ')}`)
-  }
-  lines.push(`  Note for prose: ${reg.disclaimer}`)
-  return lines
+  return formatRegulatoryIntelligence(reg)
 }
 
 // Exported (additive, no behavior change) so the fee-honesty fix (2026-07-18
@@ -77,20 +69,37 @@ export function formatRegulatoryLinesForMemo(reg: RegulatoryIntelligence | null 
 // SDK or building the full InvestmentThesis/AdversarialDebateResult/
 // MarketVerdict fixtures generateInvestmentMemo otherwise requires — same
 // rationale as formatRegulatoryLinesForMemo's export above.
+//
+// 2026-07-18 audit (Report Generation fixes, Finding 1): added the optional
+// founderVerdict param so FounderVerdict.caveats (real, already-computed
+// borderline-fit signals — e.g. "Capital fit is tight: ...") reach the
+// actual prompt text the AI model sees, not just the InvestmentMemo object
+// returned to the API client after generation. Previously only
+// founderFit.fit_rank was read here; the caveats computed by
+// determineFounderVerdict (lib/stage4/verdict.ts) were silently never fed
+// into the memo prose. No new caveat categories are introduced — this only
+// threads the existing computed strings through.
 export function buildMemoPrompt(
   thesis:       InvestmentThesis,
   evidence:     Stage1Evidence,
   debate:       AdversarialDebateResult,
   economics:    FullUnitEconomics,
   marketVerdict: MarketVerdict,
-  founderFit?:  FounderFitAnnotation
+  founderFit?:  FounderFitAnnotation,
+  founderVerdict?: FounderVerdict | null
 ): string {
   const evLines: string[] = []
   if (evidence.est_monthly_revenue?.value)      evLines.push(`Market avg revenue: $${Math.round(evidence.est_monthly_revenue.value / 1000)}k/mo`)
   if (evidence.top_seller_revenue?.value)       evLines.push(`Top seller revenue: $${Math.round(evidence.top_seller_revenue.value / 1000)}k/mo (category ceiling)`)
   if (evidence.est_monthly_units_sold?.value)   evLines.push(`Monthly units sold (avg top sellers): ${evidence.est_monthly_units_sold.value.toLocaleString()} units/mo`)
   if (evidence.avg_market_rating?.value)        evLines.push(`Avg market rating (Keepa bestsellers): ★${evidence.avg_market_rating.value.toFixed(1)}`)
-  if (evidence.competitor_count?.value)          evLines.push(`Meaningful competitors: ${evidence.competitor_count.value}`)
+  // Honesty fix (2026-07-18 audit, Finding 3): a truthy check silently
+  // dropped competitor_count.value === 0 — a real, legitimate "no products
+  // with ≥20 reviews" blue-ocean signal (confirmed stored via an explicit
+  // `!== undefined` check upstream in lib/evidence/adapter.ts). Matches
+  // lib/stage2/thesis-generator.ts's buildEvidenceSummary, which already
+  // handled this identical field correctly.
+  if (evidence.competitor_count?.value !== undefined) evLines.push(`Meaningful competitors: ${evidence.competitor_count.value}`)
   if (evidence.median_price?.value)              evLines.push(`Median price: $${evidence.median_price.value}`)
   if (evidence.momentum_90d_pct?.value !== undefined) evLines.push(`90d momentum: ${evidence.momentum_90d_pct.value}%`)
   if (evidence.price_compression_pct?.value !== undefined) evLines.push(`Price compression (12mo proxy): ${evidence.price_compression_pct.value}%`)
@@ -173,6 +182,7 @@ ${economicsBlock}
 Verdict: ${marketVerdict.code}
 Headline: ${marketVerdict.headline}
 ${founderFit ? `Founder fit rank: ${founderFit.fit_rank}/5` : ''}
+${founderVerdict?.caveats?.length ? `Founder fit caveats (real, computed signals — reference these specifically in the prose, do not soften or omit them): ${founderVerdict.caveats.join(' | ')}` : ''}
 
 ## Your task
 
@@ -195,6 +205,7 @@ Return JSON:
 Do NOT include the verdict codes or numeric verdicts in the prose — those are injected separately.
 Do NOT invent market statistics not provided above.
 The risk_analysis section must cite the adversarial bear case specifically.
+${founderVerdict?.caveats?.length ? `The final_considerations section must reference the founder fit caveat(s) listed above specifically — do not present founder fit as unconditionally strong when a real caveat exists.` : ''}
 ${feeDataIsReal
     ? `The unit_economics_narrative must reference the $${econBase.breakeven_cogs.toFixed(2)} COGS ceiling explicitly.`
     : `The unit_economics_narrative must state plainly that real Amazon fee data was unavailable for this query and must NOT state or imply a specific COGS ceiling dollar figure as fact.`}`
@@ -232,7 +243,7 @@ export async function generateInvestmentMemo(
   founderVerdict: FounderVerdict | null,
   founderFit?:   FounderFitAnnotation
 ): Promise<InvestmentMemo> {
-  const prompt = buildMemoPrompt(thesis, evidence, debate, economics, marketVerdict, founderFit)
+  const prompt = buildMemoPrompt(thesis, evidence, debate, economics, marketVerdict, founderFit, founderVerdict)
 
   const msg = await withTimeout(ai.messages.create({
     model:       MODEL,

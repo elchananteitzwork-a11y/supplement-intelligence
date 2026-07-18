@@ -3,6 +3,7 @@ import type { InvestmentThesis } from '../stage2/types'
 import type { Stage1Evidence } from '../evidence/adapter'
 import type { KillSwitchEvaluation } from './kill-switches'
 import { runAllKillSwitches } from './kill-switches'
+import { formatRegulatoryIntelligence } from '../evidence/format'
 
 const ai    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL = 'claude-sonnet-4-6'
@@ -186,21 +187,18 @@ export function formatEvidenceForPrompt(evidence: Stage1Evidence): string {
   }
 
   // Regulatory intelligence
-  const reg = evidence.regulatory_intelligence?.value
-  if (reg) {
-    lines.push(`Regulatory risk (OpenFDA): ${reg.risk_level} — ${reg.risk_summary}`)
-    if (reg.adverse_events) {
-      const ae = reg.adverse_events
-      lines.push(`  CAERS: ${ae.implicated_reports} implicated of ${ae.total_reports.toLocaleString()} total reports · ${ae.hospitalization_count} hospitalizations · ${ae.death_count} deaths · trend: ${ae.recent_trend}`)
-      if (ae.top_reactions.length) lines.push(`  Top reactions: ${ae.top_reactions.slice(0, 4).join(', ')}`)
-    }
-    if (reg.recalls && reg.recalls.total_recalls > 0) {
-      lines.push(`  Recalls: ${reg.recalls.implicated_recalls} implicated of ${reg.recalls.total_recalls} total (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
-    }
-    if (reg.warning_flags.length) {
-      lines.push(`  Warning flags: ${reg.warning_flags.join(' | ')}`)
-    }
-  }
+  // 2026-07-18 audit (Report Generation fixes, Finding 2): this used to be a
+  // third independent, already-drifted inline copy of the CAERS/recalls/
+  // warning-flags formatting (real wording differences vs the shared
+  // formatter: "CAERS:" vs "CAERS reports:", inline recent_trend handling,
+  // "Warning flags:" vs "Regulatory flags:"). Delegates to the same shared
+  // lib/evidence/format.ts implementation lib/stage2/thesis-generator.ts and
+  // lib/stage4/memo-generator.ts already use, so all three AI-prompt call
+  // sites cannot silently drift apart again. This intentionally changes the
+  // real bull/bear-debate AI prompt text — same trade-off as the
+  // thesis-generator.ts migration (one honest, consistent formatting source
+  // over preserving old wording).
+  lines.push(...formatRegulatoryIntelligence(evidence.regulatory_intelligence?.value))
 
   const competitors = evidence.top_competitors?.value?.slice(0, 5)
   if (competitors?.length) {
