@@ -65,10 +65,15 @@ describe('computeEvidenceDepthScore', () => {
     expect(result.total_claim_risk_flags).toBe(1)
     expect(result.competitors_with_recall_flags).toBe(1)
 
-    // ingredient_canonicalization=100, RCT rank=2 of 10 -> 80, market_dose_mg=100,
+    // ingredient_canonicalization=100, RCT rank=2 of 14 -> 86, market_dose_mg=100,
     // regulatory=80, claim_risk_scan=100, manufacturer_recall_scan=100
-    // average = (100+80+100+80+100+100)/6 = 93.33... -> rounds to 93
-    expect(result.score).toBe(93)
+    // (STUDY_TYPE_PRIORITY grew from 10 to 14 entries — 2026-07-17 audit
+    // Finding 4 fix added 'Clinical Trial, Phase I'..'Phase IV' to
+    // lib/news-engine/providers/pubmed.ts's STUDY_TYPE_PRIORITY, which this
+    // score's rank-based formula reuses; RCT's own rank (2) is unchanged,
+    // only the list length grew, shifting every rank-based score)
+    // average = (100+86+100+80+100+100)/6 = 94.33... -> rounds to 94
+    expect(result.score).toBe(94)
   })
 
   it('computes a partial composite for a tracked ingredient with no market/regulatory/evidence-type data yet (only fields 1, 5, 6)', () => {

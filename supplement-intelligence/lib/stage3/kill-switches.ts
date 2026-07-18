@@ -192,6 +192,16 @@ export function checkFdaRegulatoryRisk(evidence: Stage1Evidence): KillSwitchResu
     notice = `REGULATORY CAUTION — HIGH: ${reg.risk_summary}. Review all warning flags with a regulatory consultant before launch. ${reg.disclaimer}`
   }
 
+  // Surfaces the same sample-size/causal-implication disclosure the
+  // regulatory engine already computes (lib/regulatory-engine/index.ts
+  // classifyRisk()) at this kill-switch's own output — this is the one
+  // artifact that can hard-block a founder's analysis, so the transparency
+  // built there needs to actually reach it, not just live in warning_flags
+  // deeper in the evidence tree. Does not change trigger logic/thresholds.
+  const warningFlagsSummary = reg.warning_flags.length
+    ? reg.warning_flags.join(' | ')
+    : 'none'
+
   return {
     id:           'FDA_REGULATORY_RISK',
     triggered,
@@ -202,10 +212,13 @@ export function checkFdaRegulatoryRisk(evidence: Stage1Evidence): KillSwitchResu
       risk_level:            reg.risk_level,
       ingredient_searched:   reg.ingredient_searched,
       adverse_event_total:   reg.adverse_events?.total_reports ?? 0,
+      adverse_event_implicated: reg.adverse_events?.implicated_reports ?? 0,
       death_count:           reg.adverse_events?.death_count ?? 0,
       hospitalization_count: reg.adverse_events?.hospitalization_count ?? 0,
       recall_total:          reg.recalls?.total_recalls ?? 0,
+      recall_implicated:     reg.recalls?.implicated_recalls ?? 0,
       class_i_recalls:       reg.recalls?.class_i_recalls ?? 0,
+      warning_flags:         warningFlagsSummary,
     },
     mandatory_notice: notice,
   }

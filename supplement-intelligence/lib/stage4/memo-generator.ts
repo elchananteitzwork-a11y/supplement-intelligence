@@ -5,6 +5,7 @@ import type { AdversarialDebateResult } from '../stage3/adversarial'
 import type { FullUnitEconomics } from './unit-economics'
 import type { MarketVerdict, FounderVerdict } from './verdict'
 import type { FounderFitAnnotation } from '../stage2/types'
+import type { RegulatoryIntelligence } from '../regulatory-engine/types'
 
 const ai    = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL = 'claude-sonnet-4-6'
@@ -46,6 +47,31 @@ export interface InvestmentMemo {
 
 // ── Prompt ────────────────────────────────────────────────────────────────
 
+// Exported (additive, no behavior change — extracted verbatim from
+// buildMemoPrompt's inline regulatory block) so the regulatory-intelligence
+// display-string fix (2026-07-18 audit, Finding 3) is directly unit
+// testable without mocking the Anthropic SDK / building unrelated
+// InvestmentThesis/FullUnitEconomics/MarketVerdict fixtures that
+// buildMemoPrompt otherwise requires.
+export function formatRegulatoryLinesForMemo(reg: RegulatoryIntelligence | null | undefined): string[] {
+  const lines: string[] = []
+  if (!reg) return lines
+  lines.push(`Regulatory risk (OpenFDA/CAERS): ${reg.risk_level} — ${reg.risk_summary}`)
+  if (reg.adverse_events) {
+    const ae = reg.adverse_events
+    lines.push(`  CAERS reports: ${ae.implicated_reports} implicated of ${ae.total_reports.toLocaleString()} total · deaths: ${ae.death_count} · hospitalizations: ${ae.hospitalization_count}`)
+    if (ae.top_reactions.length) lines.push(`  Top reported reactions: ${ae.top_reactions.slice(0, 4).join(', ')}`)
+  }
+  if (reg.recalls && reg.recalls.total_recalls > 0) {
+    lines.push(`  Recalls on record: ${reg.recalls.implicated_recalls} implicated of ${reg.recalls.total_recalls} total (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
+  }
+  if (reg.warning_flags.length) {
+    lines.push(`  Regulatory flags: ${reg.warning_flags.join(' | ')}`)
+  }
+  lines.push(`  Note for prose: ${reg.disclaimer}`)
+  return lines
+}
+
 function buildMemoPrompt(
   thesis:       InvestmentThesis,
   evidence:     Stage1Evidence,
@@ -83,22 +109,7 @@ function buildMemoPrompt(
   }
 
   // Regulatory intelligence
-  const reg = evidence.regulatory_intelligence?.value
-  if (reg) {
-    evLines.push(`Regulatory risk (OpenFDA/FAERS): ${reg.risk_level} — ${reg.risk_summary}`)
-    if (reg.adverse_events) {
-      const ae = reg.adverse_events
-      evLines.push(`  FAERS total reports: ${ae.total_reports.toLocaleString()} · deaths: ${ae.death_count} · hospitalizations: ${ae.hospitalization_count}`)
-      if (ae.top_reactions.length) evLines.push(`  Top reported reactions: ${ae.top_reactions.slice(0, 4).join(', ')}`)
-    }
-    if (reg.recalls && reg.recalls.total_recalls > 0) {
-      evLines.push(`  Recalls on record: ${reg.recalls.total_recalls} (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
-    }
-    if (reg.warning_flags.length) {
-      evLines.push(`  Regulatory flags: ${reg.warning_flags.join(' | ')}`)
-    }
-    evLines.push(`  Note for prose: ${reg.disclaimer}`)
-  }
+  evLines.push(...formatRegulatoryLinesForMemo(evidence.regulatory_intelligence?.value))
 
   const econBase = economics.sensitivity.base_case
   const revEnv   = economics.revenue_envelope

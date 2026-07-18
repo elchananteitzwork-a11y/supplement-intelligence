@@ -53,7 +53,7 @@ export interface Stage1Evidence {
   // PPC economics estimate (derived from DataForSEO CPC + market price)
   ppc_economics?: EvidencePoint<PpcEconomics>
 
-  // OpenFDA regulatory intelligence (FAERS adverse events + enforcement recalls)
+  // OpenFDA regulatory intelligence (CAERS adverse events + enforcement recalls)
   regulatory_intelligence?: EvidencePoint<RegulatoryIntelligence>
 
   // Top competitors list (reused by Stage 2 thesis generator)

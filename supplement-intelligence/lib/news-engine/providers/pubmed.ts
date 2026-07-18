@@ -37,12 +37,24 @@ function parsePubmedDate(sortpubdate: string | undefined): string | null {
 // Clinical Evidence Engine, rather than duplicating it — same real NLM
 // vocabulary, same "most-informative-first" judgment call, one source of
 // truth. Purely additive (export keyword only) — no behavior change here.
+// LIVE-CONFIRMED (2026-07-17 audit, real PubMed esummary responses): pubtype[]
+// often carries phase-specific clinical-trial labels ('Clinical Trial, Phase
+// I' .. 'Phase IV') instead of, or in addition to, the bare 'Clinical Trial'
+// entry. These are real NLM-assigned pubtypes, not a guess — added at the
+// same evidence tier as bare 'Clinical Trial' (immediately after it) so a
+// phase-labeled trial with no other, more specific tag (RCT, Meta-Analysis,
+// etc.) present is still recognized as clinical-trial-grade evidence instead
+// of silently resolving to `undefined`.
 export const STUDY_TYPE_PRIORITY = [
   'Meta-Analysis',
   'Systematic Review',
   'Randomized Controlled Trial',
   'Controlled Clinical Trial',
   'Clinical Trial',
+  'Clinical Trial, Phase I',
+  'Clinical Trial, Phase II',
+  'Clinical Trial, Phase III',
+  'Clinical Trial, Phase IV',
   'Multicenter Study',
   'Comparative Study',
   'Observational Study',

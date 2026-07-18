@@ -20,7 +20,11 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 // The prompt provides all Stage 1 evidence verbatim. Every thesis must cite
 // specific evidence from the data — no invented market facts.
 
-function buildEvidenceSummary(evidence: Stage1Evidence, query: string): string {
+// Exported (additive, no behavior change) so the regulatory-intelligence
+// display-string fix (2026-07-18 audit, Finding 3) is directly unit
+// testable without mocking the Anthropic SDK this file's exported
+// generateTheses() calls.
+export function buildEvidenceSummary(evidence: Stage1Evidence, query: string): string {
   const lines: string[] = [`Market signal data for: "${query}"`, '']
 
   // Demand
@@ -122,11 +126,11 @@ function buildEvidenceSummary(evidence: Stage1Evidence, query: string): string {
     }
     if (reg.adverse_events) {
       const ae = reg.adverse_events
-      lines.push(`  FAERS: ${ae.total_reports.toLocaleString()} total reports · ${ae.serious_reports} serious · ${ae.hospitalization_count} hospitalizations · ${ae.death_count} deaths`)
+      lines.push(`  CAERS: ${ae.implicated_reports} implicated of ${ae.total_reports.toLocaleString()} total reports · ${ae.serious_reports} serious · ${ae.hospitalization_count} hospitalizations · ${ae.death_count} deaths`)
       if (ae.top_reactions.length) lines.push(`  Top reactions: ${ae.top_reactions.slice(0, 4).join(', ')}`)
     }
     if (reg.recalls && reg.recalls.total_recalls > 0) {
-      lines.push(`  Recalls: ${reg.recalls.total_recalls} total (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
+      lines.push(`  Recalls: ${reg.recalls.implicated_recalls} implicated of ${reg.recalls.total_recalls} total (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
     }
   }
 

@@ -25,7 +25,7 @@ import { cacheGet, cacheSet } from '../provider-cache'
 // Reuse the same openFDA HTTP client index.ts already exports — avoids a
 // second, drift-prone copy of OPENFDA_BASE/apiKey()/openfdaFetch(). Additive
 // export from index.ts only; no existing behavior there changed.
-import { OPENFDA_BASE, openfdaFetch } from './index'
+import { OPENFDA_BASE, openfdaFetch, metaTotal } from './index'
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000   // 24 h — same TTL as index.ts; FDA data is stable
 
@@ -104,7 +104,11 @@ export async function fetchManufacturerRecallHistory(
       }
     }
 
-    const total = classI + classII + classIII
+    // Finding 3 fix (2026-07-18 audit, same bug class already fixed in
+    // index.ts's fetchRecalls): honest openFDA total, not a sum of only the
+    // fetched `limit=25` page — was silently undercounting when a firm had
+    // more real recalls than the page size.
+    const total = metaTotal(body)
     if (total === 0) return undefined
 
     const result: ManufacturerRecallHistory = {

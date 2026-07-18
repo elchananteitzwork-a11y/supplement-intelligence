@@ -16,9 +16,16 @@ import {
 
 // Real-shaped fixture, modeled on a real live-confirmed openFDA
 // food/enforcement.json record for search=recalling_firm:"Nestle Health Science"
-// (M2.20 research call, 2026-07-17).
-function mockEnforcementResults(results: Array<Record<string, string>>): Response {
-  return { ok: true, status: 200, json: () => Promise.resolve({ results }) } as Response
+// (M2.20 research call, 2026-07-17). `meta.results.total` defaults to
+// results.length (i.e. "the fetched page is the whole real result set") —
+// pass an explicit `total` to model the Finding-3-class case where the real
+// API total exceeds what was fetched on this page (2026-07-18 audit fix).
+function mockEnforcementResults(results: Array<Record<string, string>>, total = results.length): Response {
+  return {
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ meta: { results: { skip: 0, limit: 25, total } }, results }),
+  } as Response
 }
 
 function mockNotFound(): Response {
@@ -142,6 +149,24 @@ describe('fetchManufacturerRecallHistory', () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response)
     const result = await fetchManufacturerRecallHistory('Nestle Health Science')
     expect(result).toBeUndefined()
+  })
+
+  // Finding 3 fix (2026-07-18 audit) — same undercount bug class already
+  // fixed in lib/regulatory-engine/index.ts's fetchRecalls(): total_recalls
+  // must reflect the real openFDA meta.total, not a sum of only the fetched
+  // `limit=25` page.
+  it('uses the real openFDA meta.total for total_recalls, not a sum of only the fetched page', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      // Real case: a firm has 40 real recalls, but only 2 are returned on
+      // this fetched page — total_recalls must reflect the honest 40.
+      mockEnforcementResults([REAL_SHAPED_RECORD_CLASS_II, REAL_SHAPED_RECORD_CLASS_III], 40),
+    )
+    const result = await fetchManufacturerRecallHistory('Nestle Health Science')
+    expect(result?.total_recalls).toBe(40)
+    // Per-class breakdown remains derived from the fetched page (openFDA has
+    // no per-classification total endpoint) — unaffected by this fix.
+    expect(result?.class_ii_recalls).toBe(1)
+    expect(result?.class_iii_recalls).toBe(1)
   })
 })
 

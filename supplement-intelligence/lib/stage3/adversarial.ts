@@ -143,7 +143,11 @@ List 3–5 conflicts and 3–5 unknowns. Be specific.`
 
 // ── Evidence formatter ────────────────────────────────────────────────────
 
-function formatEvidenceForPrompt(evidence: Stage1Evidence): string {
+// Exported (additive, no behavior change) so the regulatory-intelligence
+// display-string fix (2026-07-18 audit, Finding 3) is directly unit
+// testable without mocking the Anthropic SDK this file's exported
+// runAdversarialDebate() calls.
+export function formatEvidenceForPrompt(evidence: Stage1Evidence): string {
   const lines: string[] = []
   if (evidence.est_monthly_revenue?.value)    lines.push(`Revenue: ~$${Math.round(evidence.est_monthly_revenue.value / 1000)}k/mo avg seller`)
   if (evidence.top_seller_revenue?.value)     lines.push(`Top seller revenue: ~$${Math.round(evidence.top_seller_revenue.value / 1000)}k/mo (category ceiling)`)
@@ -187,11 +191,11 @@ function formatEvidenceForPrompt(evidence: Stage1Evidence): string {
     lines.push(`Regulatory risk (OpenFDA): ${reg.risk_level} — ${reg.risk_summary}`)
     if (reg.adverse_events) {
       const ae = reg.adverse_events
-      lines.push(`  FAERS: ${ae.total_reports.toLocaleString()} total reports · ${ae.hospitalization_count} hospitalizations · ${ae.death_count} deaths · trend: ${ae.recent_trend}`)
+      lines.push(`  CAERS: ${ae.implicated_reports} implicated of ${ae.total_reports.toLocaleString()} total reports · ${ae.hospitalization_count} hospitalizations · ${ae.death_count} deaths · trend: ${ae.recent_trend}`)
       if (ae.top_reactions.length) lines.push(`  Top reactions: ${ae.top_reactions.slice(0, 4).join(', ')}`)
     }
     if (reg.recalls && reg.recalls.total_recalls > 0) {
-      lines.push(`  Recalls: ${reg.recalls.total_recalls} (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
+      lines.push(`  Recalls: ${reg.recalls.implicated_recalls} implicated of ${reg.recalls.total_recalls} total (Class I: ${reg.recalls.class_i_recalls}, Class II: ${reg.recalls.class_ii_recalls})`)
     }
     if (reg.warning_flags.length) {
       lines.push(`  Warning flags: ${reg.warning_flags.join(' | ')}`)
