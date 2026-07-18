@@ -76,3 +76,47 @@ describe('SignalEngine — perProviderValues (Roadmap M2.1)', () => {
     expect(result!.virality).toBeUndefined()
   })
 })
+
+describe('SignalEngine — social_commerce (Roadmap M3.5) is structurally excluded from aggregation', () => {
+  it("a provider populating only ProviderSignals.social_commerce contributes to NO dims, so AggregatedSignals never carries a social_commerce field and providers_used stays empty", async () => {
+    const engine = new SignalEngine([
+      fakeProvider('tiktok-shop', {
+        social_commerce: {
+          estimated_gmv_total: 12345, sold_count_total: 999, sample_size: 5,
+          methodology: 'derived_sold_count_x_price_lifetime_cumulative',
+          data_source: 'apify:pratikdani/tiktok-shop-search-scraper',
+          confidence: 0.3,
+        },
+        provider: 'tiktok-shop', fetched_at: new Date().toISOString(), confidence: 0.3,
+      } as ProviderSignals),
+    ])
+    const result = await engine.fetch({ query: 'test' })
+    expect(result).not.toBeNull()
+    // The whole point of NOT listing 'social_commerce' in engine.ts's
+    // `dims` array: aggregateDimension() is never called for it, so it
+    // never appears anywhere on the aggregated output — not blended, not
+    // passed through, not present at all.
+    expect(result).not.toHaveProperty('social_commerce')
+    expect(result!.providers_used).toEqual([])
+    expect(result!.overall_confidence).toBe(0)
+  })
+
+  it('a provider populating BOTH a real dim and social_commerce still contributes normally on the real dim, with social_commerce dropped', async () => {
+    const engine = new SignalEngine([
+      fakeProvider('tiktok-shop', {
+        growth: { score: 5, confidence: 0.5, momentum: 'Stable' },
+        social_commerce: {
+          estimated_gmv_total: 500, sold_count_total: 50, sample_size: 3,
+          methodology: 'derived_sold_count_x_price_lifetime_cumulative',
+          data_source: 'apify:pratikdani/tiktok-shop-search-scraper',
+          confidence: 0.3,
+        },
+        provider: 'tiktok-shop', fetched_at: new Date().toISOString(), confidence: 0.3,
+      } as ProviderSignals),
+    ])
+    const result = await engine.fetch({ query: 'test' })
+    expect(result!.growth?.value.momentum).toBe('Stable')
+    expect(result).not.toHaveProperty('social_commerce')
+    expect(result!.providers_used).toEqual(['tiktok-shop'])
+  })
+})

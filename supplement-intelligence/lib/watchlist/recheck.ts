@@ -24,11 +24,26 @@
 // the lifecycle stage — the thing Blueprint §14 explicitly says triggers
 // an alert — is re-derived and compared; the watch's recorded verdict
 // stays whatever the original full analysis produced.
+//
+// Roadmap M3.5 (TikTok Shop Intelligence) — DISCLOSED, DELIBERATE EXCEPTION
+// to the "never the slow tier... on every watched niche every week" policy
+// above: a single Apify tiktok-shop-search-scraper call per rechecked niche
+// is additionally made below, specifically to accumulate real weekly
+// `niche_timeseries` history for lib/signal-engine/providers/
+// tiktok-shop.ts's Social Commerce Calibration Gate (its header comment,
+// requirement (i)) — that gate cannot ever clear without this real,
+// repeated observation history existing somewhere, and this weekly
+// recheck is the only cadence in this codebase that could produce it.
+// Called directly against the provider class (bypassing fastTierEngine and
+// SignalEngine.aggregate() entirely) and is fully non-fatal — a failure
+// here never affects fastTierEngine's own watchesChecked/watchesFailed
+// accounting above.
 
 import { SignalEngine } from '@/lib/signal-engine/engine'
 import { KeepaProvider } from '@/lib/signal-engine/providers/keepa'
 import { GoogleTrendsProvider } from '@/lib/signal-engine/providers/google-trends'
 import { ScienceProvider } from '@/lib/signal-engine/providers/science'
+import { TikTokShopProvider } from '@/lib/signal-engine/providers/tiktok-shop'
 import type { AggregatedSignals } from '@/lib/signal-engine/types'
 import { computeDemand } from '@/lib/scoring'
 import type { GroundedScore } from '@/lib/scoring'
@@ -43,6 +58,29 @@ import { listActiveWatches, updateWatchAfterCheck, writeAlert } from './service-
 import { appendObservations } from '@/lib/niche-timeseries/store'
 
 const fastTierEngine = new SignalEngine([new KeepaProvider(), new GoogleTrendsProvider(), new ScienceProvider()])
+const tiktokShopProvider = new TikTokShopProvider()
+
+// Roadmap M3.5: real TikTok Shop GMV snapshot for one rechecked niche,
+// written as `niche_timeseries` observations tagged `source: 'tiktok-shop'`
+// via the SAME existing write function (appendObservations) M2.11's Keepa
+// snapshot already uses below — no new writer, no schema change.
+// Non-fatal by construction: TikTokShopProvider.fetch() already resolves
+// null (never throws) on any real error, and this function itself never
+// throws either, so a caller never needs its own try/catch around this.
+async function writeTikTokShopSnapshot(nicheKey: string, categoryId: string): Promise<void> {
+  try {
+    const signals = await tiktokShopProvider.fetch({ query: nicheKey, categoryId })
+    const sc = signals?.social_commerce
+    if (!sc) return   // honest no-op: disabled provider, thin result, or a real fetch error — never a fabricated 0
+
+    await appendObservations([
+      { nicheKey, source: 'tiktok-shop', metric: 'estimated_gmv_total', value: sc.estimated_gmv_total },
+      { nicheKey, source: 'tiktok-shop', metric: 'sold_count_total',    value: sc.sold_count_total },
+    ])
+  } catch (e: unknown) {
+    console.error('watchlist recheck: tiktok-shop snapshot failed (non-fatal)', { nicheKey, error: e instanceof Error ? e.message : e })
+  }
+}
 
 export async function fetchFastTierSignals(query: string, categoryId: string): Promise<AggregatedSignals | null> {
   return fastTierEngine.fetch({ query, categoryId }, 12_000)
@@ -138,6 +176,13 @@ export async function runWatchlistRecheck(): Promise<WatchlistRecheckSummary> {
       fresh.gapVelocity.value != null
         ? { nicheKey: entry.category_name, source: 'lifecycle', metric: 'gap_velocity', value: fresh.gapVelocity.value } : null,
     ])
+
+    // Roadmap M3.5: additive TikTok Shop GMV snapshot for this same
+    // rechecked niche — see writeTikTokShopSnapshot's own comment and this
+    // file's header for why this is a disclosed exception to the
+    // fast-tier-only policy above. Fully independent of, and never blocks,
+    // the primary fast-tier re-check outcome computed above.
+    await writeTikTokShopSnapshot(entry.category_name, entry.category_id)
 
     if (result.stageTransition) {
       summary.stageTransitions++

@@ -29,5 +29,19 @@ const providers = [
   new ScienceProvider(),
 ]
 
+// Roadmap M3.5 (TikTok Shop Intelligence / Social Commerce) — deliberately
+// NOT instantiated into the `providers` array above. TikTokShopProvider
+// (lib/signal-engine/providers/tiktok-shop.ts) IS a real, fully-implemented
+// SignalProvider — but its `social_commerce` field is deliberately absent
+// from engine.ts's `dims` array, so registering it here would mean every
+// uncached live analysis across the whole app (any category, via
+// `signalEngine` below) pays for a real Apify call whose result
+// SignalEngine.aggregate() then silently drops — real cost, zero surfaced
+// benefit. (An earlier version of this file registered it anyway; caught
+// and reverted before this milestone shipped.) Its one real consumer,
+// lib/watchlist/recheck.ts, instantiates `new TikTokShopProvider()` and
+// calls `.fetch()` directly, bypassing this registry and SignalEngine
+// entirely — see that file's header comment.
+
 // Singleton engine used by all API routes.
 export const signalEngine = new SignalEngine(providers)

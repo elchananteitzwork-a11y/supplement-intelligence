@@ -116,4 +116,21 @@ describe('computeConcordanceMatrix', () => {
       expect(matrix!.agreement).toBe('Mixed')
     })
   })
+
+  // Roadmap M3.5: DEMAND_CHANNELS is confirmed hardcoded to exactly the
+  // three real demand channels and explicitly NOT extended with
+  // 'social_commerce' this milestone. Even in the (currently impossible —
+  // AggregatedSignals has no `social_commerce` field) hypothetical where a
+  // 'tiktok-shop' entry ended up inside growth.perProviderValues, its
+  // PROVIDER_CHANNEL mapping ('social_commerce') is not in DEMAND_CHANNELS,
+  // so it is filtered out here exactly like any other non-demand channel.
+  it("a 'tiktok-shop' contribution is excluded from the concordance matrix — its channel is not in DEMAND_CHANNELS", () => {
+    const matrix = computeConcordanceMatrix(signals([
+      { source: 'keepa',        value: growthSignal({ momentum: 'Accelerating' }) },
+      { source: 'tiktok-shop',  value: growthSignal({ momentum: 'Accelerating' }) },
+    ]))
+    expect(matrix).not.toBeNull()
+    expect(matrix!.reads.every(r => r.provider !== 'tiktok-shop')).toBe(true)
+    expect(matrix!.reads.map(r => r.channel)).toEqual(['search_intent', 'amazon_market', 'consumer_voice'])
+  })
 })

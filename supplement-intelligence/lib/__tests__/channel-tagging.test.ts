@@ -29,6 +29,14 @@ import { MetaAdsProvider } from '../signal-engine/providers/meta-ads'
 import { CompetitionSignalProvider } from '../signal-engine/providers/competition'
 import type { GroundedScore } from '../scoring'
 
+// Roadmap M3.5: TikTokShopProvider (lib/signal-engine/providers/tiktok-shop.ts)
+// is a real, fully-implemented SignalProvider but is DELIBERATELY NOT in
+// this list — it is not instantiated into registry.ts's shared `providers`
+// array (see that file's own comment for why: registering it there would
+// mean every live analysis pays for a real Apify call whose result
+// SignalEngine.aggregate() silently drops, since `social_commerce` is not
+// in engine.ts's `dims` array). Its one real consumer,
+// lib/watchlist/recheck.ts, instantiates and calls it directly instead.
 const REGISTERED_PROVIDERS = [
   new KeepaProvider(),
   new GoogleTrendsProvider(),
@@ -72,14 +80,33 @@ describe('Meta Ad Library / TikTok / Reddit — now three distinct channels, not
     expect(distinct.size).toBe(3)
   })
 
-  it("Roadmap M2.10 — social_commerce and video_research are real channel types with labels and coverage notes, reserved ahead of their providers", () => {
+  it("Roadmap M2.10 — social_commerce and video_research are real channel types with labels and coverage notes", () => {
     const newChannels: ChannelType[] = ['social_commerce', 'video_research']
     for (const channel of newChannels) {
       expect(CHANNEL_LABELS[channel], `channel "${channel}" has no CHANNEL_LABELS entry`).toBeDefined()
       expect(CHANNEL_COVERAGE_NOTES[channel], `channel "${channel}" has no CHANNEL_COVERAGE_NOTES entry`).toBeDefined()
-      // Deliberately reserved: no provider registered yet (M3.5 / M2.13 respectively).
-      expect(Object.values(PROVIDER_CHANNEL)).not.toContain(channel)
     }
+  })
+
+  it("Roadmap M3.5 — social_commerce has a PROVIDER_CHANNEL entry for tiktok-shop (for channel-independence/evidence-breadth bookkeeping ONLY, per PROVIDER_CHANNEL's own scoping comment — never BASE_WEIGHTS/DEMAND_CHANNELS/verdict), even though tiktok-shop is never actually registered into the shared engine (see the next test)", () => {
+    expect(PROVIDER_CHANNEL['tiktok-shop']).toBe('social_commerce')
+  })
+
+  it('Roadmap M3.5 — tiktok-shop is real and channel-tagged but is NOT one of the real, live providers registry.ts registers into the shared signalEngine', async () => {
+    // Real behavioral check against the actual registry module (not a
+    // hand-copied list): confirms the cost-conscious fix — registering
+    // TikTokShopProvider into the shared engine would mean every live
+    // analysis pays for a real Apify call whose result is silently dropped
+    // (social_commerce is absent from engine.ts's dims array) — was
+    // actually applied, not just documented in a comment.
+    const { signalEngine } = await import('../signal-engine/registry')
+    const registeredNames = (signalEngine as unknown as { providers: { name: string }[] }).providers.map(p => p.name)
+    expect(registeredNames).not.toContain('tiktok-shop')
+    expect(REGISTERED_PROVIDERS.map(p => p.name)).not.toContain('tiktok-shop')
+  })
+
+  it('video_research remains deliberately reserved: no provider registered yet (M2.13)', () => {
+    expect(Object.values(PROVIDER_CHANNEL)).not.toContain('video_research')
   })
 
   it('Roadmap M2.10 — TikTok Creative Center and Amazon Q&A deliberately do NOT get their own channels', () => {

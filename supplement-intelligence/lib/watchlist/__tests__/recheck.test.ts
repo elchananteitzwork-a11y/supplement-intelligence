@@ -24,6 +24,21 @@ vi.mock('@/lib/signal-engine/engine', () => ({
   },
 }))
 
+// Roadmap M3.5: TikTokShopProvider is called DIRECTLY by recheck.ts
+// (bypassing SignalEngine entirely — see recheck.ts's own header comment),
+// so it needs its own, separate mock from the fastTierEngine mock above.
+const tiktokShopFetch = vi.fn().mockResolvedValue(null)
+vi.mock('@/lib/signal-engine/providers/tiktok-shop', () => ({
+  TikTokShopProvider: function TikTokShopProvider(this: { fetch: (...args: unknown[]) => unknown }) {
+    this.fetch = (...args: unknown[]) => tiktokShopFetch(...args)
+  },
+}))
+
+const appendObservations = vi.fn().mockResolvedValue(undefined)
+vi.mock('@/lib/niche-timeseries/store', () => ({
+  appendObservations: (...args: unknown[]) => appendObservations(...args),
+}))
+
 import { computeFreshLifecycleFromSignals, evaluateWatch, runWatchlistRecheck } from '../recheck'
 
 function watchEntry(overrides: Partial<WatchlistEntry> = {}): WatchlistEntry {
@@ -140,5 +155,64 @@ describe('runWatchlistRecheck — the roadmap\'s own fixture-forced acceptance t
     expect(summary.watchesChecked).toBe(0)
     expect(writeAlert).not.toHaveBeenCalled()
     expect(updateWatchAfterCheck).not.toHaveBeenCalled()
+  })
+})
+
+describe('runWatchlistRecheck — Roadmap M3.5 TikTok Shop niche_timeseries snapshot (additive)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    listActiveWatches.mockResolvedValue([
+      watchEntry({ id: 'w1', user_id: 'u1', category_name: 'Berberine', category_id: 'supplements' }),
+    ])
+    engineFetch.mockResolvedValue(saturatedSignals())
+    tiktokShopFetch.mockResolvedValue(null)
+  })
+
+  it('calls the provider directly with the rechecked niche\'s real query/category, bypassing SignalEngine', async () => {
+    await runWatchlistRecheck()
+    expect(tiktokShopFetch).toHaveBeenCalledWith({ query: 'Berberine', categoryId: 'supplements' })
+  })
+
+  it('writes real tiktok-shop niche_timeseries observations (real column/value shape) when the provider returns a social_commerce signal', async () => {
+    tiktokShopFetch.mockResolvedValue({
+      social_commerce: {
+        estimated_gmv_total: 45210.5, sold_count_total: 3200, sample_size: 7,
+        methodology: 'derived_sold_count_x_price_lifetime_cumulative',
+        data_source: 'apify:pratikdani/tiktok-shop-search-scraper',
+        confidence: 0.3,
+      },
+      provider: 'tiktok-shop', fetched_at: '2026-07-17T10:00:00.000Z', confidence: 0.3,
+    })
+
+    await runWatchlistRecheck()
+
+    expect(appendObservations).toHaveBeenCalledWith([
+      { nicheKey: 'Berberine', source: 'tiktok-shop', metric: 'estimated_gmv_total', value: 45210.5 },
+      { nicheKey: 'Berberine', source: 'tiktok-shop', metric: 'sold_count_total', value: 3200 },
+    ])
+  })
+
+  it('writes no tiktok-shop observations (honest, never fabricated) when the provider returns null', async () => {
+    tiktokShopFetch.mockResolvedValue(null)
+
+    await runWatchlistRecheck()
+
+    const tiktokShopCalls = appendObservations.mock.calls.filter(
+      call => Array.isArray(call[0]) && call[0].some((o: { source?: string }) => o?.source === 'tiktok-shop'),
+    )
+    expect(tiktokShopCalls).toHaveLength(0)
+  })
+
+  it('never blocks or fails the primary re-check when the tiktok-shop fetch throws (non-fatal, matches this file\'s existing convention)', async () => {
+    tiktokShopFetch.mockRejectedValue(new Error('Apify actor timed out'))
+
+    const summary = await runWatchlistRecheck()
+
+    // The primary fast-tier outcome (stage transition, watchesChecked) is
+    // completely unaffected by the tiktok-shop failure.
+    expect(summary.watchesChecked).toBe(1)
+    expect(summary.watchesFailed).toBe(0)
+    expect(summary.stageTransitions).toBe(1)
+    expect(updateWatchAfterCheck).toHaveBeenCalledWith('w1', 'Saturated')
   })
 })

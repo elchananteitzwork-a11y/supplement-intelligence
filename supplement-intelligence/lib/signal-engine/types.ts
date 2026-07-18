@@ -242,6 +242,69 @@ export interface ScienceSignal extends SignalScore {
   as_of?: string   // ISO timestamp of the nightly batch run that produced this cache entry
 }
 
+// Roadmap M3.5 — TikTok Shop Intelligence (Social Commerce). Path B, per the
+// approved R&D document: an ISOLATED, additive-only Commerce-layer signal —
+// deliberately NOT a SignalScore (no `score`, since nothing may ever weight
+// or rank on this yet), populated by exactly one provider
+// (lib/signal-engine/providers/tiktok-shop.ts — see its header comment for
+// the full derivation methodology and the Social Commerce Calibration Gate
+// that must clear before any future milestone may wire this into
+// BASE_WEIGHTS/concordance/verdict logic). Attaches directly to
+// ProviderSignals below as its own named field — deliberately absent from
+// AggregatedSignals and from engine.ts's `dims` array/aggregateDimension(),
+// so it structurally cannot enter cross-provider blending, not merely
+// "unweighted."
+//
+// EVERY number on this interface is DERIVED (sold_count × price), never a
+// TikTok-reported GMV figure, and confidence is deliberately capped LIMITED
+// regardless of sample_size — see the provider's own header comment for why
+// a larger sample doesn't fix this source's structural weaknesses. Never
+// present estimated_gmv_total anywhere as "TikTok Shop GMV" without this
+// derivation caveat traveling with it.
+export interface SocialCommerceSignal {
+  // Sum of sold_count × price_usd across every real, usable result in the
+  // sampled page. DERIVED — see methodology. USD.
+  estimated_gmv_total: number
+  // Sum of each result's own real sold_count — TikTok Shop's own CUMULATIVE
+  // LIFETIME units-sold counter per listing (confirmed via the actor's real
+  // output schema/example, 2026-07-17), NOT a bounded period (not
+  // "this month," not "this quarter"). Never re-labeled as a period figure
+  // anywhere downstream.
+  sold_count_total: number
+  // How many real product results this was actually computed over (a
+  // result missing either sold_count or a parseable price is excluded, not
+  // zero-filled — see provider). Bounded by the actor's own hard per-request
+  // result cap (see MAX_ITEMS in the provider).
+  sample_size: number
+  // Literal, fixed disclosure string — never a computed/interpreted label.
+  // Read this before reading estimated_gmv_total anywhere it is displayed.
+  methodology: 'derived_sold_count_x_price_lifetime_cumulative'
+  // Provenance string, e.g. "apify:pratikdani/tiktok-shop-search-scraper".
+  // Deliberately the ONE thing a future higher-provenance provider
+  // (e.g. Kalodata, FastMoss — real reported-GMV enterprise data sources)
+  // needs to change, along with its own internals, to replace this source
+  // with zero change to this type or to any consumer.
+  data_source: string
+  // Deliberately a FIXED constant (see provider's FIXED_CONFIDENCE), never
+  // scaled up by sample_size the way other providers' confidence is —
+  // this source's weak provenance (undefined "sale" semantics, a single
+  // current price applied retroactively across an unbounded lifetime of
+  // units) does not improve with a bigger sample.
+  confidence: number
+  avg_price_usd?: number   // average of the real per-result parsed price_usd values used above
+  // Real per-listing detail behind the aggregates above, sorted by
+  // estimated_gmv desc, capped at 10 — same "show the real evidence, not
+  // just the derived number" convention as review_velocity.top_competitors.
+  top_products?: {
+    title:         string
+    seller_name?:  string
+    sold_count:    number   // this listing's own real cumulative lifetime sold_count
+    price_usd:     number   // this listing's own real current parsed price
+    estimated_gmv: number   // sold_count × price_usd for this one listing
+    rank?:         number   // real TikTok Shop search-result rank, if present on this result
+  }[]
+}
+
 export interface SeasonalitySignal extends SignalScore {
   // 10 = perfectly perennial (ideal for subscription), 0 = heavily seasonal
   peak_months?: string[]                    // e.g. ["Nov", "Dec"]
@@ -398,6 +461,14 @@ export interface ProviderSignals {
   revenue?:         RevenueSignal
   supply_velocity?: SupplyVelocitySignal
   science?:         ScienceSignal
+  // Roadmap M3.5 — single-provider, additive-only field. Deliberately NOT
+  // mirrored onto AggregatedSignals and NOT read by engine.ts's `dims`
+  // array/aggregateDimension() — see SocialCommerceSignal's own comment
+  // above and lib/signal-engine/providers/tiktok-shop.ts's header for why.
+  // Today's one real consumer (lib/watchlist/recheck.ts) calls the
+  // provider directly and reads this field off its raw ProviderSignals
+  // return value — it never goes through SignalEngine.fetch()/aggregate().
+  social_commerce?: SocialCommerceSignal
 
   provider:   string   // provider name, e.g. "keepa"
   fetched_at: string   // ISO timestamp

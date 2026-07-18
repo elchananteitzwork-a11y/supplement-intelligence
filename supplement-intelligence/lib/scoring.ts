@@ -351,6 +351,14 @@ export const PROVIDER_CHANNEL: Record<string, ChannelType> = {
   // science.ts) reading nightly-batch PubMed + ClinicalTrials.gov data —
   // see that file's header comment for why this is one provider, not two.
   science:                'science',
+  // Roadmap M3.5: registered for channel-independence/evidence-breadth
+  // bookkeeping ONLY — `social_commerce` is a Path B, additive-only signal
+  // (see lib/signal-engine/providers/tiktok-shop.ts's header comment) that
+  // is never read by BASE_WEIGHTS, DEMAND_CHANNELS (lib/concordance.ts), or
+  // any verdict/kill-switch path. This entry exists purely so a future
+  // milestone that DOES wire it in inherits an already-correct taxonomy
+  // entry instead of touching this file again.
+  'tiktok-shop':          'social_commerce',
 }
 // HARDENING FIX (2026-06-28): kept in PROVIDER_CHANNEL above (so a future
 // contribution is still correctly classified if reddit is ever enabled),
