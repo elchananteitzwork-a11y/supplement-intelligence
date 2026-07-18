@@ -165,7 +165,27 @@ interface DfsResponse { tasks?: DfsTask[]; status_code?: number; status_message?
 
 // Types for keywords_data/google_ads/search_volume/live — simpler flat structure
 // (result is a direct array of keyword rows, no items[] nesting).
-interface DfsSvRow { keyword?: string; search_volume?: number; competition?: number; competition_level?: string; cpc?: number; monthly_searches?: DfsMonthlySearch[] }
+//
+// BUG FOUND + FIXED (audit, 2026-07-17): this interface previously declared
+// `competition?: number` and read a `competition_level` field that does not
+// exist on this endpoint. CONFIRMED VIA LIVE CALL: this endpoint's real
+// response shape is `"competition": "LOW"` (a STRING enum, LOW/MEDIUM/HIGH —
+// NOT the same field as related_keywords/live's `competition`, which really
+// is a 0-1 float) and `"competition_index": 6` (the real 0-100 numeric
+// competition score on THIS endpoint). Assigning the raw "LOW" string into
+// KeywordMetric.competition (documented 0-1 number|null everywhere else)
+// made `1 - "LOW"` evaluate to NaN in computeOpportunityScore, poisoning
+// opportunity_score for every keyword sourced via this fallback path.
+interface DfsSvRow {
+  keyword?:              string
+  search_volume?:        number
+  competition?:          'LOW' | 'MEDIUM' | 'HIGH' | null  // real string enum, THIS endpoint only — never assign raw into KeywordMetric.competition
+  competition_index?:    number  // real 0-100 numeric competition score, THIS endpoint only — normalize /100 before assigning to KeywordMetric.competition
+  cpc?:                  number
+  low_top_of_page_bid?:  number  // real Google Ads bid range — CONFIRMED VIA LIVE CALL 2026-07-17, was declared but never read on this endpoint
+  high_top_of_page_bid?: number
+  monthly_searches?:     DfsMonthlySearch[]
+}
 interface DfsSvTask     { result?: DfsSvRow[]; status_code?: number }
 interface DfsSvResponse { tasks?: DfsSvTask[] }
 
@@ -496,18 +516,32 @@ export class DataForSeoKeywordProvider implements KeywordProvider {
       console.log('[DataForSEO] search_volume/live fallback succeeded', { keyword, search_volume: row.search_volume, cpc: row.cpc })
       const fallbackHistory = toMonthlyHistory(row.monthly_searches ?? [])
       const fallbackAcceleration = computeSearchAcceleration(fallbackHistory)
+      // Normalized from this endpoint's real 0-100 `competition_index` field
+      // to the 0-1 scale KeywordMetric.competition uses everywhere else
+      // (matching what related_keywords/live already provides) — never the
+      // raw `competition` string enum, which is a different field/type on
+      // this endpoint. Honest null (not a guess) when DataForSEO didn't
+      // supply competition_index for this keyword.
+      const normalizedCompetition = typeof row.competition_index === 'number' ? row.competition_index / 100 : null
+      const hasBidRange = typeof row.low_top_of_page_bid === 'number' && typeof row.high_top_of_page_bid === 'number'
       return {
         keyword,
         monthly_searches:  row.search_volume,
         growth_pct:        computeGrowthPct(row.monthly_searches ?? []),
-        competition:       row.competition ?? null,
+        competition:       normalizedCompetition,
         difficulty:        null,
         cpc:               row.cpc ?? null,
-        competition_level: row.competition_level ?? null,
+        // Not a real field on this endpoint (see DfsSvRow comment above) — honest null, never guessed.
+        competition_level: null,
         monthly_history:   fallbackHistory,
         recent_growth_pct: fallbackAcceleration?.recent_growth_pct ?? null,
         acceleration_pct:  fallbackAcceleration?.acceleration_pct  ?? null,
         search_direction:  fallbackAcceleration?.direction         ?? null,
+        // Real, at no extra API cost on this endpoint (Finding 2) — only set
+        // when BOTH sides of the range are present; never fabricate one side.
+        top_of_page_bid_range: hasBidRange
+          ? { low: row.low_top_of_page_bid as number, high: row.high_top_of_page_bid as number }
+          : null,
       }
     } catch {
       return null
