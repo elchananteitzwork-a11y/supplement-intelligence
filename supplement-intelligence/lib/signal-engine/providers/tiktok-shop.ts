@@ -153,6 +153,13 @@ interface TikTokShopResult {
   // preferred; price is a real fallback only, never a guessed default.
   price_usd?:      string   // e.g. "$8.99"
   price?:          string   // e.g. "$8.99"
+  // Bug-fix audit Finding 2 (2026-07-18): the actor's real, documented
+  // output also includes a standalone `currency` field, distinct from
+  // `price` (general, not USD-specific) and `price_usd` (already a
+  // USD-converted field). Only used to gate the `price` fallback below
+  // (see usdPriceFallback()) — `price_usd` needs no such gating, it's
+  // already documented as USD.
+  currency?:       string
   // CONFIRMED VIA LIVE CALL 2026-07-17: real cumulative LIFETIME units-sold
   // counter — see header comment (a). Never a bounded-period figure.
   sold_count?:     number
@@ -168,8 +175,74 @@ function parsePriceUsd(raw: string | undefined): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
+// Bug-fix audit Finding 2 (2026-07-18): the previous fallback chain
+// (`parsePriceUsd(r.price_usd) ?? parsePriceUsd(r.price)`) never checked
+// `currency` before trusting the raw `price` field as USD — if `price_usd`
+// was absent/unparseable and the item's real currency wasn't USD, that
+// number was silently treated as a USD value. Same bug class as, and gated
+// EXACTLY the same way as, competition.ts's `usdPrice()` (~line 140): the
+// `price` fallback is only used when `currency` is confirmed `'$'`/`'USD'`.
+// `price_usd` is never routed through this gate — it's already a documented
+// USD-converted field.
+//
+// Independent-review correction (2026-07-18): an earlier version of this
+// gate additionally allowed the fallback when `currency` was entirely
+// ABSENT, reasoning that (unlike competition.ts's `price.currency`, which
+// is always present whenever `price` itself is, per that actor's real,
+// live-confirmed shape) this actor's `currency` field might be omitted for
+// reasons unrelated to non-USD pricing. That reasoning was NOT tagged
+// `CONFIRMED VIA LIVE CALL` like every other actor-behavior claim in this
+// file (see lines 21, 27, 140, 151, 163) — and per this bug-fix task's own
+// constraint (no paid Apify calls possible right now), it genuinely cannot
+// be live-confirmed today. If the real actor also omits `currency` on some
+// non-USD listings, that asymmetric gate would let a real non-USD price
+// slip through mislabeled as USD — the exact failure class this fix exists
+// to prevent. Reverted to the strict, conservative behavior below (absent
+// currency also rejects the fallback) pending a future, live-confirmed
+// Phase B check of this actor's real currency-field behavior — this is a
+// deliberately safer default, not a final design decision.
+function usdPriceFallback(price: string | undefined, currency: string | undefined): number | undefined {
+  const parsed = parsePriceUsd(price)
+  if (parsed === undefined) return undefined
+  const trimmedCurrency = currency?.trim()
+  if (trimmedCurrency !== '$' && trimmedCurrency !== 'USD') return undefined
+  return parsed
+}
+
 function avg(arr: number[]): number | null {
   return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null
+}
+
+// Bug-fix audit Finding 1 (2026-07-18): sponsored + organic placements for
+// the same real TikTok Shop product id appearing twice in one real search
+// response is the same real, documented phenomenon already fixed for ASINs
+// in competition.ts's dedupeByAsin() (~line 160 there) — with no dedupe,
+// that single real listing would double-count in
+// estimated_gmv_total/sold_count_total and appear twice in top_products,
+// especially impactful given this actor's small MAX_ITEMS (10)/MIN_RESULTS
+// (3) sample sizes. Keeps the FIRST occurrence of each real `id` — i.e. its
+// earliest appearance in this exact response, assuming `items` arrives in
+// the actor's real search-result order. Unlike competition.ts's junglee
+// actor (confirmed via live call to have NO separate rank field, making
+// array index the only real ordering signal), this actor also exposes its
+// own `rank?: number` field — so "array order = real search rank" is an
+// unverified, best-effort assumption here, not a live-confirmed one; it
+// only affects WHICH of two duplicate entries is kept, never whether
+// dedup happens. Items with no real `id` at all have nothing reliable to
+// dedupe against, so they all pass through unchanged — same
+// non-destructive behavior as dedupeByAsin.
+function dedupeById<T extends { id?: string }>(items: T[]): T[] {
+  const seenIds = new Set<string>()
+  const result: T[] = []
+  for (const r of items) {
+    const id = r.id?.trim()
+    if (id) {
+      if (seenIds.has(id)) continue
+      seenIds.add(id)
+    }
+    result.push(r)
+  }
+  return result
 }
 
 export class TikTokShopProvider implements SignalProvider {
@@ -254,10 +327,19 @@ export class TikTokShopProvider implements SignalProvider {
   // was) specifically so fetch()'s MIN_RESULTS gate can check the count
   // AFTER this exclusion runs, not the raw Apify item count — see fetch()'s
   // own comment for why gating on the raw count was a real bug.
+  //
+  // Finding 1 (id dedupe): runs FIRST, over the raw response, so a
+  // duplicate id's sponsored+organic pair never both survive into
+  // computeSignals — mirrors competition.ts's ordering (dedupe before its
+  // own usable-set filter).
   private filterUsable(items: TikTokShopResult[]): (TikTokShopResult & { sold_count: number; _price: number })[] {
-    const withPrice = items.map(r => ({
+    const deduped = dedupeById(items)
+    const withPrice = deduped.map(r => ({
       ...r,
-      _price: parsePriceUsd(r.price_usd) ?? parsePriceUsd(r.price),
+      // Finding 2 (currency): the `price` fallback is gated by
+      // usdPriceFallback() — see its own comment. `price_usd` is used
+      // directly, no gating needed.
+      _price: parsePriceUsd(r.price_usd) ?? usdPriceFallback(r.price, r.currency),
     }))
     return withPrice.filter(
       (r): r is typeof r & { sold_count: number; _price: number } =>
