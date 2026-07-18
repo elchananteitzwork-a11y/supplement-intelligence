@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Anthropic from '@anthropic-ai/sdk'
 import type { ComparisonItem } from '../route'
+import { buildComparisonTable } from './format'
 
 export const maxDuration = 60
 
@@ -24,44 +25,6 @@ function supabaseAuthClient() {
   )
 }
 
-function fmtN(n: number | null, prefix = '', suffix = ''): string {
-  if (n === null || n === undefined) return 'N/A'
-  return `${prefix}${n.toLocaleString()}${suffix}`
-}
-
-function fmtK(n: number | null): string {
-  if (n === null) return 'N/A'
-  return n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n}`
-}
-
-function buildComparisonTable(items: ComparisonItem[]): string {
-  const cols = items.map(i => `"${i.product_angle.slice(0, 40)}"`).join(' | ')
-  const rows: string[] = [
-    `Metric                    | ${cols}`,
-    `---                       | ${items.map(() => '---').join(' | ')}`,
-    `Opportunity Score (0-100) | ${items.map(i => i.opportunity_score).join(' | ')}`,
-    `Market Verdict            | ${items.map(i => i.verdict_code ?? 'N/A').join(' | ')}`,
-    `Founder Fit (1-5)         | ${items.map(i => i.fit_rank ?? 'N/A').join(' | ')}`,
-    `Market Revenue/mo         | ${items.map(i => fmtK(i.market_revenue_mo)).join(' | ')}`,
-    `Median Price              | ${items.map(i => fmtN(i.median_price, '$')).join(' | ')}`,
-    `Competitors               | ${items.map(i => fmtN(i.competitor_count)).join(' | ')}`,
-    `Review Concentration      | ${items.map(i => fmtN(i.review_concentration, '', '%')).join(' | ')}`,
-    `90-day Momentum           | ${items.map(i => fmtN(i.momentum_90d_pct, '', '%')).join(' | ')}`,
-    `Trend Direction           | ${items.map(i => i.trend_direction ?? 'N/A').join(' | ')}`,
-    `TikTok Views              | ${items.map(i => fmtN(i.tiktok_view_count)).join(' | ')}`,
-    `Thresholds Passed (0-5)   | ${items.map(i => i.threshold_pass_count).join(' | ')}`,
-    `Kill Switches Clear       | ${items.map(i => i.all_switches_clear === null ? 'N/A' : i.all_switches_clear ? 'Yes' : `No (${i.triggered_switches.join(', ')})`).join(' | ')}`,
-    `Launch Complexity         | ${items.map(i => i.launch_complexity).join(' | ')}`,
-    `Min Capital Required      | ${items.map(i => fmtK(i.min_capital_required)).join(' | ')}`,
-    `Breakeven COGS/unit       | ${items.map(i => fmtN(i.breakeven_cogs, '$')).join(' | ')}`,
-    `Year 1 Revenue (base)     | ${items.map(i => fmtK(i.year1_base)).join(' | ')}`,
-    `Margin Viable             | ${items.map(i => i.margin_viable ? 'Yes' : 'No').join(' | ')}`,
-    `Capital Fit               | ${items.map(i => i.capital_fit_level ?? 'N/A').join(' | ')}`,
-    `Timeline Fit              | ${items.map(i => i.timeline_fit_level ?? 'N/A').join(' | ')}`,
-  ]
-  return rows.join('\n')
-}
-
 // POST /api/research/compare/recommend
 // Body: { items: ComparisonItem[] }
 export async function POST(req: NextRequest) {
@@ -74,11 +37,12 @@ export async function POST(req: NextRequest) {
     if (items.length < 2) return NextResponse.json({ error: 'At least 2 items required' }, { status: 400 })
 
     const hasProfile = items.some(i => i.fit_rank !== null)
+    const hasEstimated = items.some(i => i.fee_data_source === 'estimated')
     const table = buildComparisonTable(items)
 
     const prompt = `You are an investment advisor reviewing ${items.length} product opportunity comparisons for an Amazon supplement entrepreneur.
 
-Below is a structured comparison of verified market data and computed metrics. Every number was computed deterministically from real data — do not modify, question, or recalculate any value.
+Below is a structured comparison of verified market data and computed metrics. Every number was computed deterministically from real data — do not modify, question, or recalculate any value, except where a figure is marked (est.), which reflects a disclosed assumption (industry-typical Amazon fee defaults used because real fee data was unavailable for that query), not measured data.${hasEstimated ? ' When discussing a figure marked (est.), note that it is an estimate rather than presenting it as precisely measured.' : ''}
 
 COMPARISON DATA:
 ${table}

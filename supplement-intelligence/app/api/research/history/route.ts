@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { assessLaunchThresholds } from '@/lib/stage25/launch-threshold'
+import { computeOpportunityScore } from '@/lib/stage25/opportunity-score'
 import type { Stage1Evidence } from '@/lib/evidence/adapter'
 
 export const maxDuration = 30
@@ -27,21 +27,6 @@ function serviceClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
-}
-
-// Derive a 0–100 opportunity score from Stage 1 thresholds + Stage 4 verdict.
-function computeOpportunityScore(evidence: Stage1Evidence, verdictCode: string | null): number {
-  const thresholds = assessLaunchThresholds(evidence)
-  const base = thresholds.pass_count * 14  // 0..70
-
-  if (!verdictCode) return base
-  switch (verdictCode) {
-    case 'PURSUE':               return Math.min(100, base + 30)
-    case 'PURSUE_WITH_CAUTION':  return Math.min(100, base + 15)
-    case 'INVESTIGATE_FURTHER':  return base
-    case 'DO_NOT_PURSUE':        return Math.max(0, base - 20)
-    default:                     return base
-  }
 }
 
 // ── GET /api/research/history ─────────────────────────────────────────────────
@@ -106,8 +91,14 @@ export async function GET() {
         status = 'stage1'
       }
 
-      const evidence = s.signal_data as Stage1Evidence
-      const opportunity_score = computeOpportunityScore(evidence, verdict_code)
+      const evidence = s.signal_data as Stage1Evidence | undefined
+      // Fix (2026-07-18 audit follow-up — same gap Finding 7 closed in
+      // compare/route.ts): signal_data can in principle be null/undefined
+      // for a row, and computeOpportunityScore -> assessLaunchThresholds
+      // dereferences evidence.est_monthly_revenue etc. unconditionally, so
+      // an unguarded call would throw and crash this entire GET for the
+      // user. Guard the same way compare/route.ts:226 does.
+      const opportunity_score = evidence ? computeOpportunityScore(evidence, verdict_code) : null
 
       return {
         id:                 s.id as string,

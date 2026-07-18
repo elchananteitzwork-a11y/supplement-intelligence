@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { assessLaunchThresholds } from '@/lib/stage25/launch-threshold'
+import { computeOpportunityScore } from '@/lib/stage25/opportunity-score'
 import { computeFullUnitEconomics } from '@/lib/stage4/unit-economics'
 import { scoreFit } from '@/lib/stage25/fit-layer'
 import type { Stage1Evidence } from '@/lib/evidence/adapter'
@@ -50,13 +51,20 @@ export interface ComparisonItem {
   base_price:           number | null
   year1_base:           number | null
   base_monthly:         number | null
+  // 'real' when both avg_referral_fee_pct/avg_fba_fee came from real Keepa
+  // data; 'estimated' when either was missing and computeSensitivityAnalysis
+  // fell back to industry-typical defaults (15% referral, $4.50 FBA); null
+  // when no evidence was available to compute unit economics at all. See
+  // lib/stage4/unit-economics.ts's SensitivityAnalysis.fee_data_source.
+  fee_data_source:      'real' | 'estimated' | null
   // Founder fit (if profile)
   fit_rank:             number | null
   capital_fit_level:    string | null
   channel_fit_level:    string | null
   timeline_fit_level:   string | null
-  // Derived composite score
-  opportunity_score:    number
+  // Derived composite score — null (not 0) when no evidence exists to score,
+  // so callers never mistake "unscoreable" for a real, worst-possible score.
+  opportunity_score:    number | null
 }
 
 function supabaseAuthClient() {
@@ -72,20 +80,6 @@ function supabaseAuthClient() {
       },
     }
   )
-}
-
-function computeScore(evidence: Stage1Evidence, verdictCode: string | null): number {
-  const thresholds = assessLaunchThresholds(evidence)
-  const total = Math.max(1, thresholds.checks.length)
-  const base = Math.round((thresholds.pass_count / total) * 70)  // 0..70
-  if (!verdictCode) return base
-  switch (verdictCode) {
-    case 'PURSUE':               return Math.min(100, base + 30)
-    case 'PURSUE_WITH_CAUTION':  return Math.min(100, base + 15)
-    case 'INVESTIGATE_FURTHER':  return base
-    case 'DO_NOT_PURSUE':        return Math.max(0, base - 20)
-    default:                     return base
-  }
 }
 
 // GET /api/research/compare?ids=id1,id2,id3
@@ -179,20 +173,22 @@ export async function GET(req: NextRequest) {
       const triggered = ksResults.filter((r: { triggered?: boolean }) => r.triggered).map((r: { id?: string }) => r.id ?? '')
 
       // Unit economics
-      let breakeven_cogs: number | null = null
-      let base_price:     number | null = null
-      let year1_base:     number | null = null
-      let base_monthly:   number | null = null
+      let breakeven_cogs:  number | null = null
+      let base_price:      number | null = null
+      let year1_base:      number | null = null
+      let base_monthly:    number | null = null
+      let fee_data_source: 'real' | 'estimated' | null = null
       if (evidence) {
         const econ = computeFullUnitEconomics(
           evidence,
           thesis as unknown as InvestmentThesis,
           profile as FounderProfile ?? undefined
         )
-        breakeven_cogs = econ.sensitivity.base_case.breakeven_cogs
-        base_price     = econ.sensitivity.base_case.price
-        year1_base     = econ.revenue_envelope.year1_base
-        base_monthly   = econ.revenue_envelope.base_monthly
+        breakeven_cogs  = econ.sensitivity.base_case.breakeven_cogs
+        base_price      = econ.sensitivity.base_case.price
+        year1_base      = econ.revenue_envelope.year1_base
+        base_monthly    = econ.revenue_envelope.base_monthly
+        fee_data_source = econ.sensitivity.fee_data_source
       }
 
       // Founder fit
@@ -227,7 +223,7 @@ export async function GET(req: NextRequest) {
         ? 'stage3'
         : 'stage2'
 
-      const opportunity_score = evidence ? computeScore(evidence, verdict_code) : 0
+      const opportunity_score = evidence ? computeOpportunityScore(evidence, verdict_code) : null
 
       return {
         thesis_id:            thesisId,
@@ -261,6 +257,7 @@ export async function GET(req: NextRequest) {
         base_price,
         year1_base,
         base_monthly,
+        fee_data_source,
         fit_rank,
         capital_fit_level,
         channel_fit_level,
