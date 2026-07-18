@@ -117,6 +117,43 @@ function detectPeakMonths(points: TimelinePoint[]): string[] {
   return detectPeakAndLowMonths(monthPoints).peakMonths.slice(0, 2).map(m => MONTH_NAMES[m])
 }
 
+// ── Rate-limit classification ─────────────────────────────────────
+// Google Trends returns a 302→/sorry page (or a bare "429 Too Many
+// Requests" error page) when rate-limited, and the google-trends-api
+// package's JSON.parse of that HTML throws a generic SyntaxError whose
+// .message never contains "302"/"429"/"sorry" (confirmed live 2026-07-17:
+// "Unexpected token '<', \"<html lang\"... is not valid JSON"). Inspect the
+// real raw response body's actual markers instead of the parse-error
+// message. Live-captured real bodies contain either `google.com/sorry/index`
+// (302 redirect to the CAPTCHA/consent page) or `Error 429 (Too Many
+// Requests)` with `errors/robot.png`.
+//
+// The package makes two sequential real requests per interestOverTime()
+// call, and a rate limit can hit either one, with different failure shapes:
+//   1. `/trends/api/explore` — parseResults() in
+//      node_modules/google-trends-api/src/utilities.js throws its
+//      JSON.parse SyntaxError with the raw body attached as `e.requestBody`.
+//   2. `/trends/api/widgetdata/multiline` — the package's own JSON.parse of
+//      this response is wrapped in a try/catch that SWALLOWS the parse
+//      failure and resolves successfully with the raw (unparsed) HTML
+//      string instead of throwing (same utilities.js, ~lines 290-299). That
+//      raw string then reaches this file's own `JSON.parse(raw)` in
+//      fetch(), which throws a plain SyntaxError with NO `.requestBody`
+//      anywhere. fetch() hoists that raw string and passes it in as
+//      `rawBody` so this function always has a body to inspect regardless
+//      of which of the two requests actually failed.
+// Exported for direct, deterministic unit testing against real/realistic
+// captured bodies (no network mocking required).
+export function isGoogleTrendsRateLimit(e: unknown, rawBody?: string): boolean {
+  const msg = e instanceof Error ? e.message : String(e)
+  const requestBody = (e as { requestBody?: unknown })?.requestBody
+  const body = typeof requestBody === 'string' ? requestBody : (rawBody ?? '')
+  return /google\.com\/sorry\//.test(body)
+    || /Error 429/.test(body)
+    || /errors\/robot\.png/.test(body)
+    || msg.includes('429')
+}
+
 // ── Core provider class ───────────────────────────────────────────
 
 export class GoogleTrendsProvider implements SignalProvider {
@@ -153,11 +190,19 @@ export class GoogleTrendsProvider implements SignalProvider {
     // Try each candidate in order (most specific → broadest) until one
     // returns ≥8 data points. Sequential to avoid rate-limiting GT.
     for (const keyword of candidates) {
+      // Hoisted out of the try block so a rate limit on the *second* of the
+      // package's two internal requests — which resolves successfully with
+      // the raw unparsed HTML instead of throwing (see isGoogleTrendsRateLimit
+      // doc comment) — still leaves the real response body available to the
+      // classifier in the catch block below, from this file's own JSON.parse
+      // failure on it.
+      let raw: string | undefined
       try {
-        const [raw, topRegions] = await Promise.all([
+        const [r, topRegions] = await Promise.all([
           googleTrends.interestOverTime({ keyword, startTime: oneYearAgo, geo: 'US' }),
           this.fetchTopRegions(keyword),
         ])
+        raw = r
 
         const parsed: { default: { timelineData: TimelinePoint[] } } = JSON.parse(raw)
         const all   = parsed.default.timelineData ?? []
@@ -174,16 +219,12 @@ export class GoogleTrendsProvider implements SignalProvider {
         }
         return this.computeSignals(category, keyword, valid, topRegions)
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e)
-        // Google Trends returns a 302→/sorry page when rate-limited.
-        // The provider returns null so the engine falls back to Keepa-only.
-        // In production (Vercel serverless), each invocation has a different IP
-        // so rate limits from local testing sessions do not affect live calls.
-        const isRateLimit = msg.includes('302') || msg.includes('sorry') || msg.includes('429')
+        const isRateLimit = isGoogleTrendsRateLimit(e, raw)
         if (isRateLimit) {
           console.warn('Google Trends rate-limited — falling back to Keepa-only', { category, keyword })
           return null  // rate-limited: stop trying, don't burn more requests
         }
+        const msg = e instanceof Error ? e.message : String(e)
         console.error('Google Trends provider error', { category, keyword, error: msg.slice(0, 120) })
         continue
       }

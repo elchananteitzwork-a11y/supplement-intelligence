@@ -636,7 +636,7 @@ function CategorySignalPanel({ signal, category }: { signal: AggregatedSignals |
   const headline: { label: string; value: string | undefined }[] = [
     { label: 'Search volume', value: signal.demand?.value.search_volume },
     { label: 'Trend', value: signal.demand?.value.trend },
-    { label: 'YoY (Amazon BSR)', value: signal.growth?.value.yoy_change },
+    { label: `YoY (${signal.growth?.primarySource ?? '—'})`, value: signal.growth?.value.yoy_change },
     { label: 'Competing sellers', value: signal.competition?.value.competing_brands },
     { label: 'Saturation', value: signal.competition?.value.saturation },
     { label: 'Avg. price', value: signal.pricing?.value.avg_price },

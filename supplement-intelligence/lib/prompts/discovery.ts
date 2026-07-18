@@ -89,7 +89,7 @@ export function buildSignalContext(
   if (signals.growth) {
     const g = signals.growth.value
     lines.push('GROWTH (verified):')
-    if (g.yoy_change) lines.push(`  - Year-over-year BSR trend: ${g.yoy_change}`)
+    if (g.yoy_change) lines.push(`  - Year-over-year trend (${signals.growth.primarySource}): ${g.yoy_change}`)
     if (g.momentum)   lines.push(`  - Momentum: ${g.momentum}`)
     lines.push(`  - Confidence: ${Math.round(signals.growth.confidence * 100)}%`)
     lines.push('')
