@@ -78,17 +78,51 @@ export function checkFdaClearanceRequired(
 // Triggered when maximum achievable gross margin cannot reach 35%.
 // Formula: maxGM = (price_floor - price_floor×referralPct/100 - fbaFee - optimistic_cogs) / price_floor
 // price_floor = p25 of the price distribution (worst-case realistic sell price)
-// optimistic_cogs = COGS assuming 50% of the median market price (very generous)
+//
+// COGS calibration (v2.7.0 — mirrors lib/scoring.ts's computeEconomicsGateTier,
+// which this function is documented there as mirroring): optimistic_cogs is
+// 35% of price_floor, not 50%. At 50%, the gate fired for nearly every
+// supplement at $30-$40 (GM ~20%) because 50% COGS is a worst-case
+// single-unit drop-ship assumption, not the right planning horizon for a
+// "should I build this brand" decision. At 2,000-5,000 unit MOQ (a
+// reasonable first production run), branded supplement COGS typically falls
+// to 25-40% of ASP — making 35% an optimistic-but-achievable target, not a
+// fantasy. Products that genuinely cannot hit 35% GM at any price point
+// still trigger the gate. (Audit finding, 2026-07: this constant had drifted
+// to 50% here while scoring.ts's mirrored formula was already corrected to
+// 35%, producing contradictory verdicts on identical inputs.)
 //
 // Boundary zone: |maxGM - 0.35| < 0.05 → trigger conservatively, show uncertainty note
+//
+// Honesty (audit finding, 2026-07): this is a hard blocker
+// (runAllKillSwitches -> stage4/verdict.ts forces DO_NOT_PURSUE when
+// triggered), so — mirroring scoring.ts's computeEconomicsGateTier exactly —
+// it must never fire on an invented referral%/FBA-fee default. When real
+// Keepa fee data isn't available, return a non-triggering result rather than
+// silently substituting a guessed number.
 
 export function checkEconomicsStructurallyBroken(
-  priceFloor:    number,   // p25 of price distribution, or min price
-  referralPct:   number,   // e.g. 15
-  fbaFee:        number,   // dollars
-  optimisticCOGS?: number  // override; if not provided, use 50% of price_floor
+  priceFloor:    number,               // p25 of price distribution, or min price
+  referralPct:   number | undefined,   // real Keepa avg_referral_fee_pct only, e.g. 15 — never a default
+  fbaFee:        number | undefined,   // real Keepa avg_fba_fee only, dollars — never a default
+  optimisticCOGS?: number              // override; if not provided, use 35% of price_floor
 ): KillSwitchResult {
-  const cogs   = optimisticCOGS ?? priceFloor * 0.50
+  if (priceFloor <= 0 || typeof referralPct !== 'number' || typeof fbaFee !== 'number') {
+    return {
+      id:           'ECONOMICS_STRUCTURALLY_BROKEN',
+      triggered:    false,
+      boundary_zone: false,
+      mode:         'flag',
+      reason:       'Real Amazon referral fee / FBA fee / price data unavailable for this query — economics gate not evaluated (never estimated from a default)',
+      data_used:    {
+        price_floor:  priceFloor > 0 ? priceFloor : 'unavailable',
+        referral_pct: typeof referralPct === 'number' ? referralPct : 'unavailable',
+        fba_fee:      typeof fbaFee === 'number' ? fbaFee : 'unavailable',
+      },
+    }
+  }
+
+  const cogs   = optimisticCOGS ?? priceFloor * 0.35
   const maxGM  = (priceFloor - priceFloor * (referralPct / 100) - fbaFee - cogs) / priceFloor
   const delta  = Math.abs(maxGM - 0.35)
   const boundary_zone = delta < 0.05
@@ -245,10 +279,14 @@ export function runAllKillSwitches(
     fda_claim_type?: string
   }
 ): KillSwitchEvaluation {
-  // KS3 inputs: use p25 of price distribution as price floor
+  // KS3 inputs: use p25 of price distribution as price floor. referralPct/
+  // fbaFee are passed through as real Keepa data or undefined — no silent
+  // 15%/$4.50 default (audit finding, 2026-07: a hard blocker must never
+  // fire on an invented fee assumption). checkEconomicsStructurallyBroken
+  // itself returns a non-triggering result when either is undefined.
   const priceFloor = evidence.median_price?.value ?? evidence.price_range?.value?.min ?? 0
-  const referralPct = evidence.avg_referral_fee_pct?.value ?? 15
-  const fbaFee = evidence.avg_fba_fee?.value ?? 4.50
+  const referralPct = evidence.avg_referral_fee_pct?.value
+  const fbaFee = evidence.avg_fba_fee?.value
 
   const results: KillSwitchResult[] = [
     checkPatentBlocking(aiFlags.patent_blocking, aiFlags.patent_claim_text),

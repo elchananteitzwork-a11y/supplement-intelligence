@@ -35,16 +35,36 @@ function checkMarketSize(evidence: Stage1Evidence): ThresholdCheck {
 }
 
 // Price floor: must be $15+ to achieve 50% GM after FBA fees
+//
+// Honesty fix (2026-07-18 audit — same "hard blocker must never fire on an
+// invented fee assumption" fix already applied to KS3's
+// checkEconomicsStructurallyBroken in lib/stage3/kill-switches.ts): this
+// check can return 'fail', and assessLaunchThresholds/determineMarketVerdict
+// (lib/stage4/verdict.ts, thresholdsBlock) treats 2+ fails as a real
+// contributor to DO_NOT_PURSUE. It must never pass OR fail on a guessed
+// referral%/FBA-fee default. When real Keepa fee data isn't available for
+// this query, report insufficient data instead of silently substituting
+// 15%/$0 (the prior, discredited default).
 function checkPriceFloor(evidence: Stage1Evidence): ThresholdCheck {
   const price = evidence.median_price?.value ?? 0
-  const fba   = evidence.avg_fba_fee?.value ?? 0
-  const ref   = (evidence.avg_referral_fee_pct?.value ?? 15) / 100
 
   if (price === 0) {
     return { result: 'warn', metric: 'Price Floor', value: 'no data', reason: 'No price data available — cannot validate margin floor' }
   }
 
-  const netRevenue = price * (1 - ref) - fba
+  const fba = evidence.avg_fba_fee?.value
+  const ref = evidence.avg_referral_fee_pct?.value
+
+  if (typeof fba !== 'number' || typeof ref !== 'number') {
+    return {
+      result: 'warn',
+      metric: 'Price Floor',
+      value:  `$${price.toFixed(0)}`,
+      reason: 'Real Amazon referral fee / FBA fee data unavailable for this query — margin floor not evaluated (never estimated from a default)',
+    }
+  }
+
+  const netRevenue = price * (1 - ref / 100) - fba
   const impliedGM  = price > 0 ? netRevenue / price : 0
 
   if (impliedGM >= 0.45) {

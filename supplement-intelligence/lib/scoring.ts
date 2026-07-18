@@ -1,4 +1,5 @@
 import type { MemoData, BuildDecision } from '@/types/index'
+import type { KeywordMetric } from '@/lib/keyword-engine/types'
 import { checkKeywordIntent, checkKeywordProductSignals, checkKeywordSemanticRelevance, keywordSpecificity } from '@/lib/keyword-engine/relevance-guard'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 
@@ -245,7 +246,35 @@ export interface EvidenceBreadth {
 // reporting (lib/confidence, versioned separately via CONFIDENCE_MODEL_VERSION)
 // — verdicts and scores for any given evidence set are bit-for-bit identical
 // before and after this change.
-export const SCORING_ENGINE_VERSION = '2.10.0'
+//
+// 2.11.0 (2026-07-18 audit Finding 2 — validated-keyword consistency fix):
+// computeMarketAccessibility's difficulty->ease sub-signal, computeProfitability's
+// CAC-pressure cpc sub-signal, and the demandCrossValidated weight-exclusion
+// check in assembleDimensions previously read the raw, unfiltered
+// keyword_intelligence.top_buying[0] — bypassing the nav-intent +
+// semantic-relevance filter (checkKeywordIntent / checkKeywordSemanticRelevance
+// / checkKeywordProductSignals) that computeDemand and computeReviewMoatScore
+// already applied per the v2.4.0 fix above. All keyword-consuming sub-signals
+// now go through one shared helper, getValidatedKeywords (single source of
+// truth for "the validated top keyword"), so a navigational or
+// category-drift-failing keyword (the exact "mobility scooter credited to a
+// pet-mobility query" class of bug v2.4.0 was written to fix) can no longer
+// silently drive market accessibility, CAC pressure, or the thin-corpus
+// demand-cross-validation decision. Score is UNCHANGED for any memo where
+// top_buying[0] already passed the filter (the common case — the fixed
+// helper's keywords[0] is identical to the old raw top_buying[0] whenever
+// nothing was rejected). Only memos in the same narrow class the v2.4.0 fix
+// already targeted can see a different market accessibility/profitability
+// rawScore or a different demandCrossValidated outcome. Legacy memos scored
+// under 2.10.0 or earlier were computed with the unfiltered read at these 3
+// sites; re-evaluate before comparing scores across this version boundary,
+// same as every prior bump. (Finding 1 of the same audit — the KS3 kill-
+// switch economics-gate fix in lib/stage3/kill-switches.ts — required no
+// SCORING_ENGINE_VERSION bump: kill-switch results are frozen at analysis
+// time via reconstructKillSwitchEvaluation, never recomputed from this
+// module, so there is no "old vs. new score" comparison for this version
+// string to guard there.)
+export const SCORING_ENGINE_VERSION = '2.11.0'
 
 export interface GroundedScore {
   score:       number   // 0-100
@@ -520,18 +549,32 @@ function computeDemandBreadthBoost(keywords: { monthly_searches?: number | null 
 
 interface RealResult { rawScore: number | null; sourceLabel: string }
 
-export function computeDemand(m: MemoData): RealResult {
-  const allKeywords = m.keyword_intelligence?.top_buying ?? []
-  const se = m.signal_evidence
+export interface ValidatedKeywords {
+  keywords:   KeywordMetric[]   // nav-filtered + semantically-relevant, original top_buying order preserved
+  navSkipped: KeywordMetric[]
+  semSkipped: KeywordMetric[]
+}
 
-  // Two-stage keyword filter:
-  //   Stage 1 — navigational intent (e.g. "breakfast near me"): clearly not a
-  //     product purchase query regardless of volume.
-  //   Stage 2 — semantic product relevance: when m.product_query is present
-  //     (stored at generation time, v2.2.0+) we use the full anchor-word check
-  //     (checkKeywordSemanticRelevance) — the same filter applied during keyword
-  //     fetching. Legacy memos without product_query fall back to the signal-only
-  //     check (checkKeywordProductSignals), which is less precise but never wrong.
+// ── Shared validated-keyword filter (v2.4.0, generalized 2026-07 per audit
+// finding) — single source of truth for "the validated top keyword." Every
+// scoring sub-signal that reads keyword_intelligence.top_buying MUST go
+// through this helper rather than independently re-deriving top_buying[0];
+// three call sites (market accessibility ease, CAC-pressure CPC, and the
+// demand-cross-validation check) previously bypassed this filter and could
+// score off a navigational or semantically-irrelevant keyword. Do not add a
+// new raw top_buying[0] read anywhere in this file — extend this helper.
+//
+// Two-stage keyword filter:
+//   Stage 1 — navigational intent (e.g. "breakfast near me"): clearly not a
+//     product purchase query regardless of volume.
+//   Stage 2 — semantic product relevance: when m.product_query is present
+//     (stored at generation time, v2.2.0+) we use the full anchor-word check
+//     (checkKeywordSemanticRelevance) — the same filter applied during keyword
+//     fetching. Legacy memos without product_query fall back to the signal-only
+//     check (checkKeywordProductSignals), which is less precise but never wrong.
+export function getValidatedKeywords(m: MemoData): ValidatedKeywords {
+  const allKeywords = m.keyword_intelligence?.top_buying ?? []
+
   const withVolume = allKeywords.filter(kw => kw.monthly_searches)
   const navSkipped = withVolume.filter(kw => checkKeywordIntent(kw.keyword).navigational)
   const afterNav   = withVolume.filter(kw => !checkKeywordIntent(kw.keyword).navigational)
@@ -541,8 +584,15 @@ export function computeDemand(m: MemoData): RealResult {
       ? checkKeywordSemanticRelevance(m.product_query, keyword).allowed
       : checkKeywordProductSignals(keyword).valid
 
-  const semSkipped    = afterNav.filter(kw => !isSemanticValid(kw.keyword))
-  const validKeywords = afterNav.filter(kw =>  isSemanticValid(kw.keyword))
+  const semSkipped = afterNav.filter(kw => !isSemanticValid(kw.keyword))
+  const keywords   = afterNav.filter(kw =>  isSemanticValid(kw.keyword))
+
+  return { keywords, navSkipped, semSkipped }
+}
+
+export function computeDemand(m: MemoData): RealResult {
+  const se = m.signal_evidence
+  const { keywords: validKeywords, navSkipped, semSkipped } = getValidatedKeywords(m)
   const topKeyword = validKeywords[0] ?? null
 
   if (topKeyword?.monthly_searches) {
@@ -632,16 +682,9 @@ export function computeReviewMoatScore(m: MemoData): number | null {
   const avgReviews = m.signal_evidence?.review_velocity?.value.avg_review_count
   if (typeof avgReviews !== 'number' || avgReviews < REVIEW_MOAT_MIN_REVIEWS) return null
 
-  // Use the same semantically validated top keyword as computeDemand — never
-  // the raw top_buying[0], which may be a broad category keyword.
-  const validKw = (m.keyword_intelligence?.top_buying ?? [])
-    .filter(kw => typeof kw.monthly_searches === 'number' && kw.monthly_searches > 0)
-    .filter(kw => !checkKeywordIntent(kw.keyword).navigational)
-    .find(kw =>
-      m.product_query
-        ? checkKeywordSemanticRelevance(m.product_query, kw.keyword).allowed
-        : checkKeywordProductSignals(kw.keyword).valid,
-    )
+  // Use the same shared validated-keyword filter as every other sub-signal —
+  // never the raw top_buying[0], which may be a broad category keyword.
+  const validKw = getValidatedKeywords(m).keywords[0]
 
   if (!validKw) return null
   const rawSearches = validKw.monthly_searches as number
@@ -673,7 +716,9 @@ function computeMarketAccessibility(m: MemoData): GatedResult {
   if (se?.competition) {
     subSignals.push({ score: se.competition.value.score, weight: 0.30, source: 'keepa' })
   }
-  const topKeyword = m.keyword_intelligence?.top_buying?.[0]
+  // Validated keyword (nav + semantic filtered) — never raw top_buying[0].
+  // See getValidatedKeywords for rationale (audit finding, 2026-07).
+  const topKeyword = getValidatedKeywords(m).keywords[0]
   if (typeof topKeyword?.difficulty === 'number') {
     subSignals.push({ score: difficultyToEaseScore(topKeyword.difficulty), weight: 0.25, source: 'dataforseo' })
   }
@@ -810,7 +855,9 @@ function computeProfitability(m: MemoData): RealResult {
   // relative acquisition difficulty across categories but underestimates the
   // absolute cost. Calibrate the 20% denominator (cacPressureToScore) against
   // real CAC data when available.
-  const cpc = m.keyword_intelligence?.top_buying?.[0]?.cpc
+  // Validated keyword (nav + semantic filtered) — never raw top_buying[0].
+  // See getValidatedKeywords for rationale (audit finding, 2026-07).
+  const cpc = getValidatedKeywords(m).keywords[0]?.cpc
   const cacSourceNote = cpc != null ? ' (CPC proxy — see scoring.ts cacPressureToScore)' : ''
   if (typeof cpc === 'number' && cpc > 0) {
     subSignals.push({ score: cacPressureToScore(cpc / price), weight: 0.25, source: `dataforseo${cacSourceNote}` })
@@ -1059,7 +1106,7 @@ function computeSafetyGateTier(m: MemoData): BuildDecision | null {
 // supplement COGS typically falls to 25–40% of ASP — making 35% an
 // optimistic-but-achievable target, not a fantasy. Products that genuinely
 // cannot hit 35% GM at any price point still trigger the gate.
-function computeEconomicsGateTier(m: MemoData): { decision: BuildDecision | null; reason?: string } {
+export function computeEconomicsGateTier(m: MemoData): { decision: BuildDecision | null; reason?: string } {
   const priceFloor = realisticPrice(m)
   if (priceFloor === null || priceFloor <= 0) return { decision: null }
 
@@ -1177,7 +1224,9 @@ function assembleDimensions(m: MemoData): { candidates: ScoreDimension[]; gateTi
   if (painScore !== null) {
     const ci = m.consumer_intelligence!
     const thinCorpus  = ci.totalReviewsCollected < THIN_SAMPLE_THRESHOLD
-    const topKeyword  = m.keyword_intelligence?.top_buying?.[0]
+    // Validated keyword (nav + semantic filtered) — never raw top_buying[0].
+    // See getValidatedKeywords for rationale (audit finding, 2026-07).
+    const topKeyword  = getValidatedKeywords(m).keywords[0]
     const se          = m.signal_evidence
     const keepaMonthlySold    = parseDollarString(se?.revenue?.value.est_monthly_units_sold) ?? 0
     const demandCrossValidated =

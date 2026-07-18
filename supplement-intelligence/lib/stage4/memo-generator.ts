@@ -72,7 +72,12 @@ export function formatRegulatoryLinesForMemo(reg: RegulatoryIntelligence | null 
   return lines
 }
 
-function buildMemoPrompt(
+// Exported (additive, no behavior change) so the fee-honesty fix (2026-07-18
+// audit, round 3) is directly unit testable without mocking the Anthropic
+// SDK or building the full InvestmentThesis/AdversarialDebateResult/
+// MarketVerdict fixtures generateInvestmentMemo otherwise requires — same
+// rationale as formatRegulatoryLinesForMemo's export above.
+export function buildMemoPrompt(
   thesis:       InvestmentThesis,
   evidence:     Stage1Evidence,
   debate:       AdversarialDebateResult,
@@ -99,12 +104,26 @@ function buildMemoPrompt(
     if (rd.is_review_protected) evLines.push('Review protection flag: YES — incumbent moat via review volume')
   }
 
+  // Honesty fix (2026-07-18 audit, round 3 — Law 12, no fabricated
+  // precision): economics.sensitivity.fee_data_source ('real' | 'estimated')
+  // is computed in lib/stage4/unit-economics.ts from evidence.avg_referral_fee_pct
+  // / evidence.avg_fba_fee — the SAME evidence object passed into this
+  // function. ppc.headroom_after_ads (from evidence.ppc_economics, computed
+  // upstream in app/api/research/market-signal/route.ts from the identical
+  // avg_referral_fee_pct/avg_fba_fee fields, silently defaulted to 15%/$4.50
+  // there when real data is absent) has no fee-realness flag of its own, but
+  // economics.sensitivity.fee_data_source is a reliable proxy for it since
+  // both reads originate from the same evidence fields on the same object.
+  const feeDataIsReal = economics.sensitivity.fee_data_source === 'real'
+
   // PPC economics
   const ppc = evidence.ppc_economics?.value
   if (ppc) {
     evLines.push(`PPC risk: ${ppc.ppc_risk_level} — ${ppc.risk_reason}`)
     if (ppc.est_acos_pct !== null) evLines.push(`Est. ACOS at launch: ${ppc.est_acos_pct}% (Google CPC-derived; label as estimate in prose)`)
-    if (ppc.headroom_after_ads !== null) evLines.push(`Net revenue after ads (before COGS): $${ppc.headroom_after_ads.toFixed(2)}/unit`)
+    if (ppc.headroom_after_ads !== null && feeDataIsReal) {
+      evLines.push(`Net revenue after ads (before COGS): $${ppc.headroom_after_ads.toFixed(2)}/unit`)
+    }
     evLines.push(`Paid launch viable: ${ppc.paid_viable ? 'YES' : 'NO (paid acquisition not economically viable at current price point)'}`)
   }
 
@@ -113,6 +132,22 @@ function buildMemoPrompt(
 
   const econBase = economics.sensitivity.base_case
   const revEnv   = economics.revenue_envelope
+
+  // Honesty fix (2026-07-18 audit, round 3): when fee_data_source is
+  // 'estimated', omit the specific breakeven-COGS / FBA+referral dollar
+  // figures from the prompt entirely (preferred — matches the verdict.ts
+  // rationale fix) rather than handing the model a fabricated-precision
+  // number it would otherwise be instructed to state as fact.
+  const economicsBlock = feeDataIsReal
+    ? `Breakeven COGS at ${econBase.target_gm_pct}% GM target: $${econBase.breakeven_cogs.toFixed(2)}/unit
+Price point: $${econBase.price}
+FBA + referral costs: $${(econBase.fba_fee + econBase.price * econBase.referral_pct / 100).toFixed(2)}/unit
+Conservative monthly revenue (2% share): $${(revEnv.conservative_monthly / 1000).toFixed(1)}k
+Base case monthly revenue (10% share): $${(revEnv.base_monthly / 1000).toFixed(1)}k`
+    : `Price point: $${econBase.price}
+Real Amazon referral fee / FBA fee data was NOT available for this query — no breakeven COGS or FBA/referral cost figure is provided; do not state or imply one.
+Conservative monthly revenue (2% share): $${(revEnv.conservative_monthly / 1000).toFixed(1)}k
+Base case monthly revenue (10% share): $${(revEnv.base_monthly / 1000).toFixed(1)}k`
 
   return `You are writing a structured investment memo for a supplement entrepreneur evaluating a specific opportunity. Your job is to produce clear, specific, honest prose that helps the founder make a decision.
 
@@ -132,11 +167,7 @@ Key conflicts: ${debate.conflicts.slice(0, 3).join(' | ')}
 Key unknowns: ${debate.unknowns.slice(0, 3).join(' | ')}
 
 ## Economics (computed deterministically — do NOT override these numbers)
-Breakeven COGS at ${econBase.target_gm_pct}% GM target: $${econBase.breakeven_cogs.toFixed(2)}/unit
-Price point: $${econBase.price}
-FBA + referral costs: $${(econBase.fba_fee + econBase.price * econBase.referral_pct / 100).toFixed(2)}/unit
-Conservative monthly revenue (2% share): $${(revEnv.conservative_monthly / 1000).toFixed(1)}k
-Base case monthly revenue (10% share): $${(revEnv.base_monthly / 1000).toFixed(1)}k
+${economicsBlock}
 
 ## Market Verdict (deterministic — do NOT restate or contradict)
 Verdict: ${marketVerdict.code}
@@ -164,7 +195,9 @@ Return JSON:
 Do NOT include the verdict codes or numeric verdicts in the prose — those are injected separately.
 Do NOT invent market statistics not provided above.
 The risk_analysis section must cite the adversarial bear case specifically.
-The unit_economics_narrative must reference the $${econBase.breakeven_cogs.toFixed(2)} COGS ceiling explicitly.`
+${feeDataIsReal
+    ? `The unit_economics_narrative must reference the $${econBase.breakeven_cogs.toFixed(2)} COGS ceiling explicitly.`
+    : `The unit_economics_narrative must state plainly that real Amazon fee data was unavailable for this query and must NOT state or imply a specific COGS ceiling dollar figure as fact.`}`
 }
 
 // ── Parse response ─────────────────────────────────────────────────────────

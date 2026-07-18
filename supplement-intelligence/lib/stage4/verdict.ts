@@ -103,7 +103,13 @@ export function determineMarketVerdict(
     conditions.push(`${c.metric}: ${c.reason}`)
   })
 
-  if (sensitivity.breakeven_cogs > 0) {
+  // Honesty fix (2026-07-18 audit, Law 12 — no fabricated precision): only
+  // surface the specific breakeven-COGS dollar figure in founder-facing
+  // rationale when it was computed from real Keepa referral%/FBA-fee data.
+  // When lib/stage4/unit-economics.ts computeSensitivityAnalysis had to fall
+  // back to its disclosed 15%/$4.50 defaults (fee_data_source === 'estimated'),
+  // omit the line entirely rather than presenting an assumed number as measured.
+  if (sensitivity.breakeven_cogs > 0 && economics.sensitivity.fee_data_source === 'real') {
     rationale.push(`COGS budget: up to $${sensitivity.breakeven_cogs.toFixed(2)}/unit to achieve ${sensitivity.target_gm_pct}% GM at $${sensitivity.price} price point`)
   }
 

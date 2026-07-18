@@ -41,6 +41,14 @@ export interface SensitivityAnalysis {
   pessimistic:    SensitivityRow  // price - 20%
   gm_thresholds:  { gm_pct: number; breakeven_cogs: number }[]
   cogs_sensitivity_note: string
+  // Honesty fix (2026-07-18 audit, sibling of the KS3 / checkPriceFloor fixes):
+  // 'real' when both avg_referral_fee_pct and avg_fba_fee came from real Keepa
+  // data; 'estimated' when either was missing and the 15%/$4.50 industry-typical
+  // default below was used instead. Every consumer of breakeven_cogs/
+  // gm_at_cogs_target (e.g. determineMarketVerdict's rationale) must check this
+  // before presenting those figures as measured — see cogs_sensitivity_note for
+  // the founder-facing disclosure text.
+  fee_data_source: 'real' | 'estimated'
 }
 
 function buildRow(
@@ -72,8 +80,16 @@ export function computeSensitivityAnalysis(
   actualCOGS?: number
 ): SensitivityAnalysis {
   const price      = evidence.median_price?.value ?? 0
-  const refPct     = evidence.avg_referral_fee_pct?.value ?? 15
-  const fbaFee     = evidence.avg_fba_fee?.value ?? 4.50
+  const realRefPct = evidence.avg_referral_fee_pct?.value
+  const realFbaFee = evidence.avg_fba_fee?.value
+  // Honesty fix (2026-07-18 audit — Law 12 concern): 15%/$4.50 are disclosed,
+  // labelled judgment-call defaults for scenario modeling when real Keepa fee
+  // data is absent, never presented as measured. feeDataIsReal gates whether
+  // downstream consumers (e.g. determineMarketVerdict's rationale) may quote
+  // breakeven_cogs/gm_at_cogs_target as a specific real figure.
+  const feeDataIsReal = typeof realRefPct === 'number' && typeof realFbaFee === 'number'
+  const refPct     = realRefPct ?? 15
+  const fbaFee     = realFbaFee ?? 4.50
 
   const base        = buildRow(price, refPct, fbaFee, targetGM, actualCOGS)
   const optimistic  = buildRow(price * 1.20, refPct, fbaFee, targetGM, actualCOGS)
@@ -86,9 +102,18 @@ export function computeSensitivityAnalysis(
 
   const note = price === 0
     ? 'No price data available — sensitivity analysis requires real market pricing.'
-    : `At the median price of $${price}, you can spend up to $${base.breakeven_cogs.toFixed(2)}/unit on COGS and still hit ${targetGM * 100}% gross margin.`
+    : feeDataIsReal
+    ? `At the median price of $${price}, you can spend up to $${base.breakeven_cogs.toFixed(2)}/unit on COGS and still hit ${targetGM * 100}% gross margin.`
+    : `Real Amazon referral fee / FBA fee data was unavailable for this query — the COGS figures below use industry-typical defaults (15% referral, $4.50 FBA) and are estimates, not measured values.`
 
-  return { base_case: base, optimistic, pessimistic, gm_thresholds: gmThresholds, cogs_sensitivity_note: note }
+  return {
+    base_case: base,
+    optimistic,
+    pessimistic,
+    gm_thresholds: gmThresholds,
+    cogs_sensitivity_note: note,
+    fee_data_source: feeDataIsReal ? 'real' : 'estimated',
+  }
 }
 
 // ── Revenue envelope ───────────────────────────────────────────────────────
@@ -199,7 +224,10 @@ export interface FullUnitEconomics {
   revenue_envelope:  RevenueEnvelope
   launch_cost:       LaunchCostModel    // bottom-up launch budget (deterministic estimates)
   founder_inputs?:   Stage4FounderInputs
-  // Computed from founder_inputs if provided:
+  // Computed from founder_inputs if provided. Both are derived from the SAME
+  // evidence.avg_referral_fee_pct/avg_fba_fee fields as `sensitivity` above
+  // (with the same 15%/$4.50 fallback when real data is absent) — check
+  // `sensitivity.fee_data_source` before presenting either as measured.
   founder_breakeven_units_mo?: number   // units/mo needed to break even
   founder_target_gm_pct?:      number   // actual GM given their real COGS
 }
@@ -221,6 +249,18 @@ export function computeFullUnitEconomics(
   const result: FullUnitEconomics = { sensitivity, revenue_envelope, launch_cost, founder_inputs: founderInputs }
 
   if (founderInputs?.actual_cogs_per_unit !== undefined) {
+    // Honesty fix (2026-07-18 audit, round 3 — same "silent 15%/$4.50 fee
+    // default" pattern already fixed above in computeSensitivityAnalysis):
+    // this branch reads the identical evidence.avg_referral_fee_pct /
+    // evidence.avg_fba_fee fields, defaulted the same way, so `sensitivity`
+    // (computed above, same evidence object) already carries the correct
+    // fee_data_source for founder_target_gm_pct/founder_breakeven_units_mo
+    // too — no separate flag needed, just reuse it. Consumers (e.g.
+    // components/research/InvestmentMemo.tsx's founder-input card) MUST
+    // check result.sensitivity.fee_data_source before presenting
+    // founder_target_gm_pct/founder_breakeven_units_mo as measured; when it
+    // is 'estimated', these are the founder's real actual_cogs_per_unit run
+    // through a guessed 15%/$4.50 Amazon fee schedule, not a fully-real result.
     const price    = founderInputs.target_launch_price ?? evidence.median_price?.value ?? 0
     const refPct   = evidence.avg_referral_fee_pct?.value ?? 15
     const fbaFee   = evidence.avg_fba_fee?.value ?? 4.50
