@@ -15,6 +15,12 @@
 // written generically so a future provider doesn't need its own copy)
 // should route its catch block through this instead of touching the raw
 // error's `.message` directly.
+//
+// 2026-07-20: a recurring "insufficient_credits" in production traced to
+// the deployed ANTHROPIC_API_KEY belonging to a different Anthropic
+// workspace than the one credit was added to — same classification logic,
+// wrong key. No change needed here; noted for the next person who sees
+// this category fire and assumes it's a code regression.
 export type ProviderErrorCategory =
   | 'insufficient_credits'
   | 'rate_limit'
