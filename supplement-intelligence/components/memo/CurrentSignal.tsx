@@ -47,16 +47,44 @@
 
 import { useState } from 'react'
 import type { MemoData, BuildDecision } from '@/types/index'
+import type { MarketVerdict as V2Verdict } from '@/lib/verdict-matrix'
 import { computeGroundedScore } from '@/lib/scoring'
-import { LifecycleArc, VerdictBadge } from '@/components/ui'
+import { LifecycleArc } from '@/components/ui'
 import { lifecycleProvenance, gapVelocityProvenance, v2VerdictProvenance } from '@/lib/provenance'
 import { ProvenanceBadge, deriveLifecycleDisplay, formatGapVelocity, deriveV2VerdictDisplay, LabNoData } from './shared'
 
-const PILL_CFG: Record<BuildDecision, { label: string; bg: string; text: string }> = {
-  BUILD_NOW:                   { label: 'Entry Supported',     bg: 'bg-verdict-positive', text: 'text-white' },
-  VALIDATE_FURTHER:            { label: 'Validation Required', bg: 'bg-verdict-caution',  text: 'text-black' },
-  SKIP:                        { label: 'Not Supported',       bg: 'bg-verdict-negative', text: 'text-white' },
-  CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation',   bg: 'bg-black',            text: 'text-white' },
+// pi-* decision colors — same mapping as CandidateCoreHero's DECISION_COLOR
+// (components/pi/candidate-core/CandidateCoreHero.tsx) so this legacy
+// build-decision pill reads as one continuous verdict language with the
+// hero directly above it, not two different palettes for the same value.
+const PILL_CFG: Record<BuildDecision, { label: string; cls: string }> = {
+  BUILD_NOW:                   { label: 'Entry Supported',     cls: 'bg-pi-build text-pi-cream' },
+  VALIDATE_FURTHER:            { label: 'Validation Required', cls: 'bg-pi-invest text-pi-cream' },
+  SKIP:                        { label: 'Not Supported',       cls: 'bg-pi-pass text-pi-cream' },
+  CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation',   cls: 'bg-pi-gold-deep text-pi-ink' },
+}
+
+// components/ui/VerdictBadge.tsx renders the legacy black/white verdict-*
+// vocabulary and is still used by several out-of-scope pages (dashboard,
+// leaderboard, watchlist, alerts) — inlined here instead of reused so this
+// screen doesn't reintroduce that palette next to the pi-* hero above it.
+const V2_VERDICT_CFG: Record<V2Verdict, { label: string; cls: string }> = {
+  BUILD_NOW:                { label: 'Build Now',                cls: 'text-pi-build border-pi-build/40 bg-pi-build/10' },
+  BUILD_IF_DIFFERENTIATED:  { label: 'Build If Differentiated',   cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
+  WATCH_CLOSELY:            { label: 'Watch Closely',             cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
+  WATCH:                    { label: 'Watch',                     cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
+  INVESTIGATE:              { label: 'Investigate',               cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
+  AVOID:                    { label: 'Avoid',                     cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
+  PASS:                     { label: 'Pass',                      cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
+}
+
+function V2VerdictBadge({ verdict }: { verdict: V2Verdict }) {
+  const cfg = V2_VERDICT_CFG[verdict]
+  return (
+    <span className={`inline-flex items-center font-bold uppercase tracking-wide rounded-full border text-[10px] px-2.5 py-1 ${cfg.cls}`}>
+      {cfg.label}
+    </span>
+  )
 }
 
 function LifecycleStageBlock({ m }: { m: MemoData }) {
@@ -65,7 +93,7 @@ function LifecycleStageBlock({ m }: { m: MemoData }) {
     return (
       <div className="w-full sm:w-auto sm:min-w-[280px] shrink-0">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Lifecycle Stage</span>
+          <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Lifecycle Stage</span>
         </div>
         <LabNoData label="Not computed for this analysis" />
       </div>
@@ -74,12 +102,12 @@ function LifecycleStageBlock({ m }: { m: MemoData }) {
   return (
     <div className="w-full sm:w-auto sm:min-w-[280px] shrink-0">
       <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Lifecycle Stage</span>
+        <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Lifecycle Stage</span>
         <ProvenanceBadge p={lifecycleProvenance()} />
       </div>
-      <LifecycleArc stages={lifecycle.stages} currentIndex={lifecycle.currentIndex} />
+      <LifecycleArc stages={lifecycle.stages} currentIndex={lifecycle.currentIndex} variant="pi" />
       {lifecycle.unmeasuredScience && (
-        <p className="text-[10px] text-outline italic mt-2">Classified without a real Science-dimension signal for this query.</p>
+        <p className="text-[10px] text-pi-faint italic mt-2">Classified without a real Science-dimension signal for this query.</p>
       )}
     </div>
   )
@@ -88,11 +116,11 @@ function LifecycleStageBlock({ m }: { m: MemoData }) {
 function GapVelocityRow({ m }: { m: MemoData }) {
   const gv = formatGapVelocity(m.gap_velocity)
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-black pt-3 mt-3">
-      <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Gap Velocity</span>
+    <div className="flex items-center justify-between gap-3 border-t border-pi-hairline pt-3 mt-3">
+      <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Gap Velocity</span>
       {gv ? (
         <div className="flex items-center gap-2">
-          <span className={`font-mono font-bold text-sm ${gv.value > 0 ? 'text-verdict-positive' : gv.value < 0 ? 'text-verdict-negative' : 'text-ink-variant'}`}>{gv.display}</span>
+          <span className={`font-mono font-bold text-sm ${gv.value > 0 ? 'text-pi-build' : gv.value < 0 ? 'text-pi-risk' : 'text-pi-sub'}`}>{gv.display}</span>
           <ProvenanceBadge p={gapVelocityProvenance()} />
         </div>
       ) : <LabNoData label="Not available — demand or supply acceleration missing" />}
@@ -103,15 +131,15 @@ function GapVelocityRow({ m }: { m: MemoData }) {
 function V2VerdictRow({ m }: { m: MemoData }) {
   const v2 = deriveV2VerdictDisplay(m.opportunity_quality, m.market_verdict)
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-black pt-3 mt-3">
+    <div className="flex items-center justify-between gap-3 border-t border-pi-hairline pt-3 mt-3">
       <div>
-        <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Alternate Verdict Check</span>
-        <p className="text-[9px] text-outline italic mt-0.5">Separate, parallel verdict — not guaranteed to match the pill above.</p>
+        <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Alternate Verdict Check</span>
+        <p className="text-[9px] text-pi-faint italic mt-0.5">Separate, parallel verdict — not guaranteed to match the pill above.</p>
       </div>
       {v2 ? (
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-ink-variant">Quality {v2.qualityScore}/100 ({v2.qualityTier})</span>
-          <VerdictBadge scheme="v2-verdict" verdict={v2.verdict} />
+          <span className="font-mono text-xs text-pi-sub">Quality {v2.qualityScore}/100 ({v2.qualityTier})</span>
+          <V2VerdictBadge verdict={v2.verdict} />
           <ProvenanceBadge p={v2VerdictProvenance()} />
         </div>
       ) : <LabNoData label="Not computed for this analysis" />}
@@ -130,9 +158,9 @@ function TechnicalDetailToggle({ m }: { m: MemoData }) {
   const [expanded, setExpanded] = useState(false)
   if (expanded) return <V2VerdictRow m={m} />
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-black pt-3 mt-3">
-      <span className="text-[10px] font-mono text-outline uppercase tracking-widest">Technical Detail</span>
-      <button onClick={() => setExpanded(true)} className="text-[11px] text-black hover:underline transition-colors">
+    <div className="flex items-center justify-between gap-3 border-t border-pi-hairline pt-3 mt-3">
+      <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Technical Detail</span>
+      <button onClick={() => setExpanded(true)} className="text-[11px] text-pi-gold-bright hover:underline transition-colors">
         Show technical detail →
       </button>
     </div>
@@ -141,20 +169,26 @@ function TechnicalDetailToggle({ m }: { m: MemoData }) {
 
 export default function CurrentSignal({ m }: { m: MemoData; generatedAt?: string }) {
   const { score, decision, insufficientEvidence } = computeGroundedScore(m)
-  const cfg = insufficientEvidence ? { label: 'Insufficient Data', bg: 'bg-white border-2 border-black', text: 'text-ink' } : PILL_CFG[decision]
+  const cfg = insufficientEvidence ? { label: 'Insufficient Data', cls: 'bg-pi-card border border-pi-hairline text-pi-ink' } : PILL_CFG[decision]
   const consumerIntelTimedOut = !m.consumer_intelligence && !!m.signal_metadata?.consumer_intelligence_attempted
 
   return (
     <section id="current-signal" className="scroll-mt-20">
-      <div className="p-6 sm:p-8 border-2 border-black bg-white">
-        <div className="flex items-center justify-between gap-6">
+      <div className="rounded-2xl p-6 sm:p-8 border border-pi-hairline bg-pi-card">
+        {/* Pre-beta audit fix: this row never stacked below `sm`, but
+            LifecycleStageBlock's own wrapper (w-full sm:w-auto) assumes a
+            parent that does — the two together forced real, measured
+            horizontal overflow at 375px (confirmed: 463px rendered width).
+            flex-col sm:flex-row is the actual fix; LifecycleStageBlock's
+            classes were already correct, this was the missing half. */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
           <div className="min-w-0">
-            <p className="text-[10px] font-mono text-outline uppercase tracking-widest mb-2">Current Signal</p>
-            <div className={`inline-block px-4 py-2 font-bold text-headline-md leading-none mb-1 ${cfg.bg} ${cfg.text}`}>
+            <p className="text-[10px] font-mono text-pi-faint uppercase tracking-widest mb-2">Current Signal</p>
+            <div className={`inline-block px-4 py-2 rounded-full font-bold text-[20px] leading-none mb-1 ${cfg.cls}`}>
               {cfg.label}
             </div>
-            <p className="font-mono text-xs text-outline mt-2">{m.category_name} — {score} / 100</p>
-            <p className="text-[9px] text-outline uppercase tracking-wider mt-1">Legacy build-decision verdict</p>
+            <p className="font-mono text-xs text-pi-faint mt-2">{m.category_name} — {score} / 100</p>
+            <p className="text-[9px] text-pi-faint uppercase tracking-wider mt-1">Legacy build-decision verdict</p>
           </div>
           <LifecycleStageBlock m={m} />
         </div>
@@ -164,9 +198,9 @@ export default function CurrentSignal({ m }: { m: MemoData; generatedAt?: string
       </div>
 
       {consumerIntelTimedOut && (
-        <div className="mt-3 border border-black bg-white px-3 py-2.5">
-          <p className="text-xs font-semibold text-verdict-caution-text mb-0.5">Partial results available</p>
-          <p className="text-[11px] text-ink-variant">Most real-data providers responded normally. The Consumer Intelligence review-data provider timed out for this run.</p>
+        <div className="mt-3 rounded-lg border border-pi-hairline bg-pi-card px-3 py-2.5">
+          <p className="text-xs font-semibold text-pi-gold-bright mb-0.5">Partial results available</p>
+          <p className="text-[11px] text-pi-sub">Most real-data providers responded normally. The Consumer Intelligence review-data provider timed out for this run.</p>
         </div>
       )}
     </section>

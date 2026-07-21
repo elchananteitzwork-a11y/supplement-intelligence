@@ -23,13 +23,37 @@
 // sidebar — a disclosed, deliberate limitation, not an oversight.
 // ═══════════════════════════════════════════════════════════════════════
 
+import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import { AppShell } from '@/components/shell/AppShell'
-import {
-  LedgerTable, VerdictBadge, WitnessDots, HardCard, PrimaryLinkButton, type LedgerColumn,
-} from '@/components/ui'
+import { LedgerTable, WitnessDots, type LedgerColumn } from '@/components/ui'
+import { PiCard } from '@/components/memo/shared'
+import type { V2VerdictDisplay } from '@/components/memo/field-derivations'
 import type { EnrichedWatch } from '@/lib/watchlist/enrich'
 import { nextScheduledRecheck } from '@/lib/watchlist/schedule'
+
+// pi-* verdict pill — same mapping as components/memo/CurrentSignal.tsx's
+// local V2VerdictBadge (components/ui/VerdictBadge.tsx has no pi variant
+// and is still used by other out-of-scope legacy pages, so it is inlined
+// here rather than modified — same resolution used there).
+type V2Verdict = V2VerdictDisplay['verdict']
+const V2_VERDICT_CFG: Record<V2Verdict, { label: string; cls: string }> = {
+  BUILD_NOW:                { label: 'Build Now',                cls: 'text-pi-build border-pi-build/40 bg-pi-build/10' },
+  BUILD_IF_DIFFERENTIATED:  { label: 'Build If Differentiated',   cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
+  WATCH_CLOSELY:            { label: 'Watch Closely',             cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
+  WATCH:                    { label: 'Watch',                     cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
+  INVESTIGATE:              { label: 'Investigate',               cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
+  AVOID:                    { label: 'Avoid',                     cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
+  PASS:                     { label: 'Pass',                      cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
+}
+function V2VerdictPill({ verdict }: { verdict: V2Verdict }) {
+  const cfg = V2_VERDICT_CFG[verdict]
+  return (
+    <span className={`inline-flex items-center font-bold uppercase tracking-wide rounded-full border text-[10px] px-2.5 py-1 ${cfg.cls}`}>
+      {cfg.label}
+    </span>
+  )
+}
 
 interface EligibleAnalysis {
   id: string
@@ -113,24 +137,24 @@ export default function WatchlistPage() {
       key: 'market', header: 'Market',
       render: w => (
         <div className="min-w-0">
-          <p className="text-sm font-bold text-black truncate max-w-[200px]">{w.entry.category_name}</p>
-          <p className="text-[10px] font-mono text-outline uppercase tracking-wide">watched {formatRelative(w.entry.created_at)}</p>
+          <p className="text-sm font-semibold text-pi-ink truncate max-w-[200px]">{w.entry.category_name}</p>
+          <p className="text-[10px] font-mono text-pi-faint uppercase tracking-wide">watched {formatRelative(w.entry.created_at)}</p>
         </div>
       ),
     },
     {
       key: 'verdict', header: 'Verdict',
       render: w => w.marketVerdict
-        ? <VerdictBadge scheme="v2-verdict" verdict={w.marketVerdict} size="sm" />
-        : <span className="text-xs text-outline-variant">Not available</span>,
+        ? <V2VerdictPill verdict={w.marketVerdict} />
+        : <span className="text-xs text-pi-faint">Not available</span>,
     },
     {
       key: 'lifecycle', header: 'Lifecycle Stage',
       render: w => (
         <div className="font-mono text-xs">
-          {w.currentStage ? <span className="uppercase font-semibold text-black">{w.currentStage}</span> : <span className="text-outline-variant">Not available</span>}
+          {w.currentStage ? <span className="uppercase font-semibold text-pi-ink">{w.currentStage}</span> : <span className="text-pi-faint">Not available</span>}
           {w.previousStage && (
-            <p className="text-[10px] text-outline mt-0.5">was: <span className="uppercase">{w.previousStage}</span></p>
+            <p className="text-[10px] text-pi-faint mt-0.5">was: <span className="uppercase">{w.previousStage}</span></p>
           )}
         </div>
       ),
@@ -138,38 +162,38 @@ export default function WatchlistPage() {
     {
       key: 'quality', header: 'Quality', hideOnMobile: true,
       render: w => w.qualityScore !== null
-        ? <span className="font-mono text-sm">{w.qualityScore}/100 <span className="text-outline text-[10px]">({w.qualityTier})</span></span>
-        : <span className="text-xs text-outline-variant">Not available</span>,
+        ? <span className="font-mono text-sm text-pi-ink">{w.qualityScore}/100 <span className="text-pi-faint text-[10px]">({w.qualityTier})</span></span>
+        : <span className="text-xs text-pi-faint">Not available</span>,
     },
     {
       key: 'gap_velocity', header: 'Gap Velocity', hideOnMobile: true,
       render: w => w.gapVelocityDisplay
-        ? <span className={`font-mono text-sm font-semibold ${w.gapVelocityDisplay.startsWith('+') ? 'text-verdict-positive' : 'text-verdict-negative'}`}>{w.gapVelocityDisplay}</span>
-        : <span className="text-xs text-outline-variant">Not available</span>,
+        ? <span className={`font-mono text-sm font-semibold ${w.gapVelocityDisplay.startsWith('+') ? 'text-pi-build' : 'text-pi-risk'}`}>{w.gapVelocityDisplay}</span>
+        : <span className="text-xs text-pi-faint">Not available</span>,
     },
     {
       key: 'confidence', header: 'Confidence', hideOnMobile: true,
       render: w => w.confidencePct !== null
-        ? <div className="flex items-center gap-2"><WitnessDots filled={Math.round(w.confidencePct / 20)} total={5} size="sm" /><span className="font-mono text-xs">{w.confidencePct}%</span></div>
-        : <span className="text-xs text-outline-variant">Not available</span>,
+        ? <div className="flex items-center gap-2"><WitnessDots variant="pi" filled={Math.round(w.confidencePct / 20)} total={5} size="sm" /><span className="font-mono text-xs text-pi-ink">{w.confidencePct}%</span></div>
+        : <span className="text-xs text-pi-faint">Not available</span>,
     },
     {
       key: 'kill_criteria', header: 'Kill Criteria',
       render: w => w.entry.kill_criteria.length
         ? (
-          <span className={`font-mono text-xs ${w.triggeredKillCriteria.length ? 'text-verdict-negative font-bold' : 'text-outline'}`} title={w.triggeredKillCriteria.join('; ')}>
+          <span className={`font-mono text-xs ${w.triggeredKillCriteria.length ? 'text-pi-risk font-bold' : 'text-pi-faint'}`} title={w.triggeredKillCriteria.join('; ')}>
             {w.triggeredKillCriteria.length}/{w.entry.kill_criteria.length} active
           </span>
         )
-        : <span className="text-xs text-outline-variant">None defined</span>,
+        : <span className="text-xs text-pi-faint">None defined</span>,
     },
     {
       key: 'last_checked', header: 'Last Checked', hideOnMobile: true,
-      render: w => <span className="text-xs font-mono text-outline whitespace-nowrap">{formatRelative(w.entry.last_checked_at)}</span>,
+      render: w => <span className="text-xs font-mono text-pi-faint whitespace-nowrap">{formatRelative(w.entry.last_checked_at)}</span>,
     },
     {
       key: 'next_check', header: 'Next Check', hideOnMobile: true,
-      render: () => <span className="text-xs font-mono text-outline whitespace-nowrap">{formatDate(nextCheck)}</span>,
+      render: () => <span className="text-xs font-mono text-pi-faint whitespace-nowrap">{formatDate(nextCheck)}</span>,
     },
     {
       key: 'actions', header: '', align: 'right',
@@ -177,7 +201,7 @@ export default function WatchlistPage() {
         <button
           onClick={() => removeWatch(w.id)}
           disabled={actioning === w.id}
-          className="text-xs font-mono uppercase tracking-wide text-outline hover:text-verdict-negative disabled:opacity-40 transition-colors"
+          className="text-xs font-mono uppercase tracking-wide text-pi-faint hover:text-pi-risk disabled:opacity-40 transition-colors"
         >
           {actioning === w.id ? '…' : 'Remove'}
         </button>
@@ -186,68 +210,73 @@ export default function WatchlistPage() {
   ]
 
   return (
-    <AppShell active={null}>
+    <AppShell active={null} variant="pi">
       <div className="max-w-6xl space-y-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap border-b-2 border-black pb-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap border-b border-pi-hairline pb-4">
           <div className="space-y-1">
-            <h1 className="text-headline-md text-black">Watchlist</h1>
-            <p className="text-sm text-ink-variant">
+            <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-ink sm:text-[32px]">Watchlist</h1>
+            <p className="text-sm text-pi-sub">
               {loading ? 'Loading…' : `${watches.length} ${watches.length === 1 ? 'market' : 'markets'} watched`}
             </p>
           </div>
         </div>
 
         {error && (
-          <p className="text-sm text-verdict-negative bg-white border border-verdict-negative px-3 py-2">{error}</p>
+          <p className="text-sm text-pi-risk rounded-lg border border-pi-risk/30 bg-pi-risk/10 px-3 py-2">{error}</p>
         )}
 
         {loading && (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="border border-black bg-white p-5 animate-pulse">
-                <div className="h-4 bg-surface-container w-48 mb-2" />
-                <div className="h-3 bg-surface-container w-24" />
+              <div key={i} className="rounded-xl border border-pi-hairline bg-pi-card p-5 animate-pulse">
+                <div className="h-4 bg-pi-sand w-48 mb-2" />
+                <div className="h-3 bg-pi-sand w-24" />
               </div>
             ))}
           </div>
         )}
 
         {!loading && !error && watches.length === 0 && (
-          <div className="border border-black bg-white p-12 text-center space-y-3">
-            <p className="text-[10px] font-mono text-outline uppercase tracking-[0.2em]">Status: Inactive</p>
-            <p className="text-ink-variant text-sm max-w-sm mx-auto">
+          <div className="rounded-xl border border-pi-hairline bg-pi-card p-12 text-center space-y-3">
+            <p className="text-[10px] font-mono text-pi-faint uppercase tracking-[0.2em]">Status: Inactive</p>
+            <p className="text-pi-sub text-sm max-w-sm mx-auto">
               Watch a market and we&rsquo;ll re-check it on schedule — you&rsquo;ll hear from us only when the evidence moves.
             </p>
-            <PrimaryLinkButton href="/analyze">Run an analysis →</PrimaryLinkButton>
-            <p className="text-[10px] font-mono text-outline opacity-60 uppercase tracking-wide">No markets currently monitored</p>
+            <Link
+              href="/analyze"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-pi-ink px-6 py-3 text-sm font-semibold text-pi-cream shadow-[0_1px_3px_rgba(22,23,26,0.15)] transition-all duration-200 hover:-translate-y-px hover:bg-[#24262B] hover:shadow-[0_4px_10px_rgba(22,23,26,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-bright active:scale-[0.985]"
+            >
+              Run an analysis →
+            </Link>
+            <p className="text-[10px] font-mono text-pi-faint opacity-60 uppercase tracking-wide">No markets currently monitored</p>
           </div>
         )}
 
         {!loading && !error && watches.length > 0 && (
-          <LedgerTable columns={columns} rows={watches} />
+          <LedgerTable variant="pi" columns={columns} rows={watches} />
         )}
 
         {!loading && !error && eligible.length > 0 && (
-          <HardCard>
-            <p className="text-[10px] font-mono text-outline uppercase tracking-widest mb-3">Add to Watchlist</p>
-            <div className="divide-y divide-black/10">
+          <PiCard>
+            <p className="text-[10px] font-mono text-pi-faint uppercase tracking-widest mb-3">Add to Watchlist</p>
+            <div className="divide-y divide-pi-hairline">
               {eligible.map(a => (
                 <div key={a.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
-                    <p className="text-sm text-ink truncate">{a.category_name}</p>
-                    <p className="text-[10px] font-mono text-outline">Score {a.opportunity_score}</p>
+                    <p className="text-sm text-pi-ink truncate">{a.category_name}</p>
+                    <p className="text-[10px] font-mono text-pi-faint">Score {a.opportunity_score}</p>
                   </div>
                   <button
                     onClick={() => addWatch(a.id)}
                     disabled={actioning === a.id}
-                    className="text-xs font-mono uppercase tracking-wide text-black border border-black px-3 py-1.5 hover:bg-black hover:text-white disabled:opacity-40 transition-colors shrink-0"
+                    className="text-xs font-mono uppercase tracking-wide text-pi-ink border border-pi-hairline rounded-lg px-3 py-1.5 hover:bg-pi-ink hover:text-pi-cream disabled:opacity-40 transition-colors shrink-0"
                   >
                     {actioning === a.id ? 'Watching…' : '+ Watch'}
                   </button>
                 </div>
               ))}
             </div>
-          </HardCard>
+          </PiCard>
         )}
       </div>
     </AppShell>

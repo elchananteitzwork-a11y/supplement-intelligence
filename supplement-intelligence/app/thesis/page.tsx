@@ -325,7 +325,7 @@ export default function ThesisPage() {
   // ── STREAMING ──────────────────────────────────────────────────────────
   if (status === 'streaming') {
     return (
-      <AppShell active="thesis">
+      <AppShell active={null}>
         <div className="max-w-md mx-auto py-12">
           <HardCard>
             {/* header */}
@@ -378,7 +378,7 @@ export default function ThesisPage() {
   // ── ERROR ──────────────────────────────────────────────────────────────
   if (status === 'error' && !needsLogin) {
     return (
-      <AppShell active="thesis">
+      <AppShell active={null}>
         <div className="max-w-md mx-auto py-12">
           <HardCard className="text-center">
             <p className="text-sm font-bold text-verdict-negative mb-2">Analysis failed</p>
@@ -393,7 +393,7 @@ export default function ThesisPage() {
   // ── COMPLETE ───────────────────────────────────────────────────────────
   if (status === 'complete' && thesis) {
     return (
-      <AppShell active="thesis">
+      <AppShell active={null}>
         <div className="max-w-xl mx-auto">
           {/* nav */}
           <div className="flex items-center justify-between mb-6 border-b-2 border-black pb-4">
@@ -409,7 +409,7 @@ export default function ThesisPage() {
 
   // ── FORM ───────────────────────────────────────────────────────────────
   return (
-    <AppShell active="thesis">
+    <AppShell active={null}>
       <div className="max-w-xl space-y-6">
         <div className="space-y-1 border-b-2 border-black pb-4">
           <h1 className="text-headline-md text-black">Market Thesis</h1>

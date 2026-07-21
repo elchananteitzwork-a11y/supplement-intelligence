@@ -11,6 +11,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 import { useState } from 'react'
+import type { ReactNode, ElementType } from 'react'
 import type { MemoData, BuildDecision } from '@/types/index'
 import type { Provenance, ProvenanceLevel } from '@/lib/provenance'
 
@@ -32,18 +33,34 @@ export type {
   LifecycleDisplay, GapVelocityDisplay, V2VerdictDisplay, SupplyVelocityDisplay, ScienceDisplay,
 } from './field-derivations'
 
+// ── pi-* surface primitive ────────────────────────────────────────────────
+// UIv2-M2 Phase 2 (2026-07-21): the warm-cream "pi" card, matching
+// CandidateCoreHero/PipelineView/CandidateRow/app/analyze's already-shipped
+// pattern (rounded-xl, hairline border, pi-card fill) — the direct visual
+// replacement for components/ui/HardCard within this report. HardCard
+// itself is left untouched since other, out-of-scope pages still use it.
+export function PiCard({
+  children, className = '', as: As = 'div', padded = true,
+}: { children: ReactNode; className?: string; as?: ElementType; padded?: boolean }) {
+  return (
+    <As className={`rounded-xl border border-pi-hairline bg-pi-card ${padded ? 'p-4 sm:p-5' : ''} ${className}`}>
+      {children}
+    </As>
+  )
+}
+
 // ── Provenance disclosure ────────────────────────────────────────────────
 // Every real-vs-AI-judgment claim in the memo carries one of these. Direct
 // successor to components/lab/Badges.tsx's EvidenceBadge/ProvenanceBadge/
 // ProvenanceCaption — same five-level classification, same behavior,
-// restyled onto verdict-* design tokens instead of hardcoded hex.
+// restyled onto pi-* design tokens (was verdict-*/black-white).
 
 const EVIDENCE_CFG: Record<ProvenanceLevel, { label: string; cls: string; dot: string }> = {
-  verified:    { label: 'Verified Data',                    cls: 'text-ink border-black',                          dot: 'bg-black' },
-  estimated:   { label: 'AI Interpretation',                cls: 'text-verdict-caution-text border-verdict-caution-text', dot: 'bg-verdict-caution-text' },
-  synthesized: { label: 'AI Interpretation',                cls: 'text-ink-variant border-black',                  dot: 'bg-ink-variant' },
-  unknown:     { label: 'Unsupported / Needs Verification', cls: 'text-verdict-negative border-verdict-negative',  dot: 'bg-verdict-negative' },
-  unsupported: { label: 'Unsupported / Needs Verification', cls: 'text-verdict-negative border-verdict-negative',  dot: 'bg-verdict-negative' },
+  verified:    { label: 'Verified Data',                    cls: 'text-pi-ink border-pi-hairline bg-pi-card',            dot: 'bg-pi-ink' },
+  estimated:   { label: 'AI Interpretation',                cls: 'text-pi-gold-bright border-pi-gold/30 bg-pi-gold/10',  dot: 'bg-pi-gold-bright' },
+  synthesized: { label: 'AI Interpretation',                cls: 'text-pi-sub border-pi-hairline bg-pi-card',            dot: 'bg-pi-sub' },
+  unknown:     { label: 'Unsupported / Needs Verification', cls: 'text-pi-risk border-pi-risk/30 bg-pi-risk/10',         dot: 'bg-pi-risk' },
+  unsupported: { label: 'Unsupported / Needs Verification', cls: 'text-pi-risk border-pi-risk/30 bg-pi-risk/10',         dot: 'bg-pi-risk' },
 }
 
 export function EvidenceBadge({ type, detail, source }: { type: ProvenanceLevel; detail?: string; source?: string }) {
@@ -51,7 +68,7 @@ export function EvidenceBadge({ type, detail, source }: { type: ProvenanceLevel;
   const title = detail ? (source ? `${source} — ${detail}` : detail) : undefined
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold border px-2 py-0.5 uppercase tracking-wide shrink-0 cursor-default bg-white ${cls}`}
+      className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold rounded-full border px-2.5 py-0.5 uppercase tracking-wide shrink-0 cursor-default ${cls}`}
       title={title}
     >
       <span className={`w-1 h-1 rounded-full ${dot} shrink-0`} />
@@ -70,7 +87,7 @@ export function ProvenanceBadge({ p }: { p: Provenance }) {
 export function ProvenanceCaption({ p }: { p: Provenance }) {
   const { label, cls } = EVIDENCE_CFG[p.level]
   return (
-    <div className={`flex items-start gap-2 text-[11px] border px-2.5 py-2 bg-white ${cls}`}>
+    <div className={`flex items-start gap-2 text-[11px] rounded-lg border px-2.5 py-2 ${cls}`}>
       <span className="font-semibold shrink-0 whitespace-nowrap">{label}:</span>
       <span className="opacity-90">{p.detail}</span>
     </div>
@@ -79,13 +96,13 @@ export function ProvenanceCaption({ p }: { p: Provenance }) {
 
 export function ConfidencePill({ level, note }: { level: 'High' | 'Medium' | 'Low'; note: string }) {
   const cls = level === 'High'
-    ? 'text-verdict-positive border-verdict-positive bg-white'
+    ? 'text-pi-build border-pi-build/30 bg-pi-build/10'
     : level === 'Medium'
-      ? 'text-verdict-caution-text border-verdict-caution-text bg-white'
-      : 'text-outline border-black bg-white'
-  const dot = level === 'High' ? 'bg-verdict-positive' : level === 'Medium' ? 'bg-verdict-caution-text' : 'bg-outline'
+      ? 'text-pi-gold-bright border-pi-gold/30 bg-pi-gold/10'
+      : 'text-pi-sub border-pi-hairline bg-pi-card'
+  const dot = level === 'High' ? 'bg-pi-build' : level === 'Medium' ? 'bg-pi-gold-bright' : 'bg-pi-sub'
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 ${cls}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 ${cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
       {note}
     </span>
@@ -93,7 +110,7 @@ export function ConfidencePill({ level, note }: { level: 'High' | 'Medium' | 'Lo
 }
 
 export function LabNoData({ label = 'No data available' }: { label?: string }) {
-  return <span className="font-mono text-sm text-outline italic">{label}</span>
+  return <span className="font-mono text-sm text-pi-faint italic">{label}</span>
 }
 
 export function LabEmptyState({
@@ -102,29 +119,29 @@ export function LabEmptyState({
   return (
     <div className="flex flex-col items-center justify-center text-center py-12 px-6">
       {icon && (
-        <div className="w-12 h-12 border border-black flex items-center justify-center mb-4 text-outline">
+        <div className="w-12 h-12 rounded-lg border border-pi-hairline flex items-center justify-center mb-4 text-pi-faint">
           {icon}
         </div>
       )}
-      <p className="text-sm font-medium text-ink-variant">{title}</p>
-      {description && <p className="text-xs text-outline mt-1.5 max-w-sm leading-relaxed">{description}</p>}
+      <p className="text-sm font-medium text-pi-sub">{title}</p>
+      {description && <p className="text-xs text-pi-faint mt-1.5 max-w-sm leading-relaxed">{description}</p>}
     </div>
   )
 }
 
 export function SectionIntro({ text }: { text: string }) {
-  return <p className="text-xs text-outline italic mb-4 leading-relaxed">{text}</p>
+  return <p className="text-xs text-pi-faint italic mb-4 leading-relaxed">{text}</p>
 }
 
 // Ascending 3-bar signal glyph — direct successor to
 // components/lab/Indicators.tsx SignalBars, same three-tier meaning.
 export function SignalBars({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
   const filled = level === 'Strong' ? 3 : level === 'Moderate' ? 2 : 1
-  const color  = level === 'Strong' ? 'bg-verdict-positive' : level === 'Moderate' ? 'bg-verdict-caution-text' : 'bg-outline'
+  const color  = level === 'Strong' ? 'bg-pi-build' : level === 'Moderate' ? 'bg-pi-gold-deep' : 'bg-pi-faint'
   return (
     <div className="flex items-end gap-0.5 h-3.5 shrink-0">
       {[0, 1, 2].map(i => (
-        <span key={i} className={`w-1 ${i < filled ? color : 'bg-outline-variant'}`} style={{ height: `${40 + i * 30}%` }} />
+        <span key={i} className={`w-1 ${i < filled ? color : 'bg-pi-hairline'}`} style={{ height: `${40 + i * 30}%` }} />
       ))}
     </div>
   )
@@ -141,13 +158,13 @@ export function NumList({ items, collapseAt = 2 }: { items: string[]; collapseAt
     <ol className="space-y-3">
       {shown.map((item, i) => (
         <li key={i} className="flex gap-3 text-sm">
-          <span className="font-mono text-outline shrink-0 w-4 text-right mt-px">{i + 1}</span>
-          <span className="text-ink-variant leading-relaxed">{item}</span>
+          <span className="font-mono text-pi-faint shrink-0 w-4 text-right mt-px">{i + 1}</span>
+          <span className="text-pi-sub leading-relaxed">{item}</span>
         </li>
       ))}
       {hiddenCount > 0 && !expanded && (
         <li>
-          <button onClick={() => setExpanded(true)} className="text-[11px] text-black hover:underline transition-colors ml-7">
+          <button onClick={() => setExpanded(true)} className="text-[11px] text-pi-gold-bright hover:underline transition-colors ml-7">
             Show {hiddenCount} more →
           </button>
         </li>
@@ -281,9 +298,9 @@ export const TAG_LABEL: Record<string, string> = {
 }
 
 export const SEVERITY_CFG: Record<string, { cls: string; dot: string }> = {
-  High:   { cls: 'text-verdict-negative bg-white border-black',      dot: 'bg-verdict-negative' },
-  Medium: { cls: 'text-verdict-caution-text bg-white border-black',  dot: 'bg-verdict-caution' },
-  Low:    { cls: 'text-ink-variant bg-surface-container border-black', dot: 'bg-outline' },
+  High:   { cls: 'text-pi-risk bg-pi-risk/10 border-pi-risk/30',            dot: 'bg-pi-risk' },
+  Medium: { cls: 'text-pi-gold-bright bg-pi-gold/10 border-pi-gold/30',     dot: 'bg-pi-gold-bright' },
+  Low:    { cls: 'text-pi-sub bg-pi-sand border-pi-hairline',               dot: 'bg-pi-faint' },
 }
 
 export function deriveTop3Build(m: MemoData): DerivedPoint[] {

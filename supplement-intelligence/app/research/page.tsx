@@ -81,7 +81,7 @@ export default function ResearchPage() {
   }
 
   return (
-    <AppShell active="research">
+    <AppShell active={null}>
       <div className="max-w-2xl space-y-8">
         <div className="flex items-start justify-between gap-4 border-b-2 border-black pb-4">
           <div className="space-y-2">

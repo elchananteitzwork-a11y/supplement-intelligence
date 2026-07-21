@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { MemoData } from '@/types/index'
 import { manufacturingTabProvenance } from '@/lib/provenance'
-import { ProvenanceBadge, dimLevel } from './shared'
+import { ProvenanceBadge, dimLevel, PiCard } from './shared'
 import { IconX } from '@/components/icons'
 
 interface MfgEstimate {
@@ -42,21 +42,21 @@ function inferManufacturingCategory(format: string): string {
 function PipelineStage({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="flex-1 min-w-[110px] px-3 py-3">
-      <p className="text-[9px] text-outline uppercase tracking-wider mb-1.5">{label}</p>
-      <p className="text-sm font-semibold text-black font-mono leading-snug">{value}</p>
-      {sub && <p className="text-[10px] text-outline mt-0.5">{sub}</p>}
+      <p className="text-[9px] text-pi-faint uppercase tracking-wider mb-1.5">{label}</p>
+      <p className="text-sm font-semibold text-pi-ink font-mono leading-snug">{value}</p>
+      {sub && <p className="text-[10px] text-pi-faint mt-0.5">{sub}</p>}
     </div>
   )
 }
 
 function MfgConfidencePill({ label }: { label: 'High' | 'Medium' | 'Low' }) {
   const cfg = {
-    High:   { cls: 'text-verdict-positive border-black bg-white', dot: 'bg-verdict-positive' },
-    Medium: { cls: 'text-verdict-caution-text border-black bg-white', dot: 'bg-verdict-caution' },
-    Low:    { cls: 'text-outline border-black bg-surface-container', dot: 'bg-outline' },
+    High:   { cls: 'text-pi-build border-pi-build/30 bg-pi-build/10', dot: 'bg-pi-build' },
+    Medium: { cls: 'text-pi-gold-bright border-pi-gold/30 bg-pi-gold/10', dot: 'bg-pi-gold-bright' },
+    Low:    { cls: 'text-pi-sub border-pi-hairline bg-pi-sand', dot: 'bg-pi-faint' },
   }[label]
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 ${cfg.cls}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 ${cfg.cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />{label} confidence
     </span>
   )
@@ -75,9 +75,9 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
   const rating    = est.top_supplier_rating != null ? `${est.top_supplier_rating}/5` : '—'
 
   const complexityColor =
-    est.complexity === 'Low' ? 'text-verdict-positive' :
-    est.complexity === 'Medium' ? 'text-verdict-caution-text' :
-    est.complexity === 'High' ? 'text-orange-600' : 'text-verdict-negative'
+    est.complexity === 'Low' ? 'text-pi-build' :
+    est.complexity === 'Medium' ? 'text-pi-gold-bright' :
+    est.complexity === 'High' ? 'text-pi-risk' : 'text-pi-risk'
 
   const introText = isVerified
     ? `Live supplier data from ${est.data_source.replace(/_/g, ' ')}. Prices reflect per-unit cost at high-volume tier (USD).`
@@ -85,29 +85,29 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-outline italic leading-relaxed">{introText}</p>
+      <p className="text-xs text-pi-faint italic leading-relaxed">{introText}</p>
 
       {unitCostRange ? (
         <div className="flex items-end gap-2">
-          <span className="text-headline-md text-ink tracking-tight">{unitCostRange}</span>
-          <span className="text-xs text-outline mb-1">per unit, landed</span>
+          <span className="font-serif text-[22px] sm:text-[26px] font-semibold text-pi-ink tracking-tight">{unitCostRange}</span>
+          <span className="text-xs text-pi-faint mb-1">per unit, landed</span>
         </div>
       ) : (
-        <p className="text-sm text-outline italic">{NO_DATA} — no live supplier quote for this query.</p>
+        <p className="text-sm text-pi-faint italic">{NO_DATA} — no live supplier quote for this query.</p>
       )}
 
-      <div className="flex divide-x divide-black/10 bg-white border border-black overflow-x-auto">
+      <div className="flex divide-x divide-pi-hairline rounded-xl border border-pi-hairline bg-pi-card overflow-x-auto">
         <PipelineStage label="Sourcing" value={suppliers} sub={est.supplier_count ? `${est.supplier_count.confidence} confidence` : undefined} />
         <PipelineStage label="Production" value={moq} sub="MOQ" />
         <PipelineStage label="QA" value={rating} sub="avg. supplier rating" />
         <PipelineStage label="Shipping" value={leadTime} sub="lead time" />
       </div>
 
-      <div className="flex divide-x divide-black/10 bg-white border border-black overflow-hidden">
+      <div className="flex divide-x divide-pi-hairline rounded-xl border border-pi-hairline bg-pi-card overflow-hidden">
         <div className="flex-1 px-3 py-3">
-          <p className="text-[10px] text-outline uppercase tracking-wider mb-1">Manufacturing Difficulty</p>
+          <p className="text-[10px] text-pi-faint uppercase tracking-wider mb-1">Manufacturing Difficulty</p>
           <p className={`text-sm font-semibold leading-snug ${complexityColor}`}>{est.complexity}</p>
-          <p className="text-[11px] text-outline mt-0.5">AI ease judgment: {mfgLevel}</p>
+          <p className="text-[11px] text-pi-faint mt-0.5">AI ease judgment: {mfgLevel}</p>
         </div>
         <div className="flex-1 px-3 py-3 flex items-center justify-between">
           <MfgConfidencePill label={est.confidence_label} />
@@ -115,41 +115,41 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
       </div>
 
       {est.top_suppliers && est.top_suppliers.length > 0 && (
-        <div className="bg-white border border-black p-4">
+        <PiCard>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-black">Real Named Suppliers</p>
+            <p className="text-xs font-semibold text-pi-ink">Real Named Suppliers</p>
             {(() => {
               const withCountry = est.top_suppliers!.filter(s => s.country_code)
               if (!withCountry.length) return null
               const counts = new Map<string, number>()
               for (const s of withCountry) counts.set(s.country_code!, (counts.get(s.country_code!) ?? 0) + 1)
               const [topCountry, topCount] = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]
-              return <span className="text-[10px] text-outline font-mono">{topCount}/{withCountry.length} based in {topCountry}</span>
+              return <span className="text-[10px] text-pi-faint font-mono">{topCount}/{withCountry.length} based in {topCountry}</span>
             })()}
           </div>
           <ul className="space-y-2">
             {est.top_suppliers.map((s, i) => (
               <li key={i} className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-ink-variant font-medium truncate">{s.name}</span>
-                <span className="flex items-center gap-2 text-[11px] text-outline shrink-0">
-                  {s.country_code && <span className="font-mono text-outline">{s.country_code}</span>}
-                  {s.rating != null && <span className="font-mono text-ink-variant">{s.rating.toFixed(1)}/5</span>}
-                  {s.customizable && <span className="text-black">OEM/Customizable</span>}
-                  {s.trade_assurance && <span className="text-verdict-positive">Trade Assurance</span>}
+                <span className="text-pi-sub font-medium truncate">{s.name}</span>
+                <span className="flex items-center gap-2 text-[11px] text-pi-faint shrink-0">
+                  {s.country_code && <span className="font-mono text-pi-faint">{s.country_code}</span>}
+                  {s.rating != null && <span className="font-mono text-pi-sub">{s.rating.toFixed(1)}/5</span>}
+                  {s.customizable && <span className="text-pi-ink">OEM/Customizable</span>}
+                  {s.trade_assurance && <span className="text-pi-build">Trade Assurance</span>}
                   {s.gold_supplier_years && <span>{s.gold_supplier_years} gold supplier</span>}
                 </span>
               </li>
             ))}
           </ul>
-          <p className="text-[10px] text-outline mt-3">Real Alibaba.com supplier names for this exact search — verify independently before committing capital; this is not an endorsement.</p>
-        </div>
+          <p className="text-[10px] text-pi-faint mt-3">Real Alibaba.com supplier names for this exact search — verify independently before committing capital; this is not an endorsement.</p>
+        </PiCard>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-black">
-        <div className="flex items-center gap-1.5 text-[11px] text-outline"><span>Source:</span><ProvenanceBadge p={sourceProvenance} /></div>
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-pi-hairline">
+        <div className="flex items-center gap-1.5 text-[11px] text-pi-faint"><span>Source:</span><ProvenanceBadge p={sourceProvenance} /></div>
       </div>
 
-      {est.notes && isVerified && <p className="text-xs text-outline leading-relaxed">{est.notes}</p>}
+      {est.notes && isVerified && <p className="text-xs text-pi-faint leading-relaxed">{est.notes}</p>}
     </div>
   )
 }
@@ -187,13 +187,13 @@ export default function ManufacturingIntelligence({ m }: { m: MemoData }) {
   return (
     <div>
       {status === 'loading' && (
-        <div className="flex items-center gap-2.5 text-sm text-outline py-6 justify-center">
-          <div className="w-4 h-4 border-2 border-outline-variant border-t-black rounded-full animate-spin shrink-0" />
+        <div className="flex items-center gap-2.5 text-sm text-pi-faint py-6 justify-center">
+          <div className="w-4 h-4 border-2 border-pi-hairline border-t-pi-ink rounded-full animate-spin shrink-0" />
           Estimating manufacturing parameters…
         </div>
       )}
       {status === 'error' && (
-        <div className="flex items-start gap-2 text-xs text-verdict-negative bg-white border border-black px-3 py-2.5">
+        <div className="flex items-start gap-2 text-xs text-pi-risk rounded-lg border border-pi-risk/30 bg-pi-risk/10 px-3 py-2.5">
           <IconX className="w-3.5 h-3.5 shrink-0 mt-px" />
           Manufacturing estimate unavailable — please try again later.
         </div>

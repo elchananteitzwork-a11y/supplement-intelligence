@@ -91,7 +91,7 @@ function FounderProfileContent() {
           {/* What this profile affects */}
           <HardCard className="space-y-2">
             <p className="text-[11px] font-mono font-semibold text-outline uppercase tracking-wider">
-              This profile personalizes
+              This profile personalizes the Research flow (/research)
             </p>
             <ul className="text-xs text-ink-variant space-y-1">
               <li className="flex gap-2"><span className="text-black">→</span> Capital adequacy check on every thesis</li>
@@ -100,6 +100,15 @@ function FounderProfileContent() {
               <li className="flex gap-2"><span className="text-black">→</span> Founder Verdict in Investment Memos (separate from market verdict)</li>
               <li className="flex gap-2"><span className="text-black">→</span> Unit economics breakeven adjusted to your actual capital position</li>
             </ul>
+            {/* Honesty note (pre-beta architecture fix, 2026-07-21): this
+                profile is read exclusively by the older Research (Stage
+                1-4) pipeline above — confirmed zero real analyses created
+                via Discover/Analyze (/analyze) ever read it. Filling this
+                out does not change a score, verdict, or confidence on any
+                Pipeline/Candidate Detail/Dashboard analysis. */}
+            <p className="text-[11px] text-outline italic pt-1">
+              Doesn't affect analyses created via Discover/Analyze — those use a separate, newer pipeline that doesn't read this profile.
+            </p>
           </HardCard>
 
           <div className="flex gap-3">
@@ -137,7 +146,7 @@ function FounderProfileContent() {
 
 export default function FounderProfilePage() {
   return (
-    <AppShell active="settings">
+    <AppShell active={null}>
       <Suspense fallback={
         <div className="flex items-center justify-center py-24">
           <p className="text-outline text-sm font-mono animate-pulse">Loading…</p>

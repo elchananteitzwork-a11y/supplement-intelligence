@@ -82,18 +82,18 @@ export default async function Leaderboard() {
   const canAnalyze = devUnlimited || used < limit
 
   return (
-    <AppShell active="track" canAnalyze={canAnalyze}>
+    <AppShell active="track" canAnalyze={canAnalyze} variant="pi">
       <div className="max-w-6xl">
-        <div className="flex items-baseline justify-between mb-8 border-b-2 border-black pb-4">
-          <h1 className="text-headline-md text-black">Track Record</h1>
-          <p className="font-mono text-xs text-outline">{rows.length} categories ranked</p>
+        <div className="flex items-baseline justify-between mb-8 border-b border-pi-hairline pb-4">
+          <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-ink sm:text-[32px]">Track Record</h1>
+          <p className="font-mono text-xs text-pi-faint">{rows.length} categories ranked</p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-          <StatTile label="Entry Supported" value={String(build)} color="#008a00" />
-          <StatTile label="Validation Required" value={String(validate)} color="#a67c00" />
-          <StatTile label="Category Creation" value={String(categoryCreation)} color="#000000" />
-          <StatTile label="Not Supported" value={String(skip)} color="#d32f2f" />
+          <StatTile variant="pi" label="Entry Supported" value={String(build)} color="#2E6B48" />
+          <StatTile variant="pi" label="Validation Required" value={String(validate)} color="#8D6A16" />
+          <StatTile variant="pi" label="Category Creation" value={String(categoryCreation)} color="#16171A" />
+          <StatTile variant="pi" label="Not Supported" value={String(skip)} color="#A13F2E" />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

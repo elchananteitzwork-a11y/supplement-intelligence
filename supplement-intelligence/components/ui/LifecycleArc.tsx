@@ -3,9 +3,16 @@
 // bubble scatter, curved SVG arc) because it degrades cleanest to real,
 // sparse discrete-stage data (e.g. stage1→stage4/blocked) without implying
 // continuous progress that doesn't exist in the data.
+//
+// `variant="pi"` (UIv2-M2 Phase 2, 2026-07-21): additive opt-in restyle for
+// the pi-* report migration — its only consumer today is
+// components/memo/CurrentSignal.tsx, but kept as a default-preserving
+// variant (not a hard swap) in case another legacy screen adopts this
+// component before its own migration lands.
 export function LifecycleArc({
-  stages, currentIndex, blocked = false, className = '',
-}: { stages: string[]; currentIndex: number; blocked?: boolean; className?: string }) {
+  stages, currentIndex, blocked = false, className = '', variant = 'legacy',
+}: { stages: string[]; currentIndex: number; blocked?: boolean; className?: string; variant?: 'legacy' | 'pi' }) {
+  const isPi = variant === 'pi'
   return (
     <div className={`flex items-center ${className}`}>
       {stages.map((label, i) => {
@@ -16,15 +23,19 @@ export function LifecycleArc({
           <div key={label} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center gap-2 shrink-0">
               <span
-                className={`w-3 h-3 rounded-full border-2 border-black ${
-                  blocked && i === currentIndex ? 'bg-verdict-negative' : done || active ? 'bg-black' : 'bg-white'
+                className={`w-3 h-3 rounded-full border-2 ${isPi ? 'border-pi-ink' : 'border-black'} ${
+                  blocked && i === currentIndex
+                    ? (isPi ? 'bg-pi-risk' : 'bg-verdict-negative')
+                    : done || active
+                      ? (isPi ? 'bg-pi-ink' : 'bg-black')
+                      : (isPi ? 'bg-pi-card' : 'bg-white')
                 }`}
               />
-              <span className={`text-[10px] font-mono uppercase tracking-wider whitespace-nowrap ${active ? 'text-black font-bold' : 'text-outline'}`}>
+              <span className={`text-[10px] font-mono uppercase tracking-wider whitespace-nowrap ${active ? (isPi ? 'text-pi-ink font-bold' : 'text-black font-bold') : (isPi ? 'text-pi-faint' : 'text-outline')}`}>
                 {label}
               </span>
             </div>
-            {!isLast && <div className={`h-[2px] flex-1 mx-1.5 ${done ? 'bg-black' : 'bg-outline-variant'}`} />}
+            {!isLast && <div className={`h-[2px] flex-1 mx-1.5 ${done ? (isPi ? 'bg-pi-ink' : 'bg-black') : (isPi ? 'bg-pi-hairline' : 'bg-outline-variant')}`} />}
           </div>
         )
       })}

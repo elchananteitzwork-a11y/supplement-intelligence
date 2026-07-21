@@ -45,8 +45,8 @@ import type { MemoData, BuildDecision } from '@/types/index'
 import { computeGroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import { verdictLabelFromDecision } from '@/lib/ai-interpretation/verdict'
-import { HardCard, KillCriteriaList } from '@/components/ui'
-import { deriveKillCriteriaItems } from './shared'
+import { KillCriteriaList } from '@/components/ui'
+import { deriveKillCriteriaItems, PiCard } from './shared'
 import CurrentSignal from './CurrentSignal'
 import EvidenceConfidence from './EvidenceConfidence'
 import DemandIntensity from './DemandIntensity'
@@ -73,7 +73,7 @@ function ReadingProgressBar() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
-  return <div className="fixed top-0 left-0 z-50 h-[2px] bg-black transition-[width]" style={{ width: `${pct}%` }} />
+  return <div className="fixed top-0 left-0 z-50 h-[2px] bg-pi-gold-deep transition-[width]" style={{ width: `${pct}%` }} />
 }
 
 // ── Section 2: The Thesis — Stitch's canonical Investor Report renders
@@ -93,8 +93,8 @@ function TheThesis({ m }: { m: MemoData }) {
   if (!thesis) return null
   return (
     <section id="the-thesis" className="scroll-mt-20">
-      <blockquote className="border-l-[6px] border-black pl-6 sm:pl-8 py-2">
-        <p className="text-headline-md text-ink font-extrabold leading-tight tracking-tight">{thesis}</p>
+      <blockquote className="border-l-[6px] border-pi-gold-deep pl-6 sm:pl-8 py-2">
+        <p className="font-serif text-[22px] sm:text-[26px] font-semibold leading-snug tracking-tight text-pi-ink">{thesis}</p>
       </blockquote>
       <p className="sr-only">{verdictLabel}</p>
     </section>
@@ -131,16 +131,16 @@ function getSections(m: MemoData): SectionDef[] {
 
 function SectionNavMobile({ sections, active, onSelect }: { sections: SectionDef[]; active: string; onSelect: (id: string) => void }) {
   return (
-    <div className="sticky top-0 z-30 -mx-4 px-4 sm:-mx-0 sm:px-0 backdrop-blur-md bg-surface/95 border-b border-black lg:hidden">
+    <div className="sticky top-0 z-30 -mx-4 px-4 sm:-mx-0 sm:px-0 backdrop-blur-md bg-pi-cream/95 border-b border-pi-hairline lg:hidden">
       <div className="flex items-center gap-1 overflow-x-auto py-2.5">
         {sections.map(s => (
           <button
             key={s.id}
             onClick={() => onSelect(s.id)}
-            className={`relative text-[12.5px] font-medium px-3 py-2.5 whitespace-nowrap transition-colors ${active === s.id ? 'text-black font-bold' : 'text-outline hover:text-ink-variant'}`}
+            className={`relative text-[12.5px] font-medium px-3 py-2.5 whitespace-nowrap transition-colors ${active === s.id ? 'text-pi-ink font-bold' : 'text-pi-faint hover:text-pi-sub'}`}
           >
             {s.label}
-            {active === s.id && <span className="absolute left-2.5 right-2.5 bottom-0 h-[2px] bg-black" />}
+            {active === s.id && <span className="absolute left-2.5 right-2.5 bottom-0 h-[2px] bg-pi-gold-deep" />}
           </button>
         ))}
       </div>
@@ -151,12 +151,12 @@ function SectionNavMobile({ sections, active, onSelect }: { sections: SectionDef
 function ReportSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-20">
-      <HardCard>
-        <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b-2 border-black">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-outline">{title}</h2>
+      <PiCard padded={false} className="rounded-2xl p-6 sm:p-8">
+        <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-pi-hairline">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pi-faint">{title}</h2>
         </div>
         {children}
-      </HardCard>
+      </PiCard>
     </section>
   )
 }
@@ -233,40 +233,49 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
             writer_output.risk_sentence primary-risk statement) ───────── */}
         <ReportSection id="strategic-readiness" title="Strategic Readiness"><StrategicReadinessChecklist m={m} decision={decision} /></ReportSection>
 
-        {/* ── Section 8: Kill Criteria — full-bleed black, matching
-            Stitch's only inverted section (Investor Report §8). Roadmap
-            M2.8's real, machine-evaluable memo.kill_criteria — honest
-            unavailable note (not a silently-vanished section) when this
-            analysis predates the feature. ─────────────────────────────── */}
+        {/* ── Section 8: Kill Criteria — full-bleed pi-ink/pi-cream,
+            matching Stitch's only inverted section (Investor Report §8);
+            see components/ui/KillCriteriaList.tsx's own header comment for
+            why this stays dark rather than softening to the light pi-card
+            treatment used everywhere else. Roadmap M2.8's real,
+            machine-evaluable memo.kill_criteria — honest unavailable note
+            (not a silently-vanished section) when this analysis predates
+            the feature. ─────────────────────────────────────────────── */}
         <section id="kill-criteria" className="scroll-mt-20">
           {killItems ? (
             <KillCriteriaList title="Kill Criteria — we would reverse this verdict if…" items={killItems} />
           ) : (
-            <div className="bg-black text-white p-gutter">
-              <p className="text-[11px] font-mono uppercase tracking-wider text-white/60 mb-2">Kill Criteria — we would reverse this verdict if…</p>
-              <p className="text-sm text-white/70 italic">Not available — this analysis predates the kill-criteria feature.</p>
+            <div className="rounded-2xl bg-pi-ink text-pi-cream p-gutter">
+              <p className="text-[11px] font-mono uppercase tracking-wider text-pi-cream/60 mb-2">Kill Criteria — we would reverse this verdict if…</p>
+              <p className="text-sm text-pi-cream/70 italic">Not available — this analysis predates the kill-criteria feature.</p>
             </div>
           )}
         </section>
 
         {/* ── Extensions: real backend data with no Stitch section ──── */}
-        <div className="pt-4 border-t-4 border-double border-black">
-          <p className="text-[10px] font-mono text-outline uppercase tracking-widest mb-1">Additional Real-Time Intelligence</p>
-          <p className="text-[11px] text-outline italic">The sections below carry real data this analysis collected that Stitch&rsquo;s report design doesn&rsquo;t have a dedicated screen for — kept here rather than dropped, in the same visual language as the core report above.</p>
+        <div className="pt-4 border-t border-pi-hairline">
+          <p className="text-[10px] font-mono text-pi-faint uppercase tracking-widest mb-1">Additional Real-Time Intelligence</p>
+          <p className="text-[11px] text-pi-faint italic">The sections below carry real data this analysis collected that Stitch&rsquo;s report design doesn&rsquo;t have a dedicated screen for — kept here rather than dropped, in the same visual language as the core report above.</p>
         </div>
 
         <ReportSection id="thesis-detail" title="Investment Thesis Detail"><InvestmentThesis m={m} decision={decision} /></ReportSection>
         <ReportSection id="evidence-methodology" title="Score Methodology &amp; Evidence Coverage"><EvidenceConfidence m={m} decision={decision} confidenceAssessment={confidenceAssessment} /></ReportSection>
         <ReportSection id="news-intelligence" title="Recent Market Intelligence"><NewsIntelligence m={m} /></ReportSection>
-        {m.review_narrative && (
-          <ReportSection id="review-narrative" title="Customer Review Intelligence"><ReviewNarrative m={m} /></ReportSection>
-        )}
+        {/* Always rendered, not gated on m.review_narrative — a missing
+            review_narrative most often means the review-collection
+            provider didn't return enough real reviews (found live during
+            the pre-beta walkthrough, 2026-07-21), not that this section
+            doesn't apply. Hiding the section silently made that
+            indistinguishable from "this analysis has nothing to say here"
+            — ReviewNarrative itself now renders an honest explanation
+            instead of null. */}
+        <ReportSection id="review-narrative" title="Customer Review Intelligence"><ReviewNarrative m={m} /></ReportSection>
         <ReportSection id="marketing-intelligence" title="Marketing Intelligence"><MarketingIntelligence m={m} /></ReportSection>
         <ReportSection id="launch-strategy" title="Launch Strategy"><LaunchStrategy m={m} /></ReportSection>
 
         {/* ── Footer ──────────────────────────────────────────────────── */}
-        <footer className="py-10 border-t border-black text-center">
-          <p className="font-mono text-[10px] text-outline uppercase tracking-widest">
+        <footer className="py-10 border-t border-pi-hairline text-center">
+          <p className="font-mono text-[10px] text-pi-faint uppercase tracking-widest">
             {generatedAt ? `Prepared ${new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}` : 'Confidential'} — scoring engine {m.scoring_version ?? 'unversioned'}
           </p>
         </footer>

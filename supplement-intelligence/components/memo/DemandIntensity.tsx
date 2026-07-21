@@ -11,14 +11,13 @@
 import type { MemoData } from '@/types/index'
 import type { ViralitySignal } from '@/lib/signal-engine/types'
 import { computeGroundedScore } from '@/lib/scoring'
-import { HardCard } from '@/components/ui'
 import {
   demandProvenance, viralityProvenance, subscriptionProvenance,
   searchVolumeProvenance, searchGrowthProvenance,
   demandMomentum90dProvenance, topRegionsProvenance, revenueEvidenceProvenance, unitsSoldProvenance,
   categoryReviewDataProvenance, realFeeDataProvenance, type Provenance,
 } from '@/lib/provenance'
-import { ProvenanceBadge, LabNoData, SignalBars, LEVEL_TO_SIGNAL, dimLevel, deriveScienceDisplay } from './shared'
+import { ProvenanceBadge, LabNoData, SignalBars, LEVEL_TO_SIGNAL, dimLevel, deriveScienceDisplay, PiCard } from './shared'
 import KeywordIntelligence from './KeywordIntelligence'
 import type { ConcordanceMatrix, Momentum } from '@/lib/concordance'
 import { scienceProvenance } from '@/lib/provenance'
@@ -30,10 +29,10 @@ import { scienceProvenance } from '@/lib/provenance'
 // blended momentum shown elsewhere in this section — a channel that never
 // reported for this query shows Absent honestly rather than being hidden.
 const MOMENTUM_CLS: Record<Momentum, string> = {
-  Accelerating: 'text-verdict-positive border-black bg-white',
-  Stable:       'text-ink-variant border-black bg-white',
-  Decelerating: 'text-verdict-negative border-black bg-white',
-  Absent:       'text-outline border-outline-variant bg-surface-container',
+  Accelerating: 'text-pi-build border-pi-hairline bg-pi-card',
+  Stable:       'text-pi-sub border-pi-hairline bg-pi-card',
+  Decelerating: 'text-pi-risk border-pi-hairline bg-pi-card',
+  Absent:       'text-pi-faint border-pi-hairline bg-pi-sand',
 }
 const AGREEMENT_LABEL: Record<ConcordanceMatrix['agreement'], string> = {
   Unanimous:    'Unanimous — every reporting channel agrees',
@@ -44,24 +43,24 @@ const AGREEMENT_LABEL: Record<ConcordanceMatrix['agreement'], string> = {
 
 function ConcordanceMatrixCard({ matrix }: { matrix: ConcordanceMatrix }) {
   return (
-    <div className="bg-white border border-black p-4 sm:p-5">
+    <PiCard>
       <div className="flex items-center justify-between gap-3 mb-3">
-        <p className="text-xs font-semibold text-black">Cross-Channel Demand Concordance</p>
-        <span className="text-[10px] font-mono text-outline uppercase tracking-wider">{matrix.distinctReportingChannels}/{matrix.reads.length} channels reporting</span>
+        <p className="text-xs font-semibold text-pi-ink">Cross-Channel Demand Concordance</p>
+        <span className="text-[10px] font-mono text-pi-faint uppercase tracking-wider">{matrix.distinctReportingChannels}/{matrix.reads.length} channels reporting</span>
       </div>
-      <div className="border border-black divide-y divide-black">
+      <div className="rounded-lg border border-pi-hairline divide-y divide-pi-hairline overflow-hidden">
         {matrix.reads.map(r => (
           <div key={r.channel} className="flex items-center justify-between gap-3 px-3 py-2.5">
             <div className="min-w-0">
-              <p className="text-xs font-medium text-black">{r.label}</p>
-              {r.provider && <p className="text-[10px] text-outline font-mono">{r.provider}</p>}
+              <p className="text-xs font-medium text-pi-ink">{r.label}</p>
+              {r.provider && <p className="text-[10px] text-pi-faint font-mono">{r.provider}</p>}
             </div>
-            <span className={`text-[10px] font-semibold uppercase tracking-wide border px-2 py-0.5 shrink-0 ${MOMENTUM_CLS[r.momentum]}`}>{r.momentum}</span>
+            <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 shrink-0 ${MOMENTUM_CLS[r.momentum]}`}>{r.momentum}</span>
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-outline italic mt-3 leading-relaxed">{AGREEMENT_LABEL[matrix.agreement]}</p>
-    </div>
+      <p className="text-[11px] text-pi-faint italic mt-3 leading-relaxed">{AGREEMENT_LABEL[matrix.agreement]}</p>
+    </PiCard>
   )
 }
 
@@ -78,9 +77,9 @@ function ConcordanceMatrixCard({ matrix }: { matrix: ConcordanceMatrix }) {
 function ConcordanceRow({ label, value, level }: { label: string; value: string | undefined; level: 'Strong' | 'Moderate' | 'Weak' | null }) {
   if (!value) return null
   return (
-    <div className="flex items-center justify-between gap-4 py-3.5 border-b border-outline-variant last:border-b-0 px-1">
-      <span className="font-bold uppercase text-xs w-1/3">{label}</span>
-      <span className="font-mono text-sm text-right w-1/3 pr-4">{value}</span>
+    <div className="flex items-center justify-between gap-4 py-3.5 border-b border-pi-hairline last:border-b-0 px-1">
+      <span className="font-bold uppercase text-xs w-1/3 text-pi-ink">{label}</span>
+      <span className="font-mono text-sm text-right w-1/3 pr-4 text-pi-ink">{value}</span>
       <div className="w-1/3 flex justify-end">{level && <SignalBars level={level} />}</div>
     </div>
   )
@@ -90,9 +89,9 @@ interface EvidenceRowSpec { label: string; value: string | undefined; provenance
 
 function EvidenceMetricRow({ label, value }: { label: string; value: string | undefined; provenance: Provenance | null }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2 border-b border-black last:border-b-0">
-      <span className="text-xs text-outline">{label}</span>
-      {value ? <span className="font-mono text-sm font-semibold text-black text-right">{value}</span> : <LabNoData />}
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-pi-hairline last:border-b-0">
+      <span className="text-xs text-pi-faint">{label}</span>
+      {value ? <span className="font-mono text-sm font-semibold text-pi-ink text-right">{value}</span> : <LabNoData />}
     </div>
   )
 }
@@ -103,9 +102,9 @@ function EvidencePanel({
   title: string; metrics: EvidenceRowSpec[]; scoreLabel: string; scoreProvenance: Provenance | null
   score: number | null; scoreLevel: 'Strong' | 'Moderate' | 'Weak' | null; footer?: string
 }) {
-  const color = scoreLevel === 'Strong' ? 'text-verdict-positive' : scoreLevel === 'Moderate' ? 'text-verdict-caution-text' : 'text-outline'
+  const color = scoreLevel === 'Strong' ? 'text-pi-build' : scoreLevel === 'Moderate' ? 'text-pi-gold-bright' : 'text-pi-faint'
   const tier  = scoreProvenance?.level ?? 'unknown'
-  const borderTier = tier === 'verified' ? 'border-l-black' : tier === 'estimated' ? 'border-l-verdict-caution-text' : tier === 'unsupported' ? 'border-l-verdict-negative' : tier === 'unknown' ? 'border-l-outline' : 'border-l-black'
+  const borderTier = tier === 'verified' ? 'border-l-pi-ink' : tier === 'estimated' ? 'border-l-pi-gold-bright' : tier === 'unsupported' ? 'border-l-pi-risk' : tier === 'unknown' ? 'border-l-pi-faint' : 'border-l-pi-ink'
 
   const uniqueProvenances = Array.from(
     new Map(
@@ -115,25 +114,25 @@ function EvidencePanel({
   )
 
   return (
-    <div className={`bg-white border border-black border-l-[3px] ${borderTier} p-4 sm:p-5`}>
-      <p className="text-xs font-semibold text-black mb-3">{title}</p>
+    <div className={`rounded-xl border border-pi-hairline bg-pi-card border-l-[3px] ${borderTier} p-4 sm:p-5`}>
+      <p className="text-xs font-semibold text-pi-ink mb-3">{title}</p>
       <div>{metrics.map(row => <EvidenceMetricRow key={row.label} {...row} />)}</div>
       {uniqueProvenances.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-black">
+        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-pi-hairline">
           {uniqueProvenances.map((p, i) => <ProvenanceBadge key={i} p={p} />)}
         </div>
       )}
-      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-black">
-        <span className="text-[10px] text-outline uppercase tracking-wider">{scoreLabel}</span>
+      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-pi-hairline">
+        <span className="text-[10px] text-pi-faint uppercase tracking-wider">{scoreLabel}</span>
         {score !== null && scoreLevel !== null && scoreProvenance ? (
           <div className="flex items-center gap-2">
             <ProvenanceBadge p={scoreProvenance} />
             <SignalBars level={scoreLevel} />
-            <span className={`font-mono font-bold text-lg leading-none ${color}`}>{score}<span className="text-outline text-[10px] font-sans">/10</span></span>
+            <span className={`font-mono font-bold text-lg leading-none ${color}`}>{score}<span className="text-pi-faint text-[10px] font-sans">/10</span></span>
           </div>
         ) : <LabNoData />}
       </div>
-      {footer && <p className="mt-2 text-[10px] text-outline italic leading-relaxed">{footer}</p>}
+      {footer && <p className="mt-2 text-[10px] text-pi-faint italic leading-relaxed">{footer}</p>}
     </div>
   )
 }
@@ -205,47 +204,47 @@ function TikTokSignalCard({
   const level = score !== null
     ? (score >= 8 ? 'Strong' as const : score >= 6 ? 'Moderate' as const : 'Weak' as const)
     : qualitativeLevel ? LEVEL_TO_SIGNAL[qualitativeLevel] : null
-  const color = level === 'Strong' ? 'text-verdict-positive' : level === 'Moderate' ? 'text-verdict-caution-text' : 'text-outline'
+  const color = level === 'Strong' ? 'text-pi-build' : level === 'Moderate' ? 'text-pi-gold-bright' : 'text-pi-faint'
   const hasRaw = virality?.video_count !== undefined && virality?.view_count !== undefined
   return (
-    <HardCard>
+    <PiCard>
       <div className="flex items-center gap-4">
-        <div className="w-10 h-10 border-2 border-black shrink-0 grid place-items-center">
-          {level && <span className={`w-2 h-2 rounded-full ${level === 'Strong' ? 'bg-verdict-positive' : level === 'Moderate' ? 'bg-verdict-caution-text' : 'bg-outline'}`} />}
+        <div className="w-10 h-10 rounded-lg border border-pi-hairline shrink-0 grid place-items-center">
+          {level && <span className={`w-2 h-2 rounded-full ${level === 'Strong' ? 'bg-pi-build' : level === 'Moderate' ? 'bg-pi-gold-bright' : 'bg-pi-faint'}`} />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs font-semibold text-black">TikTok Signal</span>
+            <span className="text-xs font-semibold text-pi-ink">TikTok Signal</span>
             <ProvenanceBadge p={provenance} />
           </div>
-          <p className="text-xs text-outline leading-snug line-clamp-2">{notes}</p>
+          <p className="text-xs text-pi-faint leading-snug line-clamp-2">{notes}</p>
         </div>
         <div className="text-right shrink-0">
           {score !== null ? (
-            <p className={`font-bold text-2xl leading-none ${color}`}>{score}<span className="text-outline text-[10px] font-sans">/10</span></p>
+            <p className={`font-bold text-2xl leading-none ${color}`}>{score}<span className="text-pi-faint text-[10px] font-sans">/10</span></p>
           ) : (
             <p className={`font-bold text-base leading-none ${color}`}>{qualitativeLevel ?? '—'}</p>
           )}
-          {level && <p className="text-[9px] text-outline uppercase tracking-wider mt-1">{level}</p>}
+          {level && <p className="text-[9px] text-pi-faint uppercase tracking-wider mt-1">{level}</p>}
         </div>
       </div>
       {hasRaw && (
-        <div className="flex mt-3 pt-3 border-t border-black">
+        <div className="flex mt-3 pt-3 border-t border-pi-hairline">
           <div className="flex-1 px-2 text-center">
-            <p className="text-[9px] text-outline uppercase tracking-wider">#{virality!.hashtag}</p>
-            <p className="text-xs text-outline">real hashtag</p>
+            <p className="text-[9px] text-pi-faint uppercase tracking-wider">#{virality!.hashtag}</p>
+            <p className="text-xs text-pi-faint">real hashtag</p>
           </div>
           <div className="flex-1 px-2 text-center">
-            <p className="font-mono text-sm font-semibold text-black">{virality!.video_count!.toLocaleString()}</p>
-            <p className="text-[9px] text-outline uppercase tracking-wider">videos</p>
+            <p className="font-mono text-sm font-semibold text-pi-ink">{virality!.video_count!.toLocaleString()}</p>
+            <p className="text-[9px] text-pi-faint uppercase tracking-wider">videos</p>
           </div>
           <div className="flex-1 px-2 text-center">
-            <p className="font-mono text-sm font-semibold text-black">{virality!.view_count!.toLocaleString()}</p>
-            <p className="text-[9px] text-outline uppercase tracking-wider">views</p>
+            <p className="font-mono text-sm font-semibold text-pi-ink">{virality!.view_count!.toLocaleString()}</p>
+            <p className="text-[9px] text-pi-faint uppercase tracking-wider">views</p>
           </div>
         </div>
       )}
-    </HardCard>
+    </PiCard>
   )
 }
 
@@ -260,32 +259,32 @@ function ScienceSignalRow({ m }: { m: MemoData }) {
   const sci = deriveScienceDisplay(m.signal_evidence?.science?.value)
   if (!sci) {
     return (
-      <p className="text-[11px] text-outline italic py-2">
+      <p className="text-[11px] text-pi-faint italic py-2">
         Science signal (publication/trial velocity): not tracked for this query — the nightly batch covers a small, fixed ingredient list only.
       </p>
     )
   }
   return (
-    <div className="bg-white border border-black p-4 sm:p-5">
+    <PiCard>
       <div className="flex items-center justify-between gap-3 mb-3">
-        <p className="text-xs font-semibold text-black">Science Signal — {sci.ingredient}</p>
+        <p className="text-xs font-semibold text-pi-ink">Science Signal — {sci.ingredient}</p>
         <ProvenanceBadge p={scienceProvenance()} />
       </div>
-      <div className="border border-black divide-y divide-black">
+      <div className="rounded-lg border border-pi-hairline divide-y divide-pi-hairline overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-          <span className="text-xs text-outline">Publication Trend</span>
-          <span className="font-mono text-sm font-semibold text-black">{sci.publicationTrend ?? <LabNoData />}</span>
+          <span className="text-xs text-pi-faint">Publication Trend</span>
+          <span className="font-mono text-sm font-semibold text-pi-ink">{sci.publicationTrend ?? <LabNoData />}</span>
         </div>
         <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-          <span className="text-xs text-outline">Publication Velocity (YoY)</span>
-          <span className="font-mono text-sm font-semibold text-black">{sci.publicationVelocityPct !== null ? `${sci.publicationVelocityPct > 0 ? '+' : ''}${sci.publicationVelocityPct}%` : <LabNoData />}</span>
+          <span className="text-xs text-pi-faint">Publication Velocity (YoY)</span>
+          <span className="font-mono text-sm font-semibold text-pi-ink">{sci.publicationVelocityPct !== null ? `${sci.publicationVelocityPct > 0 ? '+' : ''}${sci.publicationVelocityPct}%` : <LabNoData />}</span>
         </div>
         <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-          <span className="text-xs text-outline">Registered Clinical Trials</span>
-          <span className="font-mono text-sm font-semibold text-black">{sci.trialRegistrationsCount ?? <LabNoData />}</span>
+          <span className="text-xs text-pi-faint">Registered Clinical Trials</span>
+          <span className="font-mono text-sm font-semibold text-pi-ink">{sci.trialRegistrationsCount ?? <LabNoData />}</span>
         </div>
       </div>
-    </div>
+    </PiCard>
   )
 }
 
@@ -314,27 +313,27 @@ export default function DemandIntensity({ m }: { m: MemoData }) {
       </div>
 
       {m.concordance_matrix && (
-        <div className="pt-5 border-t border-black">
+        <div className="pt-5 border-t border-pi-hairline">
           <ConcordanceMatrixCard matrix={m.concordance_matrix} />
         </div>
       )}
 
-      <div className="pt-5 border-t border-black">
+      <div className="pt-5 border-t border-pi-hairline">
         <ScienceSignalRow m={m} />
       </div>
 
-      <div className="grid gap-3 pt-5 border-t border-black">
+      <div className="grid gap-3 pt-5 border-t border-pi-hairline">
         <DemandEvidencePanel m={m} />
         <RevenueEvidencePanel m={m} />
       </div>
 
-      <div className="pt-5 border-t border-black space-y-3">
+      <div className="pt-5 border-t border-pi-hairline space-y-3">
         {subscriptionLevel && (
-          <div className="border border-black flex items-center gap-3 px-4 py-3.5">
-            <span className="text-xs font-semibold text-ink-variant w-28 shrink-0">Subscription</span>
-            <span className="font-semibold text-base text-black w-16 shrink-0">{subscriptionLevel}</span>
+          <div className="rounded-xl border border-pi-hairline bg-pi-card flex items-center gap-3 px-4 py-3.5">
+            <span className="text-xs font-semibold text-pi-sub w-28 shrink-0">Subscription</span>
+            <span className="font-semibold text-base text-pi-ink w-16 shrink-0">{subscriptionLevel}</span>
             <SignalBars level={LEVEL_TO_SIGNAL[subscriptionLevel]} />
-            <span className="flex-1 text-xs text-outline truncate hidden md:inline">{m.scores.subscription?.notes}</span>
+            <span className="flex-1 text-xs text-pi-faint truncate hidden md:inline">{m.scores.subscription?.notes}</span>
             <ProvenanceBadge p={subscriptionProvenance()} />
           </div>
         )}
@@ -351,8 +350,8 @@ export default function DemandIntensity({ m }: { m: MemoData }) {
           whole section (demand), was previously its own top-level
           "Keyword Intelligence" section named after the backend field
           (m.keyword_intelligence) rather than grouped by subject matter. */}
-      <div className="pt-5 border-t border-black">
-        <p className="text-[10px] text-outline uppercase tracking-widest mb-3">Keyword-Level Search Evidence</p>
+      <div className="pt-5 border-t border-pi-hairline">
+        <p className="text-[10px] text-pi-faint uppercase tracking-widest mb-3">Keyword-Level Search Evidence</p>
         <KeywordIntelligence m={m} />
       </div>
     </div>
