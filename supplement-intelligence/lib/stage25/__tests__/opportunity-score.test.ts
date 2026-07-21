@@ -68,9 +68,19 @@ describe('computeOpportunityScore', () => {
 describe('single source of truth — no re-duplicated formula (Finding 8 reuse guard)', () => {
   const repoRoot = join(__dirname, '..', '..', '..')
 
-  it('app/api/research/compare/route.ts imports the shared function and does not redefine it locally', () => {
+  // UIv2-M2 update (2026-07-2x): app/api/research/compare/route.ts was
+  // rewired off the old investment_theses/market_signals pipeline (zero
+  // real rows in production, per that milestone's architecture audit) onto
+  // the real `analyses` pipeline — it no longer computes an "Opportunity
+  // Score" via this Stage1Evidence-shaped formula at all; it uses
+  // lib/scoring.ts's computeGroundedScore(memo_data) instead, the same
+  // real scoring function Pipeline and Candidate Detail already use. This
+  // is a legitimate consequence of that approved change, not a regression
+  // of Finding 8 — the guard below still confirms the route doesn't
+  // re-duplicate this formula locally, just no longer expects it to import
+  // a formula it has no reason to call anymore.
+  it('app/api/research/compare/route.ts does not re-duplicate the retired Stage 2.5 opportunity-score formula locally', () => {
     const src = readFileSync(join(repoRoot, 'app/api/research/compare/route.ts'), 'utf8')
-    expect(src).toContain("import { computeOpportunityScore } from '@/lib/stage25/opportunity-score'")
     expect(src).not.toMatch(/function computeScore\(/)
     expect(src).not.toMatch(/function computeOpportunityScore\(/)
   })

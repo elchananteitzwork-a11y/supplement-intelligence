@@ -1,7 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const GUARDED = ['/dashboard', '/memo', '/leaderboard', '/research', '/analyze', '/thesis']
+// Pre-beta audit fix: /pipeline, /watchlist, /alerts, /settings were never
+// added here — each of their own API routes independently checks auth (so
+// nothing was ever exploitable), but an unauthenticated visit rendered an
+// empty page shell instead of redirecting to /login like every other real
+// page does. Added for consistent behavior, not because of a real leak.
+const GUARDED = ['/dashboard', '/memo', '/leaderboard', '/research', '/analyze', '/thesis', '/pipeline', '/watchlist', '/alerts', '/settings']
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req })

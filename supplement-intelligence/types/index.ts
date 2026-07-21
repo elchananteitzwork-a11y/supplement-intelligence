@@ -355,11 +355,18 @@ export interface Analysis {
   category_name:      string
   target_audience:    string | null
   price_point:        string | null
-  score_demand:       number
-  score_competition:  number
-  score_virality:     number
-  score_subscription: number
-  score_manufacturing: number
+  // Pre-beta audit fix: every real row writes these as `null` (app/api/
+  // generate/route.ts — score_competition unconditionally, the rest via
+  // `?? null`), and the DB columns are nullable (supabase/migrations/
+  // 001_schema.sql). The non-null `number` type was a real type-inaccuracy
+  // (kept as schema-compat columns, not currently read anywhere as a
+  // guaranteed number) — fixed here so a future caller can't trust a type
+  // that promises a value no real row provides.
+  score_demand:       number | null
+  score_competition:  number | null
+  score_virality:     number | null
+  score_subscription: number | null
+  score_manufacturing: number | null
   opportunity_score:  number
   build_decision:     BuildDecision
   scoring_version?:   string  // see MemoData.scoring_version

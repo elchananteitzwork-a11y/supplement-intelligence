@@ -5,7 +5,8 @@ import { createClient }         from '@supabase/supabase-js'
 import Anthropic                from '@anthropic-ai/sdk'
 import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }         from '@/lib/signal-engine'
-import { handleProviderError }  from '@/lib/provider-errors'
+import { handleProviderError, classifyProviderError } from '@/lib/provider-errors'
+import { sleep } from '@/lib/review-collector/retry'
 import { checkRateLimit, DISCOVER_LIMIT } from '@/lib/rate-limit'
 import type { OpportunityCard, OpportunityMeta, CacheStatus } from '@/types/index'
 
@@ -336,6 +337,28 @@ export async function POST(req: Request) {
         console.error(`Discovery timeout after 90 s (attempt ${attempt}/${MAX_DISCOVER_ATTEMPTS})`, { category: input.trim() })
         if (attempt < MAX_DISCOVER_ATTEMPTS) continue
         return err('Discovery timed out — please try again.', 504)
+      }
+      // Real incident (pre-beta walkthrough, 2026-07-21): a transient
+      // Anthropic 529 overloaded_error failed 3 of 4 real Discover requests
+      // in a row, each returning straight to the user with no retry at all
+      // — this loop already retried parse/validation failures below, but
+      // never a real provider-level error. classifyProviderError (same
+      // classifier every route already uses) distinguishes genuinely
+      // transient categories (rate_limit, service_unavailable) from ones
+      // where retrying is pointless (insufficient_credits, auth_failure) —
+      // only the former get another attempt, bounded by the same
+      // MAX_DISCOVER_ATTEMPTS this loop already uses for other retryable
+      // conditions, with a short capped backoff since a real user is
+      // waiting synchronously on this request.
+      const classified = classifyProviderError(e)
+      const isTransient = classified.category === 'rate_limit' || classified.category === 'service_unavailable'
+      if (isTransient && attempt < MAX_DISCOVER_ATTEMPTS) {
+        const waitMs = Math.round(Math.min(800 * 2 ** (attempt - 1), 3000) * (1 + 0.2 * (Math.random() * 2 - 1))) // +/-20% jitter, avoids a thundering herd of simultaneous retries after a shared provider blip
+        console.error(`Discovery provider error, retrying (attempt ${attempt}/${MAX_DISCOVER_ATTEMPTS}, waiting ${waitMs}ms)`, {
+          category: input.trim(), errorCategory: classified.category, technicalDetail: classified.technicalDetail,
+        })
+        await sleep(waitMs)
+        continue
       }
       // See lib/provider-errors.ts — logs the real technical detail
       // server-side, returns only a safe, category-appropriate message

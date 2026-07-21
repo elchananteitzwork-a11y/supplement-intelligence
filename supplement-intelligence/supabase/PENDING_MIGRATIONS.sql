@@ -11,6 +11,9 @@
 --           · 022_voc_problem_clusters · 023_watchlist
 --           · 024_verdict_ledger_outcomes · 025_niche_timeseries
 --           · 026_discovery_alerts · 027_divergence_alerts
+--           · 013_lock_down_rpc_grants (re-appended, idempotent)
+--           · 028_lock_down_leaderboard_rls · 004_refund_slot
+--           · 011_remove_seed_data · 014_lock_discovery_cache_writes
 --
 -- 2026-07-14: appended 020-026 after live production validation of M2.13
 -- discovered voc_problem_clusters (022) had never actually been applied to
@@ -32,6 +35,77 @@
 -- documented history above, "recorded in the roadmap" is never treated as
 -- equivalent to "actually pasted and run" — the project owner must run this
 -- file's full contents before divergence_alerts exists live.
+--
+-- 2026-07-21: pre-beta production-readiness audit found the leaderboard's
+-- migration 002 RLS policies still let ANY authenticated user INSERT/UPDATE
+-- the shared public.leaderboard table directly via PostgREST — migration
+-- 013's grant lockdown only touched the upsert_leaderboard_entry() FUNCTION,
+-- never the table's own RLS policies, so the underlying hole was never
+-- actually closed. Appended 013 here too (idempotent revoke/grant — safe to
+-- re-run even if already applied) alongside the new 028 policy fix, since
+-- this file's own status for 013 was never confirmed and running both
+-- together guarantees the correct end state either way. Same audit also
+-- found the application code itself was still calling
+-- consume_analysis_slot/refund_analysis_slot/upsert_leaderboard_entry
+-- through the authenticated cookie client rather than service_role — fixed
+-- directly in app/api/generate/route.ts and app/api/thesis/route.ts (no DB
+-- change needed for that half of the fix).
+--
+-- 2026-07-21 (same day, after the owner ran the block above): the run
+-- failed on "function public.refund_analysis_slot(uuid) does not exist".
+-- Investigated via direct live PostgREST evidence (not guesswork):
+--   - GET {url}/rest/v1/ as service_role lists only two RPCs in production
+--     today: consume_analysis_slot and upsert_leaderboard_entry.
+--     refund_analysis_slot is not present under any signature.
+--   - POST {url}/rest/v1/rpc/refund_analysis_slot as anon → PGRST202 "no
+--     matches found in the schema cache" (a missing-function error, not a
+--     permission error).
+-- Root cause: supabase/migrations/004_refund_slot.sql — which creates this
+-- exact function — was simply never included in any prior version of this
+-- pending-paste file, and so was never run against production, even though
+-- 003 (before it) and 005+ (after it) all were. Not a rename, not a broken
+-- chain — one file that was silently skipped. Fixed by appending 004's
+-- create-function statement below, positioned BEFORE the 013 section (013
+-- revokes/grants on this function, so it must exist first).
+--
+-- This also let us confirm something else directly: POST
+-- {url}/rest/v1/rpc/consume_analysis_slot as anon (unauthenticated, no
+-- user session at all) returned HTTP 200 — meaning migration 013 has ALSO
+-- never actually been applied to production, despite being re-appended to
+-- this file above. The grant lockdown in the 013 section below is
+-- therefore not redundant — it is the fix for a currently-live,
+-- currently-exploitable hole (any anonymous caller can call
+-- consume_analysis_slot(any_uuid) right now). Re-run this entire file.
+--
+-- 2026-07-21 (same investigation, continued): given two migrations from the
+-- same original batch (004, 013) turned out to have silently never run, we
+-- systematically re-verified EVERY migration 001-028 against live
+-- production via direct PostgREST evidence (schema introspection, and for
+-- RLS-only changes, real disposable-test-account calls — created and
+-- deleted via the Admin API, no residue left). Two more real gaps found:
+--
+--   - 011_remove_seed_data was NEVER applied: a live SELECT confirms 28 of
+--     300 leaderboard rows today are still the hand-authored fake seed data
+--     from 002_seed_leaderboard.sql (fabricated scores/competitors, no real
+--     analysis behind them — e.g. "Bloating + Fatigue", "Joint Pain"),
+--     indistinguishable in the UI from the 272 real ones. This is currently
+--     visible to every user on the live Track Record / Leaderboard page —
+--     a real, currently-shipping violation of this product's core
+--     never-fabricate principle. Appended below.
+--
+--   - 014_lock_discovery_cache_writes was ALSO never applied: verified with
+--     a real disposable authenticated session — a plain POST to
+--     {url}/rest/v1/discovery_cache succeeded (201), proving any logged-in
+--     user can insert/update arbitrary rows in the shared Discover results
+--     cache directly via PostgREST right now, poisoning what every other
+--     user sees for that query/week. Same vulnerability class as the
+--     leaderboard (028) and the RPC grants (013). Appended below.
+--
+-- Every other migration (001-003, 005-010, 012, 015-027 except the already-
+-- documented 027) was independently confirmed live via direct schema/data
+-- checks — tables, columns, and functions all present and matching. This
+-- file, as it stands now, is believed to bring production to a fully
+-- migrated, fully secured state. Re-run the entire file once more.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -705,3 +779,68 @@ do $$ begin
     create policy "authenticated insert" on public.theses for insert with check (auth.role() = 'authenticated');
   end if;
 end $$;
+
+
+-- ── 004: REFUND ANALYSIS SLOT ────────────────────────────────────────────────
+-- See supabase/migrations/004_refund_slot.sql. Confirmed missing from
+-- production 2026-07-21 (see history note above) — must run before 013,
+-- which revokes/grants execute on this exact function.
+
+create or replace function public.refund_analysis_slot(p_user_id uuid)
+returns void language plpgsql security definer as $$
+begin
+  update public.profiles
+  set    analyses_used = greatest(0, analyses_used - 1)
+  where  id = p_user_id;
+end;
+$$;
+
+
+-- ── 013: LOCK DOWN DANGEROUS SECURITY DEFINER FUNCTION GRANTS ──────────────
+-- (idempotent — safe to re-run even if already applied)
+
+revoke execute on function public.upsert_leaderboard_entry(text, numeric, text, text, text, text, uuid)
+  from authenticated;
+
+revoke execute on function public.consume_analysis_slot(uuid)
+  from public, anon, authenticated;
+grant execute on function public.consume_analysis_slot(uuid)
+  to service_role;
+
+revoke execute on function public.refund_analysis_slot(uuid)
+  from public, anon, authenticated;
+grant execute on function public.refund_analysis_slot(uuid)
+  to service_role;
+
+
+-- ── 028: LOCK DOWN LEADERBOARD TABLE RLS ────────────────────────────────────
+
+drop policy if exists "authenticated insert leaderboard" on public.leaderboard;
+drop policy if exists "authenticated update leaderboard" on public.leaderboard;
+
+create policy "service role insert leaderboard" on public.leaderboard
+  for insert with check (auth.role() = 'service_role');
+
+create policy "service role update leaderboard" on public.leaderboard
+  for update using (auth.role() = 'service_role');
+
+
+-- ── 011: REMOVE FAKE SEED DATA FROM LEADERBOARD ─────────────────────────────
+-- See supabase/migrations/011_remove_seed_data.sql. Confirmed still live in
+-- production 2026-07-21 (28 of 300 rows) — see history note above.
+
+delete from public.leaderboard
+where best_analysis_id is null
+  and scoring_version is null;
+
+
+-- ── 014: LOCK DOWN DISCOVERY_CACHE WRITES ───────────────────────────────────
+-- See supabase/migrations/014_lock_discovery_cache_writes.sql. Confirmed
+-- still exploitable in production 2026-07-21 via a real disposable
+-- authenticated session — see history note above. app/api/discover/route.ts
+-- already uses a service-role client for its own cache writes (verify
+-- unaffected), so removing these policies does not break normal Discover
+-- generation.
+
+drop policy if exists "authenticated insert" on public.discovery_cache;
+drop policy if exists "authenticated update" on public.discovery_cache;

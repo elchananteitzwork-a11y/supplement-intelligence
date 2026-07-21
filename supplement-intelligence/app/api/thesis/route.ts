@@ -1,6 +1,7 @@
 import { NextResponse }        from 'next/server'
 import { cookies }             from 'next/headers'
 import { createServerClient }  from '@supabase/ssr'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import {
   synthesize,
   normalizeQuery,
@@ -59,6 +60,27 @@ function supabaseFromCookies() {
           items.forEach(({ name, value, options }) => jar.set(name, value, options)),
       },
     },
+  )
+}
+
+// Pre-beta audit fix: same root cause as app/api/generate/route.ts's own
+// supabaseServiceRole() — consume_analysis_slot/refund_analysis_slot are
+// service_role-only per migration 013_lock_down_rpc_grants.sql, so calling
+// them through the cookie/session client (role `authenticated`) fails once
+// that migration is live. user.id here is never client-supplied — it's
+// this route's own sb.auth.getUser() result — so using service_role only
+// for these two already-identity-verified calls is safe.
+//
+// Constructed fresh per call rather than cached as a nullable module-level
+// singleton — the latter (`T | null` narrowed inside a lazy getter) defeats
+// TypeScript's generic inference for `.rpc()`'s overload, silently
+// collapsing every RPC's params type to `undefined`. Construction itself is
+// cheap (no network call, `persistSession: false`).
+function supabaseServiceRole() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
   )
 }
 
@@ -194,7 +216,7 @@ export async function POST(req: Request): Promise<Response> {
   let slotConsumed = false
 
   if (!devUnlimited) {
-    const { data: slotGranted, error: slotErr } = await sb
+    const { data: slotGranted, error: slotErr } = await supabaseServiceRole()
       .rpc('consume_analysis_slot', { p_user_id: user.id })
 
     if (slotErr) {
@@ -238,7 +260,7 @@ export async function POST(req: Request): Promise<Response> {
 
       // Refund slot so the user is not penalised for a server-side failure
       if (slotConsumed) {
-        void sb.rpc('refund_analysis_slot', { p_user_id: user.id }).then(
+        void supabaseServiceRole().rpc('refund_analysis_slot', { p_user_id: user.id }).then(
           ({ error: refundErr }) => {
             if (refundErr) console.error('[/api/thesis] slot refund failed', refundErr)
           },

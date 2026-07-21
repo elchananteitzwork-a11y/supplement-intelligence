@@ -1,6 +1,7 @@
 import { NextResponse }    from 'next/server'
 import { cookies }         from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import Anthropic           from '@anthropic-ai/sdk'
 import { categoryRegistry, classifyQuery } from '@/lib/categories'
 import { signalEngine }    from '@/lib/signal-engine'
@@ -27,7 +28,8 @@ import { synthesizeReviewNarrative } from '@/lib/review-narrative'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
 import { buildNewsIntelligence } from '@/lib/news-engine'
 import { shouldConsumeSlot } from '@/lib/analysis-slot-policy'
-import { handleProviderError } from '@/lib/provider-errors'
+import { handleProviderError, classifyProviderError } from '@/lib/provider-errors'
+import { sleep } from '@/lib/review-collector/retry'
 import { checkRateLimit, GENERATE_LIMIT } from '@/lib/rate-limit'
 import { isDevUnlimitedAnalysesEnabled } from '@/lib/billing/dev-bypass'
 import type { MemoData, SignalMetadata } from '@/types/index'
@@ -108,6 +110,32 @@ function supabaseFromCookies() {
           items.forEach(({ name, value, options }) => jar.set(name, value, options)),
       },
     }
+  )
+}
+
+// Pre-beta audit fix: consume_analysis_slot/refund_analysis_slot are
+// SECURITY DEFINER functions whose p_user_id parameter is trusted verbatim
+// with no auth.uid() check inside the function body — migration
+// 013_lock_down_rpc_grants.sql correctly restricts EXECUTE on them to
+// service_role only (anon/authenticated could otherwise call
+// refund_analysis_slot(any_uuid) to grant themselves unlimited analyses).
+// That means calling them through the cookie/session client above (role
+// `authenticated`) fails with a permission error once that migration is
+// live. user.id below is never client-supplied — it comes from this same
+// route's own sb.auth.getUser() a few lines up — so using service_role
+// only for these two already-identity-verified calls doesn't reopen the
+// hole migration 013 closed.
+//
+// Constructed fresh per call rather than cached as a nullable module-level
+// singleton — the latter (`T | null` narrowed inside a lazy getter) defeats
+// TypeScript's generic inference for `.rpc()`'s overload, silently
+// collapsing every RPC's params type to `undefined`. Construction itself is
+// cheap (no network call, `persistSession: false`).
+function supabaseServiceRole() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
   )
 }
 
@@ -671,6 +699,27 @@ export async function POST(req: Request) {
         if (attempt < MAX_GENERATE_ATTEMPTS && hasTimeForAnotherAttempt(requestStart)) continue
         return err('Analysis timed out — no slot used. Please try again.', 504)
       }
+      // Same real gap found in /api/discover during the pre-beta
+      // walkthrough (2026-07-21): a transient provider error (529
+      // overloaded, 429 rate limit) used to fall straight through to the
+      // user on the very first occurrence, even though this loop already
+      // retries timeouts/parse failures. classifyProviderError (same
+      // classifier every route already uses) tells transient categories
+      // (rate_limit, service_unavailable) apart from ones retrying can't
+      // fix (insufficient_credits, auth_failure) — only the former get
+      // another attempt, still bounded by MAX_GENERATE_ATTEMPTS and the
+      // route's own real time budget (hasTimeForAnotherAttempt), exactly
+      // like the existing timeout-retry branch above.
+      const classified = classifyProviderError(e)
+      const isTransient = classified.category === 'rate_limit' || classified.category === 'service_unavailable'
+      if (isTransient && attempt < MAX_GENERATE_ATTEMPTS && hasTimeForAnotherAttempt(requestStart)) {
+        const waitMs = Math.round(Math.min(800 * 2 ** (attempt - 1), 3000) * (1 + 0.2 * (Math.random() * 2 - 1))) // +/-20% jitter, avoids a thundering herd of simultaneous retries after a shared provider blip
+        console.error(`Generate provider error, retrying (attempt ${attempt}/${MAX_GENERATE_ATTEMPTS}, waiting ${waitMs}ms)`, {
+          category: input.trim(), errorCategory: classified.category, technicalDetail: classified.technicalDetail,
+        })
+        await sleep(waitMs)
+        continue
+      }
       // ROOT CAUSE (found 2026-06-29 live, real Anthropic credit
       // exhaustion mid-session): this used to return one blanket "AI
       // service error" for every failure type. handleProviderError()
@@ -996,7 +1045,7 @@ export async function POST(req: Request) {
   // ── Atomic slot consumption ────────────────────────────────────
   // See shouldConsumeSlot() above for the root-cause story.
   if (shouldConsumeSlot(skipReason, devUnlimited)) {
-    const { data: slotGranted, error: slotErr } = await sb
+    const { data: slotGranted, error: slotErr } = await supabaseServiceRole()
       .rpc('consume_analysis_slot', { p_user_id: user.id })
 
     if (slotErr) {
@@ -1050,7 +1099,7 @@ export async function POST(req: Request) {
 
   if (dbErr || !analysis) {
     console.error('DB insert error — refunding slot', dbErr)
-    await sb.rpc('refund_analysis_slot', { p_user_id: user.id })
+    await supabaseServiceRole().rpc('refund_analysis_slot', { p_user_id: user.id })
     return err('Failed to save analysis — your slot was refunded.', 500)
   }
 
@@ -1065,7 +1114,16 @@ export async function POST(req: Request) {
   // version, and is it actually better" decision now happens inside that
   // same atomic statement instead of in application code between two
   // separate round-trips.
-  const { error: leaderboardErr } = await sb.rpc('upsert_leaderboard_entry', {
+  //
+  // Pre-beta audit fix: same root cause as supabaseServiceRole() above —
+  // migration 013_lock_down_rpc_grants.sql revoked `authenticated`'s
+  // EXECUTE grant on this function (leaving only service_role), because a
+  // raw authenticated call let any user forge a fake leaderboard entry.
+  // This call was still using the cookie/session `sb` client, so once 013
+  // is live every real analysis's leaderboard upsert silently fails here
+  // (caught below as non-fatal, but the leaderboard then never reflects
+  // real analyses).
+  const { error: leaderboardErr } = await supabaseServiceRole().rpc('upsert_leaderboard_entry', {
     p_category_name:      memo.category_name,
     p_opportunity_score:  memo.opportunity_score,
     p_build_decision:     memo.build_decision,
