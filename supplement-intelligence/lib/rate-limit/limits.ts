@@ -24,3 +24,8 @@ export const MANUFACTURING_LIMIT       = 5
 
 /** Research market-signal (signal engine + keyword engine + regulatory) */
 export const RESEARCH_LIMIT            = 5
+
+/** Compare recommendation — Claude Sonnet, short prompt over already-
+ *  computed real data (pre-beta security audit fix: this route previously
+ *  had no rate limit at all). */
+export const COMPARE_RECOMMEND_LIMIT   = 5

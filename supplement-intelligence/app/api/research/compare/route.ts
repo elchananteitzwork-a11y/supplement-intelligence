@@ -1,272 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { assessLaunchThresholds } from '@/lib/stage25/launch-threshold'
-import { computeOpportunityScore } from '@/lib/stage25/opportunity-score'
-import { computeFullUnitEconomics } from '@/lib/stage4/unit-economics'
-import { scoreFit } from '@/lib/stage25/fit-layer'
-import type { Stage1Evidence } from '@/lib/evidence/adapter'
-import type { InvestmentThesis } from '@/lib/stage2/types'
-import type { FounderProfile } from '@/lib/stage25/fit-layer'
+import { supabaseAuthClient, fetchAnalysisComparisonItems, UUID_RE } from './buildComparisonItems'
+export type { AnalysisComparisonItem } from './buildComparisonItems'
 
 export const maxDuration = 30
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-export interface ComparisonItem {
-  thesis_id:            string
-  signal_id:            string
-  product_angle:        string
-  target_customer:      string
-  differentiation:      string
-  category_id:          string
-  signal_created_at:    string
-  stage:                'stage2' | 'stage3' | 'stage4'
-  // Stage 1 evidence
-  market_revenue_mo:    number | null
-  competitor_count:     number | null
-  review_concentration: number | null
-  median_price:         number | null
-  momentum_90d_pct:     number | null
-  trend_direction:      string | null
-  tiktok_view_count:    number | null
-  data_confidence:      number | null
-  // Stage 2 economics
-  min_capital_required: number
-  launch_complexity:    'low' | 'medium' | 'high'
-  margin_viable:        boolean
-  complexity_drivers:   string[]
-  // Stage 2.5 thresholds
-  threshold_pass_count: number
-  threshold_overall:    string
-  // Stage 3 kill switches
-  all_switches_clear:   boolean | null
-  triggered_switches:   string[]
-  // Stage 4 verdict
-  verdict_code:         string | null
-  verdict_headline:     string | null
-  founder_verdict_code: string | null
-  // Unit economics (computed)
-  breakeven_cogs:       number | null
-  base_price:           number | null
-  year1_base:           number | null
-  base_monthly:         number | null
-  // 'real' when both avg_referral_fee_pct/avg_fba_fee came from real Keepa
-  // data; 'estimated' when either was missing and computeSensitivityAnalysis
-  // fell back to industry-typical defaults (15% referral, $4.50 FBA); null
-  // when no evidence was available to compute unit economics at all. See
-  // lib/stage4/unit-economics.ts's SensitivityAnalysis.fee_data_source.
-  fee_data_source:      'real' | 'estimated' | null
-  // Founder fit (if profile)
-  fit_rank:             number | null
-  capital_fit_level:    string | null
-  channel_fit_level:    string | null
-  timeline_fit_level:   string | null
-  // Derived composite score — null (not 0) when no evidence exists to score,
-  // so callers never mistake "unscoreable" for a real, worst-possible score.
-  opportunity_score:    number | null
-}
-
-function supabaseAuthClient() {
-  const jar = cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => jar.getAll(),
-        setAll: (items: { name: string; value: string; options: Record<string, unknown> }[]) =>
-          items.forEach(({ name, value, options }) => jar.set(name, value, options)),
-      },
-    }
-  )
-}
-
-// GET /api/research/compare?ids=id1,id2,id3
+// GET /api/research/compare?ids=id1,id2,id3 — ids are `analyses` row ids
 export async function GET(req: NextRequest) {
   try {
-    const { data: { user }, error: authError } = await supabaseAuthClient().auth.getUser()
+    const sb = supabaseAuthClient()
+    const { data: { user }, error: authError } = await sb.auth.getUser()
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const rawIds = req.nextUrl.searchParams.get('ids') ?? ''
-    const thesisIds = rawIds.split(',').map(s => s.trim()).filter(Boolean).slice(0, 4)
-    if (thesisIds.length < 2) {
-      return NextResponse.json({ error: 'At least 2 thesis ids required' }, { status: 400 })
+    const ids = rawIds.split(',').map(s => s.trim()).filter(Boolean).slice(0, 4)
+    if (ids.length < 2) {
+      return NextResponse.json({ error: 'At least 2 analysis ids required' }, { status: 400 })
+    }
+    // Pre-beta audit fix: a non-UUID id previously reached `.in('id', ids)`
+    // and threw a real Postgres "invalid input syntax for type uuid" error,
+    // caught below and reported as a generic 500 — wrong status for a bad
+    // request. Reject it as a 400 before the query runs at all.
+    if (ids.some(id => !UUID_RE.test(id))) {
+      return NextResponse.json({ error: 'Invalid analysis id' }, { status: 400 })
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    // RLS-scoped to the authenticated user — same pattern app/memo/[id]/page.tsx
+    // and app/pipeline/page.tsx already use (real cookie-auth client, explicit
+    // .eq('user_id', ...) as defense in depth, no service-role client needed
+    // now that Founder Fit — the one thing that previously needed it — is gone).
+    const { items, error: fetchError } = await fetchAnalysisComparisonItems(sb, user.id, ids)
+    if (fetchError) {
+      return NextResponse.json({ error: fetchError }, { status: 500 })
+    }
 
-    // Founder profile — one per user, fetched once
-    const { data: profile } = await supabase
-      .from('founder_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    if (items.length < 2) {
+      return NextResponse.json({ error: 'At least 2 analyses ids required' }, { status: 400 })
+    }
 
-    // Fetch all theses in parallel
-    const thesisResults = await Promise.all(
-      thesisIds.map(id =>
-        supabase.from('investment_theses').select('*').eq('id', id).eq('user_id', user.id).single()
-      )
-    )
-
-    // Gather unique signal IDs, then fetch all signals in parallel
-    const thesesById = new Map(
-      thesisResults
-        .map(r => r.data)
-        .filter(Boolean)
-        .map(t => [t!.id as string, t!])
-    )
-    const signalIds = Array.from(new Set(Array.from(thesesById.values()).map(t => t.market_signal_id)))
-    const [signalResults, debateResults, memoResults] = await Promise.all([
-      Promise.all(signalIds.map(id =>
-        supabase.from('market_signals').select('*').eq('id', id).eq('user_id', user.id).single()
-      )),
-      Promise.all(thesisIds.map(id =>
-        supabase.from('adversarial_debates').select('id, all_switches_clear, kill_switches')
-          .eq('thesis_id', id).eq('user_id', user.id).limit(1).maybeSingle()
-      )),
-      Promise.all(thesisIds.map(id =>
-        supabase.from('investment_memos').select('market_verdict, founder_verdict')
-          .eq('thesis_id', id).eq('user_id', user.id).limit(1).maybeSingle()
-      )),
-    ])
-
-    const signalMap = Object.fromEntries(
-      signalResults.map(r => [r.data?.id, r.data]).filter(([k]) => k)
-    )
-
-    const items: ComparisonItem[] = thesisIds.map((thesisId, idx) => {
-      const thesis    = thesesById.get(thesisId)
-      if (!thesis) return null
-
-      const signal    = signalMap[thesis.market_signal_id]
-      const debate    = debateResults[idx]?.data
-      const memo      = memoResults[idx]?.data
-      const evidence  = signal?.signal_data as Stage1Evidence | undefined
-
-      const qec = thesis.quick_economics_check as InvestmentThesis['quick_economics_check']
-
-      // Stage 1 metrics
-      const market_revenue_mo    = evidence?.est_monthly_revenue?.value ?? null
-      const competitor_count     = evidence?.competitor_count?.value ?? null
-      const review_concentration = evidence?.review_concentration?.value ?? null
-      const median_price         = evidence?.median_price?.value ?? null
-      const momentum_90d_pct     = evidence?.momentum_90d_pct?.value ?? null
-      const trend_direction      = evidence?.trend_direction?.value ?? null
-      const tiktok_view_count    = evidence?.tiktok_view_count?.value ?? null
-      const data_confidence      = evidence?.overall_confidence?.value ?? null
-
-      // Thresholds
-      const thresholds = evidence
-        ? assessLaunchThresholds(evidence)
-        : { pass_count: 0, overall: 'fail' as const, checks: [], warn_count: 0, fail_count: 0 }
-
-      // Kill switches
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ksResults: any[] = debate?.kill_switches ?? []
-      const triggered = ksResults.filter((r: { triggered?: boolean }) => r.triggered).map((r: { id?: string }) => r.id ?? '')
-
-      // Unit economics
-      let breakeven_cogs:  number | null = null
-      let base_price:      number | null = null
-      let year1_base:      number | null = null
-      let base_monthly:    number | null = null
-      let fee_data_source: 'real' | 'estimated' | null = null
-      if (evidence) {
-        const econ = computeFullUnitEconomics(
-          evidence,
-          thesis as unknown as InvestmentThesis,
-          profile as FounderProfile ?? undefined
-        )
-        breakeven_cogs  = econ.sensitivity.base_case.breakeven_cogs
-        base_price      = econ.sensitivity.base_case.price
-        year1_base      = econ.revenue_envelope.year1_base
-        base_monthly    = econ.revenue_envelope.base_monthly
-        fee_data_source = econ.sensitivity.fee_data_source
-      }
-
-      // Founder fit
-      let fit_rank: number | null = null
-      let capital_fit_level: string | null = null
-      let channel_fit_level: string | null = null
-      let timeline_fit_level: string | null = null
-      if (profile) {
-        const fit = scoreFit(
-          profile as FounderProfile,
-          thesis as unknown as InvestmentThesis,
-          thesisId,
-          (profile as FounderProfile & { id: string }).id
-        )
-        fit_rank           = fit.fit_rank
-        capital_fit_level  = fit.capital_fit.level
-        channel_fit_level  = fit.channel_fit.level
-        timeline_fit_level = fit.timeline_fit.level
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mv = memo?.market_verdict as any
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const fv = memo?.founder_verdict as any
-      const verdict_code         = mv?.code ?? null
-      const verdict_headline     = mv?.headline ?? null
-      const founder_verdict_code = fv?.code ?? null
-
-      const stage: ComparisonItem['stage'] = memo
-        ? 'stage4'
-        : debate
-        ? 'stage3'
-        : 'stage2'
-
-      const opportunity_score = evidence ? computeOpportunityScore(evidence, verdict_code) : null
-
-      return {
-        thesis_id:            thesisId,
-        signal_id:            thesis.market_signal_id as string,
-        product_angle:        thesis.product_angle as string,
-        target_customer:      thesis.target_customer as string,
-        differentiation:      thesis.differentiation as string,
-        category_id:          (signal?.category_id as string) ?? 'supplements',
-        signal_created_at:    (signal?.created_at as string) ?? thesis.created_at as string,
-        stage,
-        market_revenue_mo,
-        competitor_count,
-        review_concentration,
-        median_price,
-        momentum_90d_pct,
-        trend_direction,
-        tiktok_view_count,
-        data_confidence,
-        min_capital_required: qec.min_capital_required,
-        launch_complexity:    qec.launch_complexity,
-        margin_viable:        qec.margin_viable,
-        complexity_drivers:   qec.complexity_drivers,
-        threshold_pass_count: thresholds.pass_count,
-        threshold_overall:    thresholds.overall as string,
-        all_switches_clear:   debate ? debate.all_switches_clear : null,
-        triggered_switches:   triggered,
-        verdict_code,
-        verdict_headline,
-        founder_verdict_code,
-        breakeven_cogs,
-        base_price,
-        year1_base,
-        base_monthly,
-        fee_data_source,
-        fit_rank,
-        capital_fit_level,
-        channel_fit_level,
-        timeline_fit_level,
-        opportunity_score,
-      }
-    }).filter((x): x is NonNullable<typeof x> => x !== null) as ComparisonItem[]
-
-    return NextResponse.json({ items, has_profile: !!profile })
+    return NextResponse.json({ items })
   } catch (err) {
     console.error('compare GET error', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

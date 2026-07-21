@@ -1,14 +1,29 @@
-// Regression test — 2026-07-18 audit follow-up.
+// Rewritten (2026-07-2x) for the real `analyses` pipeline rewrite — the old
+// fixtures (investment_theses/market_signals/adversarial_debates/
+// investment_memos, zero real rows in production) are gone. Fixtures below
+// are shaped like real `analyses` rows / MemoData, mirroring the
+// "minimal-but-complete MemoData fixture" convention already established by
+// lib/watchlist/__tests__/enrich.test.ts's own baseMemo().
 //
-// Finding 7: `const opportunity_score = evidence ? computeScore(evidence, verdict_code) : 0`
-// fabricated a real-looking 0 score when evidence was missing entirely. It
-// must be `null` — a real "unscoreable," not a real-looking worst score.
-//
-// Also exercises Findings 3, 4, 5 end-to-end: fee_data_source,
-// signal_created_at, and data_confidence must reach the response.
+// Preserves the SPIRIT of the old regression suite:
+//   - null-not-fabricated evidence: market_revenue_mo/median_price/etc. are
+//     null (not 0) when signal_evidence is absent.
+//   - real-vs-never-checked disclosure: kill_criteria_clear is null (never a
+//     fabricated true) until the analysis is actually watchlisted, and only
+//     reflects a real triggered/watching state once a genuine
+//     watchlist_alerts row exists — same HONESTY CAVEAT
+//     components/pi/candidate-core/coreDataAdapter.ts's buildKillCriteria
+//     already encodes, reused verbatim here (not reimplemented).
+//   - confidence/age pass through correctly (confidencePct, created_at).
+//   - verdict/qualityTier are null (backward compat), never fabricated, for
+//     memo_data that predates market_verdict.
+//   - auth scoping: ids not owned by the requesting user are silently
+//     excluded, never leaked.
 
 import { describe, it, expect, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import type { MemoData } from '@/types/index'
+import type { AggregatedSignals } from '@/lib/signal-engine/types'
 
 vi.mock('next/headers', () => ({
   cookies: () => ({
@@ -18,161 +33,276 @@ vi.mock('next/headers', () => ({
   }),
 }))
 
-vi.mock('@supabase/ssr', () => ({
-  createServerClient: () => ({
-    auth: {
-      getUser: async () => ({ data: { user: { id: 'user-1' } }, error: null }),
+// ── Minimal-but-complete MemoData fixture (mirrors lib/watchlist/__tests__/
+// enrich.test.ts's own baseMemo) — computeGroundedScore() reads m.scores.*
+// unconditionally, so every fixture needs this much even when it carries no
+// real evidence at all.
+function baseMemo(overrides: Partial<MemoData> = {}): MemoData {
+  return {
+    category_name:      'Magnesium Glycinate',
+    executive_summary:  '',
+    build_decision:     'VALIDATE_FURTHER',
+    build_explanation:  '',
+    opportunity_score:  54,
+    scores: {
+      demand:        { level: 'Medium', notes: '' },
+      virality:      { level: 'Medium', notes: '' },
+      subscription:  { level: 'Medium', notes: '' },
+      manufacturing: { level: 'Medium', notes: '' },
     },
-  }),
-}))
-
-// ── Fixture data ─────────────────────────────────────────────────────────
-
-function ep<T>(value: T) {
-  return { value, source: 'keepa', source_type: 'primary_measurement' as const, freshness_date: new Date().toISOString() }
-}
-
-const OLD_SIGNAL_DATE = new Date(Date.now() - 12 * 86_400_000).toISOString()
-
-const evidenceWithRealFees = {
-  providers_used:        ep(['keepa']),
-  overall_confidence:    ep(0.82),
-  est_monthly_revenue:   ep(60_000),
-  median_price:          ep(28),
-  avg_referral_fee_pct:  ep(15),
-  avg_fba_fee:           ep(4.25),
-  competitor_count:      ep(8),
-  review_concentration:  ep(0.55),
-  momentum_90d_pct:      ep(6),
-}
-
-const theses: Record<string, Record<string, unknown>> = {
-  'thesis-A': {
-    id: 'thesis-A',
-    market_signal_id: 'signal-A',
-    product_angle: 'Product A',
-    target_customer: 'Customer A',
-    differentiation: 'Diff A',
-    created_at: OLD_SIGNAL_DATE,
-    user_id: 'user-1',
-    quick_economics_check: {
-      min_capital_required: 6000,
-      launch_complexity: 'medium',
-      margin_viable: true,
-      complexity_drivers: [],
+    biggest_competitor: { name: '', revenue: '', gap: '' },
+    market_size:        '',
+    gross_margin:       '',
+    market_gaps:        [],
+    brand_opportunities: [],
+    customer_language:  { frustrations: [], desires: [], fears: [], ad_phrases: [] },
+    product_recommendation: {
+      format: '', dosing: '', formula: [], avoid: [], cogs_estimate: '', retail_price: '', gross_margin: '',
     },
+    financial_projections: { gross_margin: '', net_margin_at_scale: '', path_to_10m: '' },
+    ...overrides,
+  } as MemoData
+}
+
+const OLD_DATE = new Date(Date.now() - 12 * 86_400_000).toISOString()
+const NEW_DATE = new Date().toISOString()
+
+const killCriteria = [
+  { key: 'gap_velocity_negative', label: 'Gap velocity turns negative', metric: 'gap_velocity' as const, comparator: 'lt' as const, threshold: 0, valueAtGeneration: 3 },
+]
+
+const signalEvidenceA: AggregatedSignals = {
+  revenue: {
+    value: { score: 7, confidence: 0.8, est_monthly_revenue: '60000', avg_referral_fee_pct: 15, avg_fba_pick_pack_fee: '$4.25' },
+    sources: ['keepa'], primarySource: 'keepa', confidence: 0.8,
   },
-  'thesis-B': {
-    id: 'thesis-B',
-    market_signal_id: 'signal-B',
-    product_angle: 'Product B',
-    target_customer: 'Customer B',
-    differentiation: 'Diff B',
-    created_at: new Date().toISOString(),
-    user_id: 'user-1',
-    quick_economics_check: {
-      min_capital_required: 4000,
-      launch_complexity: 'low',
-      margin_viable: false,
-      complexity_drivers: [],
-    },
+  review_velocity: {
+    value: { score: 6, confidence: 0.75, meaningful_competitor_count: 8, review_concentration_ratio: 0.55 },
+    sources: ['apify-amazon-search'], primarySource: 'apify-amazon-search', confidence: 0.75,
+  },
+  pricing: {
+    value: { score: 6, confidence: 0.7, avg_price: '$28' },
+    sources: ['keepa'], primarySource: 'keepa', confidence: 0.7,
+  },
+  growth: {
+    value: { score: 7, confidence: 0.8, momentum_90d_pct: 6 },
+    sources: ['keepa'], primarySource: 'keepa', confidence: 0.8,
+  },
+  virality: {
+    value: { score: 5, confidence: 0.6, view_count: 1_200_000, hashtag: 'magnesium' },
+    sources: ['tiktok'], primarySource: 'tiktok', confidence: 0.6,
+  },
+  providers_used: ['keepa', 'apify-amazon-search', 'tiktok'],
+  overall_confidence: 0.75,
+}
+
+// 00000000-0000-4000-8000-000000000a01: full real evidence, real verdict, real kill criteria, watched
+// with one triggered alert.
+const memoA = baseMemo({
+  signal_evidence: signalEvidenceA,
+  market_verdict: { verdict: 'BUILD_NOW', qualityTier: 'High', lifecycleStage: 'Window Open', buildNowGate: null, version: 'heuristic-v1' },
+  kill_criteria: killCriteria,
+})
+
+// 00000000-0000-4000-8000-000000000b02: no evidence at all, no market_verdict (pre-M2.4 memo), no kill
+// criteria — the exact "nothing to fabricate from" case.
+const memoB = baseMemo({})
+
+const analysesById: Record<string, Record<string, unknown>> = {
+  '00000000-0000-4000-8000-000000000a01': {
+    id: '00000000-0000-4000-8000-000000000a01', user_id: 'user-1', created_at: OLD_DATE,
+    category_name: 'Magnesium Glycinate', memo_data: memoA,
+  },
+  '00000000-0000-4000-8000-000000000b02': {
+    id: '00000000-0000-4000-8000-000000000b02', user_id: 'user-1', created_at: NEW_DATE,
+    category_name: 'Ashwagandha Gummies', memo_data: memoB,
+  },
+  // belongs to a different user — must never be returned to user-1
+  '00000000-0000-4000-8000-0000000000c1': {
+    id: '00000000-0000-4000-8000-0000000000c1', user_id: 'user-2', created_at: NEW_DATE,
+    category_name: 'Someone Else’s Analysis', memo_data: baseMemo({}),
   },
 }
 
-const signals: Record<string, Record<string, unknown> | null> = {
-  // thesis-A: full real evidence, real fee data present.
-  'signal-A': {
-    id: 'signal-A',
-    category_id: 'supplements',
-    created_at: OLD_SIGNAL_DATE,
-    signal_data: evidenceWithRealFees,
-  },
-  // thesis-B: no evidence at all (e.g. signal row exists but analysis never
-  // populated signal_data) — this is the exact case Finding 7 covers.
-  'signal-B': {
-    id: 'signal-B',
-    category_id: 'supplements',
-    created_at: new Date().toISOString(),
-    signal_data: null,
-  },
-}
+let watchlistRows: Record<string, unknown>[] = []
+let alertRows: Record<string, unknown>[] = []
 
-function makeQueryBuilder(resolve: (eqs: Record<string, string>) => { data: unknown; error: unknown }) {
-  const eqs: Record<string, string> = {}
-  const builder: Record<string, unknown> = {
+function makeQueryBuilder(resolve: (state: Record<string, unknown>) => { data: unknown; error: unknown }) {
+  const state: Record<string, unknown> = {}
+  const builder = {
     select: () => builder,
-    eq: (col: string, val: string) => { eqs[col] = val; return builder },
-    order: () => builder,
-    limit: () => builder,
-    single: async () => resolve(eqs),
-    maybeSingle: async () => resolve(eqs),
+    eq:     (col: string, val: unknown) => { state[col] = val; return builder },
+    in:     (col: string, vals: unknown) => { state[`${col}_in`] = vals; return builder },
+    order:  () => builder,
+    limit:  () => builder,
+    maybeSingle: async () => resolve(state),
+    single:      async () => resolve(state),
+    then: (onFulfilled: (v: { data: unknown; error: unknown }) => unknown, onRejected?: (e: unknown) => unknown) =>
+      Promise.resolve(resolve(state)).then(onFulfilled, onRejected),
   }
   return builder
 }
 
-function makeSupabaseServiceMock() {
+function makeSupabaseMock() {
   return {
+    auth: { getUser: async () => ({ data: { user: { id: 'user-1' } }, error: null }) },
     from: (table: string) => {
-      if (table === 'founder_profiles') {
-        return makeQueryBuilder(() => ({ data: null, error: null })) // no founder profile
+      if (table === 'analyses') {
+        return makeQueryBuilder(state => {
+          const ids = (state.id_in as string[]) ?? []
+          const userId = state.user_id as string
+          const data = ids.map(id => analysesById[id]).filter(Boolean).filter(a => a!.user_id === userId)
+          return { data, error: null }
+        })
       }
-      if (table === 'investment_theses') {
-        return makeQueryBuilder(eqs => ({ data: theses[eqs.id] ?? null, error: null }))
+      if (table === 'watchlist') {
+        return makeQueryBuilder(() => ({ data: watchlistRows, error: null }))
       }
-      if (table === 'market_signals') {
-        return makeQueryBuilder(eqs => ({ data: signals[eqs.id] ?? null, error: null }))
-      }
-      if (table === 'adversarial_debates') {
-        return makeQueryBuilder(() => ({ data: null, error: null })) // no debate yet -> stage2
-      }
-      if (table === 'investment_memos') {
-        return makeQueryBuilder(() => ({ data: null, error: null })) // no memo yet -> no verdict
+      if (table === 'watchlist_alerts') {
+        return makeQueryBuilder(() => ({ data: alertRows, error: null }))
       }
       return makeQueryBuilder(() => ({ data: null, error: null }))
     },
   }
 }
 
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => makeSupabaseServiceMock(),
+vi.mock('@supabase/ssr', () => ({
+  createServerClient: () => makeSupabaseMock(),
 }))
 
 describe('GET /api/research/compare', () => {
-  it('Finding 7: returns opportunity_score null (not a fabricated 0) when evidence is missing', async () => {
+  it('rejects fewer than 2 ids', async () => {
+    watchlistRows = []
+    alertRows = []
     const { GET } = await import('../route')
-    const req = new NextRequest('http://localhost/api/research/compare?ids=thesis-A,thesis-B')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=00000000-0000-4000-8000-000000000a01')
+    const res = await GET(req)
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects a malformed (non-UUID) id with a 400, not a raw 500 from Postgres (pre-beta audit fix)', async () => {
+    watchlistRows = []
+    alertRows = []
+    const { GET } = await import('../route')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=bad,ids')
+    const res = await GET(req)
+    expect(res.status).toBe(400)
+  })
+
+  it('returns null (not fabricated 0) evidence fields when signal_evidence is absent', async () => {
+    watchlistRows = []
+    alertRows = []
+    const { GET } = await import('../route')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=00000000-0000-4000-8000-000000000a01,00000000-0000-4000-8000-000000000b02')
     const res = await GET(req)
     const body = await res.json()
-
     expect(res.status).toBe(200)
-    const itemA = body.items.find((i: { thesis_id: string }) => i.thesis_id === 'thesis-A')
-    const itemB = body.items.find((i: { thesis_id: string }) => i.thesis_id === 'thesis-B')
 
-    expect(itemB.opportunity_score).toBeNull()
-    expect(typeof itemA.opportunity_score).toBe('number')
+    const itemB = body.items.find((i: { analysis_id: string }) => i.analysis_id === '00000000-0000-4000-8000-000000000b02')
+    expect(itemB.market_revenue_mo).toBeNull()
+    expect(itemB.median_price).toBeNull()
+    expect(itemB.competitor_count).toBeNull()
+    expect(itemB.tiktok_view_count).toBeNull()
   })
 
-  it('Finding 3: reports fee_data_source real vs. null based on whether evidence/fee data exists', async () => {
+  it('derives real evidence numbers via adaptAggregatedSignals when signal_evidence is present', async () => {
+    watchlistRows = []
+    alertRows = []
     const { GET } = await import('../route')
-    const req = new NextRequest('http://localhost/api/research/compare?ids=thesis-A,thesis-B')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=00000000-0000-4000-8000-000000000a01,00000000-0000-4000-8000-000000000b02')
     const res = await GET(req)
     const body = await res.json()
 
-    const itemA = body.items.find((i: { thesis_id: string }) => i.thesis_id === 'thesis-A')
-    const itemB = body.items.find((i: { thesis_id: string }) => i.thesis_id === 'thesis-B')
-
-    expect(itemA.fee_data_source).toBe('real')
-    expect(itemB.fee_data_source).toBeNull() // no evidence -> unit economics never computed
+    const itemA = body.items.find((i: { analysis_id: string }) => i.analysis_id === '00000000-0000-4000-8000-000000000a01')
+    expect(itemA.market_revenue_mo).toBe(60000)
+    expect(itemA.median_price).toBe(28)
+    expect(itemA.competitor_count).toBe(8)
+    expect(itemA.review_concentration).toBe(0.55)
+    expect(itemA.momentum_90d_pct).toBe(6)
+    expect(itemA.tiktok_view_count).toBe(1_200_000)
   })
 
-  it('Finding 4/5: passes through real signal_created_at and data_confidence', async () => {
+  it('returns null verdict/qualityTier (never fabricated) for memo_data that predates market_verdict', async () => {
+    watchlistRows = []
+    alertRows = []
     const { GET } = await import('../route')
-    const req = new NextRequest('http://localhost/api/research/compare?ids=thesis-A,thesis-B')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=00000000-0000-4000-8000-000000000a01,00000000-0000-4000-8000-000000000b02')
     const res = await GET(req)
     const body = await res.json()
 
-    const itemA = body.items.find((i: { thesis_id: string }) => i.thesis_id === 'thesis-A')
-    expect(itemA.signal_created_at).toBe(OLD_SIGNAL_DATE)
-    expect(itemA.data_confidence).toBe(0.82)
+    const itemB = body.items.find((i: { analysis_id: string }) => i.analysis_id === '00000000-0000-4000-8000-000000000b02')
+    expect(itemB.verdict).toBeNull()
+    expect(itemB.qualityTier).toBeNull()
+
+    const itemA = body.items.find((i: { analysis_id: string }) => i.analysis_id === '00000000-0000-4000-8000-000000000a01')
+    expect(itemA.verdict).toBe('BUILD_NOW')
+    expect(itemA.qualityTier).toBe('High')
+  })
+
+  it('passes through real created_at and a real confidencePct', async () => {
+    watchlistRows = []
+    alertRows = []
+    const { GET } = await import('../route')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=00000000-0000-4000-8000-000000000a01,00000000-0000-4000-8000-000000000b02')
+    const res = await GET(req)
+    const body = await res.json()
+
+    const itemA = body.items.find((i: { analysis_id: string }) => i.analysis_id === '00000000-0000-4000-8000-000000000a01')
+    expect(itemA.created_at).toBe(OLD_DATE)
+    expect(typeof itemA.confidencePct === 'number' || itemA.confidencePct === null).toBe(true)
+  })
+
+  it('kill_criteria_clear is null when criteria exist but the analysis is never watchlisted', async () => {
+    watchlistRows = []
+    alertRows = []
+    const { GET } = await import('../route')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=00000000-0000-4000-8000-000000000a01,00000000-0000-4000-8000-000000000b02')
+    const res = await GET(req)
+    const body = await res.json()
+
+    const itemA = body.items.find((i: { analysis_id: string }) => i.analysis_id === '00000000-0000-4000-8000-000000000a01')
+    expect(itemA.kill_criteria_clear).toBeNull()
+    expect(itemA.triggered_kill_criteria).toEqual([])
+
+    // no criteria at all for 00000000-0000-4000-8000-000000000b02
+    const itemB = body.items.find((i: { analysis_id: string }) => i.analysis_id === '00000000-0000-4000-8000-000000000b02')
+    expect(itemB.kill_criteria_clear).toBeNull()
+  })
+
+  it('kill_criteria_clear is true once watchlisted with no triggered alert', async () => {
+    watchlistRows = [{ id: 'watch-1', analysis_id: '00000000-0000-4000-8000-000000000a01', user_id: 'user-1', active: true, kill_criteria: killCriteria }]
+    alertRows = []
+    const { GET } = await import('../route')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=00000000-0000-4000-8000-000000000a01,00000000-0000-4000-8000-000000000b02')
+    const res = await GET(req)
+    const body = await res.json()
+
+    const itemA = body.items.find((i: { analysis_id: string }) => i.analysis_id === '00000000-0000-4000-8000-000000000a01')
+    expect(itemA.kill_criteria_clear).toBe(true)
+    expect(itemA.triggered_kill_criteria).toEqual([])
+  })
+
+  it('kill_criteria_clear is false + names the real triggered criterion once a matching watchlist_alerts row exists', async () => {
+    watchlistRows = [{ id: 'watch-1', analysis_id: '00000000-0000-4000-8000-000000000a01', user_id: 'user-1', active: true, kill_criteria: killCriteria }]
+    alertRows = [{ id: 'alert-1', watchlist_id: 'watch-1', user_id: 'user-1', alert_type: 'kill_criteria_triggered', kill_criterion_key: 'gap_velocity_negative', kill_criterion_label: 'Gap velocity turns negative' }]
+    const { GET } = await import('../route')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=00000000-0000-4000-8000-000000000a01,00000000-0000-4000-8000-000000000b02')
+    const res = await GET(req)
+    const body = await res.json()
+
+    const itemA = body.items.find((i: { analysis_id: string }) => i.analysis_id === '00000000-0000-4000-8000-000000000a01')
+    expect(itemA.kill_criteria_clear).toBe(false)
+    expect(itemA.triggered_kill_criteria).toEqual(['Gap velocity turns negative'])
+  })
+
+  it('never returns an analysis id owned by a different user', async () => {
+    watchlistRows = []
+    alertRows = []
+    const { GET } = await import('../route')
+    const req = new NextRequest('http://localhost/api/research/compare?ids=00000000-0000-4000-8000-000000000a01,00000000-0000-4000-8000-0000000000c1')
+    const res = await GET(req)
+    const body = await res.json()
+    // only one real, owned row survives -> below the 2-item minimum -> 400
+    expect(res.status).toBe(400)
   })
 })

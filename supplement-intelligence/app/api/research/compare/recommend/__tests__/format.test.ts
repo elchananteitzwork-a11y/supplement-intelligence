@@ -1,35 +1,41 @@
-// Regression tests — 2026-07-18 audit follow-up.
+// Rewritten (2026-07-2x) for AnalysisComparisonItem (real `analyses`
+// pipeline). Preserves the SPIRIT of the original 2026-07-18 audit
+// regressions that still apply to the surviving fields:
 //
-// Finding 1 (Critical): review_concentration is a real 0–1 ratio (confirmed
-// by lib/stage25/launch-threshold.ts's `Math.round(concentration * 100)`),
-// but the old fmtN(v, '', '%') call site never multiplied by 100, so an 85%
-// concentration reached the AI model as the string "0.85%" — two orders of
-// magnitude too small, and the prompt explicitly forbids the model from
-// questioning or recalculating any value.
+// Finding 1 (Critical): review_concentration is a real 0-1 ratio and must be
+// scaled ×100, not passed through as a raw fraction.
 //
-// Finding 3: fee_data_source was never read/passed through, so an estimated
-// breakeven_cogs figure was presented identically to a measured one.
+// Finding 4: signal age (now created_at) must reach the model.
 //
-// Finding 4: signal_created_at was computed but never surfaced to the model.
+// Finding 5: confidence (now confidencePct, already an integer percent) must
+// reach the model, not be discarded.
 //
-// Finding 5: data_confidence was computed but discarded before the AI saw it.
+// Finding 9: fmtK must format >= $1M with an "M" suffix.
 //
-// Finding 9: fmtK was missing the >= 1_000_000 branch page.tsx's version has.
+// Dropped (no longer applicable): the old Finding 3 (fee_data_source "(est.)"
+// marking) and Finding 7 (opportunity_score fabricated-0 regression) —
+// AnalysisComparisonItem carries no unit-economics/fee fields at all, and
+// `score` (lib/scoring.ts's GroundedScore.score) is always a real computed
+// number, never nullable, so there is no "fabricated 0" case left to guard.
 
 import { describe, it, expect } from 'vitest'
 import { fmtN, fmtK, fmtRatioPct, fmtDataAge, buildComparisonTable } from '../format'
-import type { ComparisonItem } from '../../route'
+import type { AnalysisComparisonItem } from '../../route'
 
-function baseItem(overrides: Partial<ComparisonItem> = {}): ComparisonItem {
+function baseItem(overrides: Partial<AnalysisComparisonItem> = {}): AnalysisComparisonItem {
   return {
-    thesis_id:            't1',
-    signal_id:            's1',
-    product_angle:        'Test product',
-    target_customer:      'Test customer',
-    differentiation:      'Test differentiation',
-    category_id:          'supplements',
-    signal_created_at:    new Date().toISOString(),
-    stage:                'stage2',
+    analysis_id:   'a1',
+    category_name: 'Test product',
+    created_at:    new Date().toISOString(),
+
+    score:                50,
+    decision:             'VALIDATE_FURTHER',
+    insufficientEvidence: false,
+    confidencePct:        null,
+
+    verdict:     null,
+    qualityTier: null,
+
     market_revenue_mo:    null,
     competitor_count:     null,
     review_concentration: null,
@@ -37,28 +43,9 @@ function baseItem(overrides: Partial<ComparisonItem> = {}): ComparisonItem {
     momentum_90d_pct:     null,
     trend_direction:      null,
     tiktok_view_count:    null,
-    data_confidence:      null,
-    min_capital_required: 5000,
-    launch_complexity:    'medium',
-    margin_viable:        true,
-    complexity_drivers:   [],
-    threshold_pass_count: 3,
-    threshold_overall:    'pass',
-    all_switches_clear:   null,
-    triggered_switches:   [],
-    verdict_code:         null,
-    verdict_headline:     null,
-    founder_verdict_code: null,
-    breakeven_cogs:       null,
-    base_price:           null,
-    year1_base:           null,
-    base_monthly:         null,
-    fee_data_source:      null,
-    fit_rank:             null,
-    capital_fit_level:    null,
-    channel_fit_level:    null,
-    timeline_fit_level:   null,
-    opportunity_score:    50,
+
+    kill_criteria_clear:     null,
+    triggered_kill_criteria: [],
     ...overrides,
   }
 }
@@ -89,35 +76,12 @@ describe('buildComparisonTable — Finding 1 (Critical) end-to-end', () => {
   })
 })
 
-describe('buildComparisonTable — Finding 3 (fee_data_source) regression', () => {
-  it('marks breakeven_cogs with "(est.)" when fee_data_source is estimated', () => {
-    const table = buildComparisonTable([
-      baseItem({ breakeven_cogs: 12.5, fee_data_source: 'estimated' }),
-      baseItem({ breakeven_cogs: 9.0, fee_data_source: 'real' }),
-    ])
-    const cogsRow = table.split('\n').find(r => r.startsWith('Breakeven COGS'))!
-    const cells = cogsRow.split('|').slice(1).map(c => c.trim())
-    expect(cells[0]).toBe('$12.5 (est.)') // fmtN uses toLocaleString, not rounding
-    expect(cells[1]).toBe('$9')
-    expect(cells[1]).not.toContain('(est.)')
-  })
-
-  it('does not mark breakeven_cogs when fee_data_source is real or null', () => {
-    const table = buildComparisonTable([
-      baseItem({ breakeven_cogs: 9.0, fee_data_source: 'real' }),
-      baseItem({ breakeven_cogs: null, fee_data_source: null }),
-    ])
-    const cogsRow = table.split('\n').find(r => r.startsWith('Breakeven COGS'))!
-    expect(cogsRow).not.toContain('(est.)')
-  })
-})
-
 describe('buildComparisonTable — Finding 4 (data age) regression', () => {
-  it('includes a real Data Age row derived from signal_created_at', () => {
+  it('includes a real Data Age row derived from created_at', () => {
     const tenDaysAgo = new Date(Date.now() - 10 * 86_400_000).toISOString()
     const table = buildComparisonTable([
-      baseItem({ signal_created_at: tenDaysAgo }),
-      baseItem({ signal_created_at: new Date().toISOString() }),
+      baseItem({ created_at: tenDaysAgo }),
+      baseItem({ created_at: new Date().toISOString() }),
     ])
     const ageRow = table.split('\n').find(r => r.startsWith('Data Age'))!
     expect(ageRow).toContain('10d')
@@ -126,10 +90,10 @@ describe('buildComparisonTable — Finding 4 (data age) regression', () => {
 })
 
 describe('buildComparisonTable — Finding 5 (data confidence) regression', () => {
-  it('includes a real Data Confidence row instead of discarding overall_confidence', () => {
+  it('includes a real Data Confidence row instead of discarding confidencePct', () => {
     const table = buildComparisonTable([
-      baseItem({ data_confidence: 0.72 }),
-      baseItem({ data_confidence: null }),
+      baseItem({ confidencePct: 72 }),
+      baseItem({ confidencePct: null }),
     ])
     const confRow = table.split('\n').find(r => r.startsWith('Data Confidence'))!
     expect(confRow).toContain('72%')
@@ -137,16 +101,31 @@ describe('buildComparisonTable — Finding 5 (data confidence) regression', () =
   })
 })
 
-describe('buildComparisonTable — opportunity_score null handling (Finding 7 downstream)', () => {
-  it('renders N/A instead of a fabricated value when opportunity_score is null', () => {
+describe('buildComparisonTable — verdict/qualityTier null handling', () => {
+  it('renders N/A instead of a fabricated verdict when verdict/qualityTier are null', () => {
     const table = buildComparisonTable([
-      baseItem({ opportunity_score: null }),
-      baseItem({ opportunity_score: 42 }),
+      baseItem({ verdict: null, qualityTier: null }),
+      baseItem({ verdict: 'BUILD_NOW', qualityTier: 'High' }),
     ])
-    const scoreRow = table.split('\n').find(r => r.startsWith('Opportunity Score'))!
-    const cells = scoreRow.split('|').slice(1).map(c => c.trim())
+    const verdictRow = table.split('\n').find(r => r.startsWith('Market Verdict'))!
+    const cells = verdictRow.split('|').slice(1).map(c => c.trim())
     expect(cells[0]).toBe('N/A')
-    expect(cells[1]).toBe('42')
+    expect(cells[1]).toBe('BUILD_NOW')
+  })
+})
+
+describe('buildComparisonTable — Kill Criteria Clear row', () => {
+  it('renders N/A when never checked, Yes when clear, No + real triggered labels when flagged', () => {
+    const table = buildComparisonTable([
+      baseItem({ kill_criteria_clear: null }),
+      baseItem({ kill_criteria_clear: true }),
+      baseItem({ kill_criteria_clear: false, triggered_kill_criteria: ['Gap velocity turns negative'] }),
+    ])
+    const row = table.split('\n').find(r => r.startsWith('Kill Criteria Clear'))!
+    const cells = row.split('|').slice(1).map(c => c.trim())
+    expect(cells[0]).toBe('N/A')
+    expect(cells[1]).toBe('Yes')
+    expect(cells[2]).toBe('No (Gap velocity turns negative)')
   })
 })
 

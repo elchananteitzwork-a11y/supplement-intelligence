@@ -8,30 +8,58 @@
 // 'trendRank' is incompatible with index signature... not assignable to
 // type 'never'"). Colocating them here keeps them unit-testable without
 // violating that constraint.
-import type { ComparisonItem } from '@/app/api/research/compare/route'
+//
+// Rewired (2026-07-2x) onto AnalysisComparisonItem (real `analyses` pipeline)
+// — METRICS pruned to only the fields that survive that rewrite (score,
+// verdict, market revenue, price, momentum, trend, tiktok, competitors,
+// review concentration, kill-criteria-clear). Fit/thresholds/complexity/
+// capital/cogs/year1/margin/capfit/tlfit are gone — no equivalent exists in
+// AnalysisComparisonItem (see app/api/research/compare/route.ts's own
+// header comment). getNumericRank/findWinner/trendRank/rank maps below are
+// generic infrastructure, untouched by the field pruning.
+import type { AnalysisComparisonItem } from '@/app/api/research/compare/route'
+import type { MarketVerdict } from '@/lib/verdict-matrix'
 
-export type Direction = 'higher' | 'lower' | 'bool_true' | 'verdict' | 'complexity' | 'fit_level' | 'trend'
+export type Direction = 'higher' | 'lower' | 'bool_true' | 'verdict' | 'trend'
 
 export interface MetricDef {
   id:        string
   label:     string
   section:   string
   dir:       Direction
-  getValue:  (item: ComparisonItem) => number | string | boolean | null
+  getValue:  (item: AnalysisComparisonItem) => number | string | boolean | null
   format:    (v: number | string | boolean | null) => string
 }
 
-export const VERDICT_RANK: Record<string, number> = {
-  PURSUE: 4, PURSUE_WITH_CAUTION: 3, INVESTIGATE_FURTHER: 2, DO_NOT_PURSUE: 1,
+// Rank order matches lib/verdict-matrix.ts's own MarketVerdict union
+// declaration order verbatim (BUILD_NOW > BUILD_IF_DIFFERENTIATED >
+// WATCH_CLOSELY > WATCH > INVESTIGATE > AVOID > PASS) — the same order
+// components/memo/CurrentSignal.tsx's V2_VERDICT_CFG lists them in. A
+// display-ranking judgment call for winner detection only; it does not
+// change what any verdict means.
+export const VERDICT_RANK: Record<MarketVerdict, number> = {
+  BUILD_NOW:               7,
+  BUILD_IF_DIFFERENTIATED: 6,
+  WATCH_CLOSELY:           5,
+  WATCH:                   4,
+  INVESTIGATE:             3,
+  AVOID:                   2,
+  PASS:                    1,
 }
-export const VERDICT_COLOR: Record<string, string> = {
-  PURSUE:               'text-verdict-positive',
-  PURSUE_WITH_CAUTION:  'text-verdict-caution-text',
-  INVESTIGATE_FURTHER:  'text-black',
-  DO_NOT_PURSUE:        'text-verdict-negative',
+// Reuses the exact label/color vocabulary already established for this real
+// MarketVerdict type by components/memo/CurrentSignal.tsx's V2_VERDICT_CFG —
+// copied verbatim (same "the two always say the same thing" convention
+// already used elsewhere in this codebase) rather than inventing a second
+// palette for the same verdict values.
+export const VERDICT_META: Record<MarketVerdict, { label: string; cls: string }> = {
+  BUILD_NOW:               { label: 'Build Now',              cls: 'text-pi-build border-pi-build/40 bg-pi-build/10' },
+  BUILD_IF_DIFFERENTIATED: { label: 'Build If Differentiated', cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
+  WATCH_CLOSELY:           { label: 'Watch Closely',           cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
+  WATCH:                   { label: 'Watch',                   cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
+  INVESTIGATE:             { label: 'Investigate',              cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
+  AVOID:                   { label: 'Avoid',                    cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
+  PASS:                    { label: 'Pass',                     cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
 }
-const COMPLEXITY_RANK: Record<string, number> = { low: 3, medium: 2, high: 1 }
-const FIT_LEVEL_RANK:  Record<string, number> = { sufficient: 3, strong: 3, feasible: 3, partial: 2, tight: 2, stretched: 2, insufficient: 1, weak: 1, infeasible: 1 }
 
 function fmtK(n: number | string | boolean | null): string {
   if (n === null || n === undefined || n === '') return '—'
@@ -52,11 +80,6 @@ function fmtPct(n: number | string | boolean | null): string {
   const num = Number(n)
   return isNaN(num) ? '—' : `${num > 0 ? '+' : ''}${num.toFixed(1)}%`
 }
-function fmtUsd(n: number | string | boolean | null): string {
-  if (n === null || n === undefined) return '—'
-  const num = Number(n)
-  return isNaN(num) ? '—' : `$${num.toFixed(2)}`
-}
 function fmtStr(n: number | string | boolean | null): string {
   if (n === null || n === undefined) return '—'
   if (typeof n === 'boolean') return n ? 'Yes' : 'No'
@@ -65,9 +88,8 @@ function fmtStr(n: number | string | boolean | null): string {
 
 export const METRICS: MetricDef[] = [
   // Summary
-  { id: 'score',       label: 'Opportunity Score',      section: 'Summary',    dir: 'higher',     getValue: i => i.opportunity_score,    format: v => v === null ? '—' : `${v}/100` },
-  { id: 'verdict',     label: 'Market Verdict',         section: 'Summary',    dir: 'verdict',    getValue: i => i.verdict_code,         format: fmtStr },
-  { id: 'fit',         label: 'Founder Fit (1–5)',      section: 'Summary',    dir: 'higher',     getValue: i => i.fit_rank,             format: v => v === null ? '—' : `${v}/5` },
+  { id: 'score',       label: 'Opportunity Score',      section: 'Summary',    dir: 'higher',     getValue: i => i.score,                format: v => v === null ? '—' : `${v}/100` },
+  { id: 'verdict',     label: 'Market Verdict',         section: 'Summary',    dir: 'verdict',    getValue: i => i.verdict,              format: v => v === null ? '—' : (VERDICT_META[v as MarketVerdict]?.label ?? fmtStr(v)) },
   // Market signals
   { id: 'revenue',     label: 'Market Revenue /mo',     section: 'Market',     dir: 'higher',     getValue: i => i.market_revenue_mo,    format: fmtK },
   // Fix (2026-07-18 audit, Finding 2): fmtN never returns an empty string
@@ -85,18 +107,8 @@ export const METRICS: MetricDef[] = [
   // Competition
   { id: 'competitors', label: 'Competitor Count',       section: 'Competition', dir: 'lower',     getValue: i => i.competitor_count,    format: fmtN },
   { id: 'revconc',     label: 'Review Concentration',  section: 'Competition', dir: 'lower',      getValue: i => i.review_concentration, format: v => (v === null || v === undefined) ? '—' : `${Math.round(Number(v) * 100)}%` },
-  // Quality gates
-  { id: 'thresholds',  label: 'Thresholds Passed',      section: 'Gates',      dir: 'higher',     getValue: i => i.threshold_pass_count, format: v => `${v}/5` },
-  { id: 'killsw',      label: 'Kill Switches Clear',    section: 'Gates',      dir: 'bool_true',  getValue: i => i.all_switches_clear,  format: v => v === null ? '—' : v ? 'All clear' : 'Flagged' },
-  // Economics
-  { id: 'complexity',  label: 'Launch Complexity',      section: 'Economics',  dir: 'complexity', getValue: i => i.launch_complexity,   format: fmtStr },
-  { id: 'capital',     label: 'Min Capital Required',   section: 'Economics',  dir: 'lower',      getValue: i => i.min_capital_required, format: fmtK },
-  { id: 'cogs',        label: 'Max COGS /unit',         section: 'Economics',  dir: 'higher',     getValue: i => i.breakeven_cogs,      format: fmtUsd },
-  { id: 'year1',       label: 'Year 1 Revenue (base)',  section: 'Economics',  dir: 'higher',     getValue: i => i.year1_base,          format: fmtK },
-  { id: 'margin',      label: 'Margin Viable (50% GM)', section: 'Economics',  dir: 'bool_true',  getValue: i => i.margin_viable,       format: v => v ? 'Yes' : 'No' },
-  // Founder fit detail
-  { id: 'capfit',      label: 'Capital Fit',            section: 'Founder Fit', dir: 'fit_level', getValue: i => i.capital_fit_level,   format: fmtStr },
-  { id: 'tlfit',       label: 'Timeline Fit',           section: 'Founder Fit', dir: 'fit_level', getValue: i => i.timeline_fit_level,  format: fmtStr },
+  // Gates
+  { id: 'killsw',      label: 'Kill Criteria Clear',    section: 'Gates',      dir: 'bool_true',  getValue: i => i.kill_criteria_clear, format: v => v === null ? '—' : v ? 'Clear' : 'Flagged' },
 ]
 
 // Fix (2026-07-18 audit, Finding 6): trend_direction is a real free-text
@@ -122,9 +134,7 @@ export function getNumericRank(dir: Direction, val: number | string | boolean | 
     case 'higher':     return typeof val === 'number' ? val : null
     case 'lower':      return typeof val === 'number' ? -val : null
     case 'bool_true':  return val === true ? 1 : val === false ? 0 : null
-    case 'verdict':    return VERDICT_RANK[String(val)] ?? null
-    case 'complexity': return COMPLEXITY_RANK[String(val)] ?? null
-    case 'fit_level':  return FIT_LEVEL_RANK[String(val)] ?? null
+    case 'verdict':    return VERDICT_RANK[val as MarketVerdict] ?? null
     case 'trend':      return typeof val === 'string' ? trendRank(val) : null
   }
 }
@@ -141,4 +151,4 @@ export function findWinner(dir: Direction, values: (number | string | boolean | 
   return winners
 }
 
-export const SECTION_ORDER = ['Summary', 'Market', 'Competition', 'Gates', 'Economics', 'Founder Fit']
+export const SECTION_ORDER = ['Summary', 'Market', 'Competition', 'Gates']
