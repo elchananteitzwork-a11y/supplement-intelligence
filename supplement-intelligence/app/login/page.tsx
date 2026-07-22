@@ -4,22 +4,23 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { AmbientWorld } from '@/components/cine/AmbientWorld'
-import { GlassPanel } from '@/components/cine/GlassPanel'
 import { RotorMark } from '@/components/cine/RotorMark'
 
 type Mode = 'signin' | 'signup' | 'forgot'
 
-// "One World" redesign (2026-07-21+): no more split-screen — a single
-// glass instrument floating in the exact same AmbientWorld as Landing, so
-// arriving here never feels like a different application. Auth logic
-// (mode/email/password/loading/error/awaitingConfirm/resetSent state, the
-// three real Supabase calls, the ?signup=1 deep link) is byte-identical to
-// the prior version — only markup/classNames changed.
+// Cream register (2026-07-22): Login no longer lives in the cinematic
+// AmbientWorld — no hero photo/video, no dark glass. Simple, light, on the
+// same warm-cream/gold tokens as the rest of the product (pi-cream/pi-card/
+// pi-hairline/pi-gold-*). Landing keeps the cinematic video hero; this page
+// is the deliberate opposite register, not a downgrade of it — see
+// DESIGN_SOURCE_OF_TRUTH.md's design-registers note. Auth logic (mode/
+// email/password/loading/error/awaitingConfirm/resetSent state, the three
+// real Supabase calls, the ?signup=1 deep link) is byte-identical to the
+// prior version — only markup/classNames changed.
 
 function MailIcon() {
   return (
-    <div className="mx-auto mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08]">
+    <div className="mx-auto mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-pi-hairline bg-pi-sand">
       <svg className="h-[19px] w-[19px] text-pi-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
       </svg>
@@ -28,10 +29,10 @@ function MailIcon() {
 }
 
 const inputCls =
-  'w-full rounded-[11px] border border-white/15 bg-white/[0.06] px-3.5 py-3 text-[14.5px] text-white placeholder:text-pi-cream/35 outline-none transition-[border-color,box-shadow] duration-cine-fast ease-cine focus:border-pi-gold-deep/55 focus:shadow-[0_0_0_3px_rgba(212,169,74,0.14)]'
-const labelCls = 'font-mono text-[10px] font-bold uppercase tracking-wider text-pi-cream/70 [text-shadow:0_1px_3px_rgba(0,0,0,0.4)]'
+  'w-full rounded-[11px] border border-pi-hairline bg-white px-3.5 py-3 text-[14.5px] text-pi-ink placeholder:text-pi-faint outline-none transition-[border-color,box-shadow] duration-200 focus:border-pi-gold-deep/60 focus:shadow-[0_0_0_3px_rgba(212,169,74,0.14)]'
+const labelCls = 'font-mono text-[10px] font-bold uppercase tracking-wider text-pi-sub'
 const submitCls =
-  'mt-1.5 w-full rounded-xl bg-gradient-to-br from-[#F6E7B8] via-pi-gold-deep to-pi-gold-bright px-[18px] py-[13px] text-[14.5px] font-semibold text-[#16130a] shadow-[0_10px_22px_-8px_rgba(212,169,74,0.55)] transition-transform duration-cine-fast ease-cine hover:-translate-y-px active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0'
+  'mt-1.5 w-full rounded-xl bg-gradient-to-br from-[#F6E7B8] via-pi-gold-deep to-pi-gold-bright px-[18px] py-[13px] text-[14.5px] font-semibold text-[#16130a] shadow-[0_10px_22px_-8px_rgba(212,169,74,0.45)] transition-transform duration-200 hover:-translate-y-px active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -83,22 +84,19 @@ export default function LoginPage() {
 
   function Shell({ children }: { children: React.ReactNode }) {
     return (
-      <AmbientWorld
-        image="/ambient/landing-cathedral-of-palms.jpg"
-        video="/ambient/video/landing-hero-bamboo.mp4"
-        intensity="full"
-        className="min-h-screen"
-      >
-        <nav className="relative z-10 flex items-center px-6 py-5 sm:px-8">
-          <Link href="/" className="flex items-center gap-2.5 text-sm font-semibold text-pi-cream">
+      <div className="min-h-screen bg-pi-cream">
+        <nav className="flex items-center px-6 py-5 sm:px-8">
+          <Link href="/" className="flex items-center gap-2.5 text-sm font-semibold text-pi-ink">
             <RotorMark className="h-5 w-5" />
             Product Intelligence
           </Link>
         </nav>
-        <div className="relative z-10 flex min-h-[calc(100vh-76px)] items-center justify-center px-6 py-10">
-          <GlassPanel className="w-full max-w-[420px] px-9 pb-8 pt-10">{children}</GlassPanel>
+        <div className="flex min-h-[calc(100vh-76px)] items-center justify-center px-6 py-10">
+          <div className="w-full max-w-[420px] rounded-2xl border border-pi-hairline bg-pi-card px-9 pb-8 pt-10 shadow-[0_1px_3px_rgba(22,23,26,0.06),0_20px_44px_-16px_rgba(22,23,26,0.12)]">
+            {children}
+          </div>
         </div>
-      </AmbientWorld>
+      </div>
     )
   }
 
@@ -106,11 +104,11 @@ export default function LoginPage() {
     <Shell>
       <div className="text-center">
         <MailIcon />
-        <h1 className="mb-2 font-serif text-[24px] font-semibold leading-tight tracking-tight text-pi-cream [text-shadow:0_1px_8px_rgba(0,0,0,0.35)]">{title}</h1>
-        <p className="mb-7 text-[13.5px] leading-relaxed text-pi-cream/80 [text-shadow:0_1px_4px_rgba(0,0,0,0.45)]">{body}</p>
+        <h1 className="mb-2 font-serif text-[24px] font-semibold leading-tight tracking-tight text-pi-ink">{title}</h1>
+        <p className="mb-7 text-[13.5px] leading-relaxed text-pi-sub">{body}</p>
         <button
           onClick={() => { setResetSent(false); setAwaitingConfirm(false); switchMode('signin') }}
-          className="font-mono text-[11px] text-pi-cream/60 [text-shadow:0_1px_3px_rgba(0,0,0,0.4)] hover:text-pi-cream"
+          className="font-mono text-[11px] text-pi-faint hover:text-pi-ink"
         >
           ← Back to sign in
         </button>
@@ -121,23 +119,23 @@ export default function LoginPage() {
   if (resetSent) return (
     <ConfirmScreen
       title="Check your email"
-      body={<>Reset link sent to <span className="font-semibold text-pi-cream">{email}</span>. Click it to choose a new password.</>}
+      body={<>Reset link sent to <span className="font-semibold text-pi-ink">{email}</span>. Click it to choose a new password.</>}
     />
   )
 
   if (awaitingConfirm) return (
     <ConfirmScreen
       title="Confirm your email"
-      body={<>Confirmation link sent to <span className="font-semibold text-pi-cream">{email}</span>. Click it to activate your account.</>}
+      body={<>Confirmation link sent to <span className="font-semibold text-pi-ink">{email}</span>. Click it to activate your account.</>}
     />
   )
 
   return (
     <Shell>
-      <h1 className="mb-2 text-center font-serif text-[24px] font-semibold leading-tight tracking-tight text-pi-cream [text-shadow:0_1px_8px_rgba(0,0,0,0.35)]">
+      <h1 className="mb-2 text-center font-serif text-[24px] font-semibold leading-tight tracking-tight text-pi-ink">
         {mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Save your analyses' : 'Reset your password'}
       </h1>
-      <p className="mb-7 text-center text-[13.5px] leading-relaxed text-pi-cream/80 [text-shadow:0_1px_4px_rgba(0,0,0,0.45)]">
+      <p className="mb-7 text-center text-[13.5px] leading-relaxed text-pi-sub">
         {mode === 'signin'
           ? 'Sign in to see your analyses and watched categories.'
           : mode === 'signup'
@@ -161,7 +159,7 @@ export default function LoginPage() {
             <div className="mb-1.5 flex items-center justify-between">
               <label className={labelCls} htmlFor="password">Password</label>
               {mode === 'signin' && (
-                <button type="button" onClick={() => switchMode('forgot')} className="font-mono text-[10px] font-bold uppercase tracking-wide text-pi-gold-deep hover:text-pi-cream transition-colors">
+                <button type="button" onClick={() => switchMode('forgot')} className="font-mono text-[10px] font-bold uppercase tracking-wide text-pi-gold-deep hover:text-pi-ink transition-colors">
                   Forgot?
                 </button>
               )}
@@ -178,7 +176,7 @@ export default function LoginPage() {
         )}
 
         {error && (
-          <div className="flex items-start gap-2 rounded-[10px] border border-[#C9573F]/35 bg-[#C9573F]/[0.14] px-3 py-2.5 text-[13px] text-[#eab3a5]">
+          <div className="flex items-start gap-2 rounded-[10px] border border-[#A13F2E]/25 bg-[#A13F2E]/[0.06] px-3 py-2.5 text-[13px] text-[#A13F2E]">
             {error}
           </div>
         )}
@@ -187,19 +185,19 @@ export default function LoginPage() {
           {loading ? 'Working…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Email me a reset link'}
         </button>
 
-        <p className="text-center text-[13px] text-pi-cream/70 [text-shadow:0_1px_3px_rgba(0,0,0,0.4)]">
+        <p className="text-center text-[13px] text-pi-sub">
           {mode === 'forgot' ? (
-            <>Remember your password?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-[#F6E7B8] underline decoration-white/25 underline-offset-2">Sign in</button></>
+            <>Remember your password?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-pi-gold-deep underline decoration-pi-gold-deep/30 underline-offset-2">Sign in</button></>
           ) : mode === 'signin' ? (
-            <>Don&apos;t have an account?{' '}<button type="button" onClick={() => switchMode('signup')} className="text-[#F6E7B8] underline decoration-white/25 underline-offset-2">Sign up</button></>
+            <>Don&apos;t have an account?{' '}<button type="button" onClick={() => switchMode('signup')} className="text-pi-gold-deep underline decoration-pi-gold-deep/30 underline-offset-2">Sign up</button></>
           ) : (
-            <>Already have an account?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-[#F6E7B8] underline decoration-white/25 underline-offset-2">Sign in</button></>
+            <>Already have an account?{' '}<button type="button" onClick={() => switchMode('signin')} className="text-pi-gold-deep underline decoration-pi-gold-deep/30 underline-offset-2">Sign in</button></>
           )}
         </p>
       </form>
 
-      <div className="mt-10 flex items-center justify-center border-t border-white/[0.1] pt-5">
-        <Link href="/" className="font-mono text-[11px] tracking-wide text-pi-cream/55 [text-shadow:0_1px_3px_rgba(0,0,0,0.4)] hover:text-pi-cream transition-colors">← Back to home</Link>
+      <div className="mt-10 flex items-center justify-center border-t border-pi-hairline pt-5">
+        <Link href="/" className="font-mono text-[11px] tracking-wide text-pi-faint hover:text-pi-ink transition-colors">← Back to home</Link>
       </div>
     </Shell>
   )

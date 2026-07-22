@@ -31,6 +31,24 @@ This is a living document — update it whenever a screen moves between states (
 
 ---
 
+## Two design registers (formalized 2026-07-22)
+
+The owner asked to "start building our design language" using "pretty much the same as we have now with the cream colors" — this section is that language, stated once so it stops getting rediscovered per screen.
+
+**The product has exactly two visual registers, sharing one token system:**
+
+1. **Cinematic register** — an immersive hero moment. Full-bleed photo or video, dark color-grade scrim, `AmbientParticles`, glass panels (`GlassPanel`/`GlassInstrument`/`ProofCard`), cine motion tokens. **Currently: Landing only.** (Candidate Detail's prototype is exploring this register too, pending implementation approval — see §2.)
+2. **Cream register** — everything else. Plain `bg-pi-cream` page, light `bg-pi-card`/`border-pi-hairline` panels, no hero photo/video, no dark glass, no particles. **Currently: Login (redesigned 2026-07-22), and every existing pi-\* screen (Dashboard, Discover, Compare, Pipeline, Watchlist, Alerts, Leaderboard, Settings, History) — those were already in this register; Login just joined it.**
+
+**What makes both registers the same product, not two products:** the same tokens (§4 — cream/gold/ink/verdict hexes, Inter/JetBrains Mono/serif), the same `RotorMark`, the same gold-gradient CTA button recipe, the same type scale and voice, the same motion easing curve (`ease-cine`) where either register animates at all. A screen never gets a *new* palette or a *new* button recipe — only a choice of which of these two registers it's staged in.
+
+**Which register a screen gets is a real, per-screen decision, not automatic:**
+- Landing earns the cinematic register because it's the emotional first-contact moment — the thing that has to feel like "the future" in one second.
+- Login *could* have stayed cinematic (Phase 2 did exactly that) but the owner explicitly moved it to cream on 2026-07-22 for simplicity — a real, considered choice, not a default.
+- Dashboard/Discover (Phases 4-5, still pending) inherit whichever register their approved mockup lands on — nothing here presumes they must become cinematic just because they're getting a redesign pass. Given today's decision, **cream is the more likely default for both** unless a specific mockup makes the case for cinematic.
+
+---
+
 ## 0. Element-by-element inventory
 
 One row per element the owner asked to locate. "Where" is always a real file path, commit, or Artifact URL — never a description of what should exist.
@@ -40,7 +58,7 @@ One row per element the owner asked to locate. "Where" is always a real file pat
 | **Cathedral of Palms Hero** | `public/ambient/landing-cathedral-of-palms.jpg` (day) + `public/ambient/candidate-detail-cathedral-of-palms-night.jpg` (night companion). **Superseded as Landing/Login's live background, 2026-07-22** — see "Landing/Login hero video" row below. Remains the Home foundation image (Canonical Home Architecture) and the Candidate Detail identity. | Still locked for Home + Candidate Detail. No longer what Landing/Login actually render. |
 | **Landing/Login hero video** | `public/ambient/video/landing-hero-bamboo.mp4` + poster `landing-hero-bamboo-poster.jpg` — a real generated video (Higgsfield, job `hf_20260718_141322_cae9594b...`, originally prompted as "the permanent living hero background," predates the Cathedral of Palms photo pipeline by several days). Owner explicitly reviewed the source link, confirmed its subject (a bamboo grove with water/mist/god-rays, not palms) via direct evidence, and chose it anyway, 2026-07-22 — scope explicitly "Landing + Login" only, not Home. Rendered via the new `AmbientVideo` client component (`components/cine/AmbientVideo.tsx`): autoplay/muted/loop/playsInline, `prefers-reduced-motion` gates autoplay entirely (poster-only otherwise), same poster used as the pre-hydration/loading frame. | **Implemented, verified live** (video confirmed playing, `readyState 4`, both routes) — tsc/vitest/build all clean. |
 | **Landing Page** | `app/page.tsx` | Implemented, approved, live. |
-| **Login** | `app/login/page.tsx` | Implemented, approved, live. Single glass instrument in the same world, no split-screen (explicit owner requirement). |
+| **Login** | `app/login/page.tsx` | **Redesigned 2026-07-22, cream register** — owner: "different and simple... without any background picture, just the design language we have now with the cream colors." No AmbientWorld, no video, no dark glass — plain `bg-pi-cream` page, a `bg-pi-card`/`border-pi-hairline` panel (the same light-card recipe already used elsewhere in pi-*), same RotorMark/serif/mono/gold-gradient-button tokens as the cinematic register. Auth logic untouched. See "Two design registers" below §0. |
 | **Dashboard / Home** | IA authority: `docs/CANONICAL_HOME_ARCHITECTURE.md` (owner decision 2026-07-22 resolving the two-route conflict — see §6.6 for the history). Implementation resources: `app/dashboard/page.tsx` (quota awareness, portfolio aggregates, `computeCardIntelligence`, card content model) + `app/pipeline/page.tsx`/`components/pi/PipelineView.tsx` et al. (stage-grouped IA, anchor sentence, "What changed" strip, frozen vocabulary, honesty footer). Canonical URL: `/dashboard`; `/pipeline` deleted after the merge. Cinematic visual design: not yet — Phase 4's mockup gate. | **Architecture defined; visual design pending** (background candidates → mockup → owner approval). |
 | **Discover** | Real: `app/analyze/page.tsx` (Layer 2 pi-\*, 1267 lines). Cinematic version: **does not exist yet** — Phase 5 hasn't started. | Layer 2 only. Not a missed artifact — genuinely not designed yet. |
 | **Candidate Detail** | Real content/data: `app/memo/[id]/page.tsx` + `components/memo/MemoDisplay.tsx` (14 real sections) + `components/pi/candidate-core/` (real WebGL hero, see below). Cinematic presentation: `design-prototypes/candidate-detail-night.html` — reviewed, polished, background bug found and fixed live, **awaiting your approval to implement.** | Prototype exists and is close to done. Not yet implemented into the real route. |
@@ -85,7 +103,7 @@ Design work on this product happened in three passes. They are **not** competing
 | Screen | Real route | Current live UI | Approved-not-implemented asset | Cinematic (Layer 3) status |
 |---|---|---|---|---|
 | Landing | `app/page.tsx` | **Layer 3, implemented** | — | Done. Hero background changed 2026-07-22: real bamboo video (`landing-hero-bamboo.mp4`), not the Cathedral of Palms photo — owner-reviewed and approved with full knowledge of the subject mismatch. |
-| Login | `app/login/page.tsx` | **Layer 3, implemented** | — | Done. Same video hero as Landing, single glass instrument, no split-screen. |
+| Login | `app/login/page.tsx` | **Cream register, implemented** | — | Redesigned 2026-07-22 — cream/light, no hero image or video, per owner request. No longer "the same world" visually; still the same tokens/typography/brand mark. |
 | Dashboard / Home | Canonical URL: `/dashboard`. IA authority: **`docs/CANONICAL_HOME_ARCHITECTURE.md`** (owner-decided merge, 2026-07-22 — neither existing route is design authority; both are implementation resources; `/pipeline` deleted after the merge) | Layer 2 (pi-\*) `/dashboard` until Phase 4 ships | — | **Unblocked.** Phase 4 next: background candidates → mockup → owner approval → R&D doc → implement. |
 | Discover | `app/analyze/page.tsx` (1267 lines) | Layer 2 (pi-\*, substantially matches `scratchpad/discover_merged.final.html` / the "Discover — redesign mockup" Artifact) | Known real gap (not a design question): no persistent nav chrome on this route today — flagged in `docs/STITCH_NARRATIVE_REMAPPING.md`, unresolved | **Not started.** Phase 5. Real `/analyze` page is the IA source of truth. |
 | Candidate Detail | `app/memo/[id]/page.tsx` | Layer 2 body (`MemoDisplay.tsx`, 14 real sections) + Layer 2 hero (`CandidateCoreHero`, real WebGL 3D rotor — see §3) | `design-prototypes/candidate-detail-night.html` — reviewed, owner said "very close," currently in a world-class polish pass (in progress) | **Prototyped, not implemented.** This is the active phase. |
