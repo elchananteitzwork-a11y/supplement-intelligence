@@ -44,7 +44,7 @@ This resolves `DESIGN_SOURCE_OF_TRUTH.md` §6 item 6 and unblocks Phase 4. This 
 
 ## 3. One World presentation (constraints the mockup must satisfy)
 
-1. **Own background composition** — per the locked per-screen rule, Home does **not** reuse Landing's photo or Candidate Detail's night. Candidates get generated in the same world (same grammar: palm world, warm gold, water, monumental calm; a plausible register is the transition between Landing's arrival and Candidate Detail's night — but the composition round decides, not this doc) → owner picks → the chosen file lands in `public/ambient/` with a screen-named filename.
+1. **Background — owner correction (2026-07-22, supersedes this doc's first draft):** Home builds on the **already-approved palm-world background** (`public/ambient/landing-cathedral-of-palms.jpg` — the locked Cathedral of Palms identity, the image intended to become the animated environment), exactly as Login already does. Per-screen distinctiveness comes from **treatment** — crop/`imagePosition`, `AmbientWorld` intensity (`calm` register here, for data density), scrim depth — never from a different photograph. A golden-dusk candidate round was generated during this phase and explicitly set aside by the owner as *"useful exploration only"* — those images are **not adopted** and must not be mistaken for approved assets. **No new environment composition may be introduced for any screen without the owner explicitly approving a replacement.**
 2. **Surfaces:** `GlassPanel`/`GlassInstrument` verbatim (post-Phase-3 fold-back recipe when that lands); `AmbientParticles` verbatim; scrim/grade via `AmbientWorld` at an intensity that keeps 30 cards of real data legible (`calm` register, not Landing's `full`).
 3. **Motion:** cine tiers; card entrance per the ui-ux-pro-max grid-stagger finding (300–450ms, ~60ms each, wave from start, transform/opacity only), reveal-once, all reduced-motion gated. No magnetic element on this screen unless the mockup designates a single centerpiece that earns it.
 4. **No WebGL here** by default — the rotor budget stays with Candidate Detail (SoT WebGL scope rule). If the mockup proposes a Home centerpiece, it's `RotorMark`/`GlassInstrument` territory, or an explicit owner decision.
@@ -52,7 +52,6 @@ This resolves `DESIGN_SOURCE_OF_TRUTH.md` §6 item 6 and unblocks Phase 4. This 
 
 ## 4. What this unblocks and the order
 
-1. Home background-composition candidates (generation + owner pick) — can run alongside 2.
-2. High-fidelity Home mockup implementing this IA → **owner approval**.
-3. R&D doc (7-section, per standing policy) → implementation → `/pipeline` deletion in the same milestone.
-4. Phase 3 (Candidate Detail) implementation remains a separate, still-pending approval — this document does not reorder it.
+1. High-fidelity Home mockup on the approved Cathedral of Palms background, implementing this IA → **owner approval**. (No background-generation step — resolved above.)
+2. R&D doc (7-section, per standing policy) → implementation → `/pipeline` deletion in the same milestone.
+3. Phase 3 (Candidate Detail) implementation remains a separate, still-pending approval — this document does not reorder it.
