@@ -4,6 +4,8 @@
 
 This is the plan for the product-wide design language — the vocabulary every recreated screen will be built from. Per the standing gate, no screen is implemented from this document directly: each screen still gets its own mockup → owner approval → R&D doc → implementation.
 
+**Owner clarification at build start (2026-07-22, binding for every screen in §5):** *"I would like the layout and whatever the client sees to be totally different of what is now. I would like to change everything. I would like to focus on making it very easy and clear for him to understand right away what he is seeing."* — Every recreated screen gets a **new composition designed for instant comprehension**, never a re-skin of the current screen's layout. The existing screens remain the source of *functionality and data bindings only*. The comprehension standard is answer-first: the screen's single most important truth is stated plainly at the top (the anchor-sentence principle), detail follows in clear descending altitudes.
+
 ---
 
 ## 1. The one-sentence language

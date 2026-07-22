@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MOCKUP — Home ("The Morning Briefing", cream register)</title>
+<style>
+/* ============================================================================
+   HOME MOCKUP — "Warm Intelligence" cream register, per
+   docs/DESIGN_LANGUAGE_PLAN.md. Owner brief: layout totally different from
+   the current /dashboard (sidebar + stat-tile row + card grid) — answer-first,
+   instantly comprehensible. All data below is ILLUSTRATIVE (real field shapes
+   from computeCardIntelligence / derivePipelineViewModel / aggregates, fake
+   values, labeled). Serif = Georgia stand-in for Source Serif 4; mono =
+   ui-monospace stand-in for JetBrains Mono.
+   ========================================================================= */
+:root{
+  --cream:#FBF7EE; --card:#FFFFFF; --sand:#F6F0E0; --ink:#16171A; --sub:#6B6F76;
+  --faint:#8C877C; --gold:#8D6A16; --gold-deep:#D4A94A; --gold-bright:#C9971F;
+  --build:#2E6B48; --invest:#35507A; --risk:#A13F2E; --pass:#6E6A5C;
+  --hairline:rgba(22,23,26,0.09);
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;}
+.serif{font-family:"Source Serif 4",Georgia,serif;}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;}
+
+.proto{position:sticky;top:0;z-index:99;background:var(--ink);color:#F6E7B8;text-align:center;
+  font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.05em;padding:6px 10px;}
+
+/* ---------- shell: cream top-nav, NO sidebar (deliberate: totally new layout) ---------- */
+nav.top{position:sticky;top:29px;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:13px 28px;background:rgba(251,247,238,.88);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--hairline);}
+.brand{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:650;color:var(--ink);text-decoration:none;}
+.navlinks{display:flex;gap:2px;}
+.navlinks a{padding:8px 13px;border-radius:999px;font-size:13.5px;color:var(--sub);text-decoration:none;
+  transition:all .2s var(--ease);}
+.navlinks a:hover{color:var(--ink);background:rgba(22,23,26,.04);}
+.navlinks a.active{color:var(--gold);background:rgba(141,106,22,.10);font-weight:600;}
+.nav-right{display:flex;align-items:center;gap:14px;}
+.quota{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--faint);}
+.cta{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:10px 20px;
+  background:linear-gradient(135deg,#F6E7B8,var(--gold-deep),var(--gold-bright));
+  color:#16130a;font-size:13.5px;font-weight:650;text-decoration:none;
+  box-shadow:0 8px 18px -8px rgba(212,169,74,.5);transition:transform .18s var(--ease);cursor:pointer;}
+.cta:hover{transform:translateY(-1px);}
+
+main{max-width:880px;margin:0 auto;padding:52px 28px 90px;}
+
+/* ---------- altitude 1: the answer ---------- */
+.eyebrow{font-family:ui-monospace,monospace;font-size:10px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--gold);margin:0 0 12px;}
+h1.answer{font-family:"Source Serif 4",Georgia,serif;font-size:clamp(26px,4vw,38px);font-weight:600;
+  line-height:1.22;letter-spacing:-.01em;margin:0 0 10px;max-width:24ch;text-wrap:balance;}
+h1.answer b{color:var(--gold);font-weight:600;}
+.answer-sub{font-size:14px;color:var(--sub);margin:0 0 18px;}
+.pulse{display:flex;flex-wrap:wrap;gap:22px;margin:0 0 8px;}
+.pulse .p{display:flex;align-items:baseline;gap:7px;}
+.pulse .v{font-family:ui-monospace,monospace;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;}
+.pulse .l{font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);}
+
+/* ---------- altitude 2: needs your attention ---------- */
+section{margin-top:46px;}
+.att{display:grid;gap:10px;}
+.att-card{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:16px 20px;
+  box-shadow:0 1px 3px rgba(22,23,26,.05);}
+.att-card .dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--gold-deep);}
+.att-card p{margin:0;font-size:14px;line-height:1.5;}
+.att-card p b{font-weight:650;}
+.att-card time{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--faint);white-space:nowrap;}
+.att-act{flex:none;font-size:12.5px;font-weight:600;color:var(--gold);text-decoration:none;white-space:nowrap;}
+.att-act:hover{color:var(--ink);}
+
+/* ---------- altitude 3: the pipeline ---------- */
+.stage{margin-top:30px;}
+.stage-head{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;}
+.stage-head h2{font-size:13px;font-weight:700;letter-spacing:.02em;margin:0;}
+.stage-head .n{font-family:ui-monospace,monospace;font-size:11px;color:var(--faint);}
+.stage-head .hint{font-size:12px;color:var(--faint);margin-left:auto;}
+.rows{background:var(--card);border:1px solid var(--hairline);border-radius:16px;overflow:hidden;
+  box-shadow:0 1px 3px rgba(22,23,26,.05),0 20px 44px -18px rgba(22,23,26,.10);}
+.row{display:grid;grid-template-columns:1fr auto auto auto auto 18px;align-items:center;gap:18px;
+  padding:15px 20px;text-decoration:none;color:inherit;border-bottom:1px solid var(--hairline);
+  transition:background .15s var(--ease);cursor:pointer;}
+.row:last-child{border-bottom:none;}
+.row:hover{background:var(--sand);}
+.row .name{min-width:0;}
+.row .name .t{font-size:14.5px;font-weight:650;line-height:1.3;}
+.row .name .thesis{font-size:12.5px;color:var(--sub);line-height:1.45;margin-top:3px;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+.chip{font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;padding:5px 11px;border-radius:999px;
+  color:#fff;white-space:nowrap;}
+.chip.build{background:var(--build);} .chip.invest{background:var(--invest);}
+.chip.risk{background:var(--risk);} .chip.pass{background:var(--pass);}
+.score{font-family:ui-monospace,monospace;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;}
+.score small{display:block;font-size:9px;font-weight:600;letter-spacing:.09em;color:var(--faint);text-transform:uppercase;}
+.traced{font-family:ui-monospace,monospace;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums;text-align:right;}
+.traced small{display:block;font-size:9px;letter-spacing:.09em;color:var(--faint);text-transform:uppercase;}
+.when{font-family:ui-monospace,monospace;font-size:11px;color:var(--faint);white-space:nowrap;}
+.arrow{color:var(--faint);}
+.ghost{border:1.5px dashed rgba(22,23,26,.16);border-radius:16px;padding:15px 20px;
+  font-size:12.5px;color:var(--faint);background:transparent;}
+.ghost b{color:var(--sub);font-weight:650;}
+
+footer{max-width:880px;margin:0 auto;padding:0 28px 60px;}
+footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;line-height:1.65;color:var(--faint);}
+
+/* entrance: gentle stagger, reveal-once, reduced-motion gated */
+@media (prefers-reduced-motion: no-preference){
+  .rise{opacity:0;transform:translateY(12px);animation:rise .45s var(--ease) forwards;}
+  .rise:nth-child(2){animation-delay:.06s}.rise:nth-child(3){animation-delay:.12s}
+  .rise:nth-child(4){animation-delay:.18s}.rise:nth-child(5){animation-delay:.24s}
+  @keyframes rise{to{opacity:1;transform:none}}
+}
+@media (max-width:720px){
+  .navlinks{display:none;}
+  .row{grid-template-columns:1fr auto;grid-template-areas:"name chip" "meta meta";}
+  .row .name{grid-area:name}.row .chip{grid-area:chip}
+  .row .score,.row .traced,.row .when,.row .arrow{display:none;}
+  main{padding:36px 18px 60px;}
+}
+</style>
+</head>
+<body>
+<div class="proto">MOCKUP — Home, cream register · illustrative example data throughout, real field shapes, no live query · design-prototypes/, not a live route</div>
+
+<nav class="top">
+  <a class="brand" href="#">
+    <svg width="20" height="20" viewBox="0 0 200 200" aria-hidden="true"><g fill="#D4A94A"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" opacity=".86"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" opacity=".72"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" opacity=".58"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" opacity=".72"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" opacity=".86"/></g><circle cx="100" cy="100" r="27" fill="#16171C"/></svg>
+    Product Intelligence
+  </a>
+  <div class="navlinks">
+    <a class="active" href="#">Home</a>
+    <a href="#">Compare</a>
+    <a href="#">History</a>
+    <a href="#">Track Record</a>
+    <a href="#">Settings</a>
+  </div>
+  <div class="nav-right">
+    <span class="quota">2/3 analyses used</span>
+    <a class="cta" href="#">+ Log a hunch</a>
+  </div>
+</nav>
+
+<main>
+  <!-- ══ ALTITUDE 1 · THE ANSWER — one sentence, real counts, nothing else competing ══ -->
+  <div class="rise">
+    <p class="eyebrow">Your pipeline · Tuesday, Jul 22</p>
+    <h1 class="answer serif">Seven candidates. Two being watched — <b>one needs your attention.</b></h1>
+    <p class="answer-sub">Last analysis finished 6 hours ago.</p>
+    <div class="pulse" aria-label="Portfolio pulse">
+      <span class="p"><span class="v" style="color:var(--build)">33%</span><span class="l">V2 build rate</span></span>
+      <span class="p"><span class="v">57</span><span class="l">Avg score</span></span>
+      <span class="p"><span class="v">48%</span><span class="l">Avg confidence</span></span>
+      <span class="p"><span class="v">4/7</span><span class="l">Lifecycle classified</span></span>
+    </div>
+  </div>
+
+  <!-- ══ ALTITUDE 2 · NEEDS YOUR ATTENTION — real derivable events only, one action each ══ -->
+  <section class="rise">
+    <p class="eyebrow">Needs your attention</p>
+    <div class="att">
+      <div class="att-card">
+        <span class="dot" aria-hidden="true"></span>
+        <p style="flex:1"><b>Bloating + Fatigue Relief</b> finished analyzing — verdict: Entry Supported, score 71.</p>
+        <time>6h ago</time>
+        <a class="att-act" href="#">Read the verdict →</a>
+      </div>
+      <div class="att-card">
+        <span class="dot" style="background:var(--risk)" aria-hidden="true"></span>
+        <p style="flex:1"><b>Sleep Optimization Stack</b> is shortlisted but its evidence is 23 days old.</p>
+        <time>watched</time>
+        <a class="att-act" href="#">Re-check evidence →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ALTITUDE 3 · THE PIPELINE — stage-grouped, scannable rows, honest ghosts ══ -->
+  <section class="rise">
+    <p class="eyebrow">The pipeline</p>
+
+    <div class="stage">
+      <div class="stage-head"><h2>Shortlisted</h2><span class="n">2</span><span class="hint">being watched for you</span></div>
+      <div class="rows">
+        <a class="row" href="#">
+          <span class="name"><span class="t">Sleep Optimization Stack</span><span class="thesis">Growing stress-adjacent demand; addressable market still needs confirmation.</span></span>
+          <span class="chip invest">Validation Required</span>
+          <span class="score">64<small>score</small></span>
+          <span class="traced">52%<small>traced</small></span>
+          <span class="when">23d</span>
+          <span class="arrow">→</span>
+        </a>
+        <a class="row" href="#">
+          <span class="name"><span class="t">Magnesium Glycinate Gummies</span><span class="thesis">Real search + Amazon demand; review corpus thin relative to it.</span></span>
+          <span class="chip invest">Validation Required</span>
+          <span class="score">71<small>score</small></span>
+          <span class="traced">58%<small>traced</small></span>
+          <span class="when">2d</span>
+          <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="stage-head"><h2>Analyzed</h2><span class="n">5</span><span class="hint">every verdict the engine has returned</span></div>
+      <div class="rows">
+        <a class="row" href="#">
+          <span class="name"><span class="t">Bloating + Fatigue Relief</span></span>
+          <span class="chip build">Entry Supported</span>
+          <span class="score">71<small>score</small></span>
+          <span class="traced">64%<small>traced</small></span>
+          <span class="when">6h</span>
+          <span class="arrow">→</span>
+        </a>
+        <a class="row" href="#">
+          <span class="name"><span class="t">Ashwagandha KSM-66 Softgels</span></span>
+          <span class="chip invest">Validation Required</span>
+          <span class="score">58<small>score</small></span>
+          <span class="traced">47%<small>traced</small></span>
+          <span class="when">3d</span>
+          <span class="arrow">→</span>
+        </a>
+        <a class="row" href="#">
+          <span class="name"><span class="t">Generic Vitamin D3</span></span>
+          <span class="chip risk">Not Supported</span>
+          <span class="score">31<small>score</small></span>
+          <span class="traced">72%<small>traced</small></span>
+          <span class="when">5d</span>
+          <span class="arrow">→</span>
+        </a>
+        <a class="row" href="#">
+          <span class="name"><span class="t">Postpartum Hair Loss Blocker</span></span>
+          <span class="chip invest">Validation Required</span>
+          <span class="score">57<small>score</small></span>
+          <span class="traced">44%<small>traced</small></span>
+          <span class="when">7d</span>
+          <span class="arrow">→</span>
+        </a>
+        <a class="row" href="#">
+          <span class="name"><span class="t">Collagen + Vitamin C Powder</span></span>
+          <span class="chip pass">Category Creation</span>
+          <span class="score">49<small>score</small></span>
+          <span class="traced">39%<small>traced</small></span>
+          <span class="when">12d</span>
+          <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="stage-head"><h2 style="color:var(--faint)">Hunches</h2><span class="n">0</span></div>
+      <div class="ghost"><b>Ideas noted before analysis</b> — arriving in a later release. Shown so the shape of the pipeline is honest, never filled with demo data.</div>
+    </div>
+    <div class="stage">
+      <div class="stage-head"><h2 style="color:var(--faint)">Committed / Killed</h2><span class="n">0</span></div>
+      <div class="ghost">Commitment and kill records arrive with the ritual flows — they don't exist yet, and this page says so.</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Every number on this page traces to your real stored analyses — verdicts, scores, and confidence are never
+  re-derived for display. Confidence is gated by an analysis's single weakest input, never averaged. Dashed
+  stages exist in the product model but have no data yet. <span class="mono">[Mockup note: all names and values
+  above are illustrative; field shapes match computeCardIntelligence / derivePipelineViewModel / the real
+  aggregates module.]</span></p>
+</footer>
+</body>
+</html>
