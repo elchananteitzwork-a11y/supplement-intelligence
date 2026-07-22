@@ -93,19 +93,22 @@ export default function Landing() {
           </p>
 
           <div className="mx-auto max-w-[600px]">
-            <GlassPanel radius="rounded-[18px]" className="flex items-center gap-3 py-[9px] pl-[26px] pr-[9px]">
-              <Link
-                href="/login?signup=1"
-                className="relative z-[1] flex-1 py-3 text-left text-base text-pi-cream/65 [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]"
-              >
-                magnesium glycinate…
-              </Link>
-              <Link
-                href="/login?signup=1"
-                className="relative z-[1] flex items-center gap-2 whitespace-nowrap rounded-[13px] bg-gradient-to-br from-[#F6E7B8] via-pi-gold-deep to-pi-gold-bright px-6 py-[14px] text-[14.5px] font-semibold text-[#16130a] shadow-[0_10px_24px_-8px_rgba(212,169,74,0.55)] transition-transform duration-cine-fast ease-cine hover:-translate-y-px"
-              >
-                Discover →
-              </Link>
+            <GlassPanel radius="rounded-[18px]" className="py-[9px] pl-[26px] pr-[9px]">
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/login?signup=1"
+                  className="relative z-[1] flex-1 py-3 text-left text-base text-pi-cream/65 [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]"
+                >
+                  magnesium glycinate…
+                </Link>
+                <Link
+                  href="/login?signup=1"
+                  aria-label="Discover"
+                  className="relative z-[1] flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full bg-pi-gold-deep text-[#16130a] shadow-[0_10px_24px_-8px_rgba(212,169,74,0.55)] transition-transform duration-cine-fast ease-cine hover:-translate-y-px hover:bg-pi-gold-bright"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </Link>
+              </div>
             </GlassPanel>
             <p className="mt-4 font-mono text-[12.5px] text-pi-cream/70 [text-shadow:0_1px_3px_rgba(0,0,0,0.55)]">
               This preview is wired to 3 real stored analyses, not a live search index.
