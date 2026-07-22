@@ -63,7 +63,7 @@ export function AmbientWorld({
   return (
     <div className={`relative overflow-hidden ${className}`}>
       <div
-        className={`absolute inset-0 z-0 ${video ? '' : 'motion-safe:animate-cine-kenburns'}`}
+        className={`${video ? 'fixed' : 'absolute'} inset-0 z-0 ${video ? '' : 'motion-safe:animate-cine-kenburns'}`}
         style={{ filter: GRADE_BY_INTENSITY[intensity] }}
       >
         {video ? (
@@ -82,10 +82,13 @@ export function AmbientWorld({
       </div>
 
       {/* color-grade + legibility scrim — pulls the photograph toward the
-          locked warm cream/gold palette and keeps foreground content readable */}
+          locked warm cream/gold palette and keeps foreground content readable.
+          Pinned to the viewport (not the document) whenever the video is
+          active, for the same reason the video layer above is — see that
+          layer's comment and AmbientVideo.tsx. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 z-[1]"
+        className={`pointer-events-none ${video ? 'fixed' : 'absolute'} inset-0 z-[1]`}
         style={{
           background: `
             linear-gradient(100deg, rgba(22,20,13,${scrim}) 0%, rgba(22,20,13,${scrim * 0.5}) 32%, rgba(22,20,13,${scrim * 0.08}) 58%, transparent 78%),
