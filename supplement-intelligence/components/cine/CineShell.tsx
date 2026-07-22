@@ -50,6 +50,7 @@ export function CineNav({ dark = true }: { dark?: boolean }) {
 export function CineShell({
   image,
   imagePosition,
+  video,
   intensity = 'full',
   nav = true,
   children,
@@ -58,13 +59,15 @@ export function CineShell({
   /** This screen's own approved composition — see AmbientWorld's own doc comment. */
   image: string
   imagePosition?: string
+  /** Optional approved video loop (opt-in, see AmbientWorld). */
+  video?: string
   intensity?: AmbientIntensity
   nav?: boolean
   children?: React.ReactNode
   className?: string
 }) {
   return (
-    <AmbientWorld image={image} imagePosition={imagePosition} intensity={intensity} className={`min-h-screen ${className}`}>
+    <AmbientWorld image={image} imagePosition={imagePosition} video={video} intensity={intensity} className={`min-h-screen ${className}`}>
       {nav && <CineNav />}
       {children}
     </AmbientWorld>

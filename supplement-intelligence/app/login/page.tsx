@@ -83,7 +83,12 @@ export default function LoginPage() {
 
   function Shell({ children }: { children: React.ReactNode }) {
     return (
-      <AmbientWorld image="/ambient/landing-cathedral-of-palms.jpg" intensity="full" className="min-h-screen">
+      <AmbientWorld
+        image="/ambient/landing-cathedral-of-palms.jpg"
+        video="/ambient/video/landing-hero-bamboo.mp4"
+        intensity="full"
+        className="min-h-screen"
+      >
         <nav className="relative z-10 flex items-center px-6 py-5 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 text-sm font-semibold text-pi-cream">
             <RotorMark className="h-5 w-5" />

@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { AmbientParticles } from './AmbientParticles'
+import { AmbientVideo } from './AmbientVideo'
 
 // ═══════════════════════════════════════════════════════════════════════
 // AmbientWorld — the persistent cinematic environment behind the "One
@@ -14,15 +15,17 @@ import { AmbientParticles } from './AmbientParticles'
 // Candidate Detail stage (Phase 3) is "the same world at night": same
 // logic, a different generated image and a darker intensity.
 //
-// `image` is required and always caller-supplied. Landing/Login (Phase 2)
-// pass the owner-approved "Cathedral of Palms" hero — the locked hero
-// identity for the product, picked after two rounds of exploration; later
-// phases pass their own approved image once designed — never a
-// placeholder, never this component's own default.
+// `image` is required and always caller-supplied — a still fallback/poster
+// even when `video` is also provided (used under prefers-reduced-motion,
+// and while the video loads). Landing/Login (2026-07-22 owner decision)
+// pass `video="/ambient/video/landing-hero-bamboo.mp4"` — a real generated
+// clip the owner chose over the static Cathedral of Palms photo for these
+// two screens specifically. Other screens keep passing only `image` — the
+// video path is opt-in per screen, never a default.
 //
 // `intensity="full"` (the environment IS the page) vs. `intensity="calm"`
 // (content-dense screens, world recedes further so real data stays
-// legible) only changes overlay opacity/darkness, never the image itself.
+// legible) only changes overlay opacity/darkness, never the image/video.
 // ═══════════════════════════════════════════════════════════════════════
 
 export type AmbientIntensity = 'full' | 'calm'
@@ -40,14 +43,17 @@ const SCRIM_OPACITY_BY_INTENSITY: Record<AmbientIntensity, number> = {
 export function AmbientWorld({
   image,
   imagePosition = '50% 40%',
+  video,
   intensity = 'full',
   children,
   className = '',
 }: {
-  /** Public/ path to this screen's own approved composition — never shared/hardcoded. */
+  /** Public/ path to this screen's own approved composition — never shared/hardcoded. Also the reduced-motion / pre-load fallback when `video` is set. */
   image: string
   /** CSS object-position for the source photo's focal point on this screen. */
   imagePosition?: string
+  /** Optional: public/ path to an approved video loop. Opt-in per screen — omit to stay image-only. */
+  video?: string
   intensity?: AmbientIntensity
   children?: React.ReactNode
   className?: string
@@ -57,18 +63,22 @@ export function AmbientWorld({
   return (
     <div className={`relative overflow-hidden ${className}`}>
       <div
-        className="absolute inset-0 z-0 motion-safe:animate-cine-kenburns"
+        className={`absolute inset-0 z-0 ${video ? '' : 'motion-safe:animate-cine-kenburns'}`}
         style={{ filter: GRADE_BY_INTENSITY[intensity] }}
       >
-        <Image
-          src={image}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-          style={{ objectPosition: imagePosition }}
-        />
+        {video ? (
+          <AmbientVideo src={video} poster={image} objectPosition={imagePosition} />
+        ) : (
+          <Image
+            src={image}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            style={{ objectPosition: imagePosition }}
+          />
+        )}
       </div>
 
       {/* color-grade + legibility scrim — pulls the photograph toward the

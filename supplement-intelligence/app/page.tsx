@@ -52,7 +52,12 @@ const PREVIEW_CARDS: { name: string; window: string; decision: BuildDecision; th
 
 export default function Landing() {
   return (
-    <CineShell image="/ambient/landing-cathedral-of-palms.jpg" intensity="full" nav={false}>
+    <CineShell
+      image="/ambient/landing-cathedral-of-palms.jpg"
+      video="/ambient/video/landing-hero-bamboo.mp4"
+      intensity="full"
+      nav={false}
+    >
       {/* Landing's own nav — same 3 destinations + Sign In CTA as the
           prior version of this page (not CineNav's authenticated-app
           links, which don't apply pre-auth). */}
