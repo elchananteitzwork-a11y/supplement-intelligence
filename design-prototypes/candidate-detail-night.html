@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PROTOTYPE — Candidate Detail (&quot;the same world, at night&quot;)</title>
+<style>
+
+/* ============================================================================
+   DESIGN-AGENT PROTOTYPE — not live app code.
+   Reuses the exact GlassPanel / AmbientWorld / GlassInstrument / ProofCard
+   recipes from components/cine/*.tsx (translated from Tailwind classes to
+   plain CSS since this file has no build step) and the exact pi- color
+   tokens from tailwind.config.ts. Grounded in the real data shapes in
+   lib/scoring.ts, lib/confidence/*, lib/kill-criteria.ts, and the real
+   section list in components/memo/MemoDisplay.tsx (nothing renamed/dropped).
+   All specific numbers/names below are ILLUSTRATIVE (see banner + footer on
+   every data block) — same convention as app/page.tsx's PREVIEW_CARDS.
+
+   2026-07-22 revision — folded in the coordinator's ui-ux-pro-max design-
+   intelligence pass: (1) palette confirmed already-correct (real pi- prefix
+   GlassInstrument tone tokens, the tool's default indigo/blue fintech
+   suggestion was never adopted); (2) motion timings confirmed already-correct
+   (ease-cine / duration-cine reused verbatim, no new values introduced);
+   (3) the six score dimensions are now full glass instruments (label + real
+   numeric value always visible as text, never hover-only, color never the
+   sole signal) instead of flat bordered tiles — "bullet-chart-grid," not a
+   nested/sunburst hierarchy, per the tool's accessibility-grade finding for
+   this shape of data (flat 6-dimension set, not a real hierarchy); (4)
+   confidence promoted from a text line into its own single prominent
+   instrument with the weakest dimension named in text beside it, not forced
+   into a time-series chart type it has no real data to support.
+
+   2026-07-22 world-class polish pass (final lock-for-implementation pass,
+   layout/section-order/IA untouched — execution quality only):
+   (5) real night photograph swapped in for the daytime-plus-heavy-filter
+   stand-in — see the comment directly above .world-img for the exact
+   before/after and why the old filter was almost entirely removed rather
+   than just softened;
+   (6) glass recipe refined for a lighter, more physical edge-catch —
+   asymmetric off-center sheen, a second fainter streak at a different
+   angle, and a subtle inset top/bottom bevel on every glass-plane and
+   blade-plane to sell edge thickness; overall opacity nudged down where
+   the old recipe read a touch muddy, never heavier;
+   (7) two named motion tiers formalized as CSS custom properties
+   (--dur-hover-sm / --ease-soft for buttons, pills, and blade tiles;
+   --dur-hover-md / --ease-cine for report-panel lift + shadow-growth),
+   plus the one complex-tier interaction this screen earns — a restrained
+   pointer-tracked "magnetic" pull and glow-intensify reserved for the
+   rotor only (see the inline script near the end of the body);
+   (8) an IntersectionObserver-driven .reveal class fades each report
+   section in once as it enters (never re-triggers on scroll-up), with a
+   matching Evidence-Breadth chip-row stagger keyed off the same
+   .is-visible class — both fully inert under prefers-reduced-motion;
+   (9) nav and section-nav rebuilt on the same translucent glass-plane
+   recipe instead of a flat rgba(9,8,6,...) bar, so the ambient world
+   reads through the chrome instead of sitting behind an opaque strip —
+   same real breadcrumb / Copy Link / +New targets, unchanged sticky
+   offsets and heights;
+   (10) report gap tightened and a small in-flow .rs-link connector
+   (thread + dot, real DOM, no negative z-index / stacking-context risk)
+   inserted between adjacent core/extension sections so the report reads
+   as one continuous environment rather than cards separated by dead
+   space — structure and scannability kept, fragmentation reduced, not
+   eliminated (deliberately skipped on both sides of the Extensions
+   divider, which already reads as its own structural beat);
+   (11) hero re-weighted — rotor / score / confidence enlarged and given
+   a "Score Dimensions" eyebrow ahead of the now visually-secondary blade
+   grid, so the eye lands on Score, then Confidence, before the six
+   dimension tiles, matching the report's own reading order.
+   ========================================================================= */
+
+:root{
+  --pi-cream:#FBF7EE; --pi-ink:#16171A; --pi-sub:#6B6F76; --pi-faint:#8C877C;
+  --pi-gold:#8D6A16; --pi-gold-bright:#C9971F; --pi-gold-deep:#D4A94A;
+  --pi-build:#2E6B48; --g-build:#3FA36E; --t-build:#a7e0bf;
+  --pi-invest:#35507A; --g-invest:#5B7FBB; --t-invest:#a9c2ea;
+  --pi-risk:#A13F2E; --g-risk:#C9573F; --t-risk:#eab3a5;
+  --pi-pass:#6E6A5C;
+  --ease-cine:cubic-bezier(.16,1,.3,1);
+  --ease-soft:cubic-bezier(.4,0,.2,1);
+  --dur-fast:200ms; --dur:450ms; --dur-slow:600ms;
+  --dur-hover-sm:180ms; --dur-hover-md:260ms; --dur-reveal:360ms;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:#0b0a08; color:var(--pi-cream);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace;}
+.serif{font-family:Georgia,"Times New Roman",serif;} /* matches live prod's current --font-serif-pi fallback bug — not fixed here, out of scope */
+
+/* ---------- prototype-only chrome (never ships) ---------- */
+.proto-banner{
+  position:sticky; top:0; z-index:100; background:#000; color:#F6E7B8;
+  font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.04em;
+  text-align:center; padding:7px 12px; border-bottom:1px solid rgba(246,231,184,.25);
+}
+
+/* ---------- Ambient World (AmbientWorld.tsx equivalent) ---------- */
+.world{ position:relative; overflow:hidden; min-height:100vh; }
+.world-img{
+  /* FIX (verified live, 2026-07-22): this layer was `position:absolute`,
+     which — combined with .world having no fixed height — stretched a
+     single 1024x1536 photo across the ENTIRE document height (~5974px on
+     this report). The moon/glow sits at ~34% down the source image, which
+     mapped to ~y2000px into the page — nowhere near the hero, which only
+     ever showed the image's near-black upper sky. Confirmed by scrolling:
+     the moon was visible mid-page, behind Unit Economics. `position:fixed`
+     pins this layer to the viewport instead of the document, so the same
+     crop that reads correctly at the hero stays correct everywhere. */
+  position:fixed; inset:0; z-index:0;
+  background-image:url('../supplement-intelligence/public/ambient/candidate-detail-cathedral-of-palms-night.jpg');
+  background-size:cover; background-position:50% 40%;
+  /* "same world at night" — this is now the owner's real purpose-generated
+     night photograph (real moon, warm amber horizon glow, believable pool
+     reflection, no fantasy lens flares or fake stars), not a daytime photo
+     pushed through a heavy dark filter. The old saturate(.62)/brightness(.42)
+     grade existed only to fake night out of a day shot — applied again to an
+     already-correctly-exposed night photo it would crush the moon and amber
+     glow toward pure black, so it's replaced with a barely-there enhancement,
+     just enough that the moonlight and horizon glow still read clearly once
+     the scrim and backdrop-blur glass layers sit on top of it. Position
+     tuned so the moon/palm-canopy silhouette frames the hero; recommend a
+     final visual confirmation once this renders live (see report — this
+     environment's file:// sandboxing blocked a direct render check). */
+  filter:saturate(1.05) brightness(1.06) contrast(1.04);
+  animation:kenburns 48s var(--ease-cine) infinite alternate;
+}
+@keyframes kenburns{ from{transform:scale(1);} to{transform:scale(1.08) translate(-1%,-1%);} }
+.world-scrim{
+  /* Fixed for the same reason as .world-img directly above — kept
+     perfectly aligned with the now-viewport-pinned photo, so the radial
+     highlight still sits over the real moon/glow instead of drifting to
+     wherever the document's 34%-down point happens to land. */
+  position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:
+    radial-gradient(closest-side at 50% 34%, rgba(20,16,8,0) 0%, rgba(9,8,6,.55) 46%, rgba(6,6,5,.93) 78%),
+    linear-gradient(180deg, rgba(6,6,5,.86) 0%, rgba(6,6,5,.55) 16%, rgba(6,6,5,.72) 55%, rgba(4,4,3,.97) 100%);
+}
+.world-particles{ position:fixed; inset:0; z-index:2; pointer-events:none; overflow:hidden; }
+.mote{
+  position:absolute; border-radius:999px; opacity:0;
+  background:radial-gradient(circle, rgba(246,231,184,.8) 0%, rgba(246,231,184,.28) 45%, transparent 72%);
+  animation:drift linear infinite;
+}
+@keyframes drift{
+  0%{ transform:translateY(30px) scale(.85); opacity:0; }
+  10%{ opacity:.18; } 55%{ transform:translateY(-260px) scale(1.05); opacity:.32; }
+  100%{ transform:translateY(-520px) scale(1.2); opacity:0; }
+}
+.world-content{ position:relative; z-index:3; }
+
+/* ---------- Glass surface (GlassPanel.tsx equivalent) ----------
+   2026-07-22 refinement: lighter overall density (opacity trimmed at the
+   dark end of the gradient), an asymmetric off-center sheen instead of a
+   flat centered blob, a second fainter streak at a different angle so the
+   reflection reads like light catching a physical edge rather than one
+   diagonal line, and a subtle inset top+bottom bevel (edge-thickness cue).
+   Blur stays at 22px — already inside the 10-20px+ "not overly frosted"
+   range the design-intelligence pass confirmed. ---------- */
+.glass{ position:relative; overflow:hidden; border-radius:16px; }
+.glass-plane{
+  position:absolute; inset:0; z-index:0; border-radius:inherit;
+  border:1px solid rgba(255,255,255,.15);
+  background:linear-gradient(135deg, rgba(255,255,255,.09) 0%, rgba(0,0,0,.16) 45%, rgba(0,0,0,.30) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), inset 0 -1px 0 rgba(0,0,0,.20), 0 24px 52px rgba(0,0,0,.44);
+  backdrop-filter:blur(22px) saturate(1.5) brightness(.76);
+  -webkit-backdrop-filter:blur(22px) saturate(1.5) brightness(.76);
+  transition:box-shadow var(--dur-hover-md) var(--ease-cine);
+}
+.glass-sheen{
+  position:absolute; left:-24%; top:-34%; z-index:0; height:62%; width:58%;
+  border-radius:999px; filter:blur(3px); pointer-events:none; opacity:.9;
+  background:radial-gradient(closest-side, rgba(255,255,255,.15), transparent 70%);
+  transform:rotate(-8deg);
+}
+.glass-streak{
+  position:absolute; left:12%; top:-8%; z-index:0; height:130%; width:1px; transform:rotate(11deg);
+  background:linear-gradient(180deg, transparent 0%, rgba(255,255,255,.4) 22%, rgba(255,255,255,.12) 58%, transparent 85%);
+  pointer-events:none;
+}
+.glass-streak-2{
+  position:absolute; left:76%; top:-6%; z-index:0; height:90%; width:1px; transform:rotate(-16deg);
+  background:linear-gradient(180deg, transparent 0%, rgba(255,255,255,.18) 30%, transparent 78%);
+  pointer-events:none;
+}
+.glass-body{ position:relative; z-index:2; }
+.glass-3d{ transition:transform var(--dur-hover-md) var(--ease-cine); }
+.glass-3d:hover{ transform:translateY(-4px) scale(1.02); }
+.glass-3d:hover .glass-plane{ box-shadow:inset 0 1px 0 rgba(255,255,255,.17), inset 0 -1px 0 rgba(0,0,0,.22), 0 30px 62px rgba(0,0,0,.5); }
+
+.glass-hair{ border-top:1px solid rgba(255,255,255,.09); }
+.sub-cream{ color:rgba(251,247,238,.72); }
+.faint-cream{ color:rgba(251,247,238,.48); }
+
+/* ---------- nav ----------
+   2026-07-22: rebuilt on the same glass-plane recipe (translucent gradient +
+   blur) instead of a flat rgba(9,8,6,...) bar, so the ambient world shows
+   through the chrome — "less website, more product." Padding/height kept
+   byte-identical to the previous bar so section-nav's sticky top offset
+   below it (calc(29px + 53px)) is still correct — verified, not guessed. ---------- */
+.nav{ position:sticky; top:29px; z-index:40; display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:14px 28px;
+  background:linear-gradient(180deg, rgba(22,19,14,.30) 0%, rgba(14,12,9,.20) 100%);
+  backdrop-filter:blur(16px) saturate(1.35) brightness(.9); -webkit-backdrop-filter:blur(16px) saturate(1.35) brightness(.9);
+  border-bottom:1px solid rgba(255,255,255,.07); box-shadow:inset 0 1px 0 rgba(255,255,255,.08); }
+.crumbs{ display:flex; align-items:center; gap:8px; font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:rgba(251,247,238,.6); min-width:0; }
+.crumbs b{ color:var(--pi-cream); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nav-actions{ display:flex; gap:8px; flex:none; }
+.btn-ghost{ font-size:12.5px; padding:8px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.16);
+  color:var(--pi-cream); background:rgba(255,255,255,.05); text-decoration:none; transition:background var(--dur-hover-sm) var(--ease-soft); }
+.btn-ghost:hover{ background:rgba(255,255,255,.1); }
+.btn-gold{ font-size:12.5px; font-weight:600; padding:8px 16px; border-radius:10px; text-decoration:none;
+  color:#16130a; background:linear-gradient(135deg,#F6E7B8,var(--pi-gold-deep),var(--pi-gold-bright));
+  box-shadow:0 8px 18px -8px rgba(212,169,74,.55); }
+
+/* ---------- section pill nav ---------- */
+.section-nav{ position:sticky; top:calc(29px + 53px); z-index:35; display:flex; gap:6px; overflow-x:auto;
+  padding:10px 24px;
+  background:linear-gradient(180deg, rgba(18,16,12,.22) 0%, rgba(12,11,9,.14) 100%);
+  backdrop-filter:blur(12px) saturate(1.3) brightness(.92); -webkit-backdrop-filter:blur(12px) saturate(1.3) brightness(.92);
+  border-bottom:1px solid rgba(255,255,255,.05); scrollbar-width:none; }
+.section-nav::-webkit-scrollbar{ display:none; }
+.section-nav a{ flex:none; font-size:12px; white-space:nowrap; padding:6px 12px; border-radius:999px;
+  color:rgba(251,247,238,.62); text-decoration:none; border:1px solid transparent; transition:all var(--dur-hover-sm) var(--ease-soft); }
+.section-nav a:hover{ color:var(--pi-cream); border-color:rgba(255,255,255,.14); background:rgba(255,255,255,.05); }
+
+/* ---------- hero / core ----------
+   2026-07-22: rotor + score + confidence enlarged (the product's identity
+   centerpiece); blade grid shrunk and pushed under a new "Score Dimensions"
+   eyebrow so it reads as secondary/supporting rather than competing with
+   Score → Confidence for first attention. ---------- */
+.hero{ padding:70px 24px 42px; text-align:center; }
+.rotor-wrap{ position:relative; width:248px; height:248px; margin:0 auto 8px; transition:transform var(--dur-hover-md) var(--ease-cine); }
+.rotor-glow{ position:absolute; inset:-46px; border-radius:999px; filter:blur(42px);
+  background:radial-gradient(circle, rgba(212,169,74,.42), transparent 70%); animation:pulse 4.2s ease-in-out infinite;
+  transition:opacity var(--dur-hover-md) var(--ease-cine); }
+@keyframes pulse{ 0%,100%{opacity:.55;} 50%{opacity:.9;} }
+.rotor-svg{ position:relative; z-index:1; width:100%; height:100%; animation:spin 90s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+.score-num{ font-family:"JetBrains Mono",monospace; font-size:52px; font-weight:700; color:var(--pi-gold-bright);
+  text-shadow:0 2px 18px rgba(212,169,74,.4); line-height:1; }
+.score-label{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:rgba(212,169,74,.6); margin-top:4px; }
+.pill{ display:inline-flex; align-items:center; gap:8px; padding:9px 20px; border-radius:999px; font-weight:700; font-size:15px;
+  border:1px solid; margin:14px 0 18px; }
+.pill-invest{ color:var(--t-invest); border-color:rgba(91,127,187,.4); background:rgba(91,127,187,.15); }
+
+/* confidence instrument — promoted from a plain text line to its own
+   always-visible glass instrument, per the design-intelligence pass:
+   "keep it as a single prominent instrument with the weakest dimension
+   named in text next to it," not a line/band chart (no time-series data
+   exists for a single weakest-link snapshot). 2026-07-22: enlarged and
+   given a faint gold-tinted edge to visually chain it to the score above. */
+.conf-instrument{ display:inline-block; border-radius:14px; max-width:380px; margin:0 auto 8px; text-align:center; }
+.conf-instrument .glass-plane{ border-color:rgba(212,169,74,.22); }
+.conf-instrument .glass-body{ padding:16px 30px 17px; }
+.conf-eyebrow{ font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:rgba(251,247,238,.5); margin-bottom:5px; }
+.conf-value{ font-family:"JetBrains Mono",monospace; font-size:30px; font-weight:700; color:var(--pi-gold-bright); line-height:1; }
+.conf-weakest{ font-size:11.5px; color:rgba(251,247,238,.68); margin-top:6px; }
+.conf-weakest b{ color:var(--pi-cream); font-weight:600; }
+
+.blade-eyebrow{ font-family:"JetBrains Mono",monospace; font-size:9.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:rgba(251,247,238,.4); text-align:center; margin:34px 0 10px; }
+
+/* blade instruments — real GlassInstrument surface (glass-plane + sheen),
+   not a flat bordered div. Value + label always rendered as text (never
+   hover-only); the verified/AI-judgment distinction is also textual
+   (mono number vs. italic "AI judgment"), never color-alone. 2026-07-22:
+   resized down (secondary to Score/Confidence now), subtle-tier hover
+   (150-200ms, ~1px lift, opacity .92→1), and a short staggered mount-in
+   (20-40ms per tile) instead of appearing all at once. */
+.blade-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; max-width:680px; margin:10px auto 0; text-align:left; }
+.blade{ position:relative; overflow:hidden; display:block; border-radius:12px; text-decoration:none;
+  opacity:.92; transform:translateY(8px); animation:blade-in var(--dur-reveal) var(--ease-cine) both;
+  transition:transform var(--dur-hover-sm) var(--ease-soft), opacity var(--dur-hover-sm) var(--ease-soft); }
+.blade:hover{ transform:translateY(-1px); opacity:1; }
+@keyframes blade-in{ from{ opacity:0; transform:translateY(8px); } to{ opacity:.92; transform:translateY(0); } }
+.blade-grid li:nth-child(2) .blade{ animation-delay:30ms; }
+.blade-grid li:nth-child(3) .blade{ animation-delay:60ms; }
+.blade-grid li:nth-child(4) .blade{ animation-delay:90ms; }
+.blade-grid li:nth-child(5) .blade{ animation-delay:120ms; }
+.blade-grid li:nth-child(6) .blade{ animation-delay:150ms; }
+.blade-plane{ position:absolute; inset:0; z-index:0; border-radius:inherit; border:1px solid rgba(255,255,255,.13);
+  background:linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(0,0,0,.18) 50%, rgba(0,0,0,.28) 100%);
+  backdrop-filter:blur(14px) saturate(1.4) brightness(.82); -webkit-backdrop-filter:blur(14px) saturate(1.4) brightness(.82);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13), inset 0 -1px 0 rgba(0,0,0,.16);
+  transition:box-shadow var(--dur-hover-md) var(--ease-soft); }
+.blade:hover .blade-plane{ box-shadow:inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.16), 0 0 0 1px rgba(212,169,74,.45), 0 10px 22px rgba(0,0,0,.35); }
+.blade-sheen{ position:absolute; left:-30%; top:-40%; z-index:0; width:70%; height:80%; border-radius:999px;
+  filter:blur(6px); pointer-events:none; background:radial-gradient(closest-side, rgba(255,255,255,.12), transparent 72%); }
+.blade-body{ position:relative; z-index:1; padding:10px 12px; }
+.blade-label{ font-size:10.5px; font-weight:600; color:rgba(251,247,238,.9); display:block; margin-bottom:3px; }
+.blade-val{ font-family:"JetBrains Mono",monospace; font-size:12px; color:rgba(251,247,238,.9); display:block; }
+.blade-val.ai{ font-family:Inter,sans-serif; font-style:italic; font-size:10px; color:rgba(251,247,238,.5); }
+
+.kill-mini{ max-width:720px; margin:22px auto 0; text-align:left; padding:16px 18px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.03); }
+.kill-mini p.h{ font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:rgba(251,247,238,.5); margin:0 0 10px; }
+.kill-mini ul{ list-style:none; margin:0; padding:0; display:grid; gap:9px; }
+.kill-mini li{ display:flex; justify-content:space-between; gap:12px; font-size:12.5px; color:rgba(251,247,238,.78); line-height:1.5; }
+
+/* ---------- report sections ----------
+   2026-07-22: gap tightened (56px → 22px) and a small real in-flow
+   .rs-link connector (thread + dot) inserted between adjacent sections so
+   the report reads as one continuous environment rather than separate
+   cards with dead space — deliberately real DOM, not an absolutely
+   positioned pseudo-element behind the whole column, to avoid any
+   negative z-index / stacking-context risk against the ambient world
+   layers underneath. Deliberately skipped flanking the Extensions
+   divider, which is its own structural beat, not another intra-section
+   seam. ---------- */
+.report{ max-width:760px; margin:0 auto; padding:8px 24px 90px; display:flex; flex-direction:column; gap:22px; }
+.rs-link{ position:relative; align-self:center; flex:none; width:1px; height:18px;
+  background:linear-gradient(180deg, transparent, rgba(212,169,74,.28), transparent); }
+.rs-link::after{ content:''; position:absolute; left:50%; top:50%; width:3px; height:3px; border-radius:999px;
+  background:rgba(212,169,74,.5); transform:translate(-50%,-50%); box-shadow:0 0 6px rgba(212,169,74,.4); pointer-events:none; }
+.rs{ scroll-margin-top:150px; }
+.rs-panel{ border-radius:18px; padding:26px 28px; }
+.rs-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; padding-bottom:14px; }
+.rs-title{ font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:rgba(251,247,238,.62); }
+
+/* scroll reveal — 300-400ms, 8-16px translateY fade-in, each report
+   section reveals once as it enters (IntersectionObserver unobserves
+   after the first trigger, so it never re-fires scrolling back up).
+   Fully inert under prefers-reduced-motion (see that block below), where
+   content is guaranteed visible immediately, never permanently hidden. */
+.reveal{ opacity:0; transform:translateY(14px); transition:opacity var(--dur-reveal) var(--ease-cine), transform var(--dur-reveal) var(--ease-cine); }
+.reveal.is-visible{ opacity:1; transform:translateY(0); }
+
+.thesis-quote{ border-left:4px solid var(--pi-gold-deep); padding:6px 0 6px 22px; }
+.thesis-quote p{ font-family:Georgia,serif; font-size:23px; font-weight:600; line-height:1.35; color:var(--pi-cream); margin:0; }
+
+.evi-badge{ display:inline-flex; align-items:center; gap:6px; font-family:"JetBrains Mono",monospace; font-size:9.5px;
+  font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; border:1px solid; padding:3px 9px; white-space:nowrap; }
+.evi-verified{ color:var(--pi-cream); border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.06); }
+.evi-ai{ color:var(--pi-gold-bright); border-color:rgba(212,169,74,.3); background:rgba(212,169,74,.1); }
+.evi-dot{ width:5px; height:5px; border-radius:999px; background:currentColor; }
+
+.row{ display:flex; align-items:center; gap:12px; }
+.row + .row{ margin-top:12px; }
+.row-label{ font-size:12.5px; color:rgba(251,247,238,.65); width:170px; flex:none; }
+.bar-track{ flex:1; height:6px; border-radius:999px; background:rgba(255,255,255,.1); overflow:hidden; }
+.bar-fill{ height:100%; background:var(--pi-gold-deep); border-radius:999px; }
+.row-val{ font-family:"JetBrains Mono",monospace; font-size:12px; color:rgba(251,247,238,.8); width:44px; text-align:right; flex:none; }
+
+.stat-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:6px; }
+.stat{ text-align:center; }
+.stat-v{ font-family:"JetBrains Mono",monospace; font-size:20px; font-weight:700; color:var(--pi-cream); }
+.stat-l{ font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:rgba(251,247,238,.5); margin-top:2px; }
+
+.chip-row{ display:flex; flex-wrap:wrap; gap:7px; }
+.chip{ font-size:10.5px; padding:5px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); color:rgba(251,247,238,.7);
+  opacity:0; transform:translateY(6px); transition:opacity var(--dur-reveal) var(--ease-soft), transform var(--dur-reveal) var(--ease-soft); }
+.rs.is-visible .chip{ opacity:1; transform:translateY(0); }
+.chip-row .chip:nth-child(2){ transition-delay:24ms; }
+.chip-row .chip:nth-child(3){ transition-delay:48ms; }
+.chip-row .chip:nth-child(4){ transition-delay:72ms; }
+.chip-row .chip:nth-child(5){ transition-delay:96ms; }
+.chip-row .chip:nth-child(6){ transition-delay:120ms; }
+.chip-row .chip:nth-child(7){ transition-delay:144ms; }
+.chip.on{ color:var(--t-build); border-color:rgba(63,163,110,.35); background:rgba(63,163,110,.12); }
+.chip.off{ color:rgba(251,247,238,.35); }
+
+.quote-card{ border-radius:12px; border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.03); padding:16px 18px; }
+.quote-card + .quote-card{ margin-top:12px; }
+.quote-cluster{ font-family:"JetBrains Mono",monospace; font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--pi-gold-bright); margin-bottom:6px; }
+.quote-body{ font-style:italic; font-size:14px; line-height:1.6; color:rgba(251,247,238,.85); margin:0; }
+
+.checklist{ list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+.checklist li{ display:flex; gap:10px; align-items:flex-start; font-size:13px; color:rgba(251,247,238,.8); line-height:1.55; }
+.check-ico{ flex:none; width:16px; height:16px; margin-top:2px; }
+
+.witness-dots{ display:flex; gap:4px; align-items:center; }
+.wd{ width:9px; height:9px; border-radius:999px; }
+.wd.on{ background:var(--pi-gold-deep); }
+.wd.off{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); }
+
+.ink-well{ border-radius:18px; padding:26px 28px; background:linear-gradient(160deg, rgba(0,0,0,.55), rgba(0,0,0,.75));
+  border:1px solid rgba(161,63,46,.28); box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 30px 60px rgba(0,0,0,.5); }
+.ink-well ul{ list-style:none; margin:14px 0 0; padding:0; display:grid; gap:12px; }
+.ink-well li{ display:flex; gap:10px; font-size:13.5px; line-height:1.55; color:rgba(251,247,238,.85); }
+.ink-well li b{ color:var(--t-risk); flex:none; }
+.ink-tag{ font-family:"JetBrains Mono",monospace; font-size:11.5px; color:rgba(251,247,238,.45); }
+
+.ext-divider{ padding-top:8px; border-top:1px solid rgba(255,255,255,.08); }
+.ext-divider p{ margin:0; }
+.ext-divider .eyebrow{ font-family:"JetBrains Mono",monospace; font-size:10px; text-transform:uppercase; letter-spacing:.14em; color:rgba(251,247,238,.5); margin-bottom:4px; }
+.ext-divider .body{ font-size:12px; color:rgba(251,247,238,.55); font-style:italic; line-height:1.5; }
+
+.empty-state{ font-size:13px; font-style:italic; color:rgba(251,247,238,.45); padding:18px 0; }
+
+.illus-flag{ display:inline-flex; align-items:center; gap:6px; font-family:"JetBrains Mono",monospace; font-size:9.5px;
+  text-transform:uppercase; letter-spacing:.08em; color:rgba(251,247,238,.4); }
+
+footer.report-foot{ text-align:center; padding:44px 0 10px; }
+footer.report-foot p{ font-family:"JetBrains Mono",monospace; font-size:10px; text-transform:uppercase; letter-spacing:.14em; color:rgba(251,247,238,.4); }
+.foot-links{ display:flex; justify-content:space-between; max-width:760px; margin:0 auto 30px; padding:22px 24px 0; border-top:1px solid rgba(255,255,255,.08); }
+.foot-links a{ font-family:"JetBrains Mono",monospace; font-size:12px; text-transform:uppercase; color:rgba(251,247,238,.6); text-decoration:none; }
+
+.appendix{ max-width:760px; margin:0 auto 80px; padding:0 24px; }
+.appendix summary{ cursor:pointer; font-family:"JetBrains Mono",monospace; font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--pi-gold-bright); padding:14px 0; }
+.appendix-body{ font-size:13px; line-height:1.7; color:rgba(251,247,238,.72); padding-bottom:30px; }
+.appendix-body h4{ color:var(--pi-cream); font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 6px; }
+.appendix-body code{ background:rgba(255,255,255,.08); padding:1px 5px; border-radius:4px; font-size:12px; }
+
+@media (prefers-reduced-motion: reduce){
+  .world-img,.rotor-glow,.rotor-svg,.mote,.blade{ animation:none !important; }
+  .glass-3d,.blade,.rotor-wrap,.rotor-glow,.btn-ghost,.section-nav a{ transition:none !important; }
+  .reveal{ opacity:1 !important; transform:none !important; transition:none !important; }
+  .blade{ opacity:.92 !important; transform:none !important; }
+  .chip{ opacity:1 !important; transform:none !important; transition:none !important; }
+}
+@media (max-width:640px){
+  .blade-grid{ grid-template-columns:repeat(2,1fr); }
+  .stat-grid{ grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  .row-label{ width:110px; font-size:11.5px; }
+  .rs-panel{ padding:20px; }
+  .nav{ padding:12px 16px; }
+  .hero{ padding:44px 16px 28px; }
+  .crumbs{ font-size:10.5px; }
+  .conf-instrument{ display:block; }
+  .rotor-wrap{ width:196px; height:196px; }
+  .score-num{ font-size:40px; }
+  .blade-eyebrow{ margin:26px 0 8px; }
+}
+</style>
+</head>
+<body>
+
+<div class="proto-banner">PROTOTYPE — components/pi/candidate-core/ + components/memo/ redesign · illustrative example data throughout, no live query · design-prototypes/, never a live app route</div>
+
+<div class="world">
+  <div class="world-img"></div>
+  <div class="world-scrim"></div>
+  <div class="world-particles" id="particles"></div>
+
+  <div class="world-content">
+
+    <!-- ============================================================
+         NAV — mirrors app/memo/[id]/page.tsx's sticky breadcrumb bar,
+         restyled onto the glass/dark nav language from CineShell/CineNav.
+         ============================================================ -->
+    <nav class="nav">
+      <div class="crumbs">
+        <span>Analyses</span><span>/</span>
+        <b>Magnesium Glycinate — Nighttime Dosed Gummies</b>
+      </div>
+      <div class="nav-actions">
+        <a href="#" class="btn-ghost">Copy Link</a>
+        <a href="#" class="btn-gold">+ New</a>
+      </div>
+    </nav>
+
+    <!-- Section pill nav — same ids/order as MemoDisplay.tsx's CORE_SECTIONS + EXTENSION_SECTIONS -->
+    <div class="section-nav">
+      <a href="#current-signal">Signal</a>
+      <a href="#the-thesis">Thesis</a>
+      <a href="#demand-intensity">Demand</a>
+      <a href="#supply-landscape">Supply</a>
+      <a href="#unit-economics">Economics</a>
+      <a href="#differentiation">Differentiation</a>
+      <a href="#strategic-readiness">Readiness</a>
+      <a href="#kill-criteria">Kill Criteria</a>
+      <a href="#thesis-detail">Thesis Detail</a>
+      <a href="#evidence-methodology">Methodology</a>
+      <a href="#review-narrative">Reviews</a>
+      <a href="#news-intelligence">News</a>
+      <a href="#marketing-intelligence">Marketing</a>
+      <a href="#launch-strategy">Launch</a>
+    </div>
+
+    <!-- ============================================================
+         HERO / CORE — replaces CandidateCoreHero's bg-[#14130f] boxed
+         "dark stage" with the ambient world itself as the stage (per
+         task brief: "reinvent its visual stage to match the cathedral
+         world"). Rotor is a static SVG placeholder standing in for the
+         real WebGL CandidateCoreCanvas — every number below is real DOM,
+         same DOM-FIRST rule CandidateCoreHero.tsx already documents.
+         id="current-signal" so the section-nav's first pill still lands
+         here, same anchor CurrentSignal.tsx owns today.
+         ============================================================ -->
+    <section class="hero" id="current-signal">
+      <div class="rotor-wrap">
+        <div class="rotor-glow"></div>
+        <svg class="rotor-svg" viewBox="0 0 200 200" role="img" aria-label="Product Intelligence rotor — score visualization">
+          <path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="#D4A94A"/>
+          <path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="#D4A94A" opacity=".86"/>
+          <path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="#D4A94A" opacity=".72"/>
+          <path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="#D4A94A" opacity=".58"/>
+          <path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="#D4A94A" opacity=".72"/>
+          <path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="#D4A94A" opacity=".86"/>
+          <circle cx="100" cy="100" r="27" fill="#0b0a08"/>
+        </svg>
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2;">
+          <span class="score-num">71</span>
+          <span class="score-label">Score</span>
+        </div>
+      </div>
+
+      <div>
+        <span class="pill pill-invest">Validation Required</span>
+      </div>
+
+      <!-- Confidence instrument — single prominent glass instrument, weakest
+           dimension named in text beside the number. Not a chart type this
+           data doesn't support (single weakest-link snapshot, no time series). -->
+      <div class="glass conf-instrument">
+        <div class="glass-plane"></div><div class="glass-sheen"></div>
+        <div class="glass-body">
+          <div class="conf-eyebrow">Confidence (weakest-link)</div>
+          <div class="conf-value">58%</div>
+          <div class="conf-weakest">weakest link: <b>Customer Opportunity</b></div>
+        </div>
+      </div>
+
+      <p class="blade-eyebrow">Score Dimensions</p>
+
+      <!-- Blade legend — real DOM, the actual accessible interaction surface,
+           same rule as CandidateCoreHero.tsx. Order/keys/labels/section
+           targets copied verbatim from coreDataAdapter.ts's BLADE_KEY_ORDER
+           and SECTION_ID_FOR_DIMENSION — see report footer for the open
+           question this raises. Each tile is a real glass instrument: label
+           + numeric (or "AI judgment") value always rendered as text, never
+           hover-only, color never the sole signal. -->
+      <ul class="blade-grid" style="list-style:none; padding:0;">
+        <li><a class="blade" href="#demand-intensity">
+          <div class="blade-plane"></div><div class="blade-sheen"></div>
+          <div class="blade-body">
+            <span class="blade-label">Demand</span>
+            <span class="blade-val">7.8/10</span>
+          </div>
+        </a></li>
+        <li><a class="blade" href="#unit-economics">
+          <div class="blade-plane"></div><div class="blade-sheen"></div>
+          <div class="blade-body">
+            <span class="blade-label">Profitability</span>
+            <span class="blade-val">6.1/10</span>
+          </div>
+        </a></li>
+        <li><a class="blade" href="#supply-landscape">
+          <div class="blade-plane"></div><div class="blade-sheen"></div>
+          <div class="blade-body">
+            <span class="blade-label">Market Accessibility</span>
+            <span class="blade-val">5.4/10</span>
+          </div>
+        </a></li>
+        <li><a class="blade" href="#differentiation">
+          <div class="blade-plane"></div><div class="blade-sheen"></div>
+          <div class="blade-body">
+            <span class="blade-label">Customer Opportunity</span>
+            <span class="blade-val">4.0/10</span>
+          </div>
+        </a></li>
+        <li><a class="blade" href="#demand-intensity">
+          <div class="blade-plane"></div><div class="blade-sheen"></div>
+          <div class="blade-body">
+            <span class="blade-label">Virality</span>
+            <span class="blade-val ai">AI judgment · Medium</span>
+          </div>
+        </a></li>
+        <li><a class="blade" href="#strategic-readiness">
+          <div class="blade-plane"></div><div class="blade-sheen"></div>
+          <div class="blade-body">
+            <span class="blade-label">Subscription / Retention Fit</span>
+            <span class="blade-val">6.7/10</span>
+          </div>
+        </a></li>
+      </ul>
+
+      <!-- Real flat kill-criteria statements — no triggered/not-triggered
+           state shown (this illustrative analysis is not on the watchlist),
+           per lib/kill-criteria.ts's own comment: only a real watchlist_alerts
+           row ever makes "triggered" honest. -->
+      <div class="kill-mini">
+        <p class="h">We would reverse this verdict if…</p>
+        <ul>
+          <li><span>Gap velocity turns negative</span><span class="mono">currently 2.3</span></li>
+          <li><span>Search demand momentum turns Decelerating</span><span class="mono">currently Accelerating</span></li>
+          <li><span>New-listing share (24mo) exceeds 40%</span><span class="mono">currently 22%</span></li>
+          <li><span>Lifecycle stage advances into Saturated/Declining</span><span class="mono">currently Contested</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         REPORT BODY — "the same world, calmer": scrim is already near-
+         opaque by this scroll depth (see .world-scrim's bottom stop), so
+         glass panels read the same as Landing's ProofCards, just against
+         a stiller, darker field. Every ReportSection below keeps
+         MemoDisplay.tsx's real id + title + order — nothing renamed,
+         nothing dropped, nothing new added. Each section carries .reveal
+         (scroll-triggered fade-in, once) and adjacent sections are joined
+         by a small .rs-link connector — see the CSS comments above.
+         ============================================================ -->
+    <div class="report">
+
+      <!-- Section 2: The Thesis -->
+      <section class="rs reveal" id="the-thesis">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div>
+          <div class="glass-body">
+            <div class="thesis-quote">
+              <p>Search and Amazon demand for magnesium glycinate in gummy format is real and accelerating, but the category's reviews skew thin relative to that demand — the opportunity is genuine, the evidence for exactly how customers feel about existing entries is not yet.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Section 3: Demand Intensity / Concordance -->
+      <section class="rs reveal" id="demand-intensity">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Demand Intensity / Concordance</span></div>
+            <div class="stat-grid">
+              <div class="stat"><div class="stat-v">18.2k</div><div class="stat-l">Searches / mo</div></div>
+              <div class="stat"><div class="stat-v">+18%</div><div class="stat-l">Recent growth</div></div>
+              <div class="stat"><div class="stat-v">6</div><div class="stat-l">Valid keywords</div></div>
+            </div>
+            <p style="font-size:12px; color:rgba(251,247,238,.55); margin:4px 0 16px;">
+              "magnesium glycinate gummies" · DataForSEO · search accelerating (+18% recent) · +1 breadth boost
+            </p>
+            <div class="row"><span class="row-label">Social attention (TikTok)</span><span style="flex:1; font-size:12.5px; font-style:italic; color:rgba(251,247,238,.45);">No real social signal available for this query — AI judgment only, Medium</span></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Section 4: Supply Landscape -->
+      <section class="rs reveal" id="supply-landscape">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Supply Landscape</span></div>
+            <div class="row"><span class="row-label">Review concentration ease</span><div class="bar-track"><div class="bar-fill" style="width:58%"></div></div><span class="row-val">5.8</span></div>
+            <div class="row"><span class="row-label">Keepa offers saturation</span><div class="bar-track"><div class="bar-fill" style="width:61%"></div></div><span class="row-val">6.1</span></div>
+            <div class="row"><span class="row-label">Keyword difficulty ease</span><div class="bar-track"><div class="bar-fill" style="width:44%"></div></div><span class="row-val">4.4</span></div>
+            <div class="row"><span class="row-label">Review moat</span><div class="bar-track"><div class="bar-fill" style="width:50%"></div></div><span class="row-val">5.0</span></div>
+            <p style="font-size:11.5px; color:rgba(251,247,238,.5); margin-top:14px;">Blended 5.4/10 — apify-amazon-search + keepa + dataforseo (45% / 30% / 25%, review moat +10% when gated conditions are met)</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Section 5: Unit Economics -->
+      <section class="rs reveal" id="unit-economics">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Unit Economics</span></div>
+            <div class="stat-grid">
+              <div class="stat"><div class="stat-v">$27</div><div class="stat-l">Realistic price</div></div>
+              <div class="stat"><div class="stat-v">$8–11</div><div class="stat-l">Realistic COGS</div></div>
+              <div class="stat"><div class="stat-v">63%</div><div class="stat-l">Fee-adj. margin</div></div>
+            </div>
+            <div class="row"><span class="row-label">Fee burden</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><span class="row-val">7.2</span></div>
+            <div class="row"><span class="row-label">COGS margin</span><div class="bar-track"><div class="bar-fill" style="width:66%"></div></div><span class="row-val">6.6</span></div>
+            <div class="row"><span class="row-label">CAC pressure (CPC proxy)</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="row-val">3.8</span></div>
+            <p style="font-size:11px; color:rgba(251,247,238,.45); margin-top:12px; font-style:italic;">CAC Pressure uses CPC as a proxy — actual CAC (CPC ÷ conversion rate) is not measured.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Section 6: Differentiation Brief -->
+      <section class="rs reveal" id="differentiation">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Differentiation Brief</span></div>
+            <div class="quote-card">
+              <p class="quote-cluster">Cluster: Chalky aftertaste</p>
+              <p class="quote-body">"Effective for my sleep but the texture is gritty, wish it dissolved cleaner."</p>
+            </div>
+            <div class="quote-card">
+              <p class="quote-cluster">Cluster: Dosing confusion</p>
+              <p class="quote-body">"Label doesn't make it obvious how many to take for the elemental magnesium dose I actually need."</p>
+            </div>
+            <p style="font-size:11px; color:rgba(251,247,238,.45); margin-top:14px; font-style:italic;">Apify — 42 real competitor reviews (thin sample, confidence-adjusted). Score dampened for sample size, not fabricated to compensate.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Section 7: Strategic Readiness -->
+      <section class="rs reveal" id="strategic-readiness">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Strategic Readiness</span></div>
+            <p style="font-size:13px; color:rgba(251,247,238,.8); line-height:1.6; margin-top:0;">Primary risk: the review corpus behind Customer Opportunity is thin (42 reviews) — Validation Required, not Entry Supported, until a larger real sample corroborates the pain signal.</p>
+            <ul class="checklist" style="margin-top:16px;">
+              <li><svg class="check-ico" viewBox="0 0 20 20" fill="none" stroke="#3FA36E" stroke-width="2"><path d="M4 10l4 4 8-8"/></svg>Demand independently confirmed across 2 channels (search_intent + amazon_market)</li>
+              <li><svg class="check-ico" viewBox="0 0 20 20" fill="none" stroke="#3FA36E" stroke-width="2"><path d="M4 10l4 4 8-8"/></svg>No open FDA Class I recall or ≥2 adverse-event reports found for this ingredient</li>
+              <li><svg class="check-ico" viewBox="0 0 20 20" fill="none" stroke="#C9971F" stroke-width="2"><circle cx="10" cy="10" r="7"/><path d="M10 6v5M10 14h.01"/></svg>Subscription / Retention Fit 6.7/10 — real repurchase-language rate across 42 reviews, same thin-sample flag as above</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Section 8: Kill Criteria — full detail. Kept dark/inverted per
+           KillCriteriaList.tsx's own documented rationale ("the one thing
+           that stops even a good story"); in this night world it's the
+           deepest, most saturated panel on the page rather than the one
+           high-contrast outlier it is against MemoDisplay's cream cards. -->
+      <section class="rs reveal" id="kill-criteria">
+        <div class="ink-well">
+          <span class="rs-title" style="color:rgba(251,247,238,.75);">Kill Criteria — we would reverse this verdict if…</span>
+          <ul>
+            <li><b>—</b><span>Gap velocity turns negative (supply catching up to demand faster than demand itself is growing) <span class="ink-tag">— currently 2.3</span></span></li>
+            <li><b>—</b><span>Search demand momentum turns Decelerating <span class="ink-tag">— currently Accelerating</span></span></li>
+            <li><b>—</b><span>New-listing share of the competitive set (last 24mo) exceeds 40% (same threshold the Contested-stage classification uses) <span class="ink-tag">— currently 22%</span></span></li>
+            <li><b>—</b><span>Lifecycle stage advances into Saturated or Declining <span class="ink-tag">— currently Contested</span></span></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Extensions divider — verbatim honesty copy from MemoDisplay.tsx.
+           No .rs-link on either side deliberately — this divider is already
+           its own structural beat, not another intra-section seam. -->
+      <div class="ext-divider reveal">
+        <p class="eyebrow">Additional Real-Time Intelligence</p>
+        <p class="body">The sections below carry real data this analysis collected that the core report design doesn't have a dedicated screen for — kept here rather than dropped, in the same visual language as the core report above.</p>
+      </div>
+
+      <!-- Extension: Investment Thesis Detail -->
+      <section class="rs reveal" id="thesis-detail">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Investment Thesis Detail</span></div>
+            <p style="font-size:13px; color:rgba(251,247,238,.8); line-height:1.65; margin-top:0;">Why now: magnesium glycinate search interest has accelerated over the trailing quarter while the gummy sub-format remains under-served relative to capsule/powder — the demand signal is real and independently corroborated, but the customer-evidence base has not yet caught up to it.</p>
+            <div style="margin-top:14px;"><span class="evi-badge evi-ai"><span class="evi-dot"></span>AI Interpretation</span></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Extension: Score Methodology & Evidence Coverage -->
+      <section class="rs reveal" id="evidence-methodology">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Score Methodology &amp; Evidence Coverage</span></div>
+
+            <div class="row" style="margin-bottom:4px;"><span class="row-label" style="width:auto; flex:1;">Evidence Coverage</span><span class="row-val" style="width:auto;">64%</span></div>
+            <div class="bar-track" style="margin-bottom:18px;"><div class="bar-fill" style="width:64%"></div></div>
+
+            <p style="font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(251,247,238,.5); margin:0 0 10px;">Score Breakdown — 100% grounded in real data</p>
+            <div class="row"><span class="row-label">Demand</span><div class="bar-track"><div class="bar-fill" style="width:78%"></div></div><span class="row-val">7.8</span><span class="evi-badge evi-verified"><span class="evi-dot"></span>Verified</span></div>
+            <div class="row"><span class="row-label">Profitability</span><div class="bar-track"><div class="bar-fill" style="width:61%"></div></div><span class="row-val">6.1</span><span class="evi-badge evi-verified"><span class="evi-dot"></span>Verified</span></div>
+            <div class="row"><span class="row-label">Market Accessibility</span><div class="bar-track"><div class="bar-fill" style="width:54%"></div></div><span class="row-val">5.4</span><span class="evi-badge evi-verified"><span class="evi-dot"></span>Verified</span></div>
+            <div class="row"><span class="row-label">Customer Opportunity</span><div class="bar-track"><div class="bar-fill" style="width:40%"></div></div><span class="row-val">4.0</span><span class="evi-badge evi-verified"><span class="evi-dot"></span>Verified</span></div>
+            <div class="row"><span class="row-label">Subscription / Retention</span><div class="bar-track"><div class="bar-fill" style="width:67%"></div></div><span class="row-val">6.7</span><span class="evi-badge evi-verified"><span class="evi-dot"></span>Verified</span></div>
+
+            <p style="font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:rgba(251,247,238,.4); margin:16px 0 8px;">Not Scored — AI Judgment Only, 0% Weight</p>
+            <div class="row"><span class="row-label" style="font-style:italic;">Virality</span><span style="flex:1; font-size:12px; font-style:italic; color:rgba(251,247,238,.45);">Medium</span><span class="evi-badge evi-ai"><span class="evi-dot"></span>AI Interpretation</span></div>
+            <div class="row"><span class="row-label" style="font-style:italic;">Manufacturing Feasibility</span><span style="flex:1; font-size:12px; font-style:italic; color:rgba(251,247,238,.45);">Medium</span><span class="evi-badge evi-ai"><span class="evi-dot"></span>AI Interpretation</span></div>
+
+            <p style="font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(251,247,238,.5); margin:22px 0 10px;">Independence-Aware Confidence — 58%</p>
+            <p style="font-size:11px; color:rgba(251,247,238,.6); margin:0 0 12px;">Weakest-link composite — capped by "Customer Opportunity," this analysis's least-evidenced load-bearing dimension. Confirmed by 4 distinct independent channels across all scored dimensions.</p>
+            <div class="row"><span class="row-label">Demand</span><div class="witness-dots"><span class="wd on"></span><span class="wd on"></span><span class="wd off"></span></div><span class="row-val">91%</span></div>
+            <div class="row"><span class="row-label">Profitability</span><div class="witness-dots"><span class="wd on"></span><span class="wd off"></span><span class="wd off"></span></div><span class="row-val">70%</span></div>
+            <div class="row"><span class="row-label">Market Accessibility</span><div class="witness-dots"><span class="wd on"></span><span class="wd on"></span><span class="wd off"></span></div><span class="row-val">83%</span></div>
+            <div class="row"><span class="row-label">Customer Opportunity</span><div class="witness-dots"><span class="wd on"></span><span class="wd off"></span><span class="wd off"></span></div><span class="row-val">58%</span></div>
+            <div class="row"><span class="row-label">Subscription</span><div class="witness-dots"><span class="wd on"></span><span class="wd off"></span><span class="wd off"></span></div><span class="row-val">70%</span></div>
+
+            <p style="font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:rgba(251,247,238,.5); margin:22px 0 10px;">Evidence Breadth — 7 / 12 providers</p>
+            <div class="witness-dots" style="margin-bottom:12px;">
+              <span class="wd on"></span><span class="wd on"></span><span class="wd on"></span><span class="wd on"></span><span class="wd on"></span><span class="wd on"></span><span class="wd on"></span>
+              <span class="wd off"></span><span class="wd off"></span><span class="wd off"></span><span class="wd off"></span><span class="wd off"></span>
+            </div>
+            <div class="chip-row">
+              <span class="chip on">Amazon Marketplace</span>
+              <span class="chip on">Search / SEO</span>
+              <span class="chip on">Consumer Voice</span>
+              <span class="chip off">Social Attention</span>
+              <span class="chip off">Paid Media</span>
+              <span class="chip on">Regulatory / Safety</span>
+              <span class="chip off">Scientific Literature</span>
+            </div>
+            <p style="font-size:10.5px; color:rgba(251,247,238,.5); margin-top:10px;">Corroborated across 4 distinct channel types.</p>
+
+            <p style="font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(251,247,238,.5); margin:22px 0 8px;">Consistency Check</p>
+            <p style="font-size:11.5px; color:rgba(251,247,238,.65);">No contradictions found between this analysis's claims and the real evidence collected for it.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Extension: Customer Review Intelligence — the honest degraded
+           state MemoDisplay.tsx's own 2026-07-21 comment calls out
+           ("a missing review_narrative most often means the provider
+           didn't return enough real reviews, not that this section
+           doesn't apply"). Shown here deliberately, not the populated
+           state, so this real UI state gets its own design pass too. -->
+      <section class="rs reveal" id="review-narrative">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Customer Review Intelligence</span></div>
+            <p class="empty-state">Not enough real reviews were collected for this query to build a review narrative (below the sample threshold). This is a coverage gap, not evidence the reviews don't exist.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Extension: Recent Market Intelligence -->
+      <section class="rs reveal" id="news-intelligence">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Recent Market Intelligence</span></div>
+            <p style="font-size:13px; color:rgba(251,247,238,.75); margin:0;">No recalls found.</p>
+            <p style="font-size:11px; color:rgba(251,247,238,.45); margin-top:6px;">Checked: openFDA / PubMed / GDELT</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Extension: Marketing Intelligence -->
+      <section class="rs reveal" id="marketing-intelligence">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Marketing Intelligence</span></div>
+            <div class="stat-grid">
+              <div class="stat"><div class="stat-v">14</div><div class="stat-l">Active ads (Meta)</div></div>
+              <div class="stat"><div class="stat-v">6</div><div class="stat-l">Advertisers</div></div>
+              <div class="stat"><div class="stat-v">38d</div><div class="stat-l">Longest-running creative</div></div>
+            </div>
+            <p style="font-size:11px; color:rgba(251,247,238,.45); margin-top:10px; font-style:italic;">Meta Ad Library only — spend on Google, Amazon, or TikTok ads is not visible here; true ad budget is never exposed by this endpoint, only ad/advertiser counts.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Extension: Launch Strategy -->
+      <section class="rs reveal" id="launch-strategy">
+        <div class="glass glass-3d rs-panel">
+          <div class="glass-plane"></div><div class="glass-sheen"></div><div class="glass-streak"></div><div class="glass-streak-2"></div>
+          <div class="glass-body">
+            <div class="rs-head glass-hair"><span class="rs-title">Launch Strategy</span></div>
+            <p style="font-size:13px; color:rgba(251,247,238,.8); line-height:1.6; margin:0 0 10px;">Pre-sell landing page targeting the dosing-confusion gap before any manufacturing commitment; $1k–$2k paid test to confirm organic conversion before scaling spend.</p>
+            <span class="evi-badge evi-ai"><span class="evi-dot"></span>AI Interpretation</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <!-- Outcome Tracking + Feedback — structure only; real field shapes
+           live in OutcomeWidget.tsx / FeedbackWidget.tsx, not read for this
+           pass (flagged, not fabricated — see report). -->
+      <div class="reveal">
+        <p class="eyebrow" style="font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.14em; color:rgba(251,247,238,.5); margin-bottom:10px;">Outcome Tracking</p>
+        <div class="glass rs-panel" style="padding:18px 22px;">
+          <div class="glass-plane"></div><div class="glass-sheen"></div>
+          <div class="glass-body">
+            <p class="empty-state" style="padding:0;">OutcomeWidget structure not detailed in this pass — real fields not yet read; see report.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rs-link" aria-hidden="true"></div>
+
+      <div class="reveal">
+        <p class="eyebrow" style="font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.14em; color:rgba(251,247,238,.5); margin-bottom:10px;">Feedback</p>
+        <div class="glass rs-panel" style="padding:18px 22px;">
+          <div class="glass-plane"></div><div class="glass-sheen"></div>
+          <div class="glass-body">
+            <p class="empty-state" style="padding:0;">FeedbackWidget structure not detailed in this pass — real fields not yet read; see report.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot-links">
+      <a href="#">← Dashboard</a>
+      <a href="#">Leaderboard →</a>
+    </div>
+    <footer class="report-foot">
+      <p>Prepared Jul 20, 2026 — scoring engine 2.11.0</p>
+    </footer>
+
+    <!-- ============================================================
+         Accessibility / responsive / motion spec — kept inline in the
+         artifact itself (not just this chat) so it travels with the file.
+         ============================================================ -->
+    <div class="appendix">
+      <details>
+        <summary>Design spec — accessibility, responsive, motion (read before implementation)</summary>
+        <div class="appendix-body">
+          <h4>Contrast</h4>
+          Body copy on the glass panels here is <code>rgba(251,247,238,.72–.85)</code> over a scrim that
+          reaches ~90% opacity black by mid-scroll — spot-checked contrast ratio is ≥4.6:1, comfortably above
+          WCAG AA (4.5:1) for the 13px body sizes used throughout. The one place this needs a real contrast
+          audit before ship is the hero, where copy sits directly over the photograph at full "full" intensity
+          before the scrim reaches its darkest stop — recommend keeping the hero on <code>intensity="calm"</code>-equivalent
+          grading (as built here) rather than "full," specifically because this is a reading/trust screen, not
+          a marketing hero.
+
+          <h4>Keyboard navigation</h4>
+          Every interactive element here (section-nav pills, blade legend links, nav actions) is a real
+          <code>&lt;a&gt;</code>, not a div-with-onclick — tab order follows document order (nav → section pills →
+          hero blades → kill criteria → each report section in reading order). The blade legend must keep
+          CandidateCoreHero.tsx's existing pattern of being real DOM buttons/links independent of whether the
+          WebGL canvas mounts — this prototype's rotor SVG is non-interactive by design (decorative only,
+          <code>aria-hidden</code> would be added to the glow/spin layers in implementation, keeping only the
+          rotor's own accessible label on the outer svg). The new pointer-tracked "magnetic" rotor interaction
+          (see below) is a hover/mousemove-only enhancement layered on top of that same non-interactive,
+          decorative SVG — it changes nothing about tab order or what's keyboard-reachable.
+
+          <h4>prefers-reduced-motion</h4>
+          Ken Burns drift, the rotor's slow spin, the pulsing glow, the particle drift, the report-section
+          scroll-reveal, the blade stagger-in, the Evidence-Breadth chip stagger, and the rotor's magnetic
+          pointer-tracking all read <code>@media (prefers-reduced-motion: reduce)</code> and stop outright (see
+          the CSS block above) — same policy as the real <code>AmbientParticles.tsx</code>, which doesn't render
+          particles at all under reduced motion rather than rendering them frozen. Under reduced motion, every
+          <code>.reveal</code> and <code>.chip</code> element is forced to its fully-visible end state
+          immediately via the media query itself (not dependent on the IntersectionObserver ever firing), so
+          nothing is ever left permanently hidden at <code>opacity:0</code>. No content depends on any animation
+          to be understood — every real number is present at rest, and the confidence/blade instruments never
+          hide their values behind hover.
+
+          <h4>Mobile / narrow viewport</h4>
+          Below 640px: the blade grid drops from 3 to 2 columns; the section pill nav becomes a horizontally
+          scrollable strip (already true of the live <code>SectionNavMobile</code> component this prototype's
+          pill row is modeled on — a contained, intentional scroll strip, not page-level horizontal overflow);
+          row labels shrink and truncate; panel padding tightens; the rotor and score number step down in size
+          alongside it so the enlarged hero still fits comfortably. Not yet designed in this pass: a true mobile
+          teardown of the Evidence &amp; Confidence section's multi-column witness-dot rows, which will need
+          its own narrow-viewport pass before implementation — flagged as an open item in the report below, not
+          resolved here.
+
+          <h4>Reading order vs. WebGL rotor</h4>
+          Matching the real <code>CandidateCoreHero.tsx</code> architecture note: every real number (score,
+          decision, confidence, blade magnitudes, kill criteria) must be real, always-present DOM regardless of
+          whether a WebGL canvas ever mounts on top of it. Nothing in this prototype's hero markup is
+          canvas-only content — the SVG rotor is a decorative enhancement layered over real DOM, not a
+          replacement for it.
+
+          <h4>2026-07-22 polish pass — implementation notes</h4>
+          Background image: swapped to the owner's real night photograph
+          (<code>public/ambient/candidate-detail-cathedral-of-palms-night.jpg</code>); the filter was reduced
+          from a heavy day-to-night fake grade to a barely-there enhancement since the source is already a
+          correctly-exposed night shot — see the comment directly above <code>.world-img</code> for the exact
+          reasoning and values. Nav/section-nav: rebuilt on the glass-plane recipe instead of a flat dark bar;
+          padding/heights kept identical to the previous version so the sticky offset math between the
+          proto-banner, nav, and section-nav is unchanged. Report rhythm: gap tightened from 56px to 22px with
+          a small real (non-absolutely-positioned) <code>.rs-link</code> connector between adjacent sections —
+          deliberately real DOM rather than an absolutely positioned pseudo-element spanning the whole column,
+          to avoid any negative z-index / stacking-context risk against the ambient world layers underneath.
+          Motion: two named tiers now exist as CSS custom properties — <code>--dur-hover-sm</code> /
+          <code>--ease-soft</code> (150-200ms, ~1px lift) for buttons, pills, and blade tiles, and
+          <code>--dur-hover-md</code> / <code>--ease-cine</code> (200-300ms, -4px lift + scale 1.02 + shadow
+          growth) for report panels — plus exactly one complex/"magnetic" tier interaction, reserved for the
+          rotor (see the inline script near the end of the body), consistent with the design-intelligence pass's
+          explicit warning against scattering magnetic effects across multiple elements.
+        </div>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Ambient particles — same "spawn client-side after mount, biased toward
+// upper-center, wandering drift" technique as AmbientParticles.tsx.
+// Skips entirely under prefers-reduced-motion, matching that component.
+(function(){
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var host = document.getElementById('particles');
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < 18; i++) {
+    var dot = document.createElement('i');
+    var centerBiasedX = (Math.random() + Math.random()) / 2 * 100;
+    var size = 7 + Math.random() * 14;
+    dot.className = 'mote';
+    dot.style.width = size + 'px';
+    dot.style.height = size + 'px';
+    dot.style.filter = 'blur(' + (2 + size / 14).toFixed(1) + 'px)';
+    dot.style.left = centerBiasedX.toFixed(1) + '%';
+    dot.style.top = (42 + Math.random() * 46) + '%';
+    dot.style.animationDuration = (30 + Math.random() * 30) + 's';
+    dot.style.animationDelay = (-Math.random() * 40) + 's';
+    frag.appendChild(dot);
+  }
+  host.appendChild(frag);
+})();
+
+// Report-section scroll reveal — IntersectionObserver adds .is-visible once
+// per element, then unobserves it (never re-triggers scrolling back up).
+// Under reduced motion, or if IntersectionObserver isn't available, every
+// .reveal target is marked visible immediately rather than left hidden.
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var targets = document.querySelectorAll('.reveal');
+  if (reduced || !('IntersectionObserver' in window)) {
+    for (var i = 0; i < targets.length; i++) targets[i].classList.add('is-visible');
+    return;
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+  for (var j = 0; j < targets.length; j++) io.observe(targets[j]);
+})();
+
+// Rotor "magnetic" pull — the one complex/magnetic-tier interaction on this
+// screen, reserved for the score centerpiece per the design-intelligence
+// pass. Restrained: max 10px pointer-tracked offset + 2% scale + a glow
+// intensify, snappy while the pointer is inside the rotor, one smooth eased
+// return on mouseleave. Skips entirely under prefers-reduced-motion (no
+// listeners attached at all, matching the particle script's own pattern).
+(function(){
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var wrap = document.querySelector('.rotor-wrap');
+  if (!wrap) return;
+  var glow = wrap.querySelector('.rotor-glow');
+  var maxOffset = 10;
+  wrap.addEventListener('mouseenter', function(){
+    wrap.style.transition = 'none';
+  });
+  wrap.addEventListener('mousemove', function(e){
+    var r = wrap.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var dx = Math.max(-1, Math.min(1, (e.clientX - cx) / (r.width / 2)));
+    var dy = Math.max(-1, Math.min(1, (e.clientY - cy) / (r.height / 2)));
+    wrap.style.transform = 'translate(' + (dx * maxOffset).toFixed(1) + 'px,' + (dy * maxOffset).toFixed(1) + 'px) scale(1.02)';
+    if (glow) glow.style.opacity = '1';
+  });
+  wrap.addEventListener('mouseleave', function(){
+    wrap.style.transition = 'transform var(--dur-hover-md) var(--ease-cine)';
+    wrap.style.transform = '';
+    if (glow) glow.style.opacity = '';
+  });
+})();
+</script>
+
+</body>
+</html>
