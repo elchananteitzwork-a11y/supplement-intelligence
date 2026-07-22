@@ -5,15 +5,7 @@ import { m, useReducedMotion } from 'framer-motion'
 import { ChevronRight, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import type { PipelineCandidate } from './types'
-
-// Verdict chips are semantic color + icon + word — never color alone
-// (WCAG: information may not be conveyed by color only).
-const DECISION_CHIP: Record<PipelineCandidate['decision'], { label: string; cls: string; glyph: string }> = {
-  BUILD_NOW:                    { label: 'Build now',        cls: 'text-pi-build bg-pi-build/10',   glyph: '▲' },
-  VALIDATE_FURTHER:             { label: 'Validate further', cls: 'text-pi-invest bg-pi-invest/10', glyph: '◆' },
-  SKIP:                         { label: 'Skip',             cls: 'text-pi-pass bg-pi-pass/10',     glyph: '—' },
-  CATEGORY_CREATION_CANDIDATE:  { label: 'Category play',    cls: 'text-pi-gold bg-pi-gold/10',     glyph: '✦' },
-}
+import { DECISION_CHIP } from './decisionChip'
 
 function relativeAge(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
@@ -64,13 +56,6 @@ export function CandidateRow({ c, index }: { c: PipelineCandidate; index: number
 
         <span className="w-12 shrink-0 text-right font-mono text-lg font-semibold tabular-nums text-pi-ink">
           {c.score}
-        </span>
-
-        <span
-          className="hidden w-16 shrink-0 text-right text-xs tabular-nums text-pi-sub md:block"
-          title="Verdict confidence — gated by this analysis's single weakest input, never averaged. Same number the candidate's own page shows."
-        >
-          {c.confidencePct === null ? <span className="italic text-pi-sub">conf n/a</span> : `${c.confidencePct}% conf`}
         </span>
 
         <ChevronRight

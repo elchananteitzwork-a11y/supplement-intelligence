@@ -7,6 +7,7 @@ import { AppShell } from '@/components/shell/AppShell'
 import { CompareResults } from '@/components/pi/compare/CompareResults'
 import type { AnalysisComparisonItem } from '@/app/api/research/compare/route'
 import type { PipelineCandidate } from '@/components/pi/types'
+import { DECISION_CHIP } from '@/components/pi/decisionChip'
 
 // Rewired (2026-07-2x) onto the real `analyses` pipeline: the selection
 // phase now lists the user's own real analyses (same real fetch pattern
@@ -14,17 +15,11 @@ import type { PipelineCandidate } from '@/components/pi/types'
 // via derivePipelineViewModel and passes the result down as `candidates`)
 // instead of the old thesis-based /api/research/history + /api/research/thesis
 // endpoints (zero real rows in production for this pipeline).
-
-// Copied verbatim from components/pi/CandidateRow.tsx's own (private,
-// unexported) DECISION_CHIP — same "copied verbatim" convention already used
-// elsewhere in this codebase (e.g. coreDataAdapter.ts's PILL_LABEL) so the
-// selection list's badge always agrees with Pipeline's own.
-const DECISION_CHIP: Record<PipelineCandidate['decision'], { label: string; cls: string; glyph: string }> = {
-  BUILD_NOW:                    { label: 'Build now',        cls: 'text-pi-build bg-pi-build/10',   glyph: '▲' },
-  VALIDATE_FURTHER:             { label: 'Validate further', cls: 'text-pi-invest bg-pi-invest/10', glyph: '◆' },
-  SKIP:                         { label: 'Skip',             cls: 'text-pi-pass bg-pi-pass/10',     glyph: '—' },
-  CATEGORY_CREATION_CANDIDATE:  { label: 'Category play',    cls: 'text-pi-gold bg-pi-gold/10',     glyph: '✦' },
-}
+//
+// UIv2-M3 Home rebuild: DECISION_CHIP now imported from the shared
+// components/pi/decisionChip.ts module (built for CandidateRow/dashboard's
+// own RSC-boundary needs) instead of a third hand-copied table — one real
+// source of truth for decision->label/style, not two.
 
 function relativeAge(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)

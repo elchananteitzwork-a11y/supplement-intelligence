@@ -2,7 +2,7 @@
 // One place, reused by both the authed route and the dev-only preview —
 // all numbers flow through the audited grounded scorer, never raw fields.
 
-import { computeGroundedScore } from '@/lib/scoring'
+import { computeGroundedScore, type GroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import type { Analysis } from '@/types/index'
 import type { ChangedItem, PipelineCandidate, PipelineViewModel } from './types'
@@ -10,14 +10,23 @@ import type { ChangedItem, PipelineCandidate, PipelineViewModel } from './types'
 const FRESH_WINDOW_MS = 48 * 3600 * 1000        // "analysis complete" strip window
 const STALE_WATCH_MS = 21 * 24 * 3600 * 1000    // shortlisted evidence staleness threshold
 
+// UIv2-M3 Home rebuild: `precomputed` lets a caller that already ran
+// computeGroundedScore/computeConfidenceAssessment for this same analysis
+// (app/dashboard/page.tsx's own computeCardIntelligence does, for the
+// portfolio aggregates) hand the result in instead of this function paying
+// for the same ~1500-line scoring pass a second time per analysis. Purely
+// additive and optional — app/research/compare/page.tsx's existing 2-arg
+// call is untouched and keeps computing internally exactly as before.
 export function derivePipelineViewModel(
   analyses: Analysis[],
   watchedAnalysisIds: Set<string>,
+  precomputed?: Map<string, { grounded: GroundedScore; confidencePct: number | null }>,
 ): PipelineViewModel {
   const now = Date.now()
 
   const candidates: PipelineCandidate[] = analyses.map(a => {
-    const grounded = computeGroundedScore(a.memo_data)
+    const pre = precomputed?.get(a.id)
+    const grounded = pre?.grounded ?? computeGroundedScore(a.memo_data)
     // UIv2-M2 fix (post-beta-walkthrough decision): this used to read
     // memo_data.signal_metadata.overall_confidence — a plain AVERAGE across
     // raw signal-collection dimensions (lib/signal-engine/engine.ts),
@@ -30,7 +39,12 @@ export function derivePipelineViewModel(
     // preserving. Resolution: this is the ONE confidence number surfaced to
     // users anywhere in the product now — same source of truth as the
     // Core hero, computed the same conservative (never-inflated) way.
-    const conf = computeConfidenceAssessment(grounded).overallConfidence
+    const confidencePct = pre
+      ? pre.confidencePct
+      : (() => {
+          const conf = computeConfidenceAssessment(grounded).overallConfidence
+          return typeof conf === 'number' ? Math.round(conf * 100) : null
+        })()
     return {
       id: a.id,
       name: a.category_name,
@@ -38,7 +52,7 @@ export function derivePipelineViewModel(
       decision: grounded.decision,
       score: grounded.score,
       insufficientEvidence: grounded.insufficientEvidence,
-      confidencePct: typeof conf === 'number' ? Math.round(conf * 100) : null,
+      confidencePct,
       createdAtIso: a.created_at,
       // UIv2-M2 fix: `a.id` is an `analyses` row id, not a `market_signals`
       // signal_id — `/research/[signal_id]/memo` is a different, older
