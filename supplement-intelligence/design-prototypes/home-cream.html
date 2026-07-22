@@ -41,7 +41,7 @@ nav.top{position:sticky;top:29px;z-index:50;display:flex;align-items:center;just
 .navlinks a:hover{color:var(--ink);background:rgba(22,23,26,.04);}
 .navlinks a.active{color:var(--gold);background:rgba(141,106,22,.10);font-weight:600;}
 .nav-right{display:flex;align-items:center;gap:14px;}
-.quota{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--faint);}
+.quota{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--sub);}
 .cta{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:10px 20px;
   background:linear-gradient(135deg,#F6E7B8,var(--gold-deep),var(--gold-bright));
   color:#16130a;font-size:13.5px;font-weight:650;text-decoration:none;
@@ -60,7 +60,12 @@ h1.answer b{color:var(--gold);font-weight:600;}
 .pulse{display:flex;flex-wrap:wrap;gap:22px;margin:0 0 8px;}
 .pulse .p{display:flex;align-items:baseline;gap:7px;}
 .pulse .v{font-family:ui-monospace,monospace;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;}
-.pulse .l{font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);}
+.pulse .l{font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);}
+.pulse .dots{display:inline-flex;gap:3px;vertical-align:middle;margin-left:1px;}
+.pulse .dots i{width:6px;height:6px;border-radius:50%;background:var(--ink);display:inline-block;}
+.pulse .dots i.off{background:transparent;border:1.3px solid var(--sub);width:5.4px;height:5.4px;}
+.pulse .src{font-size:11.5px;font-weight:600;color:var(--gold);text-decoration:none;margin-left:auto;align-self:center;}
+.pulse .src:hover{color:var(--ink);}
 
 /* ---------- altitude 2: needs your attention ---------- */
 section{margin-top:46px;}
@@ -68,10 +73,10 @@ section{margin-top:46px;}
 .att-card{display:flex;align-items:center;justify-content:space-between;gap:14px;
   background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:16px 20px;
   box-shadow:0 1px 3px rgba(22,23,26,.05);}
-.att-card .dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--gold-deep);}
+.att-card .dot{flex:none;align-self:flex-start;margin-top:6px;width:8px;height:8px;border-radius:50%;background:var(--gold-deep);}
 .att-card p{margin:0;font-size:14px;line-height:1.5;}
 .att-card p b{font-weight:650;}
-.att-card time{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--faint);white-space:nowrap;}
+.att-card time{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--sub);white-space:nowrap;}
 .att-act{flex:none;font-size:12.5px;font-weight:600;color:var(--gold);text-decoration:none;white-space:nowrap;}
 .att-act:hover{color:var(--ink);}
 
@@ -79,11 +84,11 @@ section{margin-top:46px;}
 .stage{margin-top:30px;}
 .stage-head{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;}
 .stage-head h2{font-size:13px;font-weight:700;letter-spacing:.02em;margin:0;}
-.stage-head .n{font-family:ui-monospace,monospace;font-size:11px;color:var(--faint);}
-.stage-head .hint{font-size:12px;color:var(--faint);margin-left:auto;}
+.stage-head .n{font-family:ui-monospace,monospace;font-size:11px;color:var(--sub);}
+.stage-head .hint{font-size:12px;color:var(--sub);margin-left:auto;}
 .rows{background:var(--card);border:1px solid var(--hairline);border-radius:16px;overflow:hidden;
   box-shadow:0 1px 3px rgba(22,23,26,.05),0 20px 44px -18px rgba(22,23,26,.10);}
-.row{display:grid;grid-template-columns:1fr auto auto auto auto 18px;align-items:center;gap:18px;
+.row{display:grid;grid-template-columns:1fr auto auto auto 18px;align-items:center;gap:18px;
   padding:15px 20px;text-decoration:none;color:inherit;border-bottom:1px solid var(--hairline);
   transition:background .15s var(--ease);cursor:pointer;}
 .row:last-child{border-bottom:none;}
@@ -97,17 +102,15 @@ section{margin-top:46px;}
 .chip.build{background:var(--build);} .chip.invest{background:var(--invest);}
 .chip.risk{background:var(--risk);} .chip.pass{background:var(--pass);}
 .score{font-family:ui-monospace,monospace;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;}
-.score small{display:block;font-size:9px;font-weight:600;letter-spacing:.09em;color:var(--faint);text-transform:uppercase;}
-.traced{font-family:ui-monospace,monospace;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums;text-align:right;}
-.traced small{display:block;font-size:9px;letter-spacing:.09em;color:var(--faint);text-transform:uppercase;}
-.when{font-family:ui-monospace,monospace;font-size:11px;color:var(--faint);white-space:nowrap;}
-.arrow{color:var(--faint);}
+.score small{display:block;font-size:9px;font-weight:600;letter-spacing:.09em;color:var(--sub);text-transform:uppercase;}
+.when{font-family:ui-monospace,monospace;font-size:11px;color:var(--sub);white-space:nowrap;}
+.arrow{color:var(--sub);}
 .ghost{border:1.5px dashed rgba(22,23,26,.16);border-radius:16px;padding:15px 20px;
-  font-size:12.5px;color:var(--faint);background:transparent;}
+  font-size:12.5px;color:var(--sub);background:transparent;}
 .ghost b{color:var(--sub);font-weight:650;}
 
 footer{max-width:880px;margin:0 auto;padding:0 28px 60px;}
-footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;line-height:1.65;color:var(--faint);}
+footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;line-height:1.65;color:var(--sub);}
 
 /* entrance: gentle stagger, reveal-once, reduced-motion gated */
 @media (prefers-reduced-motion: no-preference){
@@ -120,7 +123,7 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
   .navlinks{display:none;}
   .row{grid-template-columns:1fr auto;grid-template-areas:"name chip" "meta meta";}
   .row .name{grid-area:name}.row .chip{grid-area:chip}
-  .row .score,.row .traced,.row .when,.row .arrow{display:none;}
+  .row .score,.row .when,.row .arrow{display:none;}
   main{padding:36px 18px 60px;}
 }
 </style>
@@ -155,8 +158,9 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
     <div class="pulse" aria-label="Portfolio pulse">
       <span class="p"><span class="v" style="color:var(--build)">33%</span><span class="l">V2 build rate</span></span>
       <span class="p"><span class="v">57</span><span class="l">Avg score</span></span>
-      <span class="p"><span class="v">48%</span><span class="l">Avg confidence</span></span>
+      <span class="p"><span class="v">Moderate<span class="dots" aria-hidden="true"><i></i><i></i><i class="off"></i></span></span><span class="l">Avg confidence</span></span>
       <span class="p"><span class="v">4/7</span><span class="l">Lifecycle classified</span></span>
+      <a class="src" href="#">Sources →</a>
     </div>
   </div>
 
@@ -190,7 +194,6 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
           <span class="name"><span class="t">Sleep Optimization Stack</span><span class="thesis">Growing stress-adjacent demand; addressable market still needs confirmation.</span></span>
           <span class="chip invest">Validation Required</span>
           <span class="score">64<small>score</small></span>
-          <span class="traced">52%<small>traced</small></span>
           <span class="when">23d</span>
           <span class="arrow">→</span>
         </a>
@@ -198,7 +201,6 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
           <span class="name"><span class="t">Magnesium Glycinate Gummies</span><span class="thesis">Real search + Amazon demand; review corpus thin relative to it.</span></span>
           <span class="chip invest">Validation Required</span>
           <span class="score">71<small>score</small></span>
-          <span class="traced">58%<small>traced</small></span>
           <span class="when">2d</span>
           <span class="arrow">→</span>
         </a>
@@ -212,7 +214,6 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
           <span class="name"><span class="t">Bloating + Fatigue Relief</span></span>
           <span class="chip build">Entry Supported</span>
           <span class="score">71<small>score</small></span>
-          <span class="traced">64%<small>traced</small></span>
           <span class="when">6h</span>
           <span class="arrow">→</span>
         </a>
@@ -220,7 +221,6 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
           <span class="name"><span class="t">Ashwagandha KSM-66 Softgels</span></span>
           <span class="chip invest">Validation Required</span>
           <span class="score">58<small>score</small></span>
-          <span class="traced">47%<small>traced</small></span>
           <span class="when">3d</span>
           <span class="arrow">→</span>
         </a>
@@ -228,7 +228,6 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
           <span class="name"><span class="t">Generic Vitamin D3</span></span>
           <span class="chip risk">Not Supported</span>
           <span class="score">31<small>score</small></span>
-          <span class="traced">72%<small>traced</small></span>
           <span class="when">5d</span>
           <span class="arrow">→</span>
         </a>
@@ -236,7 +235,6 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
           <span class="name"><span class="t">Postpartum Hair Loss Blocker</span></span>
           <span class="chip invest">Validation Required</span>
           <span class="score">57<small>score</small></span>
-          <span class="traced">44%<small>traced</small></span>
           <span class="when">7d</span>
           <span class="arrow">→</span>
         </a>
@@ -244,7 +242,6 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
           <span class="name"><span class="t">Collagen + Vitamin C Powder</span></span>
           <span class="chip pass">Category Creation</span>
           <span class="score">49<small>score</small></span>
-          <span class="traced">39%<small>traced</small></span>
           <span class="when">12d</span>
           <span class="arrow">→</span>
         </a>
@@ -252,11 +249,11 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
     </div>
 
     <div class="stage">
-      <div class="stage-head"><h2 style="color:var(--faint)">Hunches</h2><span class="n">0</span></div>
+      <div class="stage-head"><h2 style="color:var(--sub)">Hunches</h2><span class="n">0</span></div>
       <div class="ghost"><b>Ideas noted before analysis</b> — arriving in a later release. Shown so the shape of the pipeline is honest, never filled with demo data.</div>
     </div>
     <div class="stage">
-      <div class="stage-head"><h2 style="color:var(--faint)">Committed / Killed</h2><span class="n">0</span></div>
+      <div class="stage-head"><h2 style="color:var(--sub)">Committed / Killed</h2><span class="n">0</span></div>
       <div class="ghost">Commitment and kill records arrive with the ritual flows — they don't exist yet, and this page says so.</div>
     </div>
   </section>
@@ -267,7 +264,13 @@ footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;
   re-derived for display. Confidence is gated by an analysis's single weakest input, never averaged. Dashed
   stages exist in the product model but have no data yet. <span class="mono">[Mockup note: all names and values
   above are illustrative; field shapes match computeCardIntelligence / derivePipelineViewModel / the real
-  aggregates module.]</span></p>
+  aggregates module. Revised per UX_EXPERIENCE_PLAN.md: portfolio confidence now shown as word+dots, not a raw
+  percentage; per-row "traced %" dropped from the front (L3 material — each row's own arrow already opens the
+  full verdict page); low-contrast label color swapped from --faint (3.34:1) to --sub (4.72:1) throughout, per
+  the 4.5:1 accessibility baseline. The pulse row's "Sources →" destination — inline expansion vs. a dedicated
+  view — is an open question for the R&D doc, not resolved here. The word-tier vocabulary ("Moderate") is
+  illustrative; the real tier labels must be confirmed against the confidence-tiered-extraction system at
+  implementation.]</span></p>
 </footer>
 </body>
 </html>
