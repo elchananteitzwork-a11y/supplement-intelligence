@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PROTOTYPE — Canonical Home ("the same world, by daylight, denser")</title>
+<style>
+
+/* ============================================================================
+   DESIGN-AGENT-STYLE PROTOTYPE — not live app code.
+   Implements docs/CANONICAL_HOME_ARCHITECTURE.md's merged IA on the
+   APPROVED Cathedral of Palms background (owner correction 2026-07-22: no
+   new environment composition — same photo as Landing/Login, differentiated
+   by treatment: calm intensity + a lower imagePosition so the terrace/water
+   band sits behind the densest content instead of the sky).
+   Reuses the exact GlassPanel/AmbientWorld/AmbientParticles/GlassInstrument
+   recipes (translated to plain CSS, this file has no build step) and the
+   exact pi-* tokens. All specific numbers/names are ILLUSTRATIVE (banner +
+   footer disclose this) — same convention as app/page.tsx's PREVIEW_CARDS.
+   ========================================================================= */
+
+:root{
+  --pi-cream:#FBF7EE; --pi-ink:#16171A; --pi-sub:#6B6F76; --pi-faint:#8C877C;
+  --pi-gold:#8D6A16; --pi-gold-bright:#C9971F; --pi-gold-deep:#D4A94A;
+  --pi-build:#2E6B48; --g-build:#3FA36E; --t-build:#a7e0bf;
+  --pi-invest:#35507A; --g-invest:#5B7FBB; --t-invest:#a9c2ea;
+  --pi-risk:#A13F2E; --g-risk:#C9573F; --t-risk:#eab3a5;
+  --pi-pass:#6E6A5C;
+  --ease-cine:cubic-bezier(.16,1,.3,1);
+  --dur-fast:200ms; --dur:450ms; --dur-slow:600ms;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:#0f0d08; color:var(--pi-cream);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"JetBrains Mono","Fira Code",ui-monospace,monospace;}
+
+.proto-banner{
+  position:sticky; top:0; z-index:100; background:#000; color:#F6E7B8;
+  font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.04em;
+  text-align:center; padding:7px 12px; border-bottom:1px solid rgba(246,231,184,.25);
+}
+
+/* ---------- Ambient World — SAME photo as Landing/Login, calm intensity,
+   lower imagePosition so the terrace/water band (not the bright sky) sits
+   behind the densest instrument content. Fixed to viewport, not document
+   (same fix applied to Candidate Detail after the full-page-stretch bug). */
+.world{ position:relative; overflow:hidden; min-height:100vh; }
+.world-img{
+  position:fixed; inset:0; z-index:0;
+  background-image:url('../public/ambient/landing-cathedral-of-palms.jpg');
+  background-size:cover; background-position:50% 62%;
+  filter:saturate(.82) brightness(.72);
+  animation:kenburns 48s var(--ease-cine) infinite alternate;
+}
+@keyframes kenburns{ from{transform:scale(1);} to{transform:scale(1.08) translate(-1%,-1%);} }
+.world-scrim{
+  position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:
+    radial-gradient(closest-side at 50% 30%, rgba(20,16,8,0) 0%, rgba(9,8,6,.5) 46%, rgba(6,6,5,.88) 78%),
+    linear-gradient(180deg, rgba(6,6,5,.72) 0%, rgba(6,6,5,.5) 20%, rgba(6,6,5,.68) 60%, rgba(4,4,3,.93) 100%);
+}
+.world-particles{ position:fixed; inset:0; z-index:2; pointer-events:none; overflow:hidden; }
+.mote{
+  position:absolute; border-radius:999px; opacity:0;
+  background:radial-gradient(circle, rgba(246,231,184,.8) 0%, rgba(246,231,184,.28) 45%, transparent 72%);
+  animation:drift linear infinite;
+}
+@keyframes drift{
+  0%{ transform:translateY(30px) scale(.85); opacity:0; }
+  10%{ opacity:.16; } 55%{ transform:translateY(-260px) scale(1.05); opacity:.28; }
+  100%{ transform:translateY(-520px) scale(1.2); opacity:0; }
+}
+.world-content{ position:relative; z-index:3; }
+
+/* ---------- Glass surface (GlassPanel.tsx recipe) ---------- */
+.glass{ position:relative; overflow:hidden; border-radius:16px; }
+.glass-plane{
+  position:absolute; inset:0; z-index:0; border-radius:inherit;
+  border:1px solid rgba(255,255,255,.16);
+  background:linear-gradient(135deg, rgba(255,255,255,.10) 0%, rgba(0,0,0,.20) 45%, rgba(0,0,0,.36) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 26px 56px rgba(0,0,0,.5), inset 0 -1px 0 rgba(255,255,255,.05);
+  backdrop-filter:blur(22px) saturate(1.5) brightness(.72);
+  -webkit-backdrop-filter:blur(22px) saturate(1.5) brightness(.72);
+}
+.glass-sheen{
+  position:absolute; left:-24%; top:-34%; z-index:0; height:72%; width:66%;
+  border-radius:999px; filter:blur(2px); pointer-events:none; transform:rotate(-8deg);
+  background:radial-gradient(closest-side, rgba(255,255,255,.16), transparent 72%);
+}
+.glass-streak{
+  position:absolute; left:14%; top:-10%; z-index:0; height:120%; width:1px; transform:rotate(14deg);
+  background:linear-gradient(180deg, rgba(255,255,255,.45), transparent); pointer-events:none;
+}
+.glass-body{ position:relative; z-index:2; }
+.glass-3d{ transition:transform var(--dur) var(--ease-cine); }
+.glass-3d:hover{ transform:translateY(-3px); }
+.glass-hair{ border-top:1px solid rgba(255,255,255,.09); }
+
+/* ---------- nav — CineNav + History link fixed, frozen-language CTA ---------- */
+.nav{ position:sticky; top:29px; z-index:40; display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:14px 28px; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  background:rgba(9,8,6,.4); border-bottom:1px solid rgba(255,255,255,.08); }
+.brand{ display:flex; align-items:center; gap:9px; font-size:14px; font-weight:600; color:var(--pi-cream); text-decoration:none; }
+.rotor-mini{ width:19px; height:19px; }
+.nav-links{ display:flex; align-items:center; gap:22px; font-size:12.5px; }
+.nav-links a{ color:rgba(251,247,238,.65); text-decoration:none; transition:color var(--dur-fast) var(--ease-cine); }
+.nav-links a:hover, .nav-links a.on{ color:var(--pi-cream); }
+.btn-gold{ font-size:12.5px; font-weight:600; padding:9px 18px; border-radius:10px; text-decoration:none; white-space:nowrap;
+  color:#16130a; background:linear-gradient(135deg,#F6E7B8,var(--pi-gold-deep),var(--pi-gold-bright));
+  box-shadow:0 8px 18px -8px rgba(212,169,74,.55); transition:transform var(--dur-fast) var(--ease-cine); }
+.btn-gold:hover{ transform:translateY(-1px); }
+
+/* ---------- hero: the anchor sentence ---------- */
+.hero{ max-width:900px; margin:0 auto; padding:56px 24px 8px; text-align:center; }
+.hero .eyebrow{ font-family:"JetBrains Mono",monospace; font-size:10.5px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--pi-gold-bright); margin:0 0 12px; }
+.hero h1{ font-family:Georgia,"Times New Roman",serif; font-weight:600; font-size:clamp(26px,3.4vw,34px);
+  line-height:1.28; letter-spacing:-.01em; color:var(--pi-cream); margin:0; text-shadow:0 2px 16px rgba(0,0,0,.4); }
+
+/* ---------- what-changed strip ---------- */
+.changed-strip{ max-width:900px; margin:22px auto 0; padding:0 24px; }
+.changed-strip ul{ display:flex; flex-wrap:wrap; gap:8px; list-style:none; margin:0; padding:0; justify-content:center; }
+.changed-strip li{ font-size:12px; padding:6px 13px; border-radius:999px; border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04); color:rgba(251,247,238,.75); }
+.changed-strip li b{ color:var(--pi-gold-bright); font-weight:600; }
+
+/* ---------- CTA row (frozen language) ---------- */
+.cta-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; max-width:900px; margin:26px auto 0; padding:0 24px; }
+.btn-ink{ display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; padding:11px 22px;
+  border-radius:11px; background:var(--pi-ink); color:var(--pi-cream); text-decoration:none;
+  box-shadow:0 10px 22px -10px rgba(0,0,0,.6); transition:transform var(--dur-fast) var(--ease-cine); }
+.btn-ink:hover{ transform:translateY(-1px); }
+.btn-ghost2{ display:inline-flex; align-items:center; gap:8px; font-size:13.5px; padding:11px 22px; border-radius:11px;
+  border:1px solid rgba(255,255,255,.16); color:rgba(251,247,238,.8); text-decoration:none; }
+
+/* ---------- portfolio instruments ---------- */
+.instruments{ max-width:1080px; margin:40px auto 0; padding:0 24px; display:grid; grid-template-columns:repeat(6,1fr); gap:10px; }
+@media(max-width:900px){ .instruments{ grid-template-columns:repeat(3,1fr); } }
+@media(max-width:560px){ .instruments{ grid-template-columns:repeat(2,1fr); } }
+.instrument{ position:relative; overflow:hidden; border-radius:14px; padding:16px 16px 15px; transition:transform var(--dur) var(--ease-cine); }
+.instrument:hover{ transform:translateY(-2px); }
+.i-label{ font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
+  color:rgba(251,247,238,.5); margin-bottom:7px; }
+.i-value{ font-family:"JetBrains Mono",monospace; font-size:22px; font-weight:700; letter-spacing:-.01em; }
+
+/* ---------- report-style container for stage groups ---------- */
+.report{ max-width:900px; margin:48px auto 0; padding:0 24px 100px; }
+.stage{ margin-bottom:34px; }
+.stage-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:14px; padding-bottom:10px;
+  border-bottom:1px solid rgba(255,255,255,.08); }
+.stage-name{ font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  color:rgba(251,247,238,.72); }
+.stage-count{ font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--pi-gold-bright); }
+.stage-hint{ font-size:12px; color:rgba(251,247,238,.45); font-style:italic; padding:6px 2px 2px; }
+.stage.ghost{ opacity:.6; }
+.stage.ghost .stage-name{ color:rgba(251,247,238,.4); }
+
+.row-list{ display:flex; flex-direction:column; gap:8px; }
+.row{ position:relative; overflow:hidden; border-radius:12px; display:block; text-decoration:none; transition:transform var(--dur) var(--ease-cine); }
+.row:hover{ transform:translateY(-2px); }
+.row-plane{ position:absolute; inset:0; z-index:0; border-radius:inherit; border:1px solid rgba(255,255,255,.13);
+  background:linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(0,0,0,.2) 50%, rgba(0,0,0,.32) 100%);
+  backdrop-filter:blur(16px) saturate(1.4) brightness(.78); -webkit-backdrop-filter:blur(16px) saturate(1.4) brightness(.78);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13); transition:box-shadow var(--dur) var(--ease-cine); }
+.row:hover .row-plane{ box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 0 0 1px rgba(212,169,74,.4), 0 14px 26px rgba(0,0,0,.4); }
+.row-body{ position:relative; z-index:1; display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; padding:14px 18px; }
+.row-name{ display:block; font-size:14.5px; font-weight:600; color:var(--pi-cream); }
+.row-meta{ display:block; margin-top:2px; font-size:11.5px; color:rgba(251,247,238,.5); }
+.row-flex1{ flex:1; min-width:180px; }
+.verdict-chip{ display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:5px 11px; font-size:10.5px; font-weight:700; letter-spacing:.03em; white-space:nowrap; }
+.vc-build{ color:var(--t-build); background:rgba(63,163,110,.14); }
+.vc-invest{ color:var(--t-invest); background:rgba(91,127,187,.14); }
+.vc-risk{ color:var(--t-risk); background:rgba(201,87,63,.14); }
+.row-score{ font-family:"JetBrains Mono",monospace; font-size:15px; font-weight:700; color:var(--pi-cream); width:34px; text-align:right; }
+.row-conf{ font-family:"JetBrains Mono",monospace; font-size:11px; color:rgba(251,247,238,.5); width:56px; text-align:right; }
+.row-flag{ display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:600; color:var(--t-risk);
+  background:rgba(201,87,63,.12); border-radius:999px; padding:4px 9px; white-space:nowrap; }
+.row-chevron{ color:rgba(251,247,238,.35); font-size:14px; }
+
+.ghost-row{ border-radius:12px; border:1px dashed rgba(255,255,255,.14); padding:16px 18px; font-size:12.5px;
+  color:rgba(251,247,238,.4); font-style:italic; }
+
+.foot-honesty{ max-width:900px; margin:0 auto; padding:0 24px 90px; }
+.foot-honesty p{ font-size:11.5px; line-height:1.7; color:rgba(251,247,238,.45); border-top:1px solid rgba(255,255,255,.08); padding-top:18px; margin:0; }
+
+@media (prefers-reduced-motion: reduce){
+  .world-img,.mote{ animation:none !important; }
+  .glass-3d,.row,.instrument,.btn-gold,.btn-ink{ transition:none !important; }
+}
+@media (max-width:640px){
+  .nav{ padding:12px 16px; }
+  .nav-links{ display:none; }
+  .hero{ padding:40px 16px 6px; }
+  .row-body{ padding:12px 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="proto-banner">PROTOTYPE — Canonical Home, per docs/CANONICAL_HOME_ARCHITECTURE.md · illustrative example data throughout, no live query · design-prototypes/, never a live app route</div>
+
+<div class="world">
+  <div class="world-img"></div>
+  <div class="world-scrim"></div>
+  <div class="world-particles" id="particles"></div>
+
+  <div class="world-content">
+
+    <nav class="nav">
+      <a class="brand" href="#">
+        <svg class="rotor-mini" viewBox="0 0 200 200"><path d="M132 87 133 110 173 142 183 87Z" fill="#D4A94A"/><path d="M128 122 108 134 100 184 153 165Z" fill="#D4A94A" opacity=".86"/><path d="M95 135 74 124 27 142 70 178Z" fill="#D4A94A" opacity=".72"/><path d="M68 113 67 90 27 58 17 113Z" fill="#D4A94A" opacity=".58"/><path d="M72 78 92 66 100 16 47 35Z" fill="#D4A94A" opacity=".72"/><path d="M105 65 126 76 173 58 130 22Z" fill="#D4A94A" opacity=".86"/><circle cx="100" cy="100" r="27" fill="#0f0d08"/></svg>
+        Product Intelligence
+      </a>
+      <div class="nav-links">
+        <a class="on" href="#">Home</a>
+        <a href="#">Compare</a>
+        <a href="#">History</a>
+        <a href="#">Track Record</a>
+        <a href="#">Settings</a>
+      </div>
+      <a href="#" class="btn-gold">Log a hunch</a>
+    </nav>
+
+    <header class="hero">
+      <p class="eyebrow">Your pipeline</p>
+      <h1>12 candidates · 3 being watched.</h1>
+    </header>
+
+    <div class="changed-strip">
+      <ul>
+        <li><b>2</b> analyses completed in the last 48h</li>
+        <li><b>1</b> shortlisted candidate's evidence is over 21 days old</li>
+      </ul>
+    </div>
+
+    <div class="cta-row">
+      <a href="#" class="btn-ink">＋ Log a hunch</a>
+      <a href="#" class="btn-ghost2">Discover →</a>
+    </div>
+
+    <!-- Portfolio instruments — real aggregates from app/dashboard/page.tsx,
+         honest "—" when no analysis has the relevant model version's data.
+         No fabricated trend lines — no real per-portfolio series exists. -->
+    <div class="instruments">
+      <div class="glass instrument"><div class="glass-plane"></div><div class="glass-sheen"></div>
+        <div class="glass-body"><div class="i-label">Total runs</div><div class="i-value" style="color:var(--pi-cream)">12</div></div></div>
+      <div class="glass instrument"><div class="glass-plane"></div><div class="glass-sheen"></div>
+        <div class="glass-body"><div class="i-label">V2 build rate</div><div class="i-value" style="color:#a7e0bf">42%</div></div></div>
+      <div class="glass instrument"><div class="glass-plane"></div><div class="glass-sheen"></div>
+        <div class="glass-body"><div class="i-label">Avg score</div><div class="i-value" style="color:var(--pi-gold-bright)">61</div></div></div>
+      <div class="glass instrument"><div class="glass-plane"></div><div class="glass-sheen"></div>
+        <div class="glass-body"><div class="i-label">Avg quality (v2)</div><div class="i-value" style="color:var(--pi-cream)">58</div></div></div>
+      <div class="glass instrument"><div class="glass-plane"></div><div class="glass-sheen"></div>
+        <div class="glass-body"><div class="i-label">Lifecycle classified</div><div class="i-value" style="color:var(--pi-cream);font-size:18px">8/12</div></div></div>
+      <div class="glass instrument"><div class="glass-plane"></div><div class="glass-sheen"></div>
+        <div class="glass-body"><div class="i-label">Avg confidence</div><div class="i-value" style="color:var(--pi-gold-bright)">54%</div></div></div>
+    </div>
+
+    <div class="report">
+
+      <!-- Shortlisted — real active-watchlist rows -->
+      <section class="stage">
+        <div class="stage-head"><span class="stage-name">Shortlisted</span><span class="stage-count">3</span></div>
+        <div class="row-list">
+          <a class="row glass-3d" href="#">
+            <div class="row-plane"></div>
+            <div class="row-body">
+              <span class="row-flex1"><span class="row-name">Magnesium Glycinate — Nighttime Gummies</span><span class="row-meta">Shortlisted 6d ago</span></span>
+              <span class="verdict-chip vc-invest">◆ Validate further</span>
+              <span class="row-score">71</span>
+              <span class="row-conf">58% conf</span>
+              <span class="row-chevron">›</span>
+            </div>
+          </a>
+          <a class="row glass-3d" href="#">
+            <div class="row-plane"></div>
+            <div class="row-body">
+              <span class="row-flex1"><span class="row-name">Collagen Peptide Sleep Stack</span><span class="row-meta">Shortlisted 21d ago</span></span>
+              <span class="verdict-chip vc-build">▲ Build now</span>
+              <span class="row-score">83</span>
+              <span class="row-conf">74% conf</span>
+              <span class="row-flag">⚠ evidence aging</span>
+              <span class="row-chevron">›</span>
+            </div>
+          </a>
+          <a class="row glass-3d" href="#">
+            <div class="row-plane"></div>
+            <div class="row-body">
+              <span class="row-flex1"><span class="row-name">Post-Meal Bloat Relief Gummy</span><span class="row-meta">Shortlisted 2d ago</span></span>
+              <span class="verdict-chip vc-build">▲ Build now</span>
+              <span class="row-score">76</span>
+              <span class="row-conf">69% conf</span>
+              <span class="row-chevron">›</span>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <!-- Analyzed — every stored analysis -->
+      <section class="stage">
+        <div class="stage-head"><span class="stage-name">Analyzed</span><span class="stage-count">9</span></div>
+        <div class="row-list">
+          <a class="row glass-3d" href="#">
+            <div class="row-plane"></div>
+            <div class="row-body">
+              <span class="row-flex1"><span class="row-name">Ashwagandha + L-Theanine Stress Blend</span><span class="row-meta">Analyzed 1d ago</span></span>
+              <span class="verdict-chip vc-invest">◆ Validate further</span>
+              <span class="row-score">64</span>
+              <span class="row-conf">51% conf</span>
+              <span class="row-chevron">›</span>
+            </div>
+          </a>
+          <a class="row glass-3d" href="#">
+            <div class="row-plane"></div>
+            <div class="row-body">
+              <span class="row-flex1"><span class="row-name">Generic Vitamin D3</span><span class="row-meta">Analyzed 3d ago</span></span>
+              <span class="verdict-chip vc-risk">— Skip</span>
+              <span class="row-score">31</span>
+              <span class="row-conf">64% conf</span>
+              <span class="row-chevron">›</span>
+            </div>
+          </a>
+          <a class="row glass-3d" href="#">
+            <div class="row-plane"></div>
+            <div class="row-body">
+              <span class="row-flex1"><span class="row-name">Electrolyte Recovery Sachets</span><span class="row-meta">Analyzed 5d ago</span></span>
+              <span class="verdict-chip vc-invest">◆ Validate further</span>
+              <span class="row-score">57</span>
+              <span class="row-conf" style="font-style:italic">conf n/a</span>
+              <span class="row-flag">⚠ thin evidence</span>
+              <span class="row-chevron">›</span>
+            </div>
+          </a>
+        </div>
+        <p class="stage-hint">+ 6 more analyzed candidates</p>
+      </section>
+
+      <!-- Honest ghost stages — no fabricated content -->
+      <section class="stage ghost">
+        <div class="stage-head"><span class="stage-name">Hunches</span><span class="stage-count">—</span></div>
+        <div class="ghost-row">Capturing ideas before analysis arrives in a later release.</div>
+      </section>
+      <section class="stage ghost">
+        <div class="stage-head"><span class="stage-name">Committed · Killed</span><span class="stage-count">—</span></div>
+        <div class="ghost-row">Commitment and kill records arrive with the ritual flows — nothing hidden here, they don't exist yet.</div>
+      </section>
+
+    </div>
+
+    <div class="foot-honesty">
+      <p>Every number on this page traces to real stored analyses — verdicts, scores, and confidence are never re-derived for display, and never re-computed differently on different screens. Confidence is gated by an analysis's single weakest input, never averaged. Stages shown as dashed outlines exist in the product model but have no data yet. This is illustrative example data — sign up to see your real pipeline.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var host = document.getElementById('particles');
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < 16; i++) {
+    var dot = document.createElement('i');
+    var centerBiasedX = (Math.random() + Math.random()) / 2 * 100;
+    var size = 7 + Math.random() * 14;
+    dot.className = 'mote';
+    dot.style.width = size + 'px';
+    dot.style.height = size + 'px';
+    dot.style.filter = 'blur(' + (2 + size / 14).toFixed(1) + 'px)';
+    dot.style.left = centerBiasedX.toFixed(1) + '%';
+    dot.style.top = (40 + Math.random() * 50) + '%';
+    dot.style.animationDuration = (30 + Math.random() * 30) + 's';
+    dot.style.animationDelay = (-Math.random() * 40) + 's';
+    frag.appendChild(dot);
+  }
+  host.appendChild(frag);
+})();
+</script>
+
+</body>
+</html>
