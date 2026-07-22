@@ -210,6 +210,48 @@ const config: Config = {
   		boxShadow: {
   			hard: '2px 2px 0px 0px rgba(0,0,0,1)',
   			'hard-lg': '4px 4px 0px 0px rgba(0,0,0,1)'
+  		},
+  		// "One World" cinematic redesign — motion tokens promoted from the
+  		// approved Ambient World / instrument-language Artifacts, so every
+  		// new component reaches for the same named values instead of
+  		// hand-typed cubic-bezier strings per file.
+  		transitionTimingFunction: {
+  			cine: 'cubic-bezier(0.16, 1, 0.3, 1)'
+  		},
+  		transitionDuration: {
+  			'cine-fast': '200ms',
+  			cine: '450ms',
+  			'cine-slow': '600ms'
+  		},
+  		animation: {
+  			'cine-kenburns': 'cine-kenburns 42s ease-in-out infinite alternate',
+  			'cine-drift': 'cine-drift ease-in-out infinite',
+  			'cine-pulse': 'cine-pulse 2.6s ease-in-out infinite',
+  			'cine-travel': 'cine-travel 4.2s linear infinite'
+  		},
+  		keyframes: {
+  			'cine-kenburns': {
+  				'0%': { transform: 'scale(1)' },
+  				'100%': { transform: 'scale(1.08) translate(-1%, -1%)' }
+  			},
+  			'cine-drift': {
+  				'0%': { transform: 'translateY(30px) translateX(0) scale(0.85)', opacity: '0' },
+  				'10%': { opacity: 'calc(var(--cine-particle-opacity, .5) * 0.35)' },
+  				'24%': { transform: 'translateY(-110px) translateX(calc(var(--cine-particle-x, 20px) * 0.22)) scale(1)', opacity: 'var(--cine-particle-opacity, .5)' },
+  				'40%': { opacity: 'calc(var(--cine-particle-opacity, .5) * 0.55)' },
+  				'55%': { transform: 'translateY(-300px) translateX(calc(var(--cine-particle-x, 20px) * 0.6)) scale(1.1)', opacity: 'var(--cine-particle-opacity, .5)' },
+  				'72%': { opacity: 'calc(var(--cine-particle-opacity, .5) * 0.4)' },
+  				'88%': { opacity: 'calc(var(--cine-particle-opacity, .5) * 0.7)' },
+  				'100%': { transform: 'translateY(-560px) translateX(var(--cine-particle-x, 20px)) scale(1.25)', opacity: '0' }
+  			},
+  			'cine-pulse': {
+  				'0%, 100%': { opacity: '1', transform: 'scale(1)' },
+  				'50%': { opacity: '.7', transform: 'scale(1.35)' }
+  			},
+  			'cine-travel': {
+  				from: { offsetDistance: '0%' },
+  				to: { offsetDistance: '100%' }
+  			}
   		}
   	}
   },
