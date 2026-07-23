@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { cn } from '@/lib/cn'
 import type { AnalysisComparisonItem } from '@/app/api/research/compare/route'
-import { METRICS, SECTION_ORDER, VERDICT_META, getNumericRank, type MetricDef } from '@/app/research/compare/metrics'
+import { METRICS, SECTION_ORDER, VERDICT_META_NOIR, getNumericRank, type MetricDef } from '@/app/research/compare/metrics'
 import {
   buildSeparationEngine,
   pickLeaderIndex,
@@ -39,6 +39,12 @@ import {
 //     explanation for its (explicitly unwired) demo tab. No stored field
 //     backs an authored claim like that, so this shows each candidate's own
 //     real quality tier + verdict instead.
+//
+// Terminal Noir port (2026-07-23): presentation-only re-skin, same
+// computation (buildSeparationEngine/pickLeaderIndex/isWeakSet — all
+// untouched) and same real fields. Cream tokens remapped to the dark
+// register; VERDICT_META_NOIR (an additive sibling to metrics.ts's
+// still-cream VERDICT_META) supplies dark-safe verdict pill colors.
 
 const GLYPH: Record<string, string> = {
   BUILD_NOW:               '▲',
@@ -115,16 +121,16 @@ function SigTrackRow({
       tabIndex={0}
       onClick={activate}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate() } }}
-      className="cursor-pointer rounded-lg border-b border-pi-hairline px-1 py-3 last:border-b-0 hover:bg-pi-gold/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-bright"
+      className="cursor-pointer rounded-lg border-b border-pi-noir-hairline px-1 py-3 last:border-b-0 hover:bg-pi-gold-deep/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-deep"
       aria-label={`${metric.label}, jump to full evidence`}
     >
       <div className="mb-2.5 flex items-baseline justify-between gap-2.5">
-        <span className="text-[13px] font-bold text-pi-ink">{metric.label}</span>
-        <span className={cn('font-mono text-[10.5px] font-bold', weak ? 'text-pi-risk' : 'text-pi-gold')}>
+        <span className="text-[13px] font-bold text-pi-noir-text">{metric.label}</span>
+        <span className={cn('font-mono text-[10.5px] font-bold', weak ? 'text-pi-risk-noir' : 'text-pi-gold-deep')}>
           {leaderName} {weak ? 'behind' : 'ahead'}
         </span>
       </div>
-      <div className="relative mx-[9px] h-1 rounded-full bg-pi-hairline">
+      <div className="relative mx-[9px] h-1 rounded-full bg-pi-noir-hairline">
         {values.map((v, i) => {
           const p = positions[i] === null ? 50 : (positions[i] as number) * 100
           const isLeader = i === leaderIdx
@@ -134,22 +140,22 @@ function SigTrackRow({
               title={`${itemLabel(items[i])}: ${metric.format(v)}`}
               style={{ left: `${p}%` }}
               className={cn(
-                '-translate-y-1/2 absolute top-1/2 -translate-x-1/2 rounded-full border-2 border-pi-cream shadow-[0_1px_3px_rgba(0,0,0,0.18)]',
+                '-translate-y-1/2 absolute top-1/2 -translate-x-1/2 rounded-full border-2 border-pi-stage shadow-[0_1px_3px_rgba(0,0,0,0.4)]',
                 isLeader
                   ? weak
-                    ? 'z-10 h-[17px] w-[17px] bg-pi-risk shadow-[0_2px_8px_rgba(161,63,46,0.4)]'
-                    : 'z-10 h-[17px] w-[17px] bg-pi-gold-deep shadow-[0_2px_8px_rgba(212,169,74,0.5)]'
-                  : 'h-3 w-3 bg-pi-faint'
+                    ? 'z-10 h-[17px] w-[17px] bg-pi-risk-noir shadow-[0_2px_10px_rgba(232,120,94,0.45)]'
+                    : 'z-10 h-[17px] w-[17px] bg-pi-gold-deep shadow-[0_2px_10px_rgba(212,169,74,0.55)]'
+                  : 'h-3 w-3 bg-pi-noir-sub'
               )}
             />
           )
         })}
       </div>
-      <p className="mt-2 font-mono text-[10.5px] text-pi-sub">
+      <p className="mt-2 font-mono text-[10.5px] text-pi-noir-sub">
         {values.map((v, i) => (
           <span key={i}>
             {i > 0 && ' · '}
-            <span className={i === leaderIdx ? 'font-bold text-pi-ink' : undefined}>
+            <span className={i === leaderIdx ? 'font-bold text-pi-noir-text' : undefined}>
               {shortLabel(items[i])}: {metric.format(v)}
             </span>
           </span>
@@ -213,26 +219,26 @@ export function CompareResults({
   if (weakSet) {
     return (
       <div className="space-y-6">
-        <p className="rounded-xl border-l-[3px] border-pi-risk bg-pi-sand px-[22px] py-5 font-serif text-[21px] font-semibold leading-relaxed tracking-tight text-pi-ink">
-          <b className="text-pi-risk">None of these {items.length} clears the bar.</b>{' '}
-          The strongest of them still comes back {VERDICT_META[items[leaderIdx].verdict!]?.label ?? 'unresolved'} —
+        <p className="rounded-xl border-l-[3px] border-pi-risk-noir bg-pi-elevated px-[22px] py-5 font-serif text-[21px] font-semibold leading-relaxed tracking-tight text-pi-noir-text">
+          <b className="text-pi-risk-noir">None of these {items.length} clears the bar.</b>{' '}
+          The strongest of them still comes back {VERDICT_META_NOIR[items[leaderIdx].verdict!]?.label ?? 'unresolved'} —
           this comparison has no winner to declare.
         </p>
 
         <div className={cn('grid gap-2.5', items.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
           {items.map((item, i) => {
-            const meta = item.verdict ? VERDICT_META[item.verdict] : null
+            const meta = item.verdict ? VERDICT_META_NOIR[item.verdict] : null
             const isLeader = i === leaderIdx
             return (
               <div
                 key={item.analysis_id}
                 className={cn(
-                  'rounded-xl border border-pi-hairline bg-pi-card p-4',
-                  isLeader && 'shadow-[0_0_0_1.5px_#D4A94A] bg-pi-gold/[0.06]'
+                  'rounded-xl border border-pi-noir-hairline bg-pi-stage p-4',
+                  isLeader && 'shadow-[0_0_0_1.5px_#D4A94A] bg-pi-gold-deep/[0.06]'
                 )}
               >
                 {isLeader && (
-                  <span className="mb-2 block w-fit rounded-full bg-pi-hairline px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-pi-sub">
+                  <span className="mb-2 block w-fit rounded-full bg-pi-noir-hairline px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-pi-noir-sub">
                     Best of a weak set
                   </span>
                 )}
@@ -241,12 +247,12 @@ export function CompareResults({
                     <span className="text-[9px]" aria-hidden>{item.verdict ? GLYPH[item.verdict] : ''}</span>{meta.label}
                   </span>
                 )}
-                <p className="mb-1.5 text-sm font-bold leading-tight text-pi-ink">{itemLabel(item)}</p>
-                <p className="font-mono text-[22px] font-bold text-pi-ink">
-                  {item.score} <span className="text-[11px] font-normal text-pi-sub">/100</span>
+                <p className="mb-1.5 text-sm font-bold leading-tight text-pi-noir-text">{itemLabel(item)}</p>
+                <p className="font-mono text-[22px] font-bold text-pi-noir-text">
+                  {item.score} <span className="text-[11px] font-normal text-pi-noir-sub">/100</span>
                 </p>
-                <p className="mt-1 font-mono text-[10.5px] text-pi-sub">{confMetaText(item)}</p>
-                <Link href={memoHref(item)} className="mt-1.5 inline-block text-[11px] text-pi-ink underline underline-offset-2 hover:text-pi-gold">
+                <p className="mt-1 font-mono text-[10.5px] text-pi-noir-sub">{confMetaText(item)}</p>
+                <Link href={memoHref(item)} className="mt-1.5 inline-block text-[11px] text-pi-noir-text underline underline-offset-2 hover:text-pi-gold-deep">
                   Open →
                 </Link>
               </div>
@@ -255,15 +261,15 @@ export function CompareResults({
         </div>
 
         <div>
-          <p className="mb-1 inline-block text-[15px] font-bold text-pi-ink">Why none of them clear it</p>
-          <p className="mb-3.5 text-xs text-pi-sub">Each candidate&apos;s own real verdict + quality tier — not a ranking of runners-up.</p>
+          <p className="mb-1 inline-block text-[15px] font-bold text-pi-noir-text">Why none of them clear it</p>
+          <p className="mb-3.5 text-xs text-pi-noir-sub">Each candidate&apos;s own real verdict + quality tier — not a ranking of runners-up.</p>
           <div className="flex flex-col gap-2">
             {items.map(item => (
-              <div key={item.analysis_id} className="w-full rounded-xl border border-pi-hairline bg-pi-card px-[18px] py-3.5">
-                <p className="mb-0.5 font-mono text-[10px] uppercase tracking-wider text-pi-faint">{itemLabel(item)}</p>
-                <p className="text-sm leading-relaxed text-pi-ink">
+              <div key={item.analysis_id} className="w-full rounded-xl border border-pi-noir-hairline bg-pi-stage px-[18px] py-3.5">
+                <p className="mb-0.5 font-mono text-[10px] uppercase tracking-wider text-pi-noir-sub">{itemLabel(item)}</p>
+                <p className="text-sm leading-relaxed text-pi-noir-text">
                   {item.verdict
-                    ? `${VERDICT_META[item.verdict].label}${item.qualityTier ? ` — ${item.qualityTier} quality` : ''}.`
+                    ? `${VERDICT_META_NOIR[item.verdict].label}${item.qualityTier ? ` — ${item.qualityTier} quality` : ''}.`
                     : 'No verdict is stored for this analysis yet.'}
                 </p>
               </div>
@@ -271,7 +277,7 @@ export function CompareResults({
           </div>
         </div>
 
-        <p className="border-t border-pi-hairline pt-4 text-[11.5px] leading-relaxed text-pi-faint">
+        <p className="border-t border-pi-noir-hairline pt-4 text-[11.5px] leading-relaxed text-pi-noir-sub">
           This state renders whenever every compared candidate&apos;s own verdict falls short of Watch Closely — the
           screen will never promote a &quot;least-bad&quot; option into looking like a recommendation. Re-run analysis
           or widen the search instead of building on any of these as-is.
@@ -287,22 +293,22 @@ export function CompareResults({
       <div className="mb-2.5 flex flex-col gap-3">
         {items.map((item, i) => {
           const isLeader = i === leaderIdx
-          const meta = item.verdict ? VERDICT_META[item.verdict] : null
+          const meta = item.verdict ? VERDICT_META_NOIR[item.verdict] : null
           const pct = mounted ? item.score : 0
           return (
             <div key={item.analysis_id} className="grid grid-cols-[minmax(96px,150px)_1fr_46px] items-center gap-2 sm:gap-3.5">
-              <div className="text-[13px] font-bold leading-tight text-pi-ink">
+              <div className="text-[13px] font-bold leading-tight text-pi-noir-text">
                 {itemLabel(item)}
-                <small className="mt-0.5 block text-[10.5px] font-normal text-pi-sub">{confMetaText(item)}</small>
+                <small className="mt-0.5 block text-[10.5px] font-normal text-pi-noir-sub">{confMetaText(item)}</small>
               </div>
               <div
                 className={cn(
-                  'relative h-[38px] overflow-hidden rounded-[9px] bg-pi-sand',
+                  'relative h-[38px] overflow-hidden rounded-[9px] bg-pi-elevated',
                   isLeader && 'shadow-[0_0_0_1.5px_#D4A94A]'
                 )}
               >
                 {meta && (
-                  <span className={cn('absolute left-2.5 top-1/2 z-10 -translate-y-1/2 whitespace-nowrap text-[10px] font-bold', isLeader ? 'text-[#3a2e08]' : 'text-pi-ink')}>
+                  <span className={cn('absolute left-2.5 top-1/2 z-10 -translate-y-1/2 whitespace-nowrap text-[10px] font-bold', isLeader ? 'text-[#16130a]' : 'text-pi-noir-text')}>
                     {item.verdict ? GLYPH[item.verdict] : ''} {meta.label}
                   </span>
                 )}
@@ -311,46 +317,46 @@ export function CompareResults({
                   className={cn(
                     'absolute inset-0 rounded-[9px] transition-[width] duration-1000 ease-out motion-reduce:transition-none',
                     isLeader
-                      ? 'bg-gradient-to-r from-[#c9a13f] to-pi-gold-deep shadow-[0_0_14px_rgba(212,169,74,0.35)]'
-                      : 'bg-gradient-to-r from-pi-faint/35 to-pi-faint/50'
+                      ? 'bg-gradient-to-r from-[#c9a13f] to-pi-gold-deep shadow-[0_0_16px_rgba(212,169,74,0.4)]'
+                      : 'bg-gradient-to-r from-pi-noir-sub/25 to-pi-noir-sub/35'
                   )}
                 />
               </div>
-              <div className={cn('text-right font-mono text-xl font-bold', isLeader && 'text-pi-gold')}>
+              <div className={cn('text-right font-mono text-xl font-bold', isLeader ? 'text-pi-gold-deep' : 'text-pi-noir-text')}>
                 {item.score}
               </div>
             </div>
           )
         })}
       </div>
-      <p className="mb-7 font-mono text-[10.5px] text-pi-sub">
-        <b className="text-pi-ink">{itemLabel(items[leaderIdx])}</b>{killCaption(items[leaderIdx])}
+      <p className="mb-7 font-mono text-[10.5px] text-pi-noir-sub">
+        <b className="text-pi-noir-text">{itemLabel(items[leaderIdx])}</b>{killCaption(items[leaderIdx])}
       </p>
 
       {/* Layer 1 — decisive signals as dot-plots, computed by separationEngine */}
-      <p className="mb-1 inline-block text-[15px] font-bold text-pi-ink">
+      <p className="mb-1 inline-block text-[15px] font-bold text-pi-noir-text">
         What actually separates them
-        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-pi-gold/[0.14] px-2 py-0.5 align-middle font-mono text-[9.5px] font-bold uppercase tracking-wide text-pi-gold">
+        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-pi-gold-deep/[0.14] px-2 py-0.5 align-middle font-mono text-[9.5px] font-bold uppercase tracking-wide text-pi-gold-deep">
           ⚙ computed, not chosen
         </span>
       </p>
-      <p className="mb-3.5 text-xs text-pi-sub">
+      <p className="mb-3.5 text-xs text-pi-noir-sub">
         {engine.forPool.length} signal{engine.forPool.length === 1 ? '' : 's'} cleared the bar.
       </p>
       <div className="mb-5">
         {engine.forPool.length === 0 && (
-          <p className="m-0 text-sm text-pi-sub">No signal clears the separation bar for {itemLabel(items[leaderIdx])} — the lead is thin.</p>
+          <p className="m-0 text-sm text-pi-noir-sub">No signal clears the separation bar for {itemLabel(items[leaderIdx])} — the lead is thin.</p>
         )}
         {engine.forPool.map(x => (
           <SigTrackRow key={x.metric.id} x={x} items={items} leaderIdx={leaderIdx} weak={false} onJump={jumpToEvidence} />
         ))}
       </div>
 
-      <p className="mb-1 mt-6 text-[15px] font-bold text-pi-ink">Where {shortLabel(items[leaderIdx])} is weakest</p>
-      <p className="mb-3 text-xs text-pi-sub">The single largest gap running against the pick — also computed, not chosen.</p>
+      <p className="mb-1 mt-6 text-[15px] font-bold text-pi-noir-text">Where {shortLabel(items[leaderIdx])} is weakest</p>
+      <p className="mb-3 text-xs text-pi-noir-sub">The single largest gap running against the pick — also computed, not chosen.</p>
       <div className="mb-5">
         {engine.against.length === 0 && (
-          <p className="m-0 text-sm text-pi-sub">No signal goes against {itemLabel(items[leaderIdx])} — it leads or ties on every stored metric.</p>
+          <p className="m-0 text-sm text-pi-noir-sub">No signal goes against {itemLabel(items[leaderIdx])} — it leads or ties on every stored metric.</p>
         )}
         {engine.against.map(x => (
           <SigTrackRow key={x.metric.id} x={x} items={items} leaderIdx={leaderIdx} weak onJump={jumpToEvidence} />
@@ -358,15 +364,15 @@ export function CompareResults({
       </div>
 
       {/* Layer 3 — the tied floor + full evidence, one click away */}
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3.5 border-t border-pi-hairline pt-3">
-        <p className="m-0 text-[13px] text-pi-sub">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3.5 border-t border-pi-noir-hairline pt-3">
+        <p className="m-0 text-[13px] text-pi-noir-sub">
           {tiedCount} more signal{tiedCount === 1 ? '' : 's'} sit below the threshold that surfaced these {Object.keys(engine.decisiveIds).length} — gaps too small to move the decision.
         </p>
         <button
           type="button"
           onClick={() => setAllOpen(o => !o)}
           aria-expanded={allOpen}
-          className="font-mono text-xs font-semibold text-pi-gold underline underline-offset-4 hover:text-pi-gold-bright"
+          className="font-mono text-xs font-semibold text-pi-gold-deep underline underline-offset-4 hover:text-pi-gold-bright"
         >
           {allOpen ? 'Hide the full list ▴' : `See all ${visibleMetrics.length} signals ▾`}
         </button>
@@ -374,13 +380,13 @@ export function CompareResults({
 
       <div className={cn('grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none', allOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
         <div className="overflow-hidden">
-          <div className="mb-2 overflow-x-auto rounded-xl border border-pi-hairline">
+          <div className="mb-2 overflow-x-auto rounded-xl border border-pi-noir-hairline">
             <table className="w-full min-w-[560px] border-collapse text-xs">
               <thead>
-                <tr className="border-b border-pi-hairline bg-pi-sand/60">
-                  <th className="px-3.5 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-wider text-pi-faint">Signal</th>
+                <tr className="border-b border-pi-noir-hairline bg-pi-elevated/60">
+                  <th className="px-3.5 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-wider text-pi-noir-sub">Signal</th>
                   {items.map((item, i) => (
-                    <th key={i} className="px-3 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-wider text-pi-faint">
+                    <th key={i} className="px-3 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-wider text-pi-noir-sub">
                       {shortLabel(item)}{i === leaderIdx ? ' ★' : ''}
                     </th>
                   ))}
@@ -390,7 +396,7 @@ export function CompareResults({
                 {sections.map(sec => (
                   <Fragment key={sec.name}>
                     <tr>
-                      <td colSpan={items.length + 1} className="bg-pi-sand/40 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-pi-faint">
+                      <td colSpan={items.length + 1} className="bg-pi-elevated/40 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-pi-noir-sub">
                         {sec.name}
                       </td>
                     </tr>
@@ -407,21 +413,21 @@ export function CompareResults({
                           id={`sig-${metric.id}`}
                           ref={el => { rowRefs.current[`sig-${metric.id}`] = el }}
                           className={cn(
-                            'border-b border-pi-hairline transition-colors duration-1000 motion-reduce:transition-none',
-                            kind === 'for' && 'border-l-2 border-l-pi-gold-deep bg-pi-gold/5',
-                            kind === 'against' && 'border-l-2 border-l-pi-risk bg-pi-risk/5',
-                            flashId === `sig-${metric.id}` && 'bg-pi-gold/30'
+                            'border-b border-pi-noir-hairline transition-colors duration-1000 motion-reduce:transition-none',
+                            kind === 'for' && 'border-l-2 border-l-pi-gold-deep bg-pi-gold-deep/5',
+                            kind === 'against' && 'border-l-2 border-l-pi-risk-noir bg-pi-risk-noir/5',
+                            flashId === `sig-${metric.id}` && 'bg-pi-gold-deep/25'
                           )}
                         >
-                          <td className="px-3.5 py-2.5 text-pi-sub">{metric.label}</td>
+                          <td className="px-3.5 py-2.5 text-pi-noir-sub">{metric.label}</td>
                           {values.map((v, i) => (
                             <td
                               key={i}
                               className={cn(
                                 'px-3 py-2.5 font-mono',
-                                kind === 'for' && i === winnerIdx ? 'font-bold text-pi-gold'
-                                  : kind === 'against' && i === winnerIdx ? 'font-bold text-pi-risk'
-                                  : 'text-pi-ink'
+                                kind === 'for' && i === winnerIdx ? 'font-bold text-pi-gold-deep'
+                                  : kind === 'against' && i === winnerIdx ? 'font-bold text-pi-risk-noir'
+                                  : 'text-pi-noir-text'
                               )}
                             >
                               {metric.format(v)}
@@ -435,13 +441,13 @@ export function CompareResults({
               </tbody>
             </table>
           </div>
-          <p className="mb-2 mt-2.5 text-[11px] text-pi-faint">
+          <p className="mb-2 mt-2.5 text-[11px] text-pi-noir-sub">
             Gold rows are the &quot;for&quot; signals, red the &quot;against&quot; signal, both from the list above — computed, not authored. Everything else is shown exactly as stored.
           </p>
         </div>
       </div>
 
-      <p className="mt-7 border-t border-pi-hairline pt-4 text-[11.5px] leading-relaxed text-pi-faint">
+      <p className="mt-7 border-t border-pi-noir-hairline pt-4 text-[11.5px] leading-relaxed text-pi-noir-sub">
         Every claim above is computed, not chosen: each stored metric is converted to a direction-adjusted rank, then
         scored by (max rank − min rank) / max(1, max|rank|) — the same polarity rules metrics.ts already uses for
         winner detection. The top-scoring signals the leader wins (cap {DECISIVE_CAP}, min score {DECISIVE_THRESHOLD}) become
@@ -451,11 +457,11 @@ export function CompareResults({
       </p>
 
       {/* Tie-breaker: real, unmodified AI recommendation flow */}
-      <div className="mt-7 rounded-2xl border border-pi-hairline bg-pi-card p-5">
+      <div className="mt-7 rounded-2xl border border-pi-noir-hairline bg-pi-stage p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="m-0 text-sm font-bold text-pi-ink">Still deciding?</p>
-            <p className="m-0 max-w-[44ch] text-xs text-pi-sub">
+            <p className="m-0 text-sm font-bold text-pi-noir-text">Still deciding?</p>
+            <p className="m-0 max-w-[44ch] text-xs text-pi-noir-sub">
               Claude spells out the full reasoning across everything above — numbers are never modified, only explained.
             </p>
           </div>
@@ -464,22 +470,22 @@ export function CompareResults({
               type="button"
               onClick={onGetRecommendation}
               disabled={recLoading}
-              className="shrink-0 whitespace-nowrap rounded-lg bg-pi-ink px-4 py-2.5 text-[13px] font-semibold text-pi-cream transition-colors duration-150 hover:bg-[#24262B] disabled:opacity-50"
+              className="shrink-0 whitespace-nowrap rounded-lg bg-gradient-to-br from-[#F6E7B8] via-pi-gold-deep to-pi-gold-bright px-4 py-2.5 text-[13px] font-semibold text-[#16130a] transition-[filter] duration-150 hover:brightness-105 disabled:opacity-50"
             >
               {recLoading ? 'Analyzing…' : 'Get the full reasoning →'}
             </button>
           )}
         </div>
-        {recError && <p className="mt-2 text-xs text-pi-risk">{recError}</p>}
+        {recError && <p className="mt-2 text-xs text-pi-risk-noir">{recError}</p>}
         {recommendation && (
           <div className="mt-3.5 space-y-2">
-            <div className="rounded-[10px] bg-pi-sand px-[18px] py-4 text-[13.5px] leading-relaxed text-pi-ink whitespace-pre-wrap">
+            <div className="rounded-[10px] bg-pi-elevated px-[18px] py-4 text-[13.5px] leading-relaxed text-pi-noir-text whitespace-pre-wrap">
               {recommendation}
             </div>
             <button
               type="button"
               onClick={onGetRecommendation}
-              className="font-mono text-[10px] uppercase tracking-wide text-pi-sub hover:text-pi-ink"
+              className="font-mono text-[10px] uppercase tracking-wide text-pi-noir-sub hover:text-pi-noir-text"
             >
               Regenerate
             </button>

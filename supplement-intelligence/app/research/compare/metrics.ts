@@ -61,6 +61,24 @@ export const VERDICT_META: Record<MarketVerdict, { label: string; cls: string }>
   PASS:                    { label: 'Pass',                     cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
 }
 
+// Terminal Noir port (2026-07-23) — additive sibling to VERDICT_META above,
+// same label strings, same union keys; only `cls` is re-tuned onto the
+// dark-safe pi-*-noir text tokens tailwind.config already ships (VERDICT_META
+// itself is untouched — this file is scoped entirely to Compare, so nothing
+// outside CompareResults.tsx reads either export, but keeping both, rather
+// than mutating the original in place, matches this codebase's established
+// convention for cream->noir color remaps, e.g. CandidateRow.tsx's
+// CHIP_CLS_NOIR next to the still-cream DECISION_CHIP.cls).
+export const VERDICT_META_NOIR: Record<MarketVerdict, { label: string; cls: string }> = {
+  BUILD_NOW:               { label: 'Build Now',              cls: 'text-pi-build-noir border-pi-build-noir/30 bg-pi-build-noir/10' },
+  BUILD_IF_DIFFERENTIATED: { label: 'Build If Differentiated', cls: 'text-pi-gold-deep border-pi-gold-deep/30 bg-pi-gold-deep/10' },
+  WATCH_CLOSELY:           { label: 'Watch Closely',           cls: 'text-pi-gold-deep border-pi-gold-deep/30 bg-pi-gold-deep/10' },
+  WATCH:                   { label: 'Watch',                   cls: 'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated' },
+  INVESTIGATE:             { label: 'Investigate',              cls: 'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated' },
+  AVOID:                   { label: 'Avoid',                    cls: 'text-pi-risk-noir border-pi-risk-noir/30 bg-pi-risk-noir/10' },
+  PASS:                    { label: 'Pass',                     cls: 'text-pi-risk-noir border-pi-risk-noir/30 bg-pi-risk-noir/10' },
+}
+
 function fmtK(n: number | string | boolean | null): string {
   if (n === null || n === undefined || n === '') return '—'
   const num = Number(n)
