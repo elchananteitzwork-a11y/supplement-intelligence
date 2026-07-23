@@ -217,17 +217,11 @@ export default async function Dashboard() {
                 value={`${lifecycleCoverage.classifiedCount}/${lifecycleCoverage.totalCount}`}
               />
 
-              {/* Unresolved per RD-UIv2-M3 §4 Risks — honestly disabled, not a
-                  fake link, until a real "Sources" destination is decided.
-                  Each row below already opens the full verdict via its own →. */}
-              <span
-                role="link"
-                aria-disabled="true"
-                title="Not yet available — each candidate's own → below already opens its full verdict page"
-                className="ml-auto cursor-not-allowed self-center text-[11.5px] font-semibold text-pi-faint"
-              >
-                Sources →
-              </span>
+              {/* The disabled "Sources →" placeholder that used to sit here
+                  was cut in the 2026-07-24 data-density pass (owner-approved)
+                  — a control that does nothing is noise, and its own tooltip
+                  admitted each row's → already opens the full verdict. If a
+                  real Sources destination ever ships, add a real link then. */}
             </div>
           )}
         </header>

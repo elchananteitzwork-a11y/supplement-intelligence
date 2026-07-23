@@ -198,15 +198,6 @@ export function firstSentence(text: string | null | undefined): string | null {
   return (match ? match[0] : text).trim()
 }
 
-// 2026-06-26 redesign: financial/competitor fields now sometimes contain
-// the full "Not independently verified — ..." sentence instead of a
-// fabricated number — correct, but too long for a compact chip.
-export function isUnverifiedText(v: string | undefined | null): boolean {
-  return !v || v === 'N/A' || v.toLowerCase().includes('not independently verified')
-}
-export function shortFactValue(v: string): string {
-  return isUnverifiedText(v) ? 'Not verified' : v
-}
 
 export const LEVEL_TO_SIGNAL: Record<'High' | 'Medium' | 'Low', 'Strong' | 'Moderate' | 'Weak'> = {
   High: 'Strong', Medium: 'Moderate', Low: 'Weak',

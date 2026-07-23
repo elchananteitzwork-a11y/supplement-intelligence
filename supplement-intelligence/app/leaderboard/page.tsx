@@ -7,7 +7,6 @@ import { StatTile } from '@/components/ui'
 import { computeGroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import { deriveLifecycleDisplay, deriveV2VerdictDisplay, type LifecycleDisplay, type V2VerdictDisplay } from '@/components/memo/field-derivations'
-import { deriveHistoricalOutcomeStatus, type HistoricalOutcomeStatus } from '@/components/leaderboard/derivations'
 import { isDevUnlimitedAnalysesEnabled } from '@/lib/billing/dev-bypass'
 
 function timeLabelFor(r: LeaderboardRow) {
@@ -22,12 +21,11 @@ interface TrackRecordIntelligence {
   lifecycle:         LifecycleDisplay | null
   v2Verdict:         V2VerdictDisplay | null
   confidencePct:     number | null
-  historicalOutcome: HistoricalOutcomeStatus | null
 }
 
-function computeRowIntelligence(memo: MemoData | null, bestAnalysisCreatedAt: string | null): TrackRecordIntelligence {
+function computeRowIntelligence(memo: MemoData | null): TrackRecordIntelligence {
   if (!memo) {
-    return { lifecycle: null, v2Verdict: null, confidencePct: null, historicalOutcome: null }
+    return { lifecycle: null, v2Verdict: null, confidencePct: null }
   }
   const grounded = computeGroundedScore(memo)
   const confidenceAssessment = computeConfidenceAssessment(grounded)
@@ -35,7 +33,6 @@ function computeRowIntelligence(memo: MemoData | null, bestAnalysisCreatedAt: st
     lifecycle:     deriveLifecycleDisplay(memo),
     v2Verdict:     deriveV2VerdictDisplay(memo.opportunity_quality, memo.market_verdict),
     confidencePct: confidenceAssessment.overallConfidence !== null ? Math.round(confidenceAssessment.overallConfidence * 100) : null,
-    historicalOutcome: bestAnalysisCreatedAt ? deriveHistoricalOutcomeStatus(bestAnalysisCreatedAt) : null,
   }
 }
 
@@ -72,7 +69,7 @@ export default async function Leaderboard() {
 
   const rowIntel = rows.map(r => {
     const best = r.best_analysis_id ? analysisById.get(r.best_analysis_id) : undefined
-    return computeRowIntelligence(best?.memo_data ?? null, best?.created_at ?? null)
+    return computeRowIntelligence(best?.memo_data ?? null)
   })
 
   const pro   = profile as Profile | null
@@ -110,7 +107,6 @@ export default async function Leaderboard() {
               lifecycle={rowIntel[i].lifecycle}
               v2Verdict={rowIntel[i].v2Verdict}
               confidencePct={rowIntel[i].confidencePct}
-              historicalOutcome={rowIntel[i].historicalOutcome}
             />
           ))}
         </div>

@@ -17,7 +17,7 @@ import {
   consistencyFlagProvenance, evidenceBreadthProvenance, channelConcentrationProvenance,
   coverageNoteProvenance, categoryCreationProvenance,
 } from '@/lib/provenance'
-import { EvidenceBadge, ProvenanceCaption, ConfidencePill, shortFactValue, deriveConfidenceDisplay, PiCard } from './shared'
+import { EvidenceBadge, ProvenanceCaption, ConfidencePill, deriveConfidenceDisplay, PiCard } from './shared'
 
 // Data-density pass (2026-07-24, owner-approved mockup): this used to be a
 // SEPARATE block repeating the exact same 6 dimension rows the Score
@@ -46,10 +46,6 @@ export default function EvidenceConfidence({
   const contributedChannels = evidenceBreadth.channelBreakdown.filter(c => c.contributed)
   const flags = checkConsistency(m, decision)
   const confidence = deriveConfidenceDisplay(confidenceAssessment)
-  const facts = ([
-    ['Market', m.market_size ? 'Not independently verified — AI estimate only' : undefined],
-    ['Margin', m.gross_margin],
-  ] as [string, string | undefined][]).filter((p): p is [string, string] => !!p[1] && p[1] !== 'N/A')
 
   return (
     <PiCard padded={false} className="rounded-2xl p-6 sm:p-8 animate-in">
@@ -58,17 +54,11 @@ export default function EvidenceConfidence({
         <ConfidencePill level={confidence.level} note={confidence.note} />
       </div>
 
-      {facts.length > 0 && (
-        <div className="flex gap-6 mb-6 pb-6 border-b border-pi-hairline sm:hidden">
-          {facts.map(([l, v]) => (
-            <div key={l} className="text-center">
-              <p className="text-[10px] text-pi-faint uppercase tracking-wider">{l}</p>
-              <p className="font-mono text-xs font-semibold text-pi-gold-bright mt-0.5">{shortFactValue(v)}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
+      {/* The mobile-only Market/Margin "facts" strip that used to render
+          here was cut in the 2026-07-24 data-density pass (owner-approved):
+          its Market cell literally displayed a disclaimer ("Not verified")
+          styled as a stat value, and the real margin figure already lives
+          in the Economics chapter with its full context. */}
       {categoryCreationContext && (
         <div className="mb-5 rounded-lg border border-pi-hairline bg-pi-card px-3.5 py-3">
           <p className="text-[9px] text-pi-ink uppercase tracking-widest font-semibold mb-1.5">Category Creation Candidate</p>

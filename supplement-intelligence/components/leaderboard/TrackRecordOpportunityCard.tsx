@@ -16,7 +16,6 @@
 import Link from 'next/link'
 import type { BuildDecision } from '@/types/index'
 import type { LifecycleDisplay, V2VerdictDisplay } from '@/components/memo/field-derivations'
-import type { HistoricalOutcomeStatus } from '@/components/leaderboard/derivations'
 import { ProductGlyphMini, inferProductShape } from '@/components/ProductGlyph'
 
 // pi-* verdict pill — same mapping as components/memo/CurrentSignal.tsx's
@@ -63,11 +62,6 @@ interface TrackRecordOpportunityCardProps {
   lifecycle:        LifecycleDisplay | null
   v2Verdict:        V2VerdictDisplay | null
   confidencePct:    number | null
-  // Real, elapsed-time-derived checkpoint maturity — see
-  // components/leaderboard/derivations.ts. Null only when this row has no
-  // best_analysis_id to date from (should not happen for a real row, but
-  // never assumed).
-  historicalOutcome: HistoricalOutcomeStatus | null
 }
 
 function sanitizeMarketSize(s: string | null | undefined): string | null {
@@ -86,7 +80,7 @@ function scoreColor(score: number, decision: BuildDecision): string {
 
 export default function TrackRecordOpportunityCard({
   href, rank, categoryName, score, decision, format, competitor, marketSize, timeLabel,
-  lifecycle, v2Verdict, confidencePct, historicalOutcome,
+  lifecycle, v2Verdict, confidencePct,
 }: TrackRecordOpportunityCardProps) {
   const safeMarketSize = sanitizeMarketSize(marketSize)
   const color = scoreColor(score, decision)
@@ -146,16 +140,13 @@ export default function TrackRecordOpportunityCard({
           </div>
         )}
 
-        {historicalOutcome && (
-          <div className="mt-2 pt-2 border-t border-pi-hairline flex items-center gap-1.5">
-            <span className="text-[8px] font-mono text-pi-faint uppercase tracking-wider">Historical Outcome:</span>
-            <span className="text-[9px] font-mono text-pi-sub">
-              {historicalOutcome.maturity === 'too_early'
-                ? `Too early for a checkpoint (${historicalOutcome.daysSinceVerdict}d since verdict, first eligible at 90d)`
-                : 'Not yet available in this UI (Roadmap M3.1)'}
-            </span>
-          </div>
-        )}
+        {/* The "Historical Outcome" strip that used to render here was cut
+            in the 2026-07-24 data-density pass (owner-approved): it never
+            showed a real outcome — only "too early for a checkpoint" or a
+            "Roadmap M3.1" placeholder, internal jargon on every card.
+            Bring outcome display back only when M3.1 ships a real
+            user-readable outcome source (verdict_ledger_outcomes has no
+            user read path today by design — migration 024). */}
       </div>
     </div>
   )

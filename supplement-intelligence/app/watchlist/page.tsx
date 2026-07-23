@@ -191,10 +191,10 @@ export default function WatchlistPage() {
       key: 'last_checked', header: 'Last Checked', hideOnMobile: true,
       render: w => <span className="text-xs font-mono text-pi-faint whitespace-nowrap">{formatRelative(w.entry.last_checked_at)}</span>,
     },
-    {
-      key: 'next_check', header: 'Next Check', hideOnMobile: true,
-      render: () => <span className="text-xs font-mono text-pi-faint whitespace-nowrap">{formatDate(nextCheck)}</span>,
-    },
+    // "Next Check" used to be a column here — cut in the 2026-07-24
+    // data-density pass (owner-approved): nextScheduledRecheck() takes no
+    // per-row input, so every cell held the identical date. It's now one
+    // caption line under the table instead.
     {
       key: 'actions', header: '', align: 'right',
       render: w => (
@@ -253,7 +253,12 @@ export default function WatchlistPage() {
         )}
 
         {!loading && !error && watches.length > 0 && (
-          <LedgerTable variant="pi" columns={columns} rows={watches} />
+          <div>
+            <LedgerTable variant="pi" columns={columns} rows={watches} />
+            <p className="mt-2 text-[10px] font-mono text-pi-faint">
+              Next scheduled re-check for all watches: {formatDate(nextCheck)}
+            </p>
+          </div>
         )}
 
         {!loading && !error && eligible.length > 0 && (
