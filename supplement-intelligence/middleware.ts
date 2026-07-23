@@ -8,7 +8,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 // page does. Added for consistent behavior, not because of a real leak.
 // UIv2-M3 Home rebuild: /pipeline removed (route deleted — merged into
 // /dashboard); a deleted route 404s regardless of this list.
-const GUARDED = ['/dashboard', '/memo', '/leaderboard', '/research', '/analyze', '/thesis', '/watchlist', '/alerts', '/settings']
+// V4 Phase 1 (2026-07-24): '/app' added — the new V4 surface (Stream/Brief).
+// Its pages already redirect('/login') themselves; this is the same
+// defense-in-depth consistency every other authenticated route gets.
+const GUARDED = ['/dashboard', '/memo', '/leaderboard', '/research', '/analyze', '/thesis', '/watchlist', '/alerts', '/settings', '/app']
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req })
