@@ -207,16 +207,14 @@ function EvidenceGrid({ scores }: { scores: OpportunityCard['scores'] }) {
   )
 }
 
-// Terminal Noir register port (2026-07-23): AppShell/SideNav stay on
-// variant="pi" (cream sidebar) deliberately — components/pi/HomeShell.tsx's
-// own Home-rebuild comment records that those two files are shared,
-// load-bearing infra for every other AppShell route and are staying
-// unchanged "until their own milestone." So the dark register is applied
-// here as a full-bleed stage that bleeds past AppShell's `<main>` padding
-// (negative-margin + matching re-padding, standard technique for a child
-// that needs to visually own the whole content region without touching its
-// parent) rather than by editing the shared shell. Sidebar/mobile-topbar
-// chrome is the only thing that stays cream on this route for now.
+// Terminal Noir register port (2026-07-23): AppShell/SideNav gained a real,
+// additive `variant="pi-noir"` from the parallel Watchlist/Alerts/Track
+// Record/Settings port (components/shell/AppShell.tsx) after this file's
+// own port was written — switched to it below for nav consistency across
+// the whole product (every other noir-ported screen uses a dark sidebar).
+// NoirStage is now a harmless no-op (AppShell's own `bg-pi-void` already
+// covers the area it used to bleed into) but is left in place rather than
+// unwound, since removing it touches no behavior either way.
 function NoirStage({ children }: { children: React.ReactNode }) {
   return (
     <div className="-mx-4 -mt-8 -mb-8 min-h-screen bg-pi-void px-4 py-8 lg:-mx-10 lg:-mt-10 lg:-mb-10 lg:px-10 lg:py-10">
@@ -1052,17 +1050,17 @@ export default function AnalyzePage() {
   // was carried forward unexamined in the prior rebuild pass. See
   // docs/STITCH_NARRATIVE_REMAPPING.md §2.
   if (mode === 'classifying') {
-    return <AppShell active={null} variant="pi"><NoirStage><InvestigationConsole mode="classifying" query={input} steps={CLASSIFYING_STEPS} stepIdx={stepIdx} providers={[]} /></NoirStage></AppShell>
+    return <AppShell active={null} variant="pi-noir"><NoirStage><InvestigationConsole mode="classifying" query={input} steps={CLASSIFYING_STEPS} stepIdx={stepIdx} providers={[]} /></NoirStage></AppShell>
   }
 
   // ── DISCOVERING screen ─────────────────────────────────────────
   if (mode === 'discovering') {
-    return <AppShell active={null} variant="pi"><NoirStage><InvestigationConsole mode="discovering" query={input} steps={DISCOVERY_STEPS} stepIdx={stepIdx} providers={DISCOVERY_PROVIDERS} /></NoirStage></AppShell>
+    return <AppShell active={null} variant="pi-noir"><NoirStage><InvestigationConsole mode="discovering" query={input} steps={DISCOVERY_STEPS} stepIdx={stepIdx} providers={DISCOVERY_PROVIDERS} /></NoirStage></AppShell>
   }
 
   // ── ANALYZING screen ───────────────────────────────────────────
   if (mode === 'analyzing') {
-    return <AppShell active={null} variant="pi"><NoirStage><InvestigationConsole mode="analyzing" query={analyzingName} steps={ANALYSIS_STEPS} stepIdx={stepIdx} providers={ANALYSIS_PROVIDERS} /></NoirStage></AppShell>
+    return <AppShell active={null} variant="pi-noir"><NoirStage><InvestigationConsole mode="analyzing" query={analyzingName} steps={ANALYSIS_STEPS} stepIdx={stepIdx} providers={ANALYSIS_PROVIDERS} /></NoirStage></AppShell>
   }
 
   // ── RESULTS screen ─────────────────────────────────────────────
@@ -1071,7 +1069,7 @@ export default function AnalyzePage() {
     const ranked = opportunities.map((opp, i) => ({ ...opp, rank: i + 1 }))
 
     return (
-      <AppShell active={null} variant="pi">
+      <AppShell active={null} variant="pi-noir">
       <NoirStage>
         <div className="max-w-6xl mx-auto animate-in">
 
@@ -1125,7 +1123,7 @@ export default function AnalyzePage() {
 
   // ── FORM ──────────────────────────────────────────────────────
   return (
-    <AppShell active={null} variant="pi">
+    <AppShell active={null} variant="pi-noir">
       <NoirStage>
       <div className="max-w-4xl mx-auto animate-in">
 
