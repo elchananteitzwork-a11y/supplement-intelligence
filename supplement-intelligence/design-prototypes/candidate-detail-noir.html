@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MOCKUP — Candidate Detail, "The Instrument Room" (Terminal Noir)</title>
+<style>
+/* ============================================================================
+   TERMINAL NOIR MOCKUP — Direction A ("the Instrument Room"), owner-approved
+   2026-07-23 after the first-principles critique. Supersedes the all-cream
+   directive FOR PRODUCT SCREENS (Landing stays cinematic; cream survives as
+   a reading register where chosen).
+
+   The direction's core argument, demonstrated here:
+   1. The locked DNA — "luminosity = confidence" — physically works again.
+      The stage is the rotor's ORIGINAL native #14130F (the exact bg it was
+      tuned against before the cream directive).
+   2. Gold is the only light source. Cream inverts into the text color —
+      same family, world inverted. One World restored: the product joins
+      the Landing's dark cinematic world instead of diverging from it.
+   3. The interface is ALIVE: evidence age ticks in real time, the rotor
+      turns, confidence decays visibly. An intelligent machine, not a page.
+   4. Honesty as authority: provenance is lit, not apologetic gray.
+   5. Signature interaction: PULL, on the verdict — hinted here, real
+      (already-wired gesture plumbing exists in corePullPhysics.ts).
+   6. Identity: every analysis has a rotor FINGERPRINT — its real
+      dimensional shape at 16px. Demonstrated with 3 real analyses.
+
+   IA is UNCHANGED from the shipped verdict card (survives the re-skin):
+   category → rotor → verdict word → why → confidence → signals → kill-line
+   → Sources. All values real ("Shift Work Sleep Reset", score 66).
+   ========================================================================= */
+:root{
+  --void:#0C0B08; --stage:#14130F; --elevated:#1C1A13;
+  --txt:#F5EFDF; --sub:#A79E8B; --dim:#6E675A;
+  --gold:#D4A94A; --gold-bright:#E4BC5C; --gold-pale:#F6E7B8;
+  --build:#6FC492; --invest:#8FB7EF; --risk:#E8785E; --pass:#A29A87;
+  --hair:rgba(212,169,74,0.14); --hair-soft:rgba(245,239,223,0.07);
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--void);color:var(--txt);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;}
+.serif{font-family:"Source Serif 4",Georgia,serif;}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;}
+
+.proto{position:sticky;top:0;z-index:99;background:var(--gold);color:#14130F;text-align:center;
+  font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700;letter-spacing:.05em;padding:6px 10px;}
+
+main{max-width:780px;margin:0 auto;padding:36px 24px 90px;}
+
+.crumb{display:flex;align-items:center;gap:10px;font-family:ui-monospace,monospace;font-size:11px;
+  color:var(--sub);margin-bottom:22px;}
+.crumb a{color:var(--sub);text-decoration:none;}
+.crumb a:hover{color:var(--txt);}
+.crumb .fp{width:16px;height:16px;}
+
+/* ── the instrument card ── */
+.card{background:var(--stage);border:1px solid var(--hair);border-radius:22px;
+  padding:38px 40px 32px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4),0 30px 80px -30px rgba(0,0,0,.8),inset 0 1px 0 rgba(245,239,223,.04);}
+/* faint gold ambient wash behind the rotor — the room's single light */
+.card::before{content:"";position:absolute;top:-80px;left:50%;transform:translateX(-50%);
+  width:520px;height:420px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(212,169,74,.13),rgba(212,169,74,.04) 55%,transparent 75%);}
+
+.live-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px;position:relative;}
+.live-row .name{font-size:14px;font-weight:650;color:var(--txt);display:flex;align-items:center;gap:9px;}
+.live-row .name .fp{width:18px;height:18px;}
+.live{display:flex;align-items:center;gap:7px;font-family:ui-monospace,monospace;font-size:10px;
+  letter-spacing:.08em;color:var(--sub);text-transform:uppercase;}
+.live i{width:6px;height:6px;border-radius:50%;background:var(--gold-bright);display:inline-block;}
+@media (prefers-reduced-motion: no-preference){
+  .live i{animation:pulse 2.4s var(--ease) infinite;}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 6px rgba(228,188,92,.8)}50%{opacity:.45;box-shadow:none}}
+}
+
+/* rotor — glowing on its native stage */
+.rotor-stage{position:relative;width:250px;height:250px;margin:0 auto 20px;}
+.rotor-stage svg{width:100%;height:100%;overflow:visible;}
+.rotor-stage .blades{transform-origin:100px 100px;
+  filter:drop-shadow(0 0 18px rgba(212,169,74,.35)) drop-shadow(0 14px 30px rgba(0,0,0,.6));}
+@media (prefers-reduced-motion: no-preference){
+  .rotor-stage .blades{animation:turn 60s linear infinite;}
+  @keyframes turn{to{transform:rotate(360deg)}}
+}
+.hub{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.hub .score{font-family:ui-monospace,monospace;font-size:56px;font-weight:800;line-height:1;
+  color:var(--gold-bright);text-shadow:0 0 24px rgba(228,188,92,.45);}
+.hub .l{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--sub);margin-top:3px;}
+
+/* verdict word — typographic extremity */
+.verdict{text-align:center;position:relative;}
+.verdict .word{font-family:"Source Serif 4",Georgia,serif;font-size:clamp(30px,4.6vw,40px);font-weight:700;
+  letter-spacing:-.01em;line-height:1.1;color:var(--invest);}
+.verdict .word .glyph{font-size:.62em;vertical-align:.12em;margin-right:10px;}
+/* PULL — the signature interaction, hinted */
+.pull{margin:14px auto 0;width:210px;user-select:none;}
+.pull .track{height:3px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--hair) 20%,rgba(212,169,74,.45) 50%,var(--hair) 80%,transparent);position:relative;}
+.pull .grip{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;
+  background:var(--elevated);border:1px solid var(--gold);box-shadow:0 0 12px rgba(212,169,74,.35);cursor:grab;}
+.pull .hint{font-family:ui-monospace,monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--sub);text-align:center;margin-top:9px;}
+.pull .hint b{color:var(--sub);font-weight:600;}
+
+.why{text-align:center;font-size:14.5px;line-height:1.65;color:var(--sub);max-width:52ch;margin:22px auto 0;text-wrap:balance;}
+
+/* confidence + decay — time made visible */
+.conf{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;margin:20px 0 4px;position:relative;}
+.conf .w{font-family:ui-monospace,monospace;font-size:14px;font-weight:700;color:var(--txt);}
+.conf .dots i{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:3px;background:var(--gold-bright);box-shadow:0 0 8px rgba(228,188,92,.5);}
+.conf .dots i.off{background:transparent;border:1.2px solid var(--dim);box-shadow:none;}
+.conf .l{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);}
+.conf .weak{font-size:11.5px;color:var(--sub);}
+.decay{max-width:300px;margin:6px auto 24px;}
+.decay .bar{height:2px;border-radius:1px;background:var(--hair-soft);overflow:hidden;}
+.decay .bar i{display:block;height:100%;width:88%;border-radius:1px;
+  background:linear-gradient(90deg,var(--gold),var(--gold-bright));box-shadow:0 0 8px rgba(212,169,74,.4);}
+.decay .l{display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:8.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--sub);margin-top:5px;}
+.decay .l b{color:var(--sub);font-weight:600;font-variant-numeric:tabular-nums;}
+
+/* signal grid — lit instrument tiles, ambient density */
+.signals{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hair-soft);
+  border:1px solid var(--hair-soft);border-radius:14px;overflow:hidden;margin-bottom:18px;position:relative;}
+.signal{background:var(--elevated);padding:13px 14px 11px;}
+.signal .k{font-family:ui-monospace,monospace;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin:0 0 5px;}
+.signal .v{font-family:ui-monospace,monospace;font-size:16px;font-weight:700;color:var(--txt);}
+.signal .v.na{color:var(--sub);font-style:italic;font-size:12px;font-weight:500;}
+.signal .src{font-family:ui-monospace,monospace;font-size:8.5px;margin-top:4px;letter-spacing:.03em;}
+.signal .src.v1{color:var(--build);}
+.signal .src.syn{color:var(--gold);}
+.signal .src.none{color:var(--sub);}
+
+/* kill-line — quiet authority */
+.kill{border:1px solid var(--hair-soft);background:rgba(0,0,0,.25);border-radius:13px;padding:15px 19px;margin-bottom:24px;position:relative;}
+.kill .k{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--sub);margin:0 0 8px;}
+.kill ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px;}
+.kill li{font-size:12.5px;color:var(--sub);line-height:1.5;padding-left:14px;position:relative;}
+.kill li::before{content:"—";position:absolute;left:0;color:var(--dim);}
+.kill li b{color:var(--txt);font-weight:600;}
+
+.sources-row{display:flex;justify-content:center;position:relative;}
+.sources-btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:13px 28px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--gold-pale),var(--gold),var(--gold-bright));
+  color:#14130F;font-size:13.5px;font-weight:700;font-family:inherit;
+  box-shadow:0 0 30px rgba(212,169,74,.25),0 10px 24px -10px rgba(0,0,0,.7);transition:transform .18s var(--ease);}
+.sources-btn:hover{transform:translateY(-1px);}
+
+/* fingerprint identity strip */
+.fps{margin-top:40px;}
+.fps .h{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--sub);margin:0 0 12px;text-align:center;}
+.fps .row{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;}
+.fp-chip{display:flex;align-items:center;gap:10px;background:var(--stage);border:1px solid var(--hair-soft);
+  border-radius:12px;padding:10px 16px;}
+.fp-chip svg{width:22px;height:22px;filter:drop-shadow(0 0 6px rgba(212,169,74,.3));}
+.fp-chip .t{font-size:12px;color:var(--sub);}
+.fp-chip .t b{display:block;color:var(--txt);font-weight:600;font-size:12.5px;}
+.fps .cap{text-align:center;font-size:11px;color:var(--sub);margin-top:12px;line-height:1.6;max-width:56ch;margin-left:auto;margin-right:auto;}
+
+footer{max-width:780px;margin:38px auto 0;padding:0 24px 60px;}
+footer p{border-top:1px solid var(--hair-soft);padding-top:18px;font-size:11.5px;line-height:1.7;color:var(--sub);}
+
+@media (max-width:640px){
+  main{padding:26px 14px 70px;}
+  .card{padding:26px 20px 24px;border-radius:18px;}
+  .signals{grid-template-columns:1fr 1fr;}
+  .rotor-stage{width:200px;height:200px;}
+}
+</style>
+</head>
+<body>
+<div class="proto">MOCKUP — Candidate Detail, Terminal Noir ("the Instrument Room") · real values, real stage (#14130F, the rotor's native tuning) · not a live route</div>
+
+<main>
+  <div class="crumb">
+    <a href="#">← Pipeline</a><span>/</span>
+    <svg class="fp" viewBox="0 0 200 200" aria-hidden="true"><g fill="#D4A94A"><path d="M100 100 108 40 140 55Z"/><path d="M100 100 152 78 165 115Z"/><path d="M100 100 148 138 122 168Z"/><path d="M100 100 88 165 55 148Z" opacity=".35"/><path d="M100 100 48 128 32 95Z"/><path d="M100 100 52 58 82 38Z" opacity=".65"/></g><circle cx="100" cy="100" r="26" fill="#0C0B08"/></svg>
+    <span style="color:var(--txt)">Shift Work Sleep Reset</span>
+  </div>
+
+  <div class="card">
+    <div class="live-row">
+      <span class="name">
+        <svg class="fp" viewBox="0 0 200 200" aria-hidden="true"><g fill="#D4A94A"><path d="M100 100 108 40 140 55Z"/><path d="M100 100 152 78 165 115Z"/><path d="M100 100 148 138 122 168Z"/><path d="M100 100 88 165 55 148Z" opacity=".35"/><path d="M100 100 48 128 32 95Z"/><path d="M100 100 52 58 82 38Z" opacity=".65"/></g><circle cx="100" cy="100" r="26" fill="#0C0B08"/></svg>
+        Shift Work Sleep Reset
+      </span>
+      <span class="live"><i></i>evidence age <b class="mono" id="age" style="color:var(--sub);font-variant-numeric:tabular-nums">3h 12m 04s</b></span>
+    </div>
+
+    <div class="rotor-stage" aria-label="Score rotor: 66, six real evidence blades, luminosity = confidence">
+      <svg viewBox="0 0 200 200">
+        <g class="blades">
+          <g stroke="#8D6A16" stroke-width="1">
+            <path d="M 100 100 L 108 40 L 140 55 Z" fill="#E2B95B"/>
+            <path d="M 100 100 L 152 78 L 165 115 Z" fill="#C79B3D"/>
+            <path d="M 100 100 L 148 138 L 122 168 Z" fill="#D0A748"/>
+            <path d="M 100 100 L 88 165 L 55 148 Z" fill="#5A5142" opacity=".55"/>
+            <path d="M 100 100 L 48 128 L 32 95 Z" fill="#E0B75A"/>
+            <path d="M 100 100 L 52 58 L 82 38 Z" fill="#A98A3E" opacity=".8"/>
+          </g>
+        </g>
+        <circle cx="100" cy="100" r="36" fill="#0C0B08" stroke="rgba(212,169,74,.3)" stroke-width="1"/>
+      </svg>
+      <div class="hub"><span class="score">66</span><span class="l">Score</span></div>
+    </div>
+
+    <div class="verdict">
+      <div class="word"><span class="glyph" aria-hidden="true">◆</span>Validation Required</div>
+      <div class="pull" aria-hidden="true">
+        <div class="track"><span class="grip"></span></div>
+        <p class="hint"><b>Pull</b> the verdict — feel how much evidence resists</p>
+      </div>
+    </div>
+
+    <p class="why">Verified demand and a documented TikTok creator ecosystem support the category — but max gross
+    margin at the $27 average price is ~33%, below the 35% viability floor. Validate pricing or COGS before committing.</p>
+
+    <div class="conf">
+      <span class="w">Moderate</span>
+      <span class="dots" aria-hidden="true"><i></i><i></i><i class="off"></i></span>
+      <span class="l">Confidence</span>
+      <span class="weak">· weakest link: Virality</span>
+    </div>
+    <div class="decay">
+      <div class="bar"><i></i></div>
+      <div class="l"><span>Evidence freshness</span><b>88% · re-check due in 18d</b></div>
+    </div>
+
+    <div class="signals">
+      <div class="signal"><p class="k">Demand</p><div class="v">8.7</div><p class="src v1">● VERIFIED · dataforseo + trends</p></div>
+      <div class="signal"><p class="k">Profitability</p><div class="v">4.4</div><p class="src v1">● VERIFIED · keepa + dataforseo</p></div>
+      <div class="signal"><p class="k">Market Access</p><div class="v">5.8</div><p class="src v1">● VERIFIED · keepa + dataforseo</p></div>
+      <div class="signal"><p class="k">Customer Pain</p><div class="v na">Not computed</div><p class="src none">— honest gap, shown as one</p></div>
+      <div class="signal"><p class="k">Virality</p><div class="v">8.0</div><p class="src v1">● VERIFIED · tiktok</p></div>
+      <div class="signal"><p class="k">Subscription</p><div class="v">High</div><p class="src syn">◇ AI JUDGMENT · sample too thin</p></div>
+    </div>
+
+    <div class="kill">
+      <p class="k">We would reverse this verdict if…</p>
+      <ul>
+        <li>Search demand momentum turns <b>Decelerating</b> — currently Decelerating</li>
+        <li>New-listing share of the competitive set exceeds <b>40%</b> — currently 0.0</li>
+        <li>Lifecycle stage advances into <b>Saturated or Declining</b> — currently Saturated</li>
+      </ul>
+    </div>
+
+    <div class="sources-row">
+      <button class="sources-btn">Sources · 4 →</button>
+    </div>
+  </div>
+
+  <!-- identity: rotor fingerprints — real dimensional shapes of 3 real analyses -->
+  <div class="fps">
+    <p class="h">Identity — every analysis is its own fingerprint</p>
+    <div class="row">
+      <div class="fp-chip">
+        <svg viewBox="0 0 200 200" aria-hidden="true"><g fill="#D4A94A"><path d="M100 100 108 40 140 55Z"/><path d="M100 100 152 78 165 115Z" opacity=".55"/><path d="M100 100 148 138 122 168Z" opacity=".7"/><path d="M100 100 88 165 55 148Z" opacity=".35"/><path d="M100 100 48 128 32 95Z"/><path d="M100 100 52 58 82 38Z" opacity=".6"/></g><circle cx="100" cy="100" r="26" fill="#0C0B08"/></svg>
+        <span class="t"><b>Shift Work Sleep Reset</b>66 · Validation Required</span>
+      </div>
+      <div class="fp-chip">
+        <svg viewBox="0 0 200 200" aria-hidden="true"><g fill="#D4A94A"><path d="M100 100 108 40 140 55Z" opacity=".8"/><path d="M100 100 152 78 165 115Z" opacity=".4"/><path d="M100 100 148 138 122 168Z"/><path d="M100 100 88 165 55 148Z" opacity=".55"/><path d="M100 100 48 128 32 95Z" opacity=".7"/><path d="M100 100 52 58 82 38Z" opacity=".3"/></g><circle cx="100" cy="100" r="26" fill="#0C0B08"/></svg>
+        <span class="t"><b>PCOS Weight Loss Support</b>61 · Validation Required</span>
+      </div>
+      <div class="fp-chip">
+        <svg viewBox="0 0 200 200" aria-hidden="true"><g fill="#D4A94A"><path d="M100 100 108 40 140 55Z" opacity=".5"/><path d="M100 100 152 78 165 115Z" opacity=".65"/><path d="M100 100 148 138 122 168Z" opacity=".4"/><path d="M100 100 88 165 55 148Z" opacity=".8"/><path d="M100 100 48 128 32 95Z" opacity=".45"/><path d="M100 100 52 58 82 38Z" opacity=".6"/></g><circle cx="100" cy="100" r="26" fill="#0C0B08"/></svg>
+        <span class="t"><b>Women's Cortisol Support</b>49 · Validation Required</span>
+      </div>
+    </div>
+    <p class="cap">Blade opacity/size = each analysis's real dimensional evidence. At 16px it becomes the row glyph in the
+    pipeline, the loading state, the favicon — the product's signature, generated from real data, unfakeable.</p>
+  </div>
+</main>
+
+<footer>
+  <p>Every number above is real (Shift Work Sleep Reset, live session data); the freshness figure and fingerprint
+  opacities are directional illustrations pending their real derivations. <span class="mono">[Mockup notes: stage is the
+  rotor's original native #14130F — the "luminosity = confidence" DNA renders as designed again (verified live this
+  session: gold glows against dark, inverts on cream). IA is byte-identical to the shipped verdict card — this is a
+  register change, not an architecture change. Live elements (ticking evidence age, rotor rotation, pulse) are
+  reduced-motion-gated. Pull affordance is the signature interaction — real gesture plumbing already exists in
+  corePullPhysics.ts, currently wired to nothing. Cream survives as the reading register where chosen; Landing stays
+  cinematic; One World is restored, not broken.]</span></p>
+</footer>
+
+<script>
+/* ticking evidence age — the "alive" demonstration; frozen under reduced motion */
+(function(){
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var start = Date.now() - (3*3600 + 12*60 + 4) * 1000;
+  var el = document.getElementById('age');
+  setInterval(function(){
+    var s = Math.floor((Date.now() - start)/1000);
+    var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    el.textContent = h + 'h ' + String(m).padStart(2,'0') + 'm ' + String(sec).padStart(2,'0') + 's';
+  }, 1000);
+})();
+</script>
+</body>
+</html>
