@@ -21,18 +21,18 @@ import { ProvenanceBadge, LabEmptyState } from './shared'
 
 function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-lg bg-pi-sand p-4">
-      <p className="font-mono text-[10px] text-pi-faint uppercase tracking-wider">{label}</p>
-      <p className="font-bold text-2xl text-pi-ink leading-tight">{value}</p>
-      {sub && <p className="text-[11px] text-pi-faint mt-0.5">{sub}</p>}
+    <div className="rounded-lg bg-pi-elevated p-4">
+      <p className="font-mono text-[10px] text-pi-noir-sub uppercase tracking-wider">{label}</p>
+      <p className="font-bold text-2xl text-pi-noir-text leading-tight">{value}</p>
+      {sub && <p className="text-[11px] text-pi-noir-sub mt-0.5">{sub}</p>}
     </div>
   )
 }
 
 const META_SIGNAL_CLS: Record<'High' | 'Medium' | 'Low', string> = {
-  High:   'text-pi-build border-pi-build/30 bg-pi-build/10',
-  Medium: 'text-pi-gold-bright border-pi-gold/30 bg-pi-gold/10',
-  Low:    'text-pi-faint border-pi-hairline bg-pi-sand',
+  High:   'text-pi-build-noir border-pi-build-noir/30 bg-pi-build-noir/10',
+  Medium: 'text-pi-gold-deep border-pi-gold-deep/30 bg-pi-gold-deep/10',
+  Low:    'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated',
 }
 
 function fmtDate(iso: string): string {
@@ -56,16 +56,16 @@ export default function MarketingIntelligence({ m }: { m: MemoData }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-pi-faint italic leading-relaxed">Real paid-media activity for this category, from the Meta Ad Library public archive — sustained ad spend is a revealed economic preference, independent of Amazon/search/organic-social evidence.</p>
+        <p className="text-xs text-pi-noir-sub italic leading-relaxed">Real paid-media activity for this category, from the Meta Ad Library public archive — sustained ad spend is a revealed economic preference, independent of Amazon/search/organic-social evidence.</p>
         <ProvenanceBadge p={provenance} />
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-lg border border-pi-hairline shrink-0 grid place-items-center">
-          {v.meta_signal && <span className={`w-2 h-2 rounded-full ${v.meta_signal === 'High' ? 'bg-pi-build' : v.meta_signal === 'Medium' ? 'bg-pi-gold-bright' : 'bg-pi-faint'}`} />}
+        <div className="w-10 h-10 rounded-lg border border-pi-noir-hairline shrink-0 grid place-items-center">
+          {v.meta_signal && <span className={`w-2 h-2 rounded-full ${v.meta_signal === 'High' ? 'bg-pi-build-noir' : v.meta_signal === 'Medium' ? 'bg-pi-gold-bright' : 'bg-pi-noir-sub'}`} />}
         </div>
         <div>
-          <p className="text-[10px] text-pi-faint uppercase tracking-wider mb-1">Marketing Intensity</p>
+          <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider mb-1">Marketing Intensity</p>
           {v.meta_signal && (
             <span className={`inline-flex items-center text-xs font-semibold rounded-full border px-2.5 py-1 ${META_SIGNAL_CLS[v.meta_signal]}`}>{v.meta_signal}</span>
           )}
@@ -85,37 +85,37 @@ export default function MarketingIntelligence({ m }: { m: MemoData }) {
       </div>
 
       {(v.earliest_ad_start || v.latest_ad_start || v.recent_ad_start_pct !== undefined) && (
-        <div className="pt-5 border-t border-pi-hairline">
-          <p className="text-[10px] text-pi-faint uppercase tracking-widest mb-3">Ad Start Dates</p>
-          <div className="rounded-lg border border-pi-hairline divide-y divide-pi-hairline overflow-hidden">
+        <div className="pt-5 border-t border-pi-noir-hairline">
+          <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest mb-3">Ad Start Dates</p>
+          <div className="rounded-lg border border-pi-noir-hairline divide-y divide-pi-noir-hairline overflow-hidden">
             {v.earliest_ad_start && (
               <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <span className="text-xs text-pi-faint">Earliest ad found</span>
-                <span className="font-mono text-sm font-semibold text-pi-ink">{fmtDate(v.earliest_ad_start)}</span>
+                <span className="text-xs text-pi-noir-sub">Earliest ad found</span>
+                <span className="font-mono text-sm font-semibold text-pi-noir-text">{fmtDate(v.earliest_ad_start)}</span>
               </div>
             )}
             {v.latest_ad_start && (
               <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <span className="text-xs text-pi-faint">Most recent ad found</span>
-                <span className="font-mono text-sm font-semibold text-pi-ink">{fmtDate(v.latest_ad_start)}</span>
+                <span className="text-xs text-pi-noir-sub">Most recent ad found</span>
+                <span className="font-mono text-sm font-semibold text-pi-noir-text">{fmtDate(v.latest_ad_start)}</span>
               </div>
             )}
             {v.recent_ad_start_pct !== undefined && (
               <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <span className="text-xs text-pi-faint">Started in the last 90 days</span>
-                <span className="font-mono text-sm font-semibold text-pi-ink">{Math.round(v.recent_ad_start_pct * 100)}%</span>
+                <span className="text-xs text-pi-noir-sub">Started in the last 90 days</span>
+                <span className="font-mono text-sm font-semibold text-pi-noir-text">{Math.round(v.recent_ad_start_pct * 100)}%</span>
               </div>
             )}
           </div>
-          <p className="text-[10px] text-pi-faint italic mt-2 leading-relaxed">
+          <p className="text-[10px] text-pi-noir-sub italic mt-2 leading-relaxed">
             &ldquo;Started in the last 90 days&rdquo; is a single-snapshot proxy for a 90-day trend, not a true count-over-time delta — this provider makes one point-in-time request per analysis.
           </p>
         </div>
       )}
 
       {(v.avg_active_ad_age_days !== undefined || v.avg_concluded_ad_duration_days !== undefined) && (
-        <div className="pt-5 border-t border-pi-hairline">
-          <p className="text-[10px] text-pi-faint uppercase tracking-widest mb-3">Creative Longevity</p>
+        <div className="pt-5 border-t border-pi-noir-hairline">
+          <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest mb-3">Creative Longevity</p>
           <div className="grid sm:grid-cols-2 gap-3">
             {v.avg_active_ad_age_days !== undefined && (
               <StatTile label="Avg. Age — Still Running" value={`${v.avg_active_ad_age_days}d`} sub="Real elapsed time for ads that have not stopped — not their total lifespan." />

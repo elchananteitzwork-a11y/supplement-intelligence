@@ -18,16 +18,16 @@ import type { RankedInsight } from '@/lib/review-engine'
 import { ProvenanceCaption, PiCard } from './shared'
 
 function InsightList({ items, emptyLabel }: { items: RankedInsight[]; emptyLabel: string }) {
-  if (!items.length) return <p className="text-xs text-pi-faint italic py-2">{emptyLabel}</p>
+  if (!items.length) return <p className="text-xs text-pi-noir-sub italic py-2">{emptyLabel}</p>
   return (
     <ul className="space-y-2">
       {items.slice(0, 6).map((it, i) => (
         <li key={i} className="text-sm">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-pi-ink font-medium">{it.insight}</span>
-            <span className="text-[11px] font-mono text-pi-faint shrink-0">{it.mention_count} mentions · {Math.round(it.frequency * 100)}%</span>
+            <span className="text-pi-noir-text font-medium">{it.insight}</span>
+            <span className="text-[11px] font-mono text-pi-noir-sub shrink-0">{it.mention_count} mentions · {Math.round(it.frequency * 100)}%</span>
           </div>
-          {it.severity && <span className="text-[10px] text-pi-faint uppercase tracking-wide">{it.severity}</span>}
+          {it.severity && <span className="text-[10px] text-pi-noir-sub uppercase tracking-wide">{it.severity}</span>}
         </li>
       ))}
     </ul>
@@ -47,7 +47,7 @@ export default function ReviewNarrative({ m }: { m: MemoData }) {
   // available, not that there's nothing here.
   if (!rn) {
     return (
-      <p className="text-sm text-pi-faint italic py-2">
+      <p className="text-sm text-pi-noir-sub italic py-2">
         Customer review data wasn't available for this analysis — the review-collection provider didn't return enough real reviews to synthesize from.
       </p>
     )
@@ -57,44 +57,44 @@ export default function ReviewNarrative({ m }: { m: MemoData }) {
     <div className="space-y-5">
       <ProvenanceCaption p={{ level: 'synthesized', source: 'Claude (AI synthesis)', detail: rn.disclaimer }} />
 
-      <p className="text-[11px] text-pi-faint">
-        {rn.total_reviews_analyzed} real reviews analyzed · avg rating <span className="font-mono text-pi-sub">{rn.avg_rating}/5</span> · overall sentiment <span className="font-mono text-pi-sub">{rn.overall_sentiment}</span>
+      <p className="text-[11px] text-pi-noir-sub">
+        {rn.total_reviews_analyzed} real reviews analyzed · avg rating <span className="font-mono text-pi-noir-sub">{rn.avg_rating}/5</span> · overall sentiment <span className="font-mono text-pi-noir-sub">{rn.overall_sentiment}</span>
       </p>
 
       {rn.ai_recommendation && (
         <PiCard>
-          <p className="text-xs font-semibold text-pi-ink mb-2">AI Recommendation</p>
-          <p className="text-sm text-pi-sub leading-relaxed">{rn.ai_recommendation}</p>
+          <p className="text-xs font-semibold text-pi-noir-text mb-2">AI Recommendation</p>
+          <p className="text-sm text-pi-noir-sub leading-relaxed">{rn.ai_recommendation}</p>
         </PiCard>
       )}
 
       <div className="grid sm:grid-cols-2 gap-5">
         <PiCard>
-          <p className="text-xs font-semibold text-pi-ink mb-3">Top Complaints</p>
+          <p className="text-xs font-semibold text-pi-noir-text mb-3">Top Complaints</p>
           {rn.top_complaints.length
-            ? <ul className="space-y-1.5">{rn.top_complaints.slice(0, 6).map((c, i) => <li key={i} className="text-sm text-pi-sub">&ldquo;{c}&rdquo;</li>)}</ul>
-            : <p className="text-xs text-pi-faint italic py-2">None surfaced in this review sample.</p>}
+            ? <ul className="space-y-1.5">{rn.top_complaints.slice(0, 6).map((c, i) => <li key={i} className="text-sm text-pi-noir-sub">&ldquo;{c}&rdquo;</li>)}</ul>
+            : <p className="text-xs text-pi-noir-sub italic py-2">None surfaced in this review sample.</p>}
         </PiCard>
 
         <PiCard>
-          <p className="text-xs font-semibold text-pi-ink mb-3">Top Requested Features</p>
+          <p className="text-xs font-semibold text-pi-noir-text mb-3">Top Requested Features</p>
           {rn.top_requested_features.length
-            ? <ul className="space-y-1.5">{rn.top_requested_features.slice(0, 6).map((f, i) => <li key={i} className="text-sm text-pi-sub">&ldquo;{f}&rdquo;</li>)}</ul>
-            : <p className="text-xs text-pi-faint italic py-2">None surfaced in this review sample.</p>}
+            ? <ul className="space-y-1.5">{rn.top_requested_features.slice(0, 6).map((f, i) => <li key={i} className="text-sm text-pi-noir-sub">&ldquo;{f}&rdquo;</li>)}</ul>
+            : <p className="text-xs text-pi-noir-sub italic py-2">None surfaced in this review sample.</p>}
         </PiCard>
 
         <PiCard>
-          <p className="text-xs font-semibold text-pi-ink mb-3">Pain Points</p>
+          <p className="text-xs font-semibold text-pi-noir-text mb-3">Pain Points</p>
           <InsightList items={rn.pain_points} emptyLabel="No recurring pain points met the ranking threshold." />
         </PiCard>
 
         <PiCard>
-          <p className="text-xs font-semibold text-pi-ink mb-3">Missing Features</p>
+          <p className="text-xs font-semibold text-pi-noir-text mb-3">Missing Features</p>
           <InsightList items={rn.missing_features} emptyLabel="No recurring feature gaps met the ranking threshold." />
         </PiCard>
 
         <PiCard className="sm:col-span-2">
-          <p className="text-xs font-semibold text-pi-ink mb-3">Positive Themes</p>
+          <p className="text-xs font-semibold text-pi-noir-text mb-3">Positive Themes</p>
           <InsightList items={rn.positive_themes} emptyLabel="No recurring positive themes met the ranking threshold." />
         </PiCard>
       </div>

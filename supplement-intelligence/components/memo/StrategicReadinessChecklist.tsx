@@ -51,41 +51,41 @@ function RiskAssessment({ m }: { m: MemoData }) {
   return (
     <div className="space-y-3">
       {sentimentIsNegative && sentiment && (
-        <div className="rounded-xl border border-pi-hairline bg-pi-card border-l-[3px] border-l-pi-gold-bright px-4 py-3.5">
+        <div className="rounded-xl border border-pi-noir-hairline bg-pi-elevated border-l-[3px] border-l-pi-gold-bright px-4 py-3.5">
           <div className="flex items-center justify-between gap-3 mb-1.5">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-pi-gold-bright">Real Negative News Sentiment</p>
             <ProvenanceBadge p={newsSentimentProvenance(m.news_intelligence)!} />
           </div>
-          <p className="text-sm text-pi-sub leading-relaxed">
+          <p className="text-sm text-pi-noir-sub leading-relaxed">
             Real GDELT coverage of this category skews negative (avg tone <span className="font-mono">{sentiment.avg_tone}</span> across {sentiment.sample_size} real articles) — worth reading the actual headlines in the News Intelligence section before committing capital.
           </p>
         </div>
       )}
       {recall && (
-        <div className={`rounded-xl border border-pi-hairline bg-pi-card border-l-[3px] px-4 py-3.5 ${recall.recall_classification === 'Class I' ? 'border-l-pi-risk' : 'border-l-pi-gold-bright'}`}>
+        <div className={`rounded-xl border border-pi-noir-hairline bg-pi-elevated border-l-[3px] px-4 py-3.5 ${recall.recall_classification === 'Class I' ? 'border-l-pi-risk-noir' : 'border-l-pi-gold-bright'}`}>
           <div className="flex items-center justify-between gap-3 mb-1.5">
-            <p className={`text-[10px] font-semibold uppercase tracking-wider ${recall.recall_classification === 'Class I' ? 'text-pi-risk' : 'text-pi-gold-bright'}`}>
+            <p className={`text-[10px] font-semibold uppercase tracking-wider ${recall.recall_classification === 'Class I' ? 'text-pi-risk-noir' : 'text-pi-gold-bright'}`}>
               Real FDA Recall{recall.recall_classification && recall.recall_classification !== 'Not Yet Classified' ? ` — ${recall.recall_classification}` : ''}
             </p>
             <ProvenanceBadge p={newsIntelligenceProvenance(m.news_intelligence)!} />
           </div>
-          <p className="text-sm text-pi-sub leading-relaxed">{recall.headline}</p>
-          {recall.recall_status && <p className="text-[11px] text-pi-faint mt-1">Status: {recall.recall_status}</p>}
+          <p className="text-sm text-pi-noir-sub leading-relaxed">{recall.headline}</p>
+          {recall.recall_status && <p className="text-[11px] text-pi-noir-sub mt-1">Status: {recall.recall_status}</p>}
         </div>
       )}
       {weak.length > 0 && (
-        <PiCard padded={false} className="rounded-xl divide-y divide-pi-hairline overflow-hidden">
+        <PiCard padded={false} className="rounded-xl divide-y divide-pi-noir-hairline overflow-hidden">
           {weak.map(d => (
             <div key={d.key} className="flex gap-3 px-4 py-3.5">
-              <span className={`font-mono font-bold text-base shrink-0 w-10 ${d.severity === 'High' ? 'text-pi-risk' : 'text-pi-gold-bright'}`}>{d.display}</span>
+              <span className={`font-mono font-bold text-base shrink-0 w-10 ${d.severity === 'High' ? 'text-pi-risk-noir' : 'text-pi-gold-bright'}`}>{d.display}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <p className={`text-[10px] font-semibold uppercase tracking-wider ${d.severity === 'High' ? 'text-pi-risk' : 'text-pi-gold-bright'}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wider ${d.severity === 'High' ? 'text-pi-risk-noir' : 'text-pi-gold-bright'}`}>
                     {DIM_LABELS[d.key] ?? d.key}
                   </p>
                   <EvidenceBadge type={d.provenance.level} source={d.provenance.source} detail={d.provenance.detail} />
                 </div>
-                <p className="text-sm text-pi-sub leading-relaxed">{d.notes}</p>
+                <p className="text-sm text-pi-noir-sub leading-relaxed">{d.notes}</p>
               </div>
             </div>
           ))}
@@ -112,32 +112,32 @@ export default function StrategicReadinessChecklist({ m, decision }: { m: MemoDa
   return (
     <PiCard padded={false} className="rounded-2xl p-6 sm:p-8 animate-in">
       {riskSentence && (
-        <div className="mb-6 rounded-xl border border-pi-hairline bg-pi-card border-l-[3px] border-l-pi-risk px-4 py-3.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-pi-risk mb-1.5">Primary Risk</p>
-          <p className="text-sm text-pi-ink leading-relaxed">{riskSentence}</p>
+        <div className="mb-6 rounded-xl border border-pi-noir-hairline bg-pi-elevated border-l-[3px] border-l-pi-risk-noir px-4 py-3.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-pi-risk-noir mb-1.5">Primary Risk</p>
+          <p className="text-sm text-pi-noir-text leading-relaxed">{riskSentence}</p>
         </div>
       )}
       <div className="grid sm:grid-cols-2 gap-3 mb-6">
-        <div className="rounded-lg bg-pi-sand p-4">
-          <p className="text-[10px] text-pi-faint uppercase tracking-wider mb-2">Estimated Validation Budget</p>
-          <p className="font-mono font-bold text-lg text-pi-ink mb-1">{budget.range}</p>
-          <p className="text-[11px] text-pi-faint leading-snug">{budget.breakdown}</p>
+        <div className="rounded-lg bg-pi-elevated p-4">
+          <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider mb-2">Estimated Validation Budget</p>
+          <p className="font-mono font-bold text-lg text-pi-noir-text mb-1">{budget.range}</p>
+          <p className="text-[11px] text-pi-noir-sub leading-snug">{budget.breakdown}</p>
         </div>
-        <div className="rounded-lg bg-pi-sand p-4">
-          <p className="text-[10px] text-pi-faint uppercase tracking-wider mb-2">Success Metrics</p>
+        <div className="rounded-lg bg-pi-elevated p-4">
+          <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider mb-2">Success Metrics</p>
           <ul className="space-y-1.5">
             {metrics.map((mt, i) => (
-              <li key={i} className="flex gap-2 text-xs text-pi-sub leading-snug">
-                <IconArrowRight className="w-3.5 h-3.5 text-pi-ink shrink-0 mt-0.5" />{mt}
+              <li key={i} className="flex gap-2 text-xs text-pi-noir-sub leading-snug">
+                <IconArrowRight className="w-3.5 h-3.5 text-pi-noir-text shrink-0 mt-0.5" />{mt}
               </li>
             ))}
           </ul>
         </div>
       </div>
 
-      <div className="pt-6 border-t border-pi-hairline">
-        <p className="text-[10px] text-pi-faint uppercase tracking-widest mb-3">Risk Assessment</p>
-        <p className="text-xs text-pi-faint italic mb-4 leading-relaxed">Dimensions where market structure works against you — each is a thesis-breaking risk if not addressed at launch.</p>
+      <div className="pt-6 border-t border-pi-noir-hairline">
+        <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest mb-3">Risk Assessment</p>
+        <p className="text-xs text-pi-noir-sub italic mb-4 leading-relaxed">Dimensions where market structure works against you — each is a thesis-breaking risk if not addressed at launch.</p>
         <RiskAssessment m={m} />
       </div>
     </PiCard>

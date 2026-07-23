@@ -43,7 +43,7 @@ export function PiCard({
   children, className = '', as: As = 'div', padded = true,
 }: { children: ReactNode; className?: string; as?: ElementType; padded?: boolean }) {
   return (
-    <As className={`rounded-xl border border-pi-hairline bg-pi-card ${padded ? 'p-4 sm:p-5' : ''} ${className}`}>
+    <As className={`rounded-xl border border-pi-noir-hairline bg-pi-elevated ${padded ? 'p-4 sm:p-5' : ''} ${className}`}>
       {children}
     </As>
   )
@@ -56,11 +56,11 @@ export function PiCard({
 // restyled onto pi-* design tokens (was verdict-*/black-white).
 
 const EVIDENCE_CFG: Record<ProvenanceLevel, { label: string; cls: string; dot: string }> = {
-  verified:    { label: 'Verified Data',                    cls: 'text-pi-ink border-pi-hairline bg-pi-card',            dot: 'bg-pi-ink' },
-  estimated:   { label: 'AI Interpretation',                cls: 'text-pi-gold-bright border-pi-gold/30 bg-pi-gold/10',  dot: 'bg-pi-gold-bright' },
-  synthesized: { label: 'AI Interpretation',                cls: 'text-pi-sub border-pi-hairline bg-pi-card',            dot: 'bg-pi-sub' },
-  unknown:     { label: 'Unsupported / Needs Verification', cls: 'text-pi-risk border-pi-risk/30 bg-pi-risk/10',         dot: 'bg-pi-risk' },
-  unsupported: { label: 'Unsupported / Needs Verification', cls: 'text-pi-risk border-pi-risk/30 bg-pi-risk/10',         dot: 'bg-pi-risk' },
+  verified:    { label: 'Verified Data',                    cls: 'text-pi-noir-text border-pi-noir-hairline bg-pi-elevated', dot: 'bg-pi-noir-text' },
+  estimated:   { label: 'AI Interpretation',                cls: 'text-pi-gold-deep border-pi-gold-deep/30 bg-pi-gold-deep/10', dot: 'bg-pi-gold-deep' },
+  synthesized: { label: 'AI Interpretation',                cls: 'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated',   dot: 'bg-pi-noir-sub' },
+  unknown:     { label: 'Unsupported / Needs Verification', cls: 'text-pi-risk-noir border-pi-risk-noir/30 bg-pi-risk-noir/10', dot: 'bg-pi-risk-noir' },
+  unsupported: { label: 'Unsupported / Needs Verification', cls: 'text-pi-risk-noir border-pi-risk-noir/30 bg-pi-risk-noir/10', dot: 'bg-pi-risk-noir' },
 }
 
 export function EvidenceBadge({ type, detail, source }: { type: ProvenanceLevel; detail?: string; source?: string }) {
@@ -96,11 +96,11 @@ export function ProvenanceCaption({ p }: { p: Provenance }) {
 
 export function ConfidencePill({ level, note }: { level: 'High' | 'Medium' | 'Low'; note: string }) {
   const cls = level === 'High'
-    ? 'text-pi-build border-pi-build/30 bg-pi-build/10'
+    ? 'text-pi-build-noir border-pi-build-noir/30 bg-pi-build-noir/10'
     : level === 'Medium'
-      ? 'text-pi-gold-bright border-pi-gold/30 bg-pi-gold/10'
-      : 'text-pi-sub border-pi-hairline bg-pi-card'
-  const dot = level === 'High' ? 'bg-pi-build' : level === 'Medium' ? 'bg-pi-gold-bright' : 'bg-pi-sub'
+      ? 'text-pi-gold-deep border-pi-gold-deep/30 bg-pi-gold-deep/10'
+      : 'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated'
+  const dot = level === 'High' ? 'bg-pi-build-noir' : level === 'Medium' ? 'bg-pi-gold-deep' : 'bg-pi-noir-sub'
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 ${cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
@@ -110,7 +110,7 @@ export function ConfidencePill({ level, note }: { level: 'High' | 'Medium' | 'Lo
 }
 
 export function LabNoData({ label = 'No data available' }: { label?: string }) {
-  return <span className="font-mono text-sm text-pi-faint italic">{label}</span>
+  return <span className="font-mono text-sm text-pi-noir-sub italic">{label}</span>
 }
 
 export function LabEmptyState({
@@ -119,29 +119,34 @@ export function LabEmptyState({
   return (
     <div className="flex flex-col items-center justify-center text-center py-12 px-6">
       {icon && (
-        <div className="w-12 h-12 rounded-lg border border-pi-hairline flex items-center justify-center mb-4 text-pi-faint">
+        <div className="w-12 h-12 rounded-lg border border-pi-noir-hairline flex items-center justify-center mb-4 text-pi-noir-sub">
           {icon}
         </div>
       )}
-      <p className="text-sm font-medium text-pi-sub">{title}</p>
-      {description && <p className="text-xs text-pi-faint mt-1.5 max-w-sm leading-relaxed">{description}</p>}
+      <p className="text-sm font-medium text-pi-noir-sub">{title}</p>
+      {description && <p className="text-xs text-pi-noir-sub mt-1.5 max-w-sm leading-relaxed">{description}</p>}
     </div>
   )
 }
 
 export function SectionIntro({ text }: { text: string }) {
-  return <p className="text-xs text-pi-faint italic mb-4 leading-relaxed">{text}</p>
+  return <p className="text-xs text-pi-noir-sub italic mb-4 leading-relaxed">{text}</p>
 }
 
 // Ascending 3-bar signal glyph — direct successor to
 // components/lab/Indicators.tsx SignalBars, same three-tier meaning.
+// Terminal Noir port: fill colors were tuned for a white pi-card surface
+// (pi-build's dark green + pi-faint's mid-gray both read at low contrast
+// against near-black pi-stage/pi-elevated) — swapped to the dark-safe
+// -noir identity + pi-noir-sub, same "brighten until it reads against the
+// dark stage" rule as every other chart/graphic fix this pass.
 export function SignalBars({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
   const filled = level === 'Strong' ? 3 : level === 'Moderate' ? 2 : 1
-  const color  = level === 'Strong' ? 'bg-pi-build' : level === 'Moderate' ? 'bg-pi-gold-deep' : 'bg-pi-faint'
+  const color  = level === 'Strong' ? 'bg-pi-build-noir' : level === 'Moderate' ? 'bg-pi-gold-deep' : 'bg-pi-noir-sub'
   return (
     <div className="flex items-end gap-0.5 h-3.5 shrink-0">
       {[0, 1, 2].map(i => (
-        <span key={i} className={`w-1 ${i < filled ? color : 'bg-pi-hairline'}`} style={{ height: `${40 + i * 30}%` }} />
+        <span key={i} className={`w-1 ${i < filled ? color : 'bg-pi-noir-hairline'}`} style={{ height: `${40 + i * 30}%` }} />
       ))}
     </div>
   )
@@ -158,8 +163,8 @@ export function NumList({ items, collapseAt = 2 }: { items: string[]; collapseAt
     <ol className="space-y-3">
       {shown.map((item, i) => (
         <li key={i} className="flex gap-3 text-sm">
-          <span className="font-mono text-pi-faint shrink-0 w-4 text-right mt-px">{i + 1}</span>
-          <span className="text-pi-sub leading-relaxed">{item}</span>
+          <span className="font-mono text-pi-noir-sub shrink-0 w-4 text-right mt-px">{i + 1}</span>
+          <span className="text-pi-noir-sub leading-relaxed">{item}</span>
         </li>
       ))}
       {hiddenCount > 0 && !expanded && (
@@ -298,9 +303,9 @@ export const TAG_LABEL: Record<string, string> = {
 }
 
 export const SEVERITY_CFG: Record<string, { cls: string; dot: string }> = {
-  High:   { cls: 'text-pi-risk bg-pi-risk/10 border-pi-risk/30',            dot: 'bg-pi-risk' },
-  Medium: { cls: 'text-pi-gold-bright bg-pi-gold/10 border-pi-gold/30',     dot: 'bg-pi-gold-bright' },
-  Low:    { cls: 'text-pi-sub bg-pi-sand border-pi-hairline',               dot: 'bg-pi-faint' },
+  High:   { cls: 'text-pi-risk-noir bg-pi-risk-noir/10 border-pi-risk-noir/30', dot: 'bg-pi-risk-noir' },
+  Medium: { cls: 'text-pi-gold-deep bg-pi-gold-deep/10 border-pi-gold-deep/30', dot: 'bg-pi-gold-deep' },
+  Low:    { cls: 'text-pi-noir-sub bg-pi-elevated border-pi-noir-hairline',     dot: 'bg-pi-noir-sub' },
 }
 
 export function deriveTop3Build(m: MemoData): DerivedPoint[] {

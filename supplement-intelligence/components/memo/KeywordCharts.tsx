@@ -11,12 +11,25 @@ import type { KeywordCluster, KeywordForecastPoint, KeywordMetric, KeywordSeason
 // pi-* palette only (UIv2-M2 Phase 2, 2026-07-21) — was raw neo-brutalist
 // hex constants (PHOTON/AMBER/VERDANT/EMBER), remapped 1:1 onto the pi
 // tokens with the same meaning (ink/gold/build/risk).
-const PHOTON = '#16171A'   // pi-ink
-const AMBER  = '#C9971F'   // pi-gold-bright
-const VERDANT = '#2E6B48'  // pi-build
-const EMBER  = '#A13F2E'   // pi-risk
-const GRID = 'rgba(22,23,26,0.09)'  // pi-hairline
-const AXIS_TEXT = '#8C877C'  // pi-faint
+//
+// Terminal Noir port (2026-07-23): this file's own inline SVG stroke/fill
+// hex values are the real "chart tuned for a white background" case flagged
+// in this pass's scope — PHOTON/GRID/the neutral bar tint were literally
+// pi-ink/pi-hairline's cream-register hex values (near-black), invisible
+// against the dark pi-stage/pi-elevated chapter surface this now renders
+// inside; VERDANT/EMBER were pi-build/pi-risk's cream-tuned (darker) hex,
+// low-contrast on near-black. Every constant below is now the real
+// tailwind.config.ts "Terminal Noir register" hex (pi-noir-text/pi-noir-
+// hairline/pi-build-noir/pi-risk-noir/pi-noir-sub), not a hand-eyeballed
+// substitute — geometry/data-binding in every chart function below is
+// untouched, only these color constants and the two remaining literal
+// cream hexes inline in SeasonalityChart/OpportunityHeatmap changed.
+const PHOTON = '#F5EFDF'   // pi-noir-text
+const AMBER  = '#C9971F'   // pi-gold-bright (already dark-stage-safe, ~7:1 on pi-stage)
+const VERDANT = '#6FC492'  // pi-build-noir
+const EMBER  = '#E8785E'   // pi-risk-noir
+const GRID = 'rgba(245,239,223,0.14)'  // pi-noir-hairline
+const AXIS_TEXT = '#A79E8B'  // pi-noir-sub
 
 export function VolumeTrendChart({ history }: { history: { year: number; month: number; volume: number }[] }) {
   if (history.length < 3) return null
@@ -35,12 +48,12 @@ export function VolumeTrendChart({ history }: { history: { year: number; month: 
         {history.map((h, i) => {
           const x = PAD + i * barW
           const barH = (h.volume / maxVol) * (H - PAD * 2)
-          return <rect key={i} x={x + 1} y={H - PAD - barH} width={Math.max(1, barW - 2)} height={barH} fill="rgba(22,23,26,0.08)" />
+          return <rect key={i} x={x + 1} y={H - PAD - barH} width={Math.max(1, barW - 2)} height={barH} fill="rgba(245,239,223,0.08)" />
         })}
         <polyline points={linePoints} fill="none" stroke={PHOTON} strokeWidth="1.75" strokeLinejoin="round" />
         <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke={GRID} />
       </svg>
-      <div className="flex justify-between text-[9px] font-mono text-pi-faint mt-1.5">
+      <div className="flex justify-between text-[9px] font-mono text-pi-noir-sub mt-1.5">
         <span>{history[0].year}-{String(history[0].month).padStart(2, '0')}</span>
         <span>{history[history.length - 1].year}-{String(history[history.length - 1].month).padStart(2, '0')}</span>
       </div>
@@ -74,7 +87,7 @@ export function SeasonalityChart({ history, seasonality }: {
       {bars.map((b, i) => {
         const barH = (b.avgVol / maxVol) * (H - 24)
         const x = PAD + i * barW
-        const color = b.isPeak ? VERDANT : b.isLow ? EMBER : '#F6F0E0'
+        const color = b.isPeak ? VERDANT : b.isLow ? EMBER : '#A79E8B'
         return (
           <g key={b.name}>
             <rect x={x + 1} y={H - 18 - barH} width={Math.max(1, barW - 2)} height={barH} fill={color} />
@@ -102,7 +115,7 @@ export function ForecastChart({ forecast }: { forecast: KeywordForecastPoint[] }
         <polyline points={points} fill="none" stroke={AMBER} strokeWidth="1.75" strokeDasharray="4 3" strokeLinejoin="round" />
         <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke={GRID} />
       </svg>
-      <div className="flex justify-between text-[9px] font-mono text-pi-faint mt-1.5">
+      <div className="flex justify-between text-[9px] font-mono text-pi-noir-sub mt-1.5">
         <span>{forecast[0]?.month}</span>
         <span>{forecast[forecast.length - 1]?.month}</span>
       </div>
@@ -115,7 +128,7 @@ export function OpportunityHeatmap({ metrics }: { metrics: KeywordMetric[] }) {
     .filter(m => m.competition !== null && m.competition !== undefined)
     .sort((a, b) => b.monthly_searches - a.monthly_searches)
     .slice(0, 25)
-  if (!pts.length) return <p className="text-xs text-pi-faint italic py-4 text-center">No competition-index data available for this query.</p>
+  if (!pts.length) return <p className="text-xs text-pi-noir-sub italic py-4 text-center">No competition-index data available for this query.</p>
 
   const W = 600, H = 260, PAD = 30
   const maxVol = Math.max(...pts.map(p => p.monthly_searches), 1)
@@ -128,7 +141,7 @@ export function OpportunityHeatmap({ metrics }: { metrics: KeywordMetric[] }) {
         const y = H - PAD - (Math.log10(p.monthly_searches + 1) / Math.log10(maxVol + 1)) * (H - PAD * 2)
         const score = p.opportunity_score ?? 0
         const r = 3 + (score / 100) * 8
-        const color = score >= 60 ? VERDANT : score >= 35 ? AMBER : '#8C877C'
+        const color = score >= 60 ? VERDANT : score >= 35 ? AMBER : '#A79E8B'
         return <circle key={p.keyword + i} cx={x} cy={y} r={r} fill={color} fillOpacity={0.5} stroke={color} strokeWidth={1} />
       })}
       <text x={PAD} y={H - 10} fontSize="8" fill={AXIS_TEXT}>Low competition</text>
@@ -145,11 +158,11 @@ export function ClusterDistributionChart({ clusters }: { clusters: KeywordCluste
     <div className="space-y-2">
       {withCounts.map(c => (
         <div key={c.label} className="flex items-center gap-3">
-          <span className="text-xs text-pi-sub w-28 shrink-0 truncate">{c.label}</span>
-          <div className="flex-1 h-2 rounded-full bg-pi-hairline overflow-hidden">
-            <div className="h-full bg-pi-ink/60" style={{ width: `${(c.count / maxCount) * 100}%` }} />
+          <span className="text-xs text-pi-noir-sub w-28 shrink-0 truncate">{c.label}</span>
+          <div className="flex-1 h-2 rounded-full bg-pi-noir-hairline overflow-hidden">
+            <div className="h-full bg-pi-noir-text/60" style={{ width: `${(c.count / maxCount) * 100}%` }} />
           </div>
-          <span className="font-mono text-xs text-pi-sub w-8 text-right shrink-0">{c.count}</span>
+          <span className="font-mono text-xs text-pi-noir-sub w-8 text-right shrink-0">{c.count}</span>
         </div>
       ))}
     </div>

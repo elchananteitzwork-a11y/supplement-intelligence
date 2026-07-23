@@ -69,13 +69,13 @@ const PILL_CFG: Record<BuildDecision, { label: string; cls: string }> = {
 // leaderboard, watchlist, alerts) — inlined here instead of reused so this
 // screen doesn't reintroduce that palette next to the pi-* hero above it.
 const V2_VERDICT_CFG: Record<V2Verdict, { label: string; cls: string }> = {
-  BUILD_NOW:                { label: 'Build Now',                cls: 'text-pi-build border-pi-build/40 bg-pi-build/10' },
-  BUILD_IF_DIFFERENTIATED:  { label: 'Build If Differentiated',   cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
-  WATCH_CLOSELY:            { label: 'Watch Closely',             cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
-  WATCH:                    { label: 'Watch',                     cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
-  INVESTIGATE:              { label: 'Investigate',               cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
-  AVOID:                    { label: 'Avoid',                     cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
-  PASS:                     { label: 'Pass',                      cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
+  BUILD_NOW:                { label: 'Build Now',                cls: 'text-pi-build-noir border-pi-build-noir/40 bg-pi-build-noir/10' },
+  BUILD_IF_DIFFERENTIATED:  { label: 'Build If Differentiated',   cls: 'text-pi-gold-deep border-pi-gold-deep/40 bg-pi-gold-deep/10' },
+  WATCH_CLOSELY:            { label: 'Watch Closely',             cls: 'text-pi-gold-deep border-pi-gold-deep/40 bg-pi-gold-deep/10' },
+  WATCH:                    { label: 'Watch',                     cls: 'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated' },
+  INVESTIGATE:              { label: 'Investigate',               cls: 'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated' },
+  AVOID:                    { label: 'Avoid',                     cls: 'text-pi-risk-noir border-pi-risk-noir/40 bg-pi-risk-noir/10' },
+  PASS:                     { label: 'Pass',                      cls: 'text-pi-risk-noir border-pi-risk-noir/40 bg-pi-risk-noir/10' },
 }
 
 function V2VerdictBadge({ verdict }: { verdict: V2Verdict }) {
@@ -93,7 +93,7 @@ function LifecycleStageBlock({ m }: { m: MemoData }) {
     return (
       <div className="w-full sm:w-auto sm:min-w-[280px] shrink-0">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Lifecycle Stage</span>
+          <span className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-widest">Lifecycle Stage</span>
         </div>
         <LabNoData label="Not computed for this analysis" />
       </div>
@@ -102,12 +102,12 @@ function LifecycleStageBlock({ m }: { m: MemoData }) {
   return (
     <div className="w-full sm:w-auto sm:min-w-[280px] shrink-0">
       <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Lifecycle Stage</span>
+        <span className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-widest">Lifecycle Stage</span>
         <ProvenanceBadge p={lifecycleProvenance()} />
       </div>
-      <LifecycleArc stages={lifecycle.stages} currentIndex={lifecycle.currentIndex} variant="pi" />
+      <LifecycleArc stages={lifecycle.stages} currentIndex={lifecycle.currentIndex} variant="pi-noir" />
       {lifecycle.unmeasuredScience && (
-        <p className="text-[10px] text-pi-faint italic mt-2">Classified without a real Science-dimension signal for this query.</p>
+        <p className="text-[10px] text-pi-noir-sub italic mt-2">Classified without a real Science-dimension signal for this query.</p>
       )}
     </div>
   )
@@ -116,11 +116,11 @@ function LifecycleStageBlock({ m }: { m: MemoData }) {
 function GapVelocityRow({ m }: { m: MemoData }) {
   const gv = formatGapVelocity(m.gap_velocity)
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-pi-hairline pt-3 mt-3">
-      <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Gap Velocity</span>
+    <div className="flex items-center justify-between gap-3 border-t border-pi-noir-hairline pt-3 mt-3">
+      <span className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-widest">Gap Velocity</span>
       {gv ? (
         <div className="flex items-center gap-2">
-          <span className={`font-mono font-bold text-sm ${gv.value > 0 ? 'text-pi-build' : gv.value < 0 ? 'text-pi-risk' : 'text-pi-sub'}`}>{gv.display}</span>
+          <span className={`font-mono font-bold text-sm ${gv.value > 0 ? 'text-pi-build-noir' : gv.value < 0 ? 'text-pi-risk-noir' : 'text-pi-noir-sub'}`}>{gv.display}</span>
           <ProvenanceBadge p={gapVelocityProvenance()} />
         </div>
       ) : <LabNoData label="Not available — demand or supply acceleration missing" />}
@@ -131,14 +131,14 @@ function GapVelocityRow({ m }: { m: MemoData }) {
 function V2VerdictRow({ m }: { m: MemoData }) {
   const v2 = deriveV2VerdictDisplay(m.opportunity_quality, m.market_verdict)
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-pi-hairline pt-3 mt-3">
+    <div className="flex items-center justify-between gap-3 border-t border-pi-noir-hairline pt-3 mt-3">
       <div>
-        <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Alternate Verdict Check</span>
-        <p className="text-[9px] text-pi-faint italic mt-0.5">Separate, parallel verdict — not guaranteed to match the pill above.</p>
+        <span className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-widest">Alternate Verdict Check</span>
+        <p className="text-[9px] text-pi-noir-sub italic mt-0.5">Separate, parallel verdict — not guaranteed to match the pill above.</p>
       </div>
       {v2 ? (
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-pi-sub">Quality {v2.qualityScore}/100 ({v2.qualityTier})</span>
+          <span className="font-mono text-xs text-pi-noir-sub">Quality {v2.qualityScore}/100 ({v2.qualityTier})</span>
           <V2VerdictBadge verdict={v2.verdict} />
           <ProvenanceBadge p={v2VerdictProvenance()} />
         </div>
@@ -158,8 +158,8 @@ function TechnicalDetailToggle({ m }: { m: MemoData }) {
   const [expanded, setExpanded] = useState(false)
   if (expanded) return <V2VerdictRow m={m} />
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-pi-hairline pt-3 mt-3">
-      <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Technical Detail</span>
+    <div className="flex items-center justify-between gap-3 border-t border-pi-noir-hairline pt-3 mt-3">
+      <span className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-widest">Technical Detail</span>
       <button onClick={() => setExpanded(true)} className="text-[11px] text-pi-gold-bright hover:underline transition-colors">
         Show technical detail →
       </button>
@@ -169,12 +169,12 @@ function TechnicalDetailToggle({ m }: { m: MemoData }) {
 
 export default function CurrentSignal({ m }: { m: MemoData; generatedAt?: string }) {
   const { score, decision, insufficientEvidence } = computeGroundedScore(m)
-  const cfg = insufficientEvidence ? { label: 'Insufficient Data', cls: 'bg-pi-card border border-pi-hairline text-pi-ink' } : PILL_CFG[decision]
+  const cfg = insufficientEvidence ? { label: 'Insufficient Data', cls: 'bg-pi-elevated border border-pi-noir-hairline text-pi-noir-text' } : PILL_CFG[decision]
   const consumerIntelTimedOut = !m.consumer_intelligence && !!m.signal_metadata?.consumer_intelligence_attempted
 
   return (
     <section id="current-signal" className="scroll-mt-20">
-      <div className="rounded-2xl p-6 sm:p-8 border border-pi-hairline bg-pi-card">
+      <div className="rounded-2xl p-6 sm:p-8 border border-pi-noir-hairline bg-pi-elevated">
         {/* Pre-beta audit fix: this row never stacked below `sm`, but
             LifecycleStageBlock's own wrapper (w-full sm:w-auto) assumes a
             parent that does — the two together forced real, measured
@@ -183,12 +183,12 @@ export default function CurrentSignal({ m }: { m: MemoData; generatedAt?: string
             classes were already correct, this was the missing half. */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
           <div className="min-w-0">
-            <p className="text-[10px] font-mono text-pi-faint uppercase tracking-widest mb-2">Current Signal</p>
+            <p className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-widest mb-2">Current Signal</p>
             <div className={`inline-block px-4 py-2 rounded-full font-bold text-[20px] leading-none mb-1 ${cfg.cls}`}>
               {cfg.label}
             </div>
-            <p className="font-mono text-xs text-pi-faint mt-2">{m.category_name} — {score} / 100</p>
-            <p className="text-[9px] text-pi-faint uppercase tracking-wider mt-1">Legacy build-decision verdict</p>
+            <p className="font-mono text-xs text-pi-noir-sub mt-2">{m.category_name} — {score} / 100</p>
+            <p className="text-[9px] text-pi-noir-sub uppercase tracking-wider mt-1">Legacy build-decision verdict</p>
           </div>
           <LifecycleStageBlock m={m} />
         </div>
@@ -198,9 +198,9 @@ export default function CurrentSignal({ m }: { m: MemoData; generatedAt?: string
       </div>
 
       {consumerIntelTimedOut && (
-        <div className="mt-3 rounded-lg border border-pi-hairline bg-pi-card px-3 py-2.5">
+        <div className="mt-3 rounded-lg border border-pi-noir-hairline bg-pi-elevated px-3 py-2.5">
           <p className="text-xs font-semibold text-pi-gold-bright mb-0.5">Partial results available</p>
-          <p className="text-[11px] text-pi-sub">Most real-data providers responded normally. The Consumer Intelligence review-data provider timed out for this run.</p>
+          <p className="text-[11px] text-pi-noir-sub">Most real-data providers responded normally. The Consumer Intelligence review-data provider timed out for this run.</p>
         </div>
       )}
     </section>
