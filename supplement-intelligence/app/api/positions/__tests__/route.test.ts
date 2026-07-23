@@ -24,6 +24,25 @@ vi.mock('@/lib/watchlist/store', () => ({
   addWatch: (sb: unknown, userId: string, input: unknown) => addWatchMock(sb, userId, input),
 }))
 
+// Real-shaped memo_data fixtures for the insufficientEvidence honesty fix
+// (independent review finding 1) — computeGroundedScore(memo_data) is
+// called for real against these, so they must be shapes that function
+// actually accepts (see lib/scoring.ts's assembleDimensions, which reads
+// m.scores.* unconditionally — a bare `{}` crashes it; the route's own
+// computeInsufficientEvidence() catches that and degrades to `false`,
+// verified separately below).
+const REAL_EVIDENCE_MEMO = {
+  scores: { demand: { level: 'High', notes: 'x' }, virality: { level: 'Medium', notes: 'y' }, subscription: { level: 'Medium', notes: 'z' }, manufacturing: { level: 'Medium', notes: 'w' } },
+  signal_evidence: {
+    growth: { value: { yoy_change: '+30%' }, sources: ['keepa'], primarySource: 'Keepa', confidence: 0.8 },
+    demand: { value: { search_volume: '10k', trend: '+10%' }, sources: ['keepa'], primarySource: 'Keepa', confidence: 0.8 },
+  },
+  keyword_intelligence: { top_buying: [{ keyword: 'creatine', monthly_searches: 12000 }] },
+}
+const INSUFFICIENT_EVIDENCE_MEMO = {
+  scores: { demand: { notes: '' }, virality: { notes: '' }, subscription: { notes: '' }, manufacturing: { notes: '' } },
+}
+
 let currentUser: { id: string } | null = { id: 'user-1' }
 let positionRows: Record<string, unknown>[] = []
 let analysesById: Record<string, Record<string, unknown>> = {}
@@ -104,7 +123,7 @@ describe('GET /api/positions', () => {
 
   it('returns the caller own positions joined with real category_name/decision', async () => {
     positionRows = [{ user_id: 'user-1', analysis_id: 'a1', state: 'watching', success_metrics: ['3 sales in 30 days'], kill_reason: null, created_at: '2026-01-01T00:00:00.000Z' }]
-    analysesById = { a1: { id: 'a1', user_id: 'user-1', category_name: 'Magnesium Glycinate', build_decision: 'BUILD_NOW' } }
+    analysesById = { a1: { id: 'a1', user_id: 'user-1', category_name: 'Magnesium Glycinate', build_decision: 'BUILD_NOW', memo_data: REAL_EVIDENCE_MEMO } }
     const { GET } = await import('../route')
     const res = await GET()
     const body = await res.json()
@@ -112,7 +131,24 @@ describe('GET /api/positions', () => {
     expect(body.positions).toEqual([{
       analysisId: 'a1', state: 'watching', successMetrics: ['3 sales in 30 days'], killReason: null,
       createdAt: '2026-01-01T00:00:00.000Z', categoryName: 'Magnesium Glycinate', decision: 'BUILD_NOW',
+      insufficientEvidence: false,
     }])
+  })
+
+  // Independent-review fix (finding 1, honesty): analyses.build_decision
+  // persists computeGroundedScore's internal 'SKIP' artifact for an
+  // insufficient-evidence analysis — never a real "Not Supported" verdict.
+  // GET must recompute the real flag from the row's own memo_data so the
+  // client (PositionsStrip) never renders a fabricated verdict word.
+  it('flags insufficientEvidence:true for a position whose analysis has no real scored evidence, even though build_decision persists a raw SKIP', async () => {
+    positionRows = [{ user_id: 'user-1', analysis_id: 'a2', state: 'killed', success_metrics: null, kill_reason: 'not for me', created_at: '2026-01-01T00:00:00.000Z' }]
+    analysesById = { a2: { id: 'a2', user_id: 'user-1', category_name: 'Unproven Niche', build_decision: 'SKIP', memo_data: INSUFFICIENT_EVIDENCE_MEMO } }
+    const { GET } = await import('../route')
+    const res = await GET()
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.positions[0].decision).toBe('SKIP')
+    expect(body.positions[0].insufficientEvidence).toBe(true)
   })
 
   it('returns an honest 503 (never a crash) when the positions table does not exist yet', async () => {
@@ -162,6 +198,7 @@ describe('POST /api/positions', () => {
     expect(body.position).toEqual({
       analysisId: 'a1', state: 'validating', successMetrics: ['sell 10 units'], killReason: null,
       createdAt: '2026-01-02T00:00:00.000Z', categoryName: 'Ashwagandha', decision: 'VALIDATE_FURTHER',
+      insufficientEvidence: false,
     })
     expect(addWatchMock).not.toHaveBeenCalled()
   })
@@ -204,6 +241,17 @@ describe('POST /api/positions', () => {
     await POST(new Request('http://localhost/api/positions', { method: 'POST', body: JSON.stringify({ analysisId: 'a1', state: 'killed', killReason: 'margin too thin' }) }))
     expect(capturedPositionsUpsertRow).not.toBeNull()
     expect((capturedPositionsUpsertRow as unknown as Record<string, unknown>).kill_reason).toBe('margin too thin')
+  })
+
+  it('flags insufficientEvidence:true in the POST response too, computed from the real memo_data, not the raw persisted decision', async () => {
+    analysesById = { a1: { id: 'a1', user_id: 'user-1', category_name: 'Unproven Niche', build_decision: 'SKIP', memo_data: INSUFFICIENT_EVIDENCE_MEMO } }
+    upsertResultRow = { analysis_id: 'a1', state: 'killed', success_metrics: null, kill_reason: null, created_at: '2026-01-06T00:00:00.000Z' }
+    const { POST } = await import('../route')
+    const res = await POST(new Request('http://localhost/api/positions', { method: 'POST', body: JSON.stringify({ analysisId: 'a1', state: 'killed' }) }))
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.position.decision).toBe('SKIP')
+    expect(body.position.insufficientEvidence).toBe(true)
   })
 
   it('returns an honest 503 when the positions table does not exist yet', async () => {

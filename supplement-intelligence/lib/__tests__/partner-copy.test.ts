@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  VERDICT_WORD, INSUFFICIENT_EVIDENCE_VERDICT_WORD, verdictWord,
+  VERDICT_WORD, INSUFFICIENT_EVIDENCE_VERDICT_WORD, verdictWord, positionVerdictLabel,
   RECOMMENDED_PULL, recommendedPull, alternativePulls,
   buildConvictionSentence,
   buildWhySentence,
@@ -57,6 +57,29 @@ describe('verdictWord', () => {
 
   it('overrides to the insufficient-evidence first-class state regardless of decision', () => {
     expect(verdictWord(grounded({ decision: 'BUILD_NOW', insufficientEvidence: true }))).toBe(INSUFFICIENT_EVIDENCE_VERDICT_WORD)
+  })
+})
+
+// ── positions strip honesty (independent-review fix, finding 1) ──────────
+
+describe('positionVerdictLabel', () => {
+  it('never renders a fabricated verdict word when insufficientEvidence is true, regardless of the persisted decision', () => {
+    // The exact bug: analyses.build_decision persists 'SKIP' as an
+    // internal artifact of insufficientEvidence — must not render "Not
+    // Supported" for this case.
+    expect(positionVerdictLabel('SKIP', true)).toBe(INSUFFICIENT_EVIDENCE_VERDICT_WORD)
+    expect(positionVerdictLabel('BUILD_NOW', true)).toBe(INSUFFICIENT_EVIDENCE_VERDICT_WORD)
+  })
+
+  it('renders the real frozen verdict word when evidence is sufficient', () => {
+    for (const d of Object.keys(VERDICT_WORD) as BuildDecision[]) {
+      expect(positionVerdictLabel(d, false)).toBe(VERDICT_WORD[d])
+    }
+  })
+
+  it('degrades honestly (never crashes) when decision is null', () => {
+    expect(positionVerdictLabel(null, false)).toBe('Unknown')
+    expect(positionVerdictLabel(null, true)).toBe(INSUFFICIENT_EVIDENCE_VERDICT_WORD)
   })
 })
 
@@ -276,6 +299,20 @@ describe('buildPrimaryRiskDriver', () => {
     expect(r!.text).toBe('Manufacturing is thin.')
     expect(r!.claimKey).toBe('b')
   })
+
+  // Independent-review fix (finding 3a): when every scored dimension is
+  // itself strong, the "globally weakest" pick is still a strong dimension
+  // — must not attach it as evidence (that dimension already reads as a
+  // FOR driver). The sentence stands alone, "my judgment," no number.
+  it('does not attach a strong dimension as grounding when every dimension scores >= the strong threshold', () => {
+    const m = memo({ writer_output: { causal_paragraph: '', causal_paragraph_is_fallback: true, risk_sentence: 'Everything looks strong, but here is the catch.', risk_sentence_is_fallback: false, product_thesis_headline: '', product_thesis_full: '', product_thesis_is_fallback: true, validation_trace: {} } })
+    const dims = [dim({ key: 'a', rawScore: 9 }), dim({ key: 'b', rawScore: 6 }), dim({ key: 'c', rawScore: 7 })]
+    const r = buildPrimaryRiskDriver(m, { dimensions: dims })
+    expect(r).not.toBeNull()
+    expect(r!.claimKey).toBe('primary_risk')
+    expect(r!.number).toBe('—')
+    expect(r!.provenance).toBe('my judgment')
+  })
 })
 
 describe('buildAgainstCase', () => {
@@ -293,6 +330,32 @@ describe('buildAgainstCase', () => {
     const dims = [dim({ key: 'a', rawScore: 1 }), dim({ key: 'b', rawScore: 3 })]
     const rows = buildAgainstCase(memo(), { dimensions: dims })
     expect(rows.map(r => r.claimKey)).toEqual(['a', 'b'])
+  })
+
+  // Independent-review fix (finding 3): the exact reported bug — the same
+  // dimension appearing in both forDrivers (strong framing) and against
+  // (via the unfloored primary-risk pick). With every dimension >= the
+  // strong threshold, forDrivers has real entries and against must never
+  // repeat any of their claim keys.
+  it('never repeats a claimKey across forDrivers and against when every dimension scores >= the strong threshold', () => {
+    const m = memo({ writer_output: { causal_paragraph: '', causal_paragraph_is_fallback: true, risk_sentence: 'Everything looks strong, but here is the catch.', risk_sentence_is_fallback: false, product_thesis_headline: '', product_thesis_full: '', product_thesis_is_fallback: true, validation_trace: {} } })
+    const dims = [
+      dim({ key: 'a', label: 'A', rawScore: 9 }),
+      dim({ key: 'b', label: 'B', rawScore: 8 }),
+      dim({ key: 'c', label: 'C', rawScore: 7 }),
+      dim({ key: 'd', label: 'D', rawScore: 6 }),
+    ]
+    const forRows = selectForDrivers({ dimensions: dims })
+    const againstRows = buildAgainstCase(m, { dimensions: dims })
+
+    expect(forRows.length).toBeGreaterThan(0)
+    // The risk sentence still surfaces (it's real) — just ungrounded.
+    expect(againstRows.some(r => r.text === 'Everything looks strong, but here is the catch.')).toBe(true)
+
+    const forKeys = new Set(forRows.map(r => r.claimKey))
+    const againstKeys = againstRows.map(r => r.claimKey)
+    for (const k of againstKeys) expect(forKeys.has(k)).toBe(false)
+    expect(new Set(againstKeys).size).toBe(againstKeys.length) // no internal duplicates either
   })
 })
 
@@ -351,6 +414,27 @@ describe('buildValidationPlan', () => {
   it('never fabricates a $10k MRR metric when ten_k_probability is absent', () => {
     const plan = buildValidationPlan(memo({ financial_projections: { gross_margin: 'N/A', net_margin_at_scale: '', path_to_10m: '' } }), 'BUILD_NOW')
     expect(plan.successMetrics.some(s => s.includes('$10k MRR'))).toBe(false)
+  })
+
+  // Independent-review fix (finding 2): pre-2026-06-26 memos only ever
+  // wrote a numeric DimScore.score, never .level (types/index.ts:92-101).
+  // The manufacturing-tier budget band must still resolve honestly via the
+  // same legacy score->level bucketing components/memo/shared.tsx's
+  // dimLevel() has always used (>=7 High, >=4 Medium, else Low) — not drift
+  // to a flat 'Medium' default just because .level itself is absent.
+  it('legacy score-only memo: score 8 (no .level) resolves the High manufacturing budget band', () => {
+    const plan = buildValidationPlan(memo({ scores: { manufacturing: { score: 8, notes: '' } } as MemoData['scores'], financial_projections: { gross_margin: 'N/A', net_margin_at_scale: '', path_to_10m: '' } }), 'BUILD_NOW')
+    expect(plan.budget.range).toBe('$4k–$10k')
+  })
+
+  it('legacy score-only memo: score 2 (no .level) resolves the Low manufacturing budget band', () => {
+    const plan = buildValidationPlan(memo({ scores: { manufacturing: { score: 2, notes: '' } } as MemoData['scores'], financial_projections: { gross_margin: 'N/A', net_margin_at_scale: '', path_to_10m: '' } }), 'BUILD_NOW')
+    expect(plan.budget.range).toBe('$12k–$28k')
+  })
+
+  it('a memo with neither .level nor .score falls back to the honest Medium default, not a crash', () => {
+    const plan = buildValidationPlan(memo({ scores: { manufacturing: { notes: '' } } as MemoData['scores'], financial_projections: { gross_margin: 'N/A', net_margin_at_scale: '', path_to_10m: '' } }), 'BUILD_NOW')
+    expect(plan.budget.range).toBe('$7k–$18k')
   })
 })
 

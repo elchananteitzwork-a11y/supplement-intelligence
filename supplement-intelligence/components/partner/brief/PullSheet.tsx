@@ -135,6 +135,11 @@ export function PullSheet({
                   id="kill-reason"
                   value={killReason}
                   onChange={e => setKillReason(e.target.value)}
+                  // Matches the server bound (MAX_KILL_REASON_CHARS,
+                  // app/api/positions/route.ts) so a user never hits the
+                  // generic "couldn't save that" error purely for length —
+                  // independent-review fix, finding 6.
+                  maxLength={500}
                   className="w-full rounded-xl border border-pi-hairline bg-pi-card px-3.5 py-2.5 text-sm text-pi-ink placeholder:text-pi-faint focus:outline-none focus:ring-2 focus:ring-pi-gold-bright"
                   placeholder="e.g. margin doesn't work for me"
                 />

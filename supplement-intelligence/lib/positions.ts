@@ -31,6 +31,17 @@ export interface Position {
   createdAt:        string
   categoryName:     string
   decision:         BuildDecision | null
+  // Fix-and-resubmit cycle (independent review finding 1, honesty):
+  // `decision` above is the raw, persisted `analyses.build_decision` —
+  // computeGroundedScore stores 'SKIP' there as an internal artifact when
+  // insufficientEvidence is true (lib/scoring.ts), which is NOT a real "Not
+  // Supported" market judgment. The Brief re-derives this honestly via
+  // lib/partner-copy.ts's verdictWord(); this flag lets any other real
+  // consumer of `decision` (e.g. PositionsStrip) do the same, instead of
+  // rendering the raw SKIP label. Computed server-side per row from the
+  // real memo_data (see app/api/positions/route.ts) — never inferred
+  // client-side from `decision` alone.
+  insufficientEvidence: boolean
 }
 
 export interface PositionsResponse {

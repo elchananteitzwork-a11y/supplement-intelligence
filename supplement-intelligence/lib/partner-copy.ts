@@ -24,10 +24,27 @@
 // final report for this explicit call.
 // ═══════════════════════════════════════════════════════════════════════
 
-import type { BuildDecision, MemoData } from '@/types/index'
+import type { BuildDecision, MemoData, DimScore } from '@/types/index'
 import type { GroundedScore, ScoreDimension, EvidenceBreadth } from '@/lib/scoring'
 import type { ConfidenceAssessment } from '@/lib/confidence'
 import type { ProvenanceLevel } from '@/lib/provenance'
+
+// Independent-review fix (finding 2): components/memo/shared.tsx's
+// dimLevel() falls back to this exact legacy score->level bucketing
+// (legacyScoreToLevelDisplay, shared.tsx:206-209) for pre-2026-06-26 memos
+// that only ever wrote a numeric DimScore.score, never DimScore.level
+// (types/index.ts:92-101's own comment on the field). shared.tsx stays
+// banned from this namespace's imports, so the tiny bucketing rule is
+// restated here verbatim (>=7 High, >=4 Medium, else Low) rather than
+// silently dropping the legacy fallback and drifting to a flat default.
+function legacyLevelFromScore(score: number | undefined): 'High' | 'Medium' | 'Low' | undefined {
+  if (typeof score !== 'number') return undefined
+  return score >= 7 ? 'High' : score >= 4 ? 'Medium' : 'Low'
+}
+
+function dimLevelWithLegacyFallback(dim: DimScore | undefined): 'High' | 'Medium' | 'Low' {
+  return dim?.level ?? legacyLevelFromScore(dim?.score) ?? 'Medium'
+}
 
 // ── Verdict words (frozen vocabulary — V4_PRODUCT_ARCHITECTURE.md §9 /
 // RD_V4_PHASE1.md §1: "the existing frozen labels ... are reused as the
@@ -51,6 +68,23 @@ export const INSUFFICIENT_EVIDENCE_VERDICT_WORD = "I can't call this one"
 export function verdictWord(grounded: Pick<GroundedScore, 'decision' | 'insufficientEvidence'>): string {
   if (grounded.insufficientEvidence) return INSUFFICIENT_EVIDENCE_VERDICT_WORD
   return VERDICT_WORD[grounded.decision]
+}
+
+// Independent-review fix (finding 1, honesty): the Positions strip
+// (components/partner/PositionsStrip.tsx) reads a persisted `decision` off
+// GET /api/positions, which — same as `analyses.build_decision` — can be
+// computeGroundedScore's internal 'SKIP' artifact for an insufficient-
+// evidence analysis, never a real "Not Supported" market judgment. This is
+// the same verdictWord() logic but over the persisted, already-computed
+// `{decision, insufficientEvidence}` pair the positions API now returns
+// (see lib/positions.ts's Position type) instead of a live GroundedScore —
+// same "measured / my judgment / couldn't verify" honesty family the
+// Brief's verdictWord() already uses, just accepting a nullable decision
+// (a position whose analysis failed to join returns null).
+export function positionVerdictLabel(decision: BuildDecision | null, insufficientEvidence: boolean): string {
+  if (insufficientEvidence) return INSUFFICIENT_EVIDENCE_VERDICT_WORD
+  if (!decision) return 'Unknown'
+  return VERDICT_WORD[decision]
 }
 
 // ── Recommended Pull verb (RD_V4_PHASE1.md §4.3 / §3 item 3 — deterministic,
@@ -190,6 +224,14 @@ function dimensionNumber(d: ScoreDimension): string {
   return d.rawScore !== undefined ? `${d.rawScore.toFixed(1)}/10` : (d.qualitativeLevel ?? '—')
 }
 
+// Same "strong" test selectForDrivers uses below — factored out so
+// buildPrimaryRiskDriver (independent-review fix, finding 3) can ask "is
+// this dimension one a reasonable reader would already read as a FOR
+// driver" without duplicating the threshold logic.
+function isStrongDimension(d: ScoreDimension): boolean {
+  return d.rawScore !== undefined ? d.rawScore >= STRONG_RAW_THRESHOLD : d.qualitativeLevel === 'High'
+}
+
 function dimensionText(d: ScoreDimension): string {
   return `${d.label}: ${d.sourceLabel}`
 }
@@ -223,6 +265,17 @@ export function selectAgainstDrivers(grounded: Pick<GroundedScore, 'dimensions'>
 // primary risk is said unprompted (V4 §3 T1) without adding a fourth
 // first-viewport element. Its evidence-sheet grounding is the weakest
 // scored dimension (the real driver most likely behind that sentence).
+//
+// Independent-review fix (finding 3a): the naive "globally weakest
+// dimension" pick can land on a dimension that is itself strong (rawScore
+// >= STRONG_RAW_THRESHOLD, or qualitativeLevel 'High') whenever EVERY
+// scored dimension is strong — the exact same dimension would then also
+// appear in selectForDrivers' "for" list, showing the same claim as both a
+// reason for and against in one Brief. When the weakest-of-all candidate
+// is itself strong, this no longer attaches it as evidence at all: the
+// risk sentence stands alone, "my judgment," no number, no dimension tie
+// (falls back to the synthetic 'primary_risk' claim key, which can never
+// collide with a real ScoreDimension.key).
 export interface PrimaryRiskDriver extends CaseDriver { isRiskSentence: true }
 
 export function buildPrimaryRiskDriver(
@@ -234,25 +287,30 @@ export function buildPrimaryRiskDriver(
   const weakest = [...grounded.dimensions]
     .filter(d => d.weight > 0)
     .sort((a, b) => (a.rawScore ?? (a.qualitativeLevel === 'Low' ? 0 : 10)) - (b.rawScore ?? (b.qualitativeLevel === 'Low' ? 0 : 10)))[0]
+  const groundable = !!weakest && !isStrongDimension(weakest)
   return {
-    claimKey:       weakest ? weakest.key : 'primary_risk',
+    claimKey:       groundable ? weakest!.key : 'primary_risk',
     label:          'Primary risk',
     text:           w.risk_sentence,
-    number:         weakest ? dimensionNumber(weakest) : '—',
-    provenance:     weakest ? scoreDimensionProvenance(weakest.source) : 'my judgment',
+    number:         groundable ? dimensionNumber(weakest!) : '—',
+    provenance:     groundable ? scoreDimensionProvenance(weakest!.source) : 'my judgment',
     isRiskSentence: true,
   }
 }
 
-/** Composes the final against-list: primary risk sentence first (when real), then the next-weakest dimensions, capped at `max`, deduplicated on claimKey, never padded. */
+/** Composes the final against-list: primary risk sentence first (when real), then the next-weakest dimensions, capped at `max`, deduplicated on claimKey, never padded. Independent-review fix (finding 3b): hard cross-dedup against forDrivers' own claim keys — the same dimension must never appear in both lists, belt-and-suspenders alongside 3a. */
 export function buildAgainstCase(
   m: Pick<MemoData, 'writer_output'>,
   grounded: Pick<GroundedScore, 'dimensions'>,
   max = 2,
 ): CaseDriver[] {
+  const forKeys = new Set(selectForDrivers(grounded).map(d => d.claimKey))
   const risk = buildPrimaryRiskDriver(m, grounded)
-  const rest = selectAgainstDrivers(grounded, max).filter(d => !risk || d.claimKey !== risk.claimKey)
-  const combined = risk ? [risk, ...rest] : rest
+  const riskCollides = !!risk && forKeys.has(risk.claimKey)
+  const rest = selectAgainstDrivers(grounded, max)
+    .filter(d => !forKeys.has(d.claimKey))
+    .filter(d => !risk || d.claimKey !== risk.claimKey)
+  const combined = (risk && !riskCollides) ? [risk, ...rest] : rest
   return combined.slice(0, max)
 }
 
@@ -327,7 +385,7 @@ export function buildValidationPlan(m: MemoData, decision: BuildDecision): Valid
     ]
   }
 
-  const mfgLevel = m.scores?.manufacturing?.level ?? 'Medium'
+  const mfgLevel = dimLevelWithLegacyFallback(m.scores?.manufacturing)
   let budget: ValidationPlan['budget']
   if (decision === 'SKIP') {
     budget = { range: '$500–$2k', breakdown: 'Market research only — I would not fund manufacturing here.' }

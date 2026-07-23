@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DEFAULT_CATEGORY_ID } from '@/lib/categories/client-config'
+import { logEvent } from '@/lib/positions'
 import { Hunt } from './Hunt'
 import { PositionsStrip } from './PositionsStrip'
 
@@ -24,11 +25,12 @@ const EXAMPLE_HUNCHES = [
 ]
 
 export interface MovedItemVM {
-  key:      string
-  headline: string
-  detail:   string | null
-  severity: 'critical' | 'informational'
-  href:     string
+  key:        string
+  analysisId: string
+  headline:   string
+  detail:     string | null
+  severity:   'critical' | 'informational'
+  href:       string
 }
 
 export function Stream({ movedItems }: { movedItems: MovedItemVM[] }) {
@@ -38,6 +40,22 @@ export function Stream({ movedItems }: { movedItems: MovedItemVM[] }) {
   const [huntDone, setHuntDone] = useState(false)
   const [error, setError] = useState('')
   const [networkFailure, setNetworkFailure] = useState(false)
+
+  // Independent-review fix (finding 4): the Phase-1 gate metric
+  // `returned_after_trip` (RD_V4_PHASE1.md §5: "≥50% of users return
+  // within 7 days of a tripped-condition stream line") had zero call
+  // sites — unmeasurable as shipped. Fired once per real moved/tripped
+  // item actually rendered in the partner-speaks-first opening, on mount
+  // only (not on every re-render), fire-and-forget with the same silent-
+  // failure handling as every other event call in this namespace.
+  useEffect(() => {
+    for (const item of movedItems) {
+      logEvent({ event: 'returned_after_trip', analysisId: item.analysisId }).catch(err => {
+        console.warn('[partner-events] returned_after_trip failed to log (non-blocking):', err)
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function submit(idea: string) {
     const trimmed = idea.trim()

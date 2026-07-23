@@ -32,7 +32,6 @@ export function BriefView({ vm }: { vm: BriefViewModel }) {
     logEvent({ event: 'verdict_viewed', analysisId: vm.analysisId }).catch(err => {
       console.warn('[partner-events] verdict_viewed failed to log (non-blocking):', err)
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vm.analysisId])
 
   const allDrivers = [...vm.forDrivers, ...vm.againstDrivers]

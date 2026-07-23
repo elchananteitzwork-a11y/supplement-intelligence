@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { addWatch } from '@/lib/watchlist/store'
 import { categoryRegistry } from '@/lib/categories/registry'
 import { isPositionState, type Position, type PositionState } from '@/lib/positions'
+import { computeGroundedScore } from '@/lib/scoring'
 import type { MemoData } from '@/types/index'
 
 // ── Positions API — V4 Phase 1 (Pull) ────────────────────────────────────────
@@ -99,6 +100,26 @@ interface AnalysisIdentityRow {
   id:              string
   category_name:   string
   build_decision:  Position['decision']
+  memo_data:       MemoData
+}
+
+// Fix-and-resubmit cycle (independent review finding 1): analyses.
+// build_decision persists computeGroundedScore's internal 'SKIP' artifact
+// for an insufficient-evidence analysis (lib/scoring.ts) — never a real
+// "Not Supported" judgment. Recomputed here from the row's own real
+// memo_data (N is small — a user's own position list) so GET/POST never
+// hand the client a decision label it would render as a fabricated
+// verdict; the client (components/partner/PositionsStrip.tsx) renders the
+// same honest "can't call" wording the Brief already uses when this is true.
+function computeInsufficientEvidence(memo: MemoData | null | undefined): boolean {
+  if (!memo) return false
+  try {
+    return computeGroundedScore(memo).insufficientEvidence
+  } catch {
+    // A malformed/legacy memo_data must never crash this route — degrade to
+    // "not flagged insufficient" (the pre-existing behavior), never a 500.
+    return false
+  }
 }
 
 export async function GET() {
@@ -123,7 +144,7 @@ export async function GET() {
   if (analysisIds.length) {
     const { data: analysisRows } = await sb
       .from('analyses')
-      .select('id, category_name, build_decision')
+      .select('id, category_name, build_decision, memo_data')
       .in('id', analysisIds)
     for (const a of (analysisRows ?? []) as AnalysisIdentityRow[]) analysisById.set(a.id, a)
   }
@@ -138,6 +159,7 @@ export async function GET() {
       createdAt:       r.created_at,
       categoryName:    a?.category_name ?? '',
       decision:        a?.build_decision ?? null,
+      insufficientEvidence: computeInsufficientEvidence(a?.memo_data),
     }
   })
 
@@ -218,6 +240,7 @@ export async function POST(req: Request) {
     createdAt:       saved.created_at,
     categoryName:    analysis.category_name,
     decision:        analysis.build_decision ?? null,
+    insufficientEvidence: computeInsufficientEvidence(analysis.memo_data as MemoData),
   }
 
   return NextResponse.json({ position })

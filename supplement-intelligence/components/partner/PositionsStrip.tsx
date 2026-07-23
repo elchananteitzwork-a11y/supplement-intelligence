@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { fetchPositions, type Position } from '@/lib/positions'
-import { VERDICT_WORD } from '@/lib/partner-copy'
+import { positionVerdictLabel } from '@/lib/partner-copy'
 
 // ── Positions strip (V4_PRODUCT_ARCHITECTURE.md §4: "Positions live in a
 // strip that grows into a desk only when the portfolio does") — "hidden
@@ -44,7 +44,7 @@ export function PositionsStrip() {
               <span className="truncate text-sm font-semibold text-pi-ink">{p.categoryName}</span>
               <span className="font-mono text-[10px] uppercase tracking-wide text-pi-sub">
                 {p.state === 'validating' ? 'Validating' : p.state === 'watching' ? 'Watching' : 'Killed'}
-                {p.decision ? ` · ${VERDICT_WORD[p.decision]}` : ''}
+                {' · '}{positionVerdictLabel(p.decision, p.insufficientEvidence)}
               </span>
             </Link>
           </li>

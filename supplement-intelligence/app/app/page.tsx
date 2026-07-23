@@ -43,11 +43,12 @@ export default async function StreamPage() {
       const watch = watchById.get(a.watchlist_id)!
       const enriched = enrichAlert(a, watch, memoById.get(watch.analysis_id) ?? null)
       return {
-        key:      enriched.alert.id,
-        headline: enriched.headline,
-        detail:   enriched.detail,
-        severity: enriched.severity,
-        href:     `/app/brief/${enriched.analysisId}`,
+        key:        enriched.alert.id,
+        analysisId: enriched.analysisId,
+        headline:   enriched.headline,
+        detail:     enriched.detail,
+        severity:   enriched.severity,
+        href:       `/app/brief/${enriched.analysisId}`,
       }
     })
 

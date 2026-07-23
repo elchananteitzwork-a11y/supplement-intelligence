@@ -18,6 +18,7 @@
 // header comment for why those specific shared.tsx-only helpers were
 // reimplemented instead of imported.
 import tseslint from 'typescript-eslint'
+import reactHooks from 'eslint-plugin-react-hooks'
 
 const LEGACY_UI_IMPORT_BANS = [
   {
@@ -66,13 +67,36 @@ export default tseslint.config(
     ],
   },
   {
-    files: ['app/app/**/*.{ts,tsx}', 'components/partner/**/*.{ts,tsx}'],
+    // Fix-and-resubmit cycle (independent-review finding 5b): the two pure
+    // lib/** siblings the V4 namespace's copy logic depends on
+    // (lib/partner-copy.ts, lib/positions.ts) previously matched no config
+    // block at all — `npx eslint` silently skipped them ("no matching
+    // configuration"), so the import ban was never actually enforced there.
+    files: ['app/app/**/*.{ts,tsx}', 'components/partner/**/*.{ts,tsx}', 'lib/partner-copy.ts', 'lib/positions.ts'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: { sourceType: 'module', ecmaFeatures: { jsx: true } },
     },
     rules: {
       'no-restricted-imports': ['error', { patterns: LEGACY_UI_IMPORT_BANS }],
+    },
+  },
+  {
+    // Fix-and-resubmit cycle (independent-review finding 5a): three
+    // components carry `eslint-disable-next-line react-hooks/exhaustive-
+    // deps` comments (deliberate — see each file's own header comment for
+    // why the effect intentionally runs once on a mount-only trigger), but
+    // the plugin was never installed/registered, so `npx eslint` errored on
+    // exactly those disable comments ("used but not registered" is the
+    // wrong failure — actually the underlying rule didn't exist at all,
+    // which ESLint treats as an error at the disable-directive site).
+    // Scoped to the same component files (not the plain lib/** modules
+    // above, which have no hooks to check).
+    files: ['app/app/**/*.{ts,tsx}', 'components/partner/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
 )

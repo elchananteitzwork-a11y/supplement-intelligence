@@ -51,7 +51,6 @@ export function VocabularyTerm({
       setShow(true)
       bumpCount(term, count)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term])
 
   return (
