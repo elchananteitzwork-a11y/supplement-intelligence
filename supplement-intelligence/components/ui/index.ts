@@ -7,7 +7,6 @@ export { SecondaryButton, SecondaryLinkButton, GhostButton, GhostLinkButton } fr
 export { LifecycleArc } from './LifecycleArc'
 export { ConcordanceStrip, ConcordanceRowItem, type ConcordanceRow } from './ConcordanceStrip'
 export { GapChart } from './GapChart'
-export { KillCriteriaList } from './KillCriteriaList'
 export { SparklineChart } from './SparklineChart'
 export { LedgerTable, type LedgerColumn } from './LedgerTable'
 export { EvidenceCard } from './EvidenceCard'

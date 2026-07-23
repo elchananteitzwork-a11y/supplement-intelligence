@@ -70,7 +70,6 @@ import type { MemoData, BuildDecision } from '@/types/index'
 import { computeGroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import { verdictLabelFromDecision } from '@/lib/ai-interpretation/verdict'
-import { KillCriteriaList } from '@/components/ui'
 import { deriveKillCriteriaItems } from './shared'
 import CurrentSignal from './CurrentSignal'
 import EvidenceConfidence from './EvidenceConfidence'
@@ -324,18 +323,26 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
         <Chapter meta={CHAPTER_META[4]} anchorId="strategic-readiness" isOpen={openChapter === 'risk'} onToggle={() => toggleChapter('risk')}>
           <SubSection id="strategic-readiness-detail" title="Strategic Readiness"><StrategicReadinessChecklist m={m} decision={decision} /></SubSection>
 
-          {/* Kill Criteria — full-bleed pi-ink/pi-cream, matching Stitch's
-              only inverted section; see components/ui/KillCriteriaList.tsx's
-              own header comment for why this stays deliberately dark
-              (a pre-existing, standalone design choice, not part of
-              tonight's noir register or its reversal) rather than
-              softening to the light pi-card treatment used everywhere
-              else. Roadmap M2.8's real, machine-evaluable memo.kill_criteria
-              — honest unavailable note (not a silently-vanished section)
-              when this analysis predates the feature. */}
+          {/* Kill Criteria — data-density pass (2026-07-24, owner-approved
+              mockup): this used to re-render the exact same kill-criteria
+              list CandidateCoreHero.tsx already shows, always-visible, in
+              its own "We would reverse this verdict if…" box above this
+              accordion — same real items (both read m.kill_criteria; the
+              hero's version is actually the fuller one, since it also
+              shows each criterion's live watch/triggered status the plain
+              string list here never did). A reader who already scrolled
+              past the hero has already seen this; repeating it again
+              behind a click added nothing. Replaced with a short pointer
+              back to it. The honest "not available" case (analysis
+              predates the kill-criteria feature — Roadmap M2.8) is
+              unchanged, since there's nothing above to point to then. */}
           <section id="kill-criteria" className="scroll-mt-24">
             {killItems ? (
-              <KillCriteriaList title="Kill Criteria — we would reverse this verdict if…" items={killItems} />
+              <div className="rounded-lg border border-dashed border-pi-hairline bg-pi-sand px-4 py-3 text-center">
+                <p className="text-sm text-pi-sub">
+                  Kill criteria — full list with live watch status shown in the verdict card above <span aria-hidden>↑</span>
+                </p>
+              </div>
             ) : (
               <div className="rounded-2xl border border-pi-hairline bg-pi-sand p-gutter">
                 <p className="text-[11px] font-mono uppercase tracking-wider text-pi-sub mb-2">Kill Criteria — we would reverse this verdict if…</p>
