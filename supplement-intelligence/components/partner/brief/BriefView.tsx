@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion'
-import type { PullVerb } from '@/lib/partner-copy'
+import { revealTransition, type PullVerb } from '@/lib/partner-copy'
 import { logEvent } from '@/lib/positions'
 import type { BriefViewModel } from './types'
 import { CaseRow } from './CaseRow'
@@ -49,57 +49,68 @@ export function BriefView({ vm }: { vm: BriefViewModel }) {
               answer ... Conviction is folded into the answer's own
               language" — not a separate 4th paragraph);
               (2) the why sentence;
-              (3) the one recommended move. */}
-          <m.h1
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reduce ? 0 : 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold"
-          >
-            {vm.categoryName}
-          </m.h1>
+              (3) the one recommended move.
 
-          {/* (1) The answer */}
-          <m.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-6"
-          >
-            <p className="font-serif text-[34px] font-semibold leading-tight tracking-tight text-pi-ink sm:text-[42px]">
-              {vm.verdictWord}
-            </p>
-            {!vm.insufficientEvidence && (
-              <VocabularyTerm term="conviction" subtitle="Conviction — how sure I am.">
-                <p className="mt-1.5 text-sm text-pi-sub">{vm.convictionSentence}</p>
-              </VocabularyTerm>
-            )}
-          </m.div>
+              QA fix: a min-h-screen wrapper (not content length) is what
+              actually guarantees "The Case" starts below the fold — a
+              short real analysis (few case rows, one clean why-sentence)
+              otherwise leaves enough spare vertical room at 390x844 for
+              "The Case" to peek into the first viewport even with a
+              structurally-correct 3-element block above it. This reserves
+              the full viewport for the answer regardless of how long or
+              short its real content happens to be. */}
+          <div className="flex min-h-screen flex-col justify-center py-10">
+            <m.h1
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={revealTransition(!!reduce)}
+              className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold"
+            >
+              {vm.categoryName}
+            </m.h1>
 
-          <m.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-8 space-y-3"
-          >
-            {vm.insufficientEvidence ? (
-              <>
-                {/* (2) The why sentence — insufficient-evidence variant */}
-                <p className="max-w-[65ch] text-[15px] leading-relaxed text-pi-ink">
-                  {vm.emptyChannels.length > 0
-                    ? `I don't have real evidence across enough channels yet — empty: ${vm.emptyChannels.join(', ')}.`
-                    : "I don't have enough independently-confirmed evidence to call this one yet."}
-                </p>
-              </>
-            ) : (
-              /* (2) The why sentence */
-              <p className="max-w-[65ch] text-[15px] leading-relaxed text-pi-ink">{vm.whySentence}</p>
-            )}
-            {/* (3) The one recommended move (insufficient evidence borrows this slot for the callable condition, its own honest "what would make it callable" instead of a market judgment) */}
-            <p className="max-w-[65ch] text-sm font-medium text-pi-ink">
-              {vm.insufficientEvidence && vm.callableCondition ? vm.callableCondition : `My call: ${vm.recommendedVerb} — ${vm.recommendedSublabel}.`}
-            </p>
-          </m.div>
+            {/* (1) The answer */}
+            <m.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={revealTransition(!!reduce, 0.05)}
+              className="mb-6"
+            >
+              <p className="font-serif text-[34px] font-semibold leading-tight tracking-tight text-pi-ink sm:text-[42px]">
+                {vm.verdictWord}
+              </p>
+              {!vm.insufficientEvidence && (
+                <VocabularyTerm term="conviction" subtitle="Conviction — how sure I am.">
+                  <p className="mt-1.5 text-sm text-pi-sub">{vm.convictionSentence}</p>
+                </VocabularyTerm>
+              )}
+            </m.div>
+
+            <m.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={revealTransition(!!reduce, 0.12)}
+              className="space-y-3"
+            >
+              {vm.insufficientEvidence ? (
+                <>
+                  {/* (2) The why sentence — insufficient-evidence variant */}
+                  <p className="max-w-[65ch] text-[15px] leading-relaxed text-pi-ink">
+                    {vm.emptyChannels.length > 0
+                      ? `I don't have real evidence across enough channels yet — empty: ${vm.emptyChannels.join(', ')}.`
+                      : "I don't have enough independently-confirmed evidence to call this one yet."}
+                  </p>
+                </>
+              ) : (
+                /* (2) The why sentence */
+                <p className="max-w-[65ch] text-[15px] leading-relaxed text-pi-ink">{vm.whySentence}</p>
+              )}
+              {/* (3) The one recommended move (insufficient evidence borrows this slot for the callable condition, its own honest "what would make it callable" instead of a market judgment) */}
+              <p className="max-w-[65ch] text-sm font-medium text-pi-ink">
+                {vm.insufficientEvidence && vm.callableCondition ? vm.callableCondition : `My call: ${vm.recommendedVerb} — ${vm.recommendedSublabel}.`}
+              </p>
+            </m.div>
+          </div>
 
           {/* ── One scroll below: the case, the window, reversal conditions, freshness ── */}
           {(vm.forDrivers.length > 0 || vm.againstDrivers.length > 0) && (

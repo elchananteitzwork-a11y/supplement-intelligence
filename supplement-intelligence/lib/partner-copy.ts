@@ -158,11 +158,98 @@ export function buildConvictionSentence(
 // ── The why sentence — real writer_output.causal_paragraph (falling back
 // to build_explanation when the AI writer step itself fell back), with a
 // gate named explicitly when one overrode the score-threshold verdict. ──
-export function buildWhySentence(m: Pick<MemoData, 'writer_output' | 'build_explanation'>, grounded: Pick<GroundedScore, 'verdictOverrideReasons'>): string {
-  const w = m.writer_output
-  const base = (w && !w.causal_paragraph_is_fallback) ? w.causal_paragraph : m.build_explanation
+//
+// QA fix (V4_PRODUCT_ARCHITECTURE.md §5, two symptoms of one root cause):
+// (1) "the score (0-100) does not appear on the Brief" — causal_paragraph
+// was written for the old Memo page, where the score IS shown, so it
+// routinely opens with "The market score of 61 reflects...". Returning it
+// verbatim leaked the score onto the Brief. (2) that verbatim paragraph
+// runs 4-5 sentences, pushing "The Case" into the first 390x844 viewport,
+// breaking "first viewport = exactly three things." Fix is SELECTION only
+// — never truncation/ellipsis, never rewritten prose: split the real
+// source text into real sentences (reimplemented locally in the same
+// spirit as components/memo/shared.tsx's firstSentence(), which stays
+// banned) and take the first one that doesn't cite a numeric score. If
+// every sentence of the primary source cites a score, the other real
+// source is tried with the same rule. Only if NEITHER source has a clean
+// sentence does this compose a why-sentence from real structured fields
+// (never inventing a fact) — the top for-driver's own real claim, joined
+// to the real primary gate/risk clause.
+
+// Lightweight sentence splitter — same non-greedy "up to a terminator"
+// heuristic as firstSentence(), generalized to return every sentence
+// rather than just the first. Not a full NLP tokenizer (doesn't special-
+// case abbreviations/decimals) — the same acceptable heuristic tier the
+// banned original used.
+function splitSentences(text: string): string[] {
+  const matches = text.match(/[^.!?]+[.!?]+(?:\s+|$)/g)
+  const sentences = (matches ?? []).map(s => s.trim()).filter(Boolean)
+  const consumed = (matches ?? []).join('').length
+  const remainder = text.slice(consumed).trim()
+  if (remainder) sentences.push(remainder)
+  return sentences
+}
+
+// Case-insensitive patterns for a raw 0-100 opportunity-score reference —
+// exactly the QA-specified set. Deliberately narrow (numeric-score
+// mentions only) — a sentence that says "score" in some other sense
+// (e.g. a gate's own "score-threshold verdict" wording) is not filtered;
+// only sentences citing an actual number are excluded from the why-sentence.
+const SCORE_MENTION_PATTERNS = [
+  /\bscore of \d+/i,
+  /\bmarket score\b/i,
+  /\b\d{1,3}\s*\/\s*100\b/i,
+  /\bscore\s*[:=]?\s*\d{1,3}\b/i,
+]
+
+function mentionsScore(sentence: string): boolean {
+  return SCORE_MENTION_PATTERNS.some(p => p.test(sentence))
+}
+
+function firstCleanSentence(text: string | undefined | null): string | null {
+  if (!text) return null
+  return splitSentences(text).find(s => !mentionsScore(s)) ?? null
+}
+
+// Lowercases only the first alphabetic character — for naturally joining
+// a real clause after "but " without shouting a mid-sentence capital.
+function lowerFirst(s: string): string {
+  return s.replace(/[A-Za-z]/, c => c.toLowerCase())
+}
+
+// Deterministic presentation over real, already-computed data — never an
+// invented fact. Used only when no real sentence anywhere is clean.
+function composeWhyFromStructuredFields(
+  m: Pick<MemoData, 'writer_output'>,
+  grounded: Pick<GroundedScore, 'dimensions' | 'verdictOverrideReasons'>,
+): string {
+  const topDriver = selectForDrivers(grounded, 1)[0]
   const gate = grounded.verdictOverrideReasons?.[0]
-  return gate ? `${base} A gate held the verdict back: ${gate}` : base
+  const riskClause = m.writer_output?.risk_sentence ? splitSentences(m.writer_output.risk_sentence)[0] : undefined
+  const contrast = gate ?? riskClause
+
+  if (topDriver && contrast) return `${topDriver.text} — but ${lowerFirst(contrast)}`
+  if (topDriver) return topDriver.text
+  if (contrast) return contrast
+  return "I don't have a clean read on this one yet."
+}
+
+export function buildWhySentence(
+  m: Pick<MemoData, 'writer_output' | 'build_explanation'>,
+  grounded: Pick<GroundedScore, 'verdictOverrideReasons' | 'dimensions'>,
+): string {
+  const w = m.writer_output
+  const causalIsReal = !!w && !w.causal_paragraph_is_fallback
+  const primaryText = causalIsReal ? w!.causal_paragraph : m.build_explanation
+  const otherText    = causalIsReal ? m.build_explanation : w?.causal_paragraph
+
+  const chosen =
+    firstCleanSentence(primaryText) ??
+    firstCleanSentence(otherText) ??
+    composeWhyFromStructuredFields(m, grounded)
+
+  const gate = grounded.verdictOverrideReasons?.[0]
+  return gate ? `${chosen} A gate held the verdict back: ${gate}` : chosen
 }
 
 // ── Insufficient-evidence first-class state (S-Brief spec: "I can't call
@@ -493,4 +580,24 @@ export function killRedirectionLine(m: Pick<MemoData, 'market_gaps' | 'brand_opp
   if (!gap && !angle) return null
   if (gap && angle) return `If you're still looking here: ${gap} — or reposition around ${angle}.`
   return `If you're still looking here: ${gap ?? angle}.`
+}
+
+// ── The one-beat reveal transition (V4_PRODUCT_ARCHITECTURE.md §5:
+// "<1s; instant under prefers-reduced-motion") — extracted to a pure,
+// exported function (QA finding: the reduced-motion zero-duration
+// behavior was unverifiable in-browser with the available tooling and
+// untested) so it gets real unit coverage. components/partner/brief/
+// BriefView.tsx staggers its three first-viewport blocks via `delay`;
+// `reduce` zeroes both duration and delay — the element tree itself never
+// branches on `reduce` (only transition timing does), so server/client
+// hydration never mismatches, same convention as components/pi/
+// AttentionCard.tsx's own note on this exact class of bug.
+export interface RevealTransition {
+  duration: number
+  delay:    number
+  ease:     [number, number, number, number]
+}
+
+export function revealTransition(reduce: boolean, delay = 0): RevealTransition {
+  return { duration: reduce ? 0 : 0.45, delay: reduce ? 0 : delay, ease: [0.16, 1, 0.3, 1] }
 }

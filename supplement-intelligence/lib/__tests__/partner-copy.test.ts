@@ -17,6 +17,7 @@ import {
   buildValidationPlan,
   killRedirectionLine,
   buildClaimEvidence,
+  revealTransition,
 } from '../partner-copy'
 import type { MemoData, BuildDecision } from '@/types/index'
 import type { GroundedScore, ScoreDimension, EvidenceBreadth } from '@/lib/scoring'
@@ -37,6 +38,30 @@ function grounded(overrides: Partial<GroundedScore> = {}): GroundedScore {
 
 function memo(overrides: Partial<MemoData> = {}): MemoData {
   return { scores: {} as MemoData['scores'], ...overrides } as MemoData
+}
+
+// Same 4 patterns QA specified for buildWhySentence's score-exclusion rule
+// — restated here (independently of the implementation) so the tests below
+// assert the real, observable output property ("no score in this Brief
+// sentence"), not just a hardcoded string match.
+const SCORE_PATTERNS_FOR_TEST = [
+  /\bscore of \d+/i,
+  /\bmarket score\b/i,
+  /\b\d{1,3}\s*\/\s*100\b/i,
+  /\bscore\s*[:=]?\s*\d{1,3}\b/i,
+]
+function citesScore(text: string): boolean {
+  return SCORE_PATTERNS_FOR_TEST.some(p => p.test(text))
+}
+
+function writerOutput(overrides: Partial<NonNullable<MemoData['writer_output']>> = {}): NonNullable<MemoData['writer_output']> {
+  return {
+    causal_paragraph: '', causal_paragraph_is_fallback: true,
+    risk_sentence: '', risk_sentence_is_fallback: true,
+    product_thesis_headline: '', product_thesis_full: '', product_thesis_is_fallback: true,
+    validation_trace: {},
+    ...overrides,
+  }
 }
 
 // ── verdict words ───────────────────────────────────────────────────────
@@ -172,6 +197,75 @@ describe('buildWhySentence', () => {
     const m = memo({ build_explanation: 'Base reason.' })
     const g = grounded({ verdictOverrideReasons: ['Safety gate overrode score-threshold verdict (VALIDATE_FURTHER).'] })
     expect(buildWhySentence(m, g)).toBe('Base reason. A gate held the verdict back: Safety gate overrode score-threshold verdict (VALIDATE_FURTHER).')
+  })
+
+  // QA fix — real bug reproduced live on the "Magnesium Sleep Gummy" Brief:
+  // causal_paragraph opened with "The market score of 61 reflects...",
+  // violating "the score does not appear on the Brief" and running long
+  // enough to break the first-viewport-is-3-things rule. Selection only —
+  // the next real sentence, never truncated/rewritten.
+  it('(a) skips a first sentence that cites the market score and selects the next clean real sentence', () => {
+    const m = memo({
+      writer_output: writerOutput({
+        causal_paragraph: 'The market score of 61 reflects a tension between measurable demand strength and unresolved commercial unknowns. The consumer corpus contains 0 reviews, making pattern detection impossible and leaving demand uncertainty rated high.',
+        causal_paragraph_is_fallback: false,
+      }),
+      build_explanation: 'Fallback text, unused here.',
+    })
+    const result = buildWhySentence(m, grounded())
+    expect(result).toBe('The consumer corpus contains 0 reviews, making pattern detection impossible and leaving demand uncertainty rated high.')
+    expect(citesScore(result)).toBe(false)
+  })
+
+  it('(b) composes a why-sentence from real structured fields when every real sentence in every real source cites a score', () => {
+    const m = memo({
+      writer_output: writerOutput({
+        causal_paragraph: 'The market score of 61 reflects real strength. This has a score of 61 in every dimension I checked.',
+        causal_paragraph_is_fallback: false,
+      }),
+      build_explanation: "This product's score: 70 across the board.",
+    })
+    const dims = [dim({ key: 'demand', label: 'Demand', rawScore: 8, sourceLabel: '12,000/mo (DataForSEO)' })]
+    const g = grounded({ dimensions: dims, verdictOverrideReasons: ['Safety gate overrode score-threshold verdict (VALIDATE_FURTHER).'] })
+    const result = buildWhySentence(m, g)
+    // Composed from the real top driver's own real text — never invented.
+    expect(result).toContain('Demand: 12,000/mo (DataForSEO)')
+    // The gate text itself ("score-threshold verdict") legitimately says
+    // "score" with no digit attached — the exclusion rule only screens the
+    // SOURCE sentence selection for a raw numeric score, so this is fine;
+    // what matters is no digit-bearing score pattern anywhere in the output.
+    expect(citesScore(result)).toBe(false)
+  })
+
+  it('(c) still appends the gate line onto whichever sentence was chosen', () => {
+    const m = memo({
+      writer_output: writerOutput({
+        causal_paragraph: 'The market score of 61 reflects strength. Real demand exists in this category regardless of format.',
+        causal_paragraph_is_fallback: false,
+      }),
+    })
+    const g = grounded({ verdictOverrideReasons: ['Safety gate overrode score-threshold verdict (VALIDATE_FURTHER).'] })
+    const result = buildWhySentence(m, g)
+    expect(result).toBe('Real demand exists in this category regardless of format. A gate held the verdict back: Safety gate overrode score-threshold verdict (VALIDATE_FURTHER).')
+  })
+
+  it('never truncates mid-sentence — selection only, whole real sentences', () => {
+    const long = 'This is a genuinely long real sentence with no score reference whatsoever, running well past what a naive character-count truncation would keep, and it must survive completely intact.'
+    const m = memo({ writer_output: writerOutput({ causal_paragraph: `${long} The market score of 61 comes second here.`, causal_paragraph_is_fallback: false }) })
+    expect(buildWhySentence(m, grounded())).toBe(long)
+  })
+})
+
+describe('revealTransition', () => {
+  it('reduced motion: zero duration and zero delay regardless of the requested delay', () => {
+    expect(revealTransition(true)).toEqual({ duration: 0, delay: 0, ease: [0.16, 1, 0.3, 1] })
+    expect(revealTransition(true, 0.12)).toEqual({ duration: 0, delay: 0, ease: [0.16, 1, 0.3, 1] })
+  })
+
+  it('normal motion: the real duration/ease, and the real requested delay', () => {
+    expect(revealTransition(false)).toEqual({ duration: 0.45, delay: 0, ease: [0.16, 1, 0.3, 1] })
+    expect(revealTransition(false, 0.05)).toEqual({ duration: 0.45, delay: 0.05, ease: [0.16, 1, 0.3, 1] })
+    expect(revealTransition(false, 0.12)).toEqual({ duration: 0.45, delay: 0.12, ease: [0.16, 1, 0.3, 1] })
   })
 })
 
