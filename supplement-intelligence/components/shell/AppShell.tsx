@@ -11,17 +11,12 @@ import { SideNav, MobileNav, type NavId, type ShellVariant } from './SideNav'
 // migrated to the pi-* warm-cream system — see SideNav.tsx's own comment.
 // Default ('legacy') is unchanged, so every not-yet-migrated route keeps
 // its current shell exactly as-is.
-//
-// `variant="pi-noir"` (Terminal Noir port, 2026-07-23): additive dark-stage
-// opt-in — Watchlist/Alerts/Track Record/Settings pass this. 'legacy'/'pi'
-// consumers (Compare, History, Analyze, Memo, etc.) fully unaffected.
 export function AppShell({
   active, canAnalyze = true, variant = 'legacy', children,
 }: { active: NavId | null; canAnalyze?: boolean; variant?: ShellVariant; children: ReactNode }) {
   const pi = variant === 'pi'
-  const noir = variant === 'pi-noir'
   return (
-    <div className={`min-h-screen lg:flex font-sans ${noir ? 'bg-pi-void text-pi-noir-text' : pi ? 'bg-pi-cream text-pi-ink' : 'bg-surface text-ink'}`}>
+    <div className={`min-h-screen lg:flex font-sans ${pi ? 'bg-pi-cream text-pi-ink' : 'bg-surface text-ink'}`}>
       <SideNav active={active} canAnalyze={canAnalyze} variant={variant} />
       <div className="flex-1 min-w-0 flex flex-col">
         <MobileNav active={active} canAnalyze={canAnalyze} variant={variant} />

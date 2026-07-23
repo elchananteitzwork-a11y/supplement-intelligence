@@ -23,9 +23,9 @@ interface EvidenceRowSpec { label: string; value: string | undefined; provenance
 
 function EvidenceMetricRow({ label, value }: { label: string; value: string | undefined; provenance: Provenance | null }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2 border-b border-pi-noir-hairline last:border-b-0">
-      <span className="text-xs text-pi-noir-sub">{label}</span>
-      {value ? <span className="font-mono text-sm font-semibold text-pi-noir-text text-right">{value}</span> : <LabNoData />}
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-pi-hairline last:border-b-0">
+      <span className="text-xs text-pi-faint">{label}</span>
+      {value ? <span className="font-mono text-sm font-semibold text-pi-ink text-right">{value}</span> : <LabNoData />}
     </div>
   )
 }
@@ -36,9 +36,9 @@ function EvidencePanel({
   title: string; metrics: EvidenceRowSpec[]; scoreLabel: string; scoreProvenance: Provenance | null
   score: number | null; scoreLevel: 'Strong' | 'Moderate' | 'Weak' | null
 }) {
-  const color = scoreLevel === 'Strong' ? 'text-pi-build-noir' : scoreLevel === 'Moderate' ? 'text-pi-gold-bright' : 'text-pi-noir-sub'
+  const color = scoreLevel === 'Strong' ? 'text-pi-build' : scoreLevel === 'Moderate' ? 'text-pi-gold-bright' : 'text-pi-faint'
   const tier  = scoreProvenance?.level ?? 'unknown'
-  const borderTier = tier === 'verified' ? 'border-l-pi-noir-text' : tier === 'estimated' ? 'border-l-pi-gold-bright' : tier === 'unsupported' ? 'border-l-pi-risk-noir' : tier === 'unknown' ? 'border-l-pi-noir-sub' : 'border-l-pi-noir-text'
+  const borderTier = tier === 'verified' ? 'border-l-pi-ink' : tier === 'estimated' ? 'border-l-pi-gold-bright' : tier === 'unsupported' ? 'border-l-pi-risk' : tier === 'unknown' ? 'border-l-pi-faint' : 'border-l-pi-ink'
 
   const uniqueProvenances = Array.from(
     new Map(
@@ -48,21 +48,21 @@ function EvidencePanel({
   )
 
   return (
-    <div className={`rounded-xl border border-pi-noir-hairline bg-pi-elevated border-l-[3px] ${borderTier} p-4 sm:p-5`}>
-      <p className="text-xs font-semibold text-pi-noir-text mb-3">{title}</p>
+    <div className={`rounded-xl border border-pi-hairline bg-pi-card border-l-[3px] ${borderTier} p-4 sm:p-5`}>
+      <p className="text-xs font-semibold text-pi-ink mb-3">{title}</p>
       <div>{metrics.map(row => <EvidenceMetricRow key={row.label} {...row} />)}</div>
       {uniqueProvenances.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-pi-noir-hairline">
+        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-pi-hairline">
           {uniqueProvenances.map((p, i) => <ProvenanceBadge key={i} p={p} />)}
         </div>
       )}
-      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-pi-noir-hairline">
-        <span className="text-[10px] text-pi-noir-sub uppercase tracking-wider">{scoreLabel}</span>
+      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-pi-hairline">
+        <span className="text-[10px] text-pi-faint uppercase tracking-wider">{scoreLabel}</span>
         {score !== null && scoreLevel !== null && scoreProvenance ? (
           <div className="flex items-center gap-2">
             <ProvenanceBadge p={scoreProvenance} />
             <SignalBars level={scoreLevel} />
-            <span className={`font-mono font-bold text-lg leading-none ${color}`}>{score}<span className="text-pi-noir-sub text-[10px] font-sans">/10</span></span>
+            <span className={`font-mono font-bold text-lg leading-none ${color}`}>{score}<span className="text-pi-faint text-[10px] font-sans">/10</span></span>
           </div>
         ) : <LabNoData />}
       </div>
@@ -79,12 +79,12 @@ function MeaningfulCompetitorsList({ competitors }: { competitors: MeaningfulCom
   const sharedBreadcrumb = competitors.find(c => c.breadcrumb)?.breadcrumb
   return (
     <PiCard>
-      <p className="text-xs font-semibold text-pi-noir-text mb-1">Meaningful Competitors</p>
-      {sharedBreadcrumb && <p className="text-[10px] text-pi-noir-sub mb-3">{sharedBreadcrumb}</p>}
-      <div className="overflow-x-auto rounded-lg border border-pi-noir-hairline">
+      <p className="text-xs font-semibold text-pi-ink mb-1">Meaningful Competitors</p>
+      {sharedBreadcrumb && <p className="text-[10px] text-pi-faint mb-3">{sharedBreadcrumb}</p>}
+      <div className="overflow-x-auto rounded-lg border border-pi-hairline">
         <table className="w-full text-sm min-w-[420px]">
           <thead>
-            <tr className="bg-pi-elevated text-[10px] text-pi-noir-sub uppercase tracking-wider">
+            <tr className="bg-pi-sand text-[10px] text-pi-faint uppercase tracking-wider">
               <th className="text-left py-2 px-3 w-10">Rank</th>
               <th className="text-left py-2 px-3">Brand</th>
               <th className="text-right py-2 px-3">Reviews</th>
@@ -95,16 +95,16 @@ function MeaningfulCompetitorsList({ competitors }: { competitors: MeaningfulCom
           <tbody>
             {competitors.map((c, i) => (
               <Fragment key={i}>
-                <tr className="border-t border-pi-noir-hairline hover:bg-pi-elevated/40 transition-colors">
-                  <td className="py-2 px-3 font-mono text-pi-noir-sub">{c.position ?? '—'}</td>
-                  <td className="py-2 px-3 font-medium text-pi-noir-text">{c.brand}</td>
-                  <td className="py-2 px-3 text-right font-mono text-pi-noir-sub">{c.reviewCount.toLocaleString()}</td>
-                  <td className="py-2 px-3 text-right font-mono text-pi-noir-sub">{c.rating.toFixed(1)}</td>
-                  <td className="py-2 px-3 text-right font-mono text-pi-noir-sub">${c.price.toFixed(2)}</td>
+                <tr className="border-t border-pi-hairline hover:bg-pi-sand/40 transition-colors">
+                  <td className="py-2 px-3 font-mono text-pi-faint">{c.position ?? '—'}</td>
+                  <td className="py-2 px-3 font-medium text-pi-ink">{c.brand}</td>
+                  <td className="py-2 px-3 text-right font-mono text-pi-sub">{c.reviewCount.toLocaleString()}</td>
+                  <td className="py-2 px-3 text-right font-mono text-pi-sub">{c.rating.toFixed(1)}</td>
+                  <td className="py-2 px-3 text-right font-mono text-pi-sub">${c.price.toFixed(2)}</td>
                 </tr>
                 {c.bullets && c.bullets.length > 0 && (
-                  <tr className="border-t border-pi-noir-hairline bg-pi-elevated/40">
-                    <td colSpan={5} className="py-2 px-3 text-[11px] text-pi-noir-sub leading-relaxed">
+                  <tr className="border-t border-pi-hairline bg-pi-sand/40">
+                    <td colSpan={5} className="py-2 px-3 text-[11px] text-pi-faint leading-relaxed">
                       Real listing copy: {c.bullets.slice(0, 2).join(' · ')}
                     </td>
                   </tr>
@@ -145,13 +145,13 @@ function CompetitionEvidencePanel({ m }: { m: MemoData }) {
 }
 
 const CONCENTRATION_CFG: Record<string, { label: string; cls: string }> = {
-  'Low':       { label: 'Low Concentration',  cls: 'text-pi-build-noir bg-pi-build-noir/10' },
-  'Moderate':  { label: 'Moderate',           cls: 'text-pi-gold-deep bg-pi-gold-deep/10' },
-  'High':      { label: 'High Concentration', cls: 'text-pi-risk-noir bg-pi-risk-noir/10' },
-  'Very High': { label: 'Very High',          cls: 'text-pi-risk-noir bg-pi-risk-noir/15' },
+  'Low':       { label: 'Low Concentration',  cls: 'text-pi-build bg-pi-build/10' },
+  'Moderate':  { label: 'Moderate',           cls: 'text-pi-gold-bright bg-pi-gold/10' },
+  'High':      { label: 'High Concentration', cls: 'text-pi-risk bg-pi-risk/10' },
+  'Very High': { label: 'Very High',          cls: 'text-pi-risk bg-pi-risk/15' },
 }
 const DIFFICULTY_CFG: Record<string, { cls: string }> = {
-  'Low': { cls: 'text-pi-build-noir' }, 'Medium': { cls: 'text-pi-gold-bright' }, 'High': { cls: 'text-pi-risk-noir' },
+  'Low': { cls: 'text-pi-build' }, 'Medium': { cls: 'text-pi-gold-bright' }, 'High': { cls: 'text-pi-risk' },
 }
 
 function MarketSaturationBlock({ m }: { m: MemoData }) {
@@ -160,27 +160,27 @@ function MarketSaturationBlock({ m }: { m: MemoData }) {
     const score  = m.scores.competition?.score ?? 5
     const notes  = m.scores.competition?.notes
     const access = mapAccessibility(score)
-    const colorText = score >= 7 ? 'text-pi-build-noir' : score >= 5 ? 'text-pi-gold-bright' : score >= 3 ? 'text-pi-gold-bright' : 'text-pi-risk-noir'
-    const colorBg   = score >= 7 ? 'bg-pi-build-noir' : score >= 5 ? 'bg-pi-gold-deep' : score >= 3 ? 'bg-pi-gold-deep' : 'bg-pi-risk-noir'
+    const colorText = score >= 7 ? 'text-pi-build' : score >= 5 ? 'text-pi-gold-bright' : score >= 3 ? 'text-pi-gold-bright' : 'text-pi-risk'
+    const colorBg   = score >= 7 ? 'bg-pi-build' : score >= 5 ? 'bg-pi-gold-deep' : score >= 3 ? 'bg-pi-gold-deep' : 'bg-pi-risk'
     const label = score >= 7 ? 'Open Market' : score >= 5 ? 'Moderate Entry' : score >= 3 ? 'Crowded' : 'Saturated'
     return (
       <div>
         <div className="flex items-center gap-2.5 mb-3">
-          <span className={`font-mono font-bold text-xl ${colorText}`}>{score}<span className="text-pi-noir-sub text-xs font-normal">/10</span></span>
-          <span className={`text-xs font-semibold rounded-full px-2.5 py-0.5 ${colorText} bg-pi-elevated`}>{label}</span>
+          <span className={`font-mono font-bold text-xl ${colorText}`}>{score}<span className="text-pi-faint text-xs font-normal">/10</span></span>
+          <span className={`text-xs font-semibold rounded-full px-2.5 py-0.5 ${colorText} bg-pi-sand`}>{label}</span>
         </div>
-        <div className="h-1.5 rounded-full bg-pi-noir-hairline overflow-hidden mb-4">
+        <div className="h-1.5 rounded-full bg-pi-hairline overflow-hidden mb-4">
           <div className={`h-full ${colorBg}`} style={{ width: `${(score / 10) * 100}%` }} />
         </div>
-        <div className="rounded-lg border border-pi-noir-hairline overflow-hidden divide-y divide-pi-noir-hairline mb-4">
+        <div className="rounded-lg border border-pi-hairline overflow-hidden divide-y divide-pi-hairline mb-4">
           {([['Seller Density', access.density], ['Entry Barriers', access.barriers], ['Revenue Concentration', access.revenue], ['Whitespace', access.whitespace]] as [string, string][]).map(([l, v]) => (
             <div key={l} className="flex items-center gap-3 px-4 py-3.5 justify-between">
-              <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider shrink-0">{l}</p>
-              <p className="text-xs text-pi-noir-sub leading-snug text-right">{v}</p>
+              <p className="text-[10px] text-pi-faint uppercase tracking-wider shrink-0">{l}</p>
+              <p className="text-xs text-pi-sub leading-snug text-right">{v}</p>
             </div>
           ))}
         </div>
-        {notes && <p className="text-xs text-pi-noir-sub leading-relaxed">{notes}</p>}
+        {notes && <p className="text-xs text-pi-faint leading-relaxed">{notes}</p>}
       </div>
     )
   }
@@ -189,11 +189,11 @@ function MarketSaturationBlock({ m }: { m: MemoData }) {
   return (
     <div>
       <div className="flex flex-wrap gap-2 mb-4">
-        <span className="text-xs font-semibold rounded-full px-2.5 py-1 bg-pi-elevated text-pi-noir-sub border border-pi-noir-hairline">{sat.maturity ?? '—'}</span>
+        <span className="text-xs font-semibold rounded-full px-2.5 py-1 bg-pi-sand text-pi-sub border border-pi-hairline">{sat.maturity ?? '—'}</span>
         <span className={`text-xs font-semibold rounded-full px-2.5 py-1 ${concCfg.cls}`}>{concCfg.label}</span>
         <span className={`text-xs font-semibold ${diffCfg.cls}`}>Entry: {sat.entry_difficulty}</span>
       </div>
-      {sat.competitive_intensity && <p className="text-sm text-pi-noir-sub leading-relaxed">{sat.competitive_intensity}</p>}
+      {sat.competitive_intensity && <p className="text-sm text-pi-sub leading-relaxed">{sat.competitive_intensity}</p>}
     </div>
   )
 }
@@ -216,45 +216,34 @@ function CompetitivePositionMap({ m }: { m: MemoData }) {
   const [incX, incPy] = toPx(Math.max(6, x - 6), incumbentY)
 
   return (
-    <div className="rounded-xl border border-pi-noir-hairline bg-pi-elevated p-5 sm:p-7">
+    <div className="rounded-xl border border-pi-hairline bg-pi-card p-5 sm:p-7">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider">Competitive Position Map</p>
-        <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider hidden sm:inline">Concentration vs. whitespace</p>
+        <p className="text-[10px] text-pi-faint uppercase tracking-wider">Competitive Position Map</p>
+        <p className="text-[10px] text-pi-faint uppercase tracking-wider hidden sm:inline">Concentration vs. whitespace</p>
       </div>
-      {/* Terminal Noir port (2026-07-23): every hex value below was the
-          real, literal cream-register hex (pi-ink #16171A gridlines/labels,
-          pi-faint #8C877C captions, solid #FFFFFF node fills, pi-build/
-          pi-risk's darker cream-tuned #2E6B48/#A13F2E) — a genuine "chart
-          tuned for a white background" case (near-invisible gridlines,
-          near-black text, and literal white node circles) once this section
-          moved onto the dark pi-stage chapter panel. Geometry/data-binding
-          (toPx, CONCENTRATION_X, DIFFICULTY_WHITESPACE) is untouched — only
-          these stroke/fill colors, remapped 1:1 onto the real Terminal Noir
-          hex (pi-noir-text/pi-noir-sub/pi-elevated/pi-build-noir/
-          pi-risk-noir from tailwind.config.ts). */}
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full max-w-[360px] mx-auto mt-3">
-        <line x1={cx} y1="24" x2={cx} y2={h - 24} stroke="#F5EFDF" strokeOpacity="0.14" />
-        <line x1="24" y1={cy} x2={w - 24} y2={cy} stroke="#F5EFDF" strokeOpacity="0.14" />
-        <text x={w - 28} y="40" textAnchor="end" style={{ fill: '#6FC492', fontSize: 9, letterSpacing: 1 }}>HIDDEN GAP</text>
-        <text x="28" y="40" style={{ fill: '#A79E8B', fontSize: 9, letterSpacing: 1 }}>WIDE OPEN</text>
-        <text x="28" y={h - 22} style={{ fill: '#A79E8B', fontSize: 9, letterSpacing: 1 }}>LOW PRIORITY</text>
-        <text x={w - 28} y={h - 22} textAnchor="end" style={{ fill: '#E8785E', fontSize: 9, letterSpacing: 1 }}>SATURATED</text>
+        <line x1={cx} y1="24" x2={cx} y2={h - 24} stroke="#16171A" strokeOpacity="0.09" />
+        <line x1="24" y1={cy} x2={w - 24} y2={cy} stroke="#16171A" strokeOpacity="0.09" />
+        <text x={w - 28} y="40" textAnchor="end" style={{ fill: '#2E6B48', fontSize: 9, letterSpacing: 1 }}>HIDDEN GAP</text>
+        <text x="28" y="40" style={{ fill: '#8C877C', fontSize: 9, letterSpacing: 1 }}>WIDE OPEN</text>
+        <text x="28" y={h - 22} style={{ fill: '#8C877C', fontSize: 9, letterSpacing: 1 }}>LOW PRIORITY</text>
+        <text x={w - 28} y={h - 22} textAnchor="end" style={{ fill: '#A13F2E', fontSize: 9, letterSpacing: 1 }}>SATURATED</text>
 
         {hasComp && (
           <>
-            <circle cx={incX} cy={incPy} r="9" fill="#1C1A13" stroke="#E8785E" strokeWidth="1.5" />
-            <circle cx={incX} cy={incPy} r="2.5" fill="#E8785E" />
-            <text x={incX} y={incPy + 22} textAnchor="middle" style={{ fill: '#F5EFDF', fontSize: 11, fontWeight: 600 }}>{truncateLabel(comp.name, 16)}</text>
-            <text x={incX} y={incPy + 35} textAnchor="middle" style={{ fill: '#A79E8B', fontSize: 9.5 }}>Incumbent</text>
+            <circle cx={incX} cy={incPy} r="9" fill="#FFFFFF" stroke="#A13F2E" strokeWidth="1.5" />
+            <circle cx={incX} cy={incPy} r="2.5" fill="#A13F2E" />
+            <text x={incX} y={incPy + 22} textAnchor="middle" style={{ fill: '#16171A', fontSize: 11, fontWeight: 600 }}>{truncateLabel(comp.name, 16)}</text>
+            <text x={incX} y={incPy + 35} textAnchor="middle" style={{ fill: '#8C877C', fontSize: 9.5 }}>Incumbent</text>
           </>
         )}
 
-        <circle cx={usX} cy={usPy} r="11" fill="#1C1A13" stroke="#6FC492" strokeWidth="2" />
-        <circle cx={usX} cy={usPy} r="3" fill="#6FC492" />
-        <text x={usX} y={usPy - 18} textAnchor="middle" style={{ fill: '#F5EFDF', fontSize: 11, fontWeight: 600 }}>Your Entry Point</text>
-        <text x={usX} y={usPy - 5} textAnchor="middle" style={{ fill: '#A79E8B', fontSize: 9.5 }}>{truncateLabel(m.brand_opportunities?.[0] ?? 'Documented gap', 30)}</text>
+        <circle cx={usX} cy={usPy} r="11" fill="#FFFFFF" stroke="#2E6B48" strokeWidth="2" />
+        <circle cx={usX} cy={usPy} r="3" fill="#2E6B48" />
+        <text x={usX} y={usPy - 18} textAnchor="middle" style={{ fill: '#16171A', fontSize: 11, fontWeight: 600 }}>Your Entry Point</text>
+        <text x={usX} y={usPy - 5} textAnchor="middle" style={{ fill: '#8C877C', fontSize: 9.5 }}>{truncateLabel(m.brand_opportunities?.[0] ?? 'Documented gap', 30)}</text>
       </svg>
-      <div className="flex justify-between mt-1 text-[10px] text-pi-noir-sub uppercase tracking-wider">
+      <div className="flex justify-between mt-1 text-[10px] text-pi-faint uppercase tracking-wider">
         <span>← Less concentrated</span>
         <span>More concentrated →</span>
       </div>
@@ -277,34 +266,34 @@ function SupplySnapshot({ m }: { m: MemoData }) {
   const score = m.scores.competition?.score ?? 5
   const access = mapAccessibility(score)
   const difficultyLabel = sat?.entry_difficulty ?? (score >= 7 ? 'Low' : score >= 4 ? 'Medium' : 'High')
-  const diffCls = difficultyLabel === 'Low' ? 'text-pi-build-noir' : difficultyLabel === 'Medium' ? 'text-pi-gold-bright' : 'text-pi-risk-noir'
+  const diffCls = difficultyLabel === 'Low' ? 'text-pi-build' : difficultyLabel === 'Medium' ? 'text-pi-gold-bright' : 'text-pi-risk'
 
   return (
     <div className="grid sm:grid-cols-2 gap-4">
-      <div className="rounded-xl border border-pi-noir-hairline p-5 bg-pi-elevated flex flex-col justify-between">
+      <div className="rounded-xl border border-pi-hairline p-5 bg-pi-card flex flex-col justify-between">
         <div className="flex justify-between items-start mb-3">
-          <span className="font-bold text-xs uppercase text-pi-noir-text">Entry Difficulty</span>
+          <span className="font-bold text-xs uppercase text-pi-ink">Entry Difficulty</span>
           <span className={`font-mono font-bold text-sm ${diffCls}`}>{difficultyLabel}</span>
         </div>
-        <p className="text-xs text-pi-noir-sub leading-relaxed">{access.barriers}</p>
+        <p className="text-xs text-pi-faint leading-relaxed">{access.barriers}</p>
       </div>
       <div className="space-y-3">
         {rv?.meaningful_competitor_count !== undefined && (
-          <div className="rounded-lg bg-pi-elevated p-4">
-            <p className="font-mono text-[10px] text-pi-noir-sub uppercase">Meaningful Competitors</p>
-            <p className="font-bold text-2xl text-pi-noir-text">{rv.meaningful_competitor_count}</p>
+          <div className="rounded-lg bg-pi-sand p-4">
+            <p className="font-mono text-[10px] text-pi-faint uppercase">Meaningful Competitors</p>
+            <p className="font-bold text-2xl text-pi-ink">{rv.meaningful_competitor_count}</p>
           </div>
         )}
         {rv?.avg_review_count !== undefined && (
-          <div className="rounded-lg bg-pi-elevated p-4">
-            <p className="font-mono text-[10px] text-pi-noir-sub uppercase">Median Incumbent Moat</p>
-            <p className="font-bold text-2xl text-pi-noir-text">{rv.avg_review_count.toLocaleString()} <span className="text-xs font-normal">reviews</span></p>
+          <div className="rounded-lg bg-pi-sand p-4">
+            <p className="font-mono text-[10px] text-pi-faint uppercase">Median Incumbent Moat</p>
+            <p className="font-bold text-2xl text-pi-ink">{rv.avg_review_count.toLocaleString()} <span className="text-xs font-normal">reviews</span></p>
           </div>
         )}
         {rv?.review_concentration_ratio !== undefined && (
-          <div className="rounded-lg bg-pi-elevated p-4">
-            <p className="font-mono text-[10px] text-pi-noir-sub uppercase">Market Concentration</p>
-            <p className="font-bold text-2xl text-pi-noir-text">{Math.round(rv.review_concentration_ratio * 100)}% <span className="text-xs font-normal">top 3</span></p>
+          <div className="rounded-lg bg-pi-sand p-4">
+            <p className="font-mono text-[10px] text-pi-faint uppercase">Market Concentration</p>
+            <p className="font-bold text-2xl text-pi-ink">{Math.round(rv.review_concentration_ratio * 100)}% <span className="text-xs font-normal">top 3</span></p>
           </div>
         )}
       </div>
@@ -325,22 +314,22 @@ function SupplyVelocityPanel({ m }: { m: MemoData }) {
   return (
     <PiCard>
       <div className="flex items-center justify-between gap-3 mb-3">
-        <p className="text-xs font-semibold text-pi-noir-text">New-Listing Velocity (Supply Response)</p>
+        <p className="text-xs font-semibold text-pi-ink">New-Listing Velocity (Supply Response)</p>
         {sv && <ProvenanceBadge p={supplyVelocityProvenance()} />}
       </div>
       {sv ? (
         <>
-          <div className="rounded-lg border border-pi-noir-hairline divide-y divide-pi-noir-hairline overflow-hidden">
+          <div className="rounded-lg border border-pi-hairline divide-y divide-pi-hairline overflow-hidden">
             <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-              <span className="text-xs text-pi-noir-sub">Listed within last 12 months</span>
-              <span className="font-mono text-sm font-semibold text-pi-noir-text">{sv.youngListingPct12m !== null ? `${Math.round(sv.youngListingPct12m * 100)}%` : <LabNoData />}</span>
+              <span className="text-xs text-pi-faint">Listed within last 12 months</span>
+              <span className="font-mono text-sm font-semibold text-pi-ink">{sv.youngListingPct12m !== null ? `${Math.round(sv.youngListingPct12m * 100)}%` : <LabNoData />}</span>
             </div>
             <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-              <span className="text-xs text-pi-noir-sub">Listed within last 24 months</span>
-              <span className="font-mono text-sm font-semibold text-pi-noir-text">{sv.youngListingPct24m !== null ? `${Math.round(sv.youngListingPct24m * 100)}%` : <LabNoData />}</span>
+              <span className="text-xs text-pi-faint">Listed within last 24 months</span>
+              <span className="font-mono text-sm font-semibold text-pi-ink">{sv.youngListingPct24m !== null ? `${Math.round(sv.youngListingPct24m * 100)}%` : <LabNoData />}</span>
             </div>
           </div>
-          <p className="text-[11px] text-pi-noir-sub italic mt-3 leading-relaxed">
+          <p className="text-[11px] text-pi-faint italic mt-3 leading-relaxed">
             {sv.entryVelocity
               ? `New-entrant pace: ${sv.entryVelocity} (single-snapshot proxy, not a true two-point-in-time delta).`
               : 'New-entrant pace not available for this sample.'}
@@ -364,25 +353,25 @@ export default function SupplyLandscape({ m }: { m: MemoData }) {
     <div className="space-y-6">
       <SupplySnapshot m={m} />
 
-      <div className="pt-5 border-t border-pi-noir-hairline">
+      <div className="pt-5 border-t border-pi-hairline">
         <SupplyVelocityPanel m={m} />
       </div>
 
-      <div className="grid gap-3 pt-5 border-t border-pi-noir-hairline">
+      <div className="grid gap-3 pt-5 border-t border-pi-hairline">
         <CompetitionEvidencePanel m={m} />
       </div>
 
-      <div className="pt-5 border-t border-pi-noir-hairline">
+      <div className="pt-5 border-t border-pi-hairline">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest">Market Structure</p>
+          <p className="text-[10px] text-pi-faint uppercase tracking-widest">Market Structure</p>
           <ProvenanceBadge p={m.market_saturation ? marketSaturationProvenance(sig) : legacyCompetitionProvenance()} />
         </div>
         <MarketSaturationBlock m={m} />
       </div>
 
-      <div className="pt-5 border-t border-pi-noir-hairline space-y-6">
+      <div className="pt-5 border-t border-pi-hairline space-y-6">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest">Competitive Position</p>
+          <p className="text-[10px] text-pi-faint uppercase tracking-widest">Competitive Position</p>
           <ProvenanceBadge p={compProvenance} />
         </div>
         {compVerified && <ProvenanceCaption p={compProvenance} />}
@@ -390,21 +379,21 @@ export default function SupplyLandscape({ m }: { m: MemoData }) {
         <CompetitivePositionMap m={m} />
 
         {hasComp && (
-          <div className="rounded-xl border border-pi-noir-hairline bg-pi-elevated overflow-hidden">
-            <div className="grid grid-cols-3 bg-pi-elevated px-4 py-2.5 text-[10px] text-pi-noir-sub uppercase tracking-wider">
+          <div className="rounded-xl border border-pi-hairline bg-pi-card overflow-hidden">
+            <div className="grid grid-cols-3 bg-pi-sand px-4 py-2.5 text-[10px] text-pi-faint uppercase tracking-wider">
               <span>Brand</span><span>Est. Revenue</span><span>Their Gap</span>
             </div>
             <div className="grid grid-cols-3 px-4 py-3.5 text-sm">
-              <span className="font-semibold text-pi-noir-text">{comp.name}</span>
-              <span className="font-mono text-pi-noir-sub">{comp.revenue}</span>
-              <span className="text-pi-noir-sub text-xs leading-relaxed col-span-1">{comp.gap}</span>
+              <span className="font-semibold text-pi-ink">{comp.name}</span>
+              <span className="font-mono text-pi-sub">{comp.revenue}</span>
+              <span className="text-pi-sub text-xs leading-relaxed col-span-1">{comp.gap}</span>
             </div>
           </div>
         )}
 
         <div>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs text-pi-noir-sub uppercase tracking-widest">Unclaimed Positioning Angles</p>
+            <p className="text-xs text-pi-faint uppercase tracking-widest">Unclaimed Positioning Angles</p>
             <ProvenanceBadge p={STATIC_PROVENANCE.brandOpportunities} />
           </div>
           <NumList items={m.brand_opportunities} />

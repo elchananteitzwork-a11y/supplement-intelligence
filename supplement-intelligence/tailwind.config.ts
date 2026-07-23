@@ -50,33 +50,7 @@ const config: Config = {
   				invest: '#35507A',
   				pass: '#6E6A5C',
   				risk: '#A13F2E',
-  				hairline: 'rgba(22,23,26,0.09)',
-  				// "Terminal Noir" register (2026-07-23, owner-approved after a
-  				// first-principles design critique) — the rotor's DNA
-  				// ("luminosity = confidence") only physically works on a dark
-  				// stage; this is that stage. Every value here is contrast-
-  				// checked against WCAG 2.1 (relative-luminance formula, not
-  				// eyeballed) — see the design-prototypes/candidate-detail-
-  				// noir.html mockup's own verification. Namespaced under `pi`
-  				// (not a new top-level key) so it stays one design-system
-  				// vocabulary, not two competing ones.
-  				void: '#0C0B08',
-  				stage: '#14130F',
-  				elevated: '#1C1A13',
-  				'noir-text': '#F5EFDF',
-  				'noir-sub': '#A79E8B',
-  				'noir-hairline': 'rgba(245,239,223,0.14)',
-  				'noir-hairline-soft': 'rgba(245,239,223,0.07)',
-  				// Verdict colors re-tuned for use as TEXT/glow on a dark stage —
-  				// the existing build/invest/risk/pass above stay as-is (they're
-  				// tuned for white-text-on-solid-chip, the cream register's
-  				// pattern); these are the same identities, lightened until they
-  				// hold 4.5:1+ directly against --stage (all verified: build
-  				// 8.84:1, invest 9.02:1, risk 6.44:1, pass 6.65:1).
-  				'build-noir': '#6FC492',
-  				'invest-noir': '#8FB7EF',
-  				'risk-noir': '#E8785E',
-  				'pass-noir': '#A29A87'
+  				hairline: 'rgba(22,23,26,0.09)'
   			},
   			surface: {
   				DEFAULT: '#f9f9f9',
@@ -253,14 +227,7 @@ const config: Config = {
   			'cine-kenburns': 'cine-kenburns 42s ease-in-out infinite alternate',
   			'cine-drift': 'cine-drift ease-in-out infinite',
   			'cine-pulse': 'cine-pulse 2.6s ease-in-out infinite',
-  			'cine-travel': 'cine-travel 4.2s linear infinite',
-  			// Terminal Noir verdict card ambient glow (RD noir port,
-  			// 2026-07-23) — opacity/transform ONLY, never box-shadow: the
-  			// isolated research harness measured animated box-shadow at
-  			// +11.9ms/frame vs -1.16ms for opacity/transform on this exact
-  			// kind of glow. Gated at call sites via Tailwind's `motion-safe:`
-  			// variant, same convention as the cine-* animations above.
-  			'card-breathe': 'card-breathe 6s ease-in-out infinite'
+  			'cine-travel': 'cine-travel 4.2s linear infinite'
   		},
   		keyframes: {
   			'cine-kenburns': {
@@ -284,10 +251,6 @@ const config: Config = {
   			'cine-travel': {
   				from: { offsetDistance: '0%' },
   				to: { offsetDistance: '100%' }
-  			},
-  			'card-breathe': {
-  				'0%, 100%': { opacity: '0.55', transform: 'scale(1)' },
-  				'50%': { opacity: '0.9', transform: 'scale(1.045)' }
   			}
   		}
   	}

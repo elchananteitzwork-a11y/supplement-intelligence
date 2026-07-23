@@ -4,32 +4,9 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AppShell } from '@/components/shell/AppShell'
-import { LedgerTable, WitnessDots, type LedgerColumn } from '@/components/ui'
+import { LedgerTable, VerdictBadge, WitnessDots, PrimaryLinkButton, SecondaryLinkButton, HardShadowSearchInput, type LedgerColumn } from '@/components/ui'
 import type { MarketVerdictCode } from '@/lib/stage4/verdict'
 
-// Terminal Noir port (2026-07-23) — presentation-only re-skin of this real
-// history list onto the dark register. No fetch/filter/sort/favorite/
-// delete/duplicate logic changed; every field read is byte-identical to
-// before.
-//
-// This page was still on the original 'legacy' (black/white, border-black)
-// shell, not the pi-cream register most other routes already migrated to
-// (see components/shell/SideNav.tsx's own comment: "only /research/history
-// ... still genuinely 'legacy'") — so this pass goes straight from
-// legacy -> pi-noir, matching the same real dark tokens the rest of this
-// rollout uses (design-prototypes/candidate-detail-noir.html's vocabulary),
-// rather than porting to the intermediate cream skin first.
-//
-// components/ui/VerdictBadge.tsx and the PrimaryButton/SecondaryButton/
-// HardShadowSearchInput family have no pi/pi-noir variant mechanism at all
-// (VerdictBadge is keyed by `scheme`, not a display variant; the buttons
-// are permanently black/white per design-system.md's neo-brutalist spec)
-// and are still used by other out-of-scope legacy screens — same
-// resolution app/watchlist/page.tsx already uses for the identical
-// problem: local, hand-rolled pi-noir markup in this file instead of
-// editing those shared components. LedgerTable and WitnessDots DO already
-// have a real `variant="pi-noir"` (shipped by the parallel Watchlist/
-// Alerts/Track Record/Settings port) and are used as-is here, unmodified.
 interface HistoryItem {
   id: string
   query: string
@@ -59,40 +36,20 @@ const STATUS_LABEL: Record<string, string> = {
   stage4:  'Complete',
 }
 const STATUS_COLOR: Record<string, string> = {
-  blocked: 'text-pi-risk-noir border-pi-risk-noir/40',
-  stage1:  'text-pi-noir-sub border-pi-noir-hairline',
-  stage2:  'text-pi-noir-text border-pi-noir-hairline',
-  stage3:  'text-pi-gold-deep border-pi-gold-deep/40',
-  stage4:  'text-pi-build-noir border-pi-build-noir/40',
+  blocked: 'text-verdict-negative border-verdict-negative',
+  stage1:  'text-outline border-black',
+  stage2:  'text-black border-black',
+  stage3:  'text-verdict-caution-text border-verdict-caution-text',
+  stage4:  'text-verdict-positive border-verdict-positive',
 }
 
 // quality_grade only ever has 3 real levels — map to a 3-dot confidence readout
 const QUALITY_DOTS: Record<string, number> = { sufficient: 3, thin: 2, insufficient: 1 }
 
-// Local, noir-safe pill for MarketVerdictCode — same real label vocabulary
-// components/ui/VerdictBadge.tsx's MARKET_VERDICT_CFG uses, re-tuned onto
-// dark-safe tokens (VerdictBadge itself has no display-variant mechanism —
-// see this file's header comment for why it's inlined here rather than
-// edited, same resolution app/watchlist/page.tsx already established).
-const NOIR_MARKET_VERDICT_CFG: Record<MarketVerdictCode, { label: string; cls: string }> = {
-  PURSUE:              { label: 'Pursue',               cls: 'text-pi-build-noir border-pi-build-noir/30 bg-pi-build-noir/10' },
-  PURSUE_WITH_CAUTION: { label: 'Pursue with Caution',  cls: 'text-pi-gold-deep border-pi-gold-deep/30 bg-pi-gold-deep/10' },
-  INVESTIGATE_FURTHER: { label: 'Investigate Further',  cls: 'text-pi-gold-deep border-pi-gold-deep/30 bg-pi-gold-deep/10' },
-  DO_NOT_PURSUE:        { label: 'Do Not Pursue',        cls: 'text-pi-risk-noir border-pi-risk-noir/30 bg-pi-risk-noir/10' },
-}
-function NoirVerdictPill({ verdict }: { verdict: MarketVerdictCode }) {
-  const cfg = NOIR_MARKET_VERDICT_CFG[verdict]
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${cfg.cls}`}>
-      {cfg.label}
-    </span>
-  )
-}
-
 function scoreColor(score: number): string {
-  if (score >= 70) return 'text-pi-build-noir'
-  if (score >= 45) return 'text-pi-gold-deep'
-  return 'text-pi-risk-noir'
+  if (score >= 70) return 'text-verdict-positive'
+  if (score >= 45) return 'text-verdict-caution-text'
+  return 'text-verdict-negative'
 }
 
 function formatDate(iso: string): string {
@@ -222,7 +179,7 @@ export default function HistoryPage() {
           onClick={() => toggleFavorite(item)}
           disabled={actioning === item.id}
           className={`text-base leading-none transition-colors disabled:opacity-40 ${
-            item.is_favorited ? 'text-pi-gold-deep hover:text-pi-noir-text' : 'text-pi-noir-sub hover:text-pi-gold-deep'
+            item.is_favorited ? 'text-verdict-caution-text hover:text-black' : 'text-outline-variant hover:text-verdict-caution-text'
           }`}
           title={item.is_favorited ? 'Remove from favorites' : 'Add to favorites'}
         >
@@ -234,20 +191,20 @@ export default function HistoryPage() {
       key: 'market', header: 'Market',
       render: item => (
         <div className="space-y-0.5 min-w-0">
-          <p className="text-sm font-bold text-pi-noir-text truncate max-w-[220px]">{item.query}</p>
-          <p className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-wide">{categoryLabel(item.category_id)}</p>
-          {item.blocked_reason && <p className="text-[10px] text-pi-risk-noir">{item.blocked_reason}</p>}
+          <p className="text-sm font-bold text-black truncate max-w-[220px]">{item.query}</p>
+          <p className="text-[10px] font-mono text-outline uppercase tracking-wide">{categoryLabel(item.category_id)}</p>
+          {item.blocked_reason && <p className="text-[10px] text-verdict-negative">{item.blocked_reason}</p>}
         </div>
       ),
     },
     {
       key: 'date', header: 'Date', hideOnMobile: true,
-      render: item => <span className="text-xs font-mono text-pi-noir-sub whitespace-nowrap">{formatDate(item.created_at)}</span>,
+      render: item => <span className="text-xs font-mono text-outline whitespace-nowrap">{formatDate(item.created_at)}</span>,
     },
     {
       key: 'status', header: 'Status',
       render: item => (
-        <span className={`text-[10px] px-2 py-0.5 border rounded-full font-mono uppercase whitespace-nowrap ${STATUS_COLOR[item.status]}`}>
+        <span className={`text-[10px] px-2 py-0.5 border font-mono uppercase whitespace-nowrap ${STATUS_COLOR[item.status]}`}>
           {STATUS_LABEL[item.status]}
         </span>
       ),
@@ -255,18 +212,18 @@ export default function HistoryPage() {
     {
       key: 'verdict', header: 'Verdict', hideOnMobile: true,
       render: item => item.verdict_code
-        ? <NoirVerdictPill verdict={item.verdict_code as MarketVerdictCode} />
-        : <span className="text-xs text-pi-noir-sub">—</span>,
+        ? <VerdictBadge scheme="market-verdict" verdict={item.verdict_code as MarketVerdictCode} size="sm" />
+        : <span className="text-xs text-outline-variant">—</span>,
     },
     {
       key: 'score', header: 'Score', align: 'right',
       render: item => item.status !== 'blocked'
         ? <span className={`text-sm font-mono font-bold ${scoreColor(item.opportunity_score)}`}>{item.opportunity_score}</span>
-        : <span className="text-xs text-pi-noir-sub">—</span>,
+        : <span className="text-xs text-outline-variant">—</span>,
     },
     {
       key: 'confidence', header: 'Confidence', hideOnMobile: true,
-      render: item => <WitnessDots variant="pi-noir" filled={QUALITY_DOTS[item.quality_grade] ?? 0} total={3} size="sm" label={`${item.quality_grade} data quality`} />,
+      render: item => <WitnessDots filled={QUALITY_DOTS[item.quality_grade] ?? 0} total={3} size="sm" label={`${item.quality_grade} data quality`} />,
     },
     {
       key: 'actions', header: 'Actions', align: 'right',
@@ -274,30 +231,30 @@ export default function HistoryPage() {
         <div className="flex items-center justify-end gap-1 flex-wrap">
           <Link
             href={openItem(item)}
-            className="rounded-md bg-pi-gold-deep px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#16130a] transition-[filter] duration-150 hover:brightness-110"
+            className="bg-black text-white font-black uppercase tracking-wide border border-black px-2.5 py-1 text-[10px] hover:bg-white hover:text-black transition-colors duration-150"
           >
             Open →
           </Link>
           <button
             onClick={() => duplicateItem(item.query)}
-            className="px-2 py-1 text-[10px] font-mono text-pi-noir-sub hover:text-pi-noir-text hover:bg-pi-elevated rounded-md transition-colors"
+            className="px-2 py-1 text-[10px] font-mono text-outline hover:text-black hover:bg-surface-container-low transition-colors"
             title="Re-run analysis"
           >
             Duplicate
           </button>
           {deleting === item.id ? (
             <span className="flex items-center gap-1">
-              <span className="text-[10px] text-pi-risk-noir">Delete?</span>
+              <span className="text-[10px] text-verdict-negative">Delete?</span>
               <button
                 onClick={() => deleteItem(item.id)}
                 disabled={actioning === item.id}
-                className="px-1.5 py-1 text-[10px] text-pi-risk-noir hover:bg-pi-risk-noir/10 rounded-md transition-colors disabled:opacity-40"
+                className="px-1.5 py-1 text-[10px] text-verdict-negative hover:bg-verdict-negative/10 transition-colors disabled:opacity-40"
               >
                 Yes
               </button>
               <button
                 onClick={() => setDeleting(null)}
-                className="px-1.5 py-1 text-[10px] text-pi-noir-sub hover:text-pi-noir-text hover:bg-pi-elevated rounded-md transition-colors"
+                className="px-1.5 py-1 text-[10px] text-outline hover:text-black hover:bg-surface-container-low transition-colors"
               >
                 Cancel
               </button>
@@ -305,7 +262,7 @@ export default function HistoryPage() {
           ) : (
             <button
               onClick={() => setDeleting(item.id)}
-              className="px-2 py-1 text-[10px] text-pi-noir-sub hover:text-pi-risk-noir transition-colors"
+              className="px-2 py-1 text-[10px] text-outline hover:text-verdict-negative transition-colors"
               title="Delete analysis"
             >
               Delete
@@ -317,46 +274,36 @@ export default function HistoryPage() {
   ]
 
   return (
-    <AppShell active="history" variant="pi-noir">
+    <AppShell active="history">
       <div className="max-w-6xl space-y-8">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap border-b border-pi-noir-hairline pb-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap border-b-2 border-black pb-4">
           <div className="space-y-1">
-            <h1 className="text-headline-md text-pi-noir-text">Research History</h1>
-            <p className="text-sm text-pi-noir-sub">
+            <h1 className="text-headline-md text-black">Research History</h1>
+            <p className="text-sm text-ink-variant">
               {loading ? 'Loading…' : `${items.length} ${items.length === 1 ? 'analysis' : 'analyses'}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href="/research/compare"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-pi-noir-hairline px-4 py-2 text-sm font-semibold text-pi-noir-text hover:bg-pi-elevated transition-colors"
-            >
-              Compare →
-            </Link>
-            <Link
-              href="/research"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-[#F6E7B8] via-pi-gold-deep to-pi-gold-bright px-4 py-2 text-sm font-semibold text-[#16130a] shadow-[0_8px_18px_-8px_rgba(212,169,74,0.5)] transition-transform duration-200 hover:-translate-y-px"
-            >
-              + New Analysis
-            </Link>
+            <SecondaryLinkButton href="/research/compare">Compare →</SecondaryLinkButton>
+            <PrimaryLinkButton href="/research">+ New Analysis</PrimaryLinkButton>
           </div>
         </div>
 
         {/* Search + Sort + Filter bar */}
         <div className="space-y-3">
           <div className="flex gap-3 flex-wrap">
-            <input
+            <HardShadowSearchInput
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by product or category…"
-              className="flex-1 min-w-48 rounded-lg border border-pi-noir-hairline bg-pi-stage px-4 py-3 text-sm text-pi-noir-text placeholder-pi-noir-sub focus:outline-none focus:border-pi-gold-deep transition-colors"
+              className="flex-1 min-w-48"
             />
             <select
               value={sort}
               onChange={e => setSort(e.target.value as SortKey)}
-              className="rounded-lg border border-pi-noir-hairline bg-pi-stage px-3 py-2 text-sm text-pi-noir-text focus:outline-none focus:border-pi-gold-deep transition-colors"
+              className="border border-black bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black"
             >
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
@@ -371,10 +318,10 @@ export default function HistoryPage() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-full text-xs font-mono uppercase tracking-wide border transition-colors ${
+                className={`px-3 py-1 text-xs font-mono uppercase tracking-wide border transition-colors ${
                   filter === f
-                    ? 'border-pi-gold-deep bg-pi-gold-deep/15 text-pi-gold-deep font-semibold'
-                    : 'border-pi-noir-hairline text-pi-noir-sub hover:bg-pi-elevated hover:text-pi-noir-text'
+                    ? 'border-2 border-black bg-black text-white'
+                    : 'border-black text-outline hover:bg-surface-container-low hover:text-black'
                 }`}
               >
                 {f === 'all' ? 'All' : f === 'favorited' ? '★ Favorites' : f === 'complete' ? 'Stage 4 Complete' : 'Blocked'}
@@ -384,10 +331,10 @@ export default function HistoryPage() {
               <button
                 key={cat}
                 onClick={() => setFilter(cat === filter ? 'all' : cat)}
-                className={`px-3 py-1 rounded-full text-xs font-mono uppercase tracking-wide border transition-colors ${
+                className={`px-3 py-1 text-xs font-mono uppercase tracking-wide border transition-colors ${
                   filter === cat
-                    ? 'border-pi-gold-deep bg-pi-gold-deep/15 text-pi-gold-deep font-semibold'
-                    : 'border-pi-noir-hairline text-pi-noir-sub hover:bg-pi-elevated hover:text-pi-noir-text'
+                    ? 'border-2 border-black bg-black text-white'
+                    : 'border-black text-outline hover:bg-surface-container-low hover:text-black'
                 }`}
               >
                 {categoryLabel(cat)}
@@ -398,16 +345,16 @@ export default function HistoryPage() {
 
         {/* Error */}
         {error && (
-          <p className="text-sm text-pi-risk-noir bg-pi-stage border border-pi-risk-noir/40 rounded-lg px-3 py-2">{error}</p>
+          <p className="text-sm text-verdict-negative bg-white border border-verdict-negative px-3 py-2">{error}</p>
         )}
 
         {/* Loading skeleton */}
         {loading && (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="rounded-xl border border-pi-noir-hairline bg-pi-stage p-5 animate-pulse">
-                <div className="h-4 bg-pi-elevated w-48 mb-2 rounded" />
-                <div className="h-3 bg-pi-elevated w-24 rounded" />
+              <div key={i} className="border border-black bg-white p-5 animate-pulse">
+                <div className="h-4 bg-surface-container w-48 mb-2" />
+                <div className="h-3 bg-surface-container w-24" />
               </div>
             ))}
           </div>
@@ -415,24 +362,19 @@ export default function HistoryPage() {
 
         {/* Empty state */}
         {!loading && displayed.length === 0 && (
-          <div className="rounded-xl border border-pi-noir-hairline bg-pi-stage p-12 text-center space-y-3">
-            <p className="text-pi-noir-sub text-sm">
+          <div className="border border-black bg-white p-12 text-center space-y-3">
+            <p className="text-ink-variant text-sm">
               {items.length === 0
                 ? 'No analyses yet — run your first market signal to get started.'
                 : 'No results match your current filters.'}
             </p>
             {items.length === 0 && (
-              <Link
-                href="/research"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-[#F6E7B8] via-pi-gold-deep to-pi-gold-bright px-5 py-2.5 text-sm font-semibold text-[#16130a] shadow-[0_8px_18px_-8px_rgba(212,169,74,0.5)] transition-transform duration-200 hover:-translate-y-px"
-              >
-                Start an analysis →
-              </Link>
+              <PrimaryLinkButton href="/research">Start an analysis →</PrimaryLinkButton>
             )}
             {items.length > 0 && (
               <button
                 onClick={() => { setSearch(''); setFilter('all') }}
-                className="text-xs font-mono uppercase tracking-wide text-pi-noir-text underline hover:text-pi-gold-deep"
+                className="text-xs font-mono uppercase tracking-wide text-black underline hover:text-ink-variant"
               >
                 Clear filters
               </button>
@@ -442,12 +384,12 @@ export default function HistoryPage() {
 
         {/* Ledger table */}
         {!loading && displayed.length > 0 && (
-          <LedgerTable variant="pi-noir" columns={columns} rows={displayed} />
+          <LedgerTable columns={columns} rows={displayed} />
         )}
 
         {/* Bottom count */}
         {!loading && displayed.length > 0 && (
-          <p className="text-xs text-center text-pi-noir-sub font-mono">
+          <p className="text-xs text-center text-outline font-mono">
             Showing {displayed.length} of {items.length}
           </p>
         )}

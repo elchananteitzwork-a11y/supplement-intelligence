@@ -6,26 +6,9 @@
 // consumer needs it. (Corrected 2026-07-21 audit: app/dashboard and
 // app/leaderboard themselves already pass variant="pi" — this comment had
 // drifted out of date the moment that migration landed.)
-//
-// `variant="pi-noir"` (Terminal Noir port, 2026-07-23): additive dark-stage
-// restyle — app/leaderboard passes this now. `color` is still caller-
-// supplied per-tile (the caller must pass a noir-safe hex for legibility
-// on pi-elevated; app/leaderboard's noir call site does). 'legacy'/'pi'
-// consumers unaffected.
 export function StatTile({
   label, value, color, sub, variant = 'legacy',
-}: { label: string; value: string; color?: string; sub?: string; variant?: 'legacy' | 'pi' | 'pi-noir' }) {
-  if (variant === 'pi-noir') {
-    return (
-      <div className="rounded-lg bg-pi-elevated border border-pi-noir-hairline px-4 py-4">
-        <p className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-wider mb-2">{label}</p>
-        <p className="text-2xl font-bold font-mono leading-none text-pi-noir-text" style={color ? { color } : undefined}>
-          {value}
-        </p>
-        {sub && <p className="text-[11px] text-pi-noir-sub mt-1">{sub}</p>}
-      </div>
-    )
-  }
+}: { label: string; value: string; color?: string; sub?: string; variant?: 'legacy' | 'pi' }) {
   if (variant === 'pi') {
     return (
       <div className="rounded-lg bg-pi-sand px-4 py-4">

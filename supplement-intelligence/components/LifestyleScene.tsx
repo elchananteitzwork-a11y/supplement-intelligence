@@ -29,10 +29,10 @@ export function LifestyleScene({ format, dosing }: { format: string; dosing: str
   const shape = inferProductShape(format)
 
   return (
-    <div className="rounded-xl border border-pi-noir-hairline overflow-hidden bg-pi-elevated">
+    <div className="rounded-xl border border-pi-hairline overflow-hidden bg-pi-card">
       <div className="flex items-center justify-between px-5 sm:px-6 pt-5">
-        <p className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-wider">Lifestyle Concept</p>
-        <p className="text-[10px] font-mono text-pi-noir-sub italic">Generated scene — not a photo</p>
+        <p className="text-[10px] font-mono text-pi-faint uppercase tracking-wider">Lifestyle Concept</p>
+        <p className="text-[10px] font-mono text-pi-faint italic">Generated scene — not a photo</p>
       </div>
       <svg viewBox="0 0 400 200" className="w-full h-auto">
         <defs>
@@ -74,7 +74,7 @@ export function LifestyleScene({ format, dosing }: { format: string; dosing: str
           <path d={MINI_PATHS[shape]} fill="#16171A" fillRule="evenodd" />
         </g>
       </svg>
-      <p className="text-center text-xs font-mono text-pi-noir-sub pb-4 pt-1">{pal.label}</p>
+      <p className="text-center text-xs font-mono text-pi-faint pb-4 pt-1">{pal.label}</p>
     </div>
   )
 }

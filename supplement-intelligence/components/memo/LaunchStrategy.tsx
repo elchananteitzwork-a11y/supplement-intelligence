@@ -16,16 +16,16 @@ import AdCopyIdeation from './AdCopyIdeation'
 function ProductConceptVisual({ format, categoryName }: { format: string; categoryName: string }) {
   const shape = inferProductShape(format)
   return (
-    <div className="relative rounded-xl border border-pi-noir-hairline bg-pi-elevated p-6 sm:p-8 overflow-hidden">
+    <div className="relative rounded-xl border border-pi-hairline bg-pi-card p-6 sm:p-8 overflow-hidden">
       <div className="flex items-center justify-between mb-1 relative z-10">
-        <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider">Product Concept</p>
-        <p className="text-[10px] text-pi-noir-sub italic">Generated concept render — not a product photo</p>
+        <p className="text-[10px] text-pi-faint uppercase tracking-wider">Product Concept</p>
+        <p className="text-[10px] text-pi-faint italic">Generated concept render — not a product photo</p>
       </div>
       <div className="flex items-center justify-center py-4 relative z-10">
         <ProductRenderHero shape={shape} />
       </div>
-      <p className="text-center text-sm font-medium text-pi-noir-sub relative z-10">{categoryName}</p>
-      <p className="text-center text-xs text-pi-noir-sub mt-0.5 relative z-10">{format}</p>
+      <p className="text-center text-sm font-medium text-pi-sub relative z-10">{categoryName}</p>
+      <p className="text-center text-xs text-pi-faint mt-0.5 relative z-10">{format}</p>
     </div>
   )
 }
@@ -43,24 +43,24 @@ export default function LaunchStrategy({ m }: { m: MemoData }) {
       <ProductConceptVisual format={rec.format} categoryName={m.category_name} />
       <LifestyleScene format={rec.format} dosing={rec.dosing} />
 
-      <div className="flex flex-wrap sm:flex-nowrap divide-x divide-pi-noir-hairline rounded-xl border border-pi-noir-hairline bg-pi-elevated overflow-hidden">
+      <div className="flex flex-wrap sm:flex-nowrap divide-x divide-pi-hairline rounded-xl border border-pi-hairline bg-pi-card overflow-hidden">
         {([['Format', rec.format], ['Usage', rec.dosing], ['COGS', rec.cogs_estimate], ['Retail', rec.retail_price]] as [string, string][]).map(([l, v]) => (
           <div key={l} className="flex-1 min-w-[100px] px-3 py-3" title={(l === 'COGS' || l === 'Retail') ? STATIC_PROVENANCE.productEconomics.detail : undefined}>
-            <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider mb-1">{l}</p>
-            <p className="text-xs text-pi-noir-sub leading-snug font-mono">{v ?? '—'}</p>
+            <p className="text-[10px] text-pi-faint uppercase tracking-wider mb-1">{l}</p>
+            <p className="text-xs text-pi-sub leading-snug font-mono">{v ?? '—'}</p>
           </div>
         ))}
       </div>
 
       <div>
         <div className="flex items-center justify-between gap-3 mb-3">
-          <p className="text-xs text-pi-noir-sub uppercase tracking-widest">Key Ingredients / Components</p>
+          <p className="text-xs text-pi-faint uppercase tracking-widest">Key Ingredients / Components</p>
           <ProvenanceBadge p={STATIC_PROVENANCE.productFormula} />
         </div>
-        <div className="overflow-x-auto rounded-xl border border-pi-noir-hairline bg-pi-elevated">
+        <div className="overflow-x-auto rounded-xl border border-pi-hairline bg-pi-card">
           <table className="w-full text-sm min-w-[480px]">
             <thead>
-              <tr className="bg-pi-elevated text-[10px] text-pi-noir-sub uppercase tracking-wider">
+              <tr className="bg-pi-sand text-[10px] text-pi-faint uppercase tracking-wider">
                 <th className="text-left py-2.5 px-3 w-[30%]">Ingredient</th>
                 <th className="text-left py-2.5 px-3 w-[14%]">Dose</th>
                 <th className="text-left py-2.5 px-3">Role</th>
@@ -69,11 +69,11 @@ export default function LaunchStrategy({ m }: { m: MemoData }) {
             </thead>
             <tbody>
               {rec.formula.map((row, i) => (
-                <tr key={i} className="border-t border-pi-noir-hairline hover:bg-pi-elevated/40">
-                  <td className="py-3 px-3 font-medium text-sm text-pi-noir-text">{row.ingredient}</td>
+                <tr key={i} className="border-t border-pi-hairline hover:bg-pi-sand/40">
+                  <td className="py-3 px-3 font-medium text-sm text-pi-ink">{row.ingredient}</td>
                   <td className="py-3 px-3 font-mono text-pi-gold-bright text-xs">{row.dose}</td>
-                  <td className="py-3 px-3 text-pi-noir-sub text-xs leading-relaxed">{row.role}</td>
-                  <td className="py-3 px-3 text-center text-sm text-pi-noir-text">{row.evidence}</td>
+                  <td className="py-3 px-3 text-pi-sub text-xs leading-relaxed">{row.role}</td>
+                  <td className="py-3 px-3 text-center text-sm text-pi-ink">{row.evidence}</td>
                 </tr>
               ))}
             </tbody>
@@ -83,19 +83,19 @@ export default function LaunchStrategy({ m }: { m: MemoData }) {
 
       {rec.avoid?.length > 0 && (
         <div>
-          <p className="text-xs text-pi-noir-sub uppercase tracking-widest mb-2.5">Avoid</p>
+          <p className="text-xs text-pi-faint uppercase tracking-widest mb-2.5">Avoid</p>
           <ul className="space-y-1.5">
             {rec.avoid.map((a, i) => (
-              <li key={i} className="flex gap-2 text-sm text-pi-noir-sub"><IconX className="w-3 h-3 text-pi-risk-noir shrink-0 mt-1" />{a}</li>
+              <li key={i} className="flex gap-2 text-sm text-pi-sub"><IconX className="w-3 h-3 text-pi-risk shrink-0 mt-1" />{a}</li>
             ))}
           </ul>
         </div>
       )}
 
       {fp.path_to_10m && (
-        <div className="rounded-lg bg-pi-elevated p-4">
-          <p className="text-xs text-pi-noir-sub uppercase tracking-widest mb-2">Path to $10M ARR</p>
-          <p className="text-sm text-pi-noir-sub leading-relaxed">{fp.path_to_10m}</p>
+        <div className="rounded-lg bg-pi-sand p-4">
+          <p className="text-xs text-pi-faint uppercase tracking-widest mb-2">Path to $10M ARR</p>
+          <p className="text-sm text-pi-sub leading-relaxed">{fp.path_to_10m}</p>
         </div>
       )}
 
@@ -103,8 +103,8 @@ export default function LaunchStrategy({ m }: { m: MemoData }) {
           collision with the real one, see components/memo/DifferentiationBrief.tsx
           header) — AI-invented ad copy/persona material belongs with
           go-to-market ideation, not next to real customer evidence. */}
-      <div className="pt-6 border-t border-pi-noir-hairline">
-        <p className="text-xs text-pi-noir-sub uppercase tracking-widest mb-3">AI Creative &amp; Ad-Copy Ideation</p>
+      <div className="pt-6 border-t border-pi-hairline">
+        <p className="text-xs text-pi-faint uppercase tracking-widest mb-3">AI Creative &amp; Ad-Copy Ideation</p>
         <ProvenanceCaption p={{ level: 'synthesized', source: 'Claude (AI synthesis)', detail: 'Everything below is invented by the model to read like real customer quotes. It is not pulled from real reviews — treat it as a creative starting point for messaging, not as research.' }} />
         <div className="mt-4"><AdCopyIdeation m={m} /></div>
       </div>

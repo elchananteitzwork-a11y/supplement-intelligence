@@ -34,6 +34,7 @@ import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { AppShell } from '@/components/shell/AppShell'
+import { PiCard } from '@/components/memo/shared'
 import { formatPlanPrice, type PlanInfo } from '@/lib/billing/plan-display'
 
 interface BillingProfile {
@@ -118,36 +119,36 @@ function BillingContent() {
 
   return (
     <div className="max-w-4xl space-y-8">
-      <div className="space-y-2 border-b border-pi-noir-hairline pb-4">
-        <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-noir-text sm:text-[32px]">Billing &amp; Plans</h1>
-        <p className="text-sm text-pi-noir-sub">Manage your subscription and analysis usage.</p>
+      <div className="space-y-2 border-b border-pi-hairline pb-4">
+        <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-ink sm:text-[32px]">Billing &amp; Plans</h1>
+        <p className="text-sm text-pi-sub">Manage your subscription and analysis usage.</p>
       </div>
 
       {checkoutResult === 'success' && (
-        <p className="text-sm text-pi-build-noir rounded-lg border border-pi-build-noir/30 bg-pi-build-noir/10 px-3 py-2">
+        <p className="text-sm text-pi-build rounded-lg border border-pi-build/30 bg-pi-build/10 px-3 py-2">
           Subscription updated — it may take a few seconds to reflect below.
         </p>
       )}
       {checkoutResult === 'canceled' && (
-        <p className="text-sm text-pi-noir-sub rounded-lg border border-pi-noir-hairline bg-pi-stage px-3 py-2">
+        <p className="text-sm text-pi-sub rounded-lg border border-pi-hairline bg-pi-card px-3 py-2">
           Checkout was canceled — no changes were made.
         </p>
       )}
       {error && (
-        <p className="text-sm text-pi-risk-noir rounded-lg border border-pi-risk-noir/30 bg-pi-risk-noir/10 px-3 py-2">{error}</p>
+        <p className="text-sm text-pi-risk rounded-lg border border-pi-risk/30 bg-pi-risk/10 px-3 py-2">{error}</p>
       )}
 
       {loading && (
-        <div className="rounded-xl border border-pi-noir-hairline bg-pi-stage p-8 animate-pulse">
-          <div className="h-4 bg-pi-elevated w-48 mb-3" />
-          <div className="h-3 bg-pi-elevated w-32" />
+        <div className="rounded-xl border border-pi-hairline bg-pi-card p-8 animate-pulse">
+          <div className="h-4 bg-pi-sand w-48 mb-3" />
+          <div className="h-3 bg-pi-sand w-32" />
         </div>
       )}
 
       {!loading && status && !status.billingEnabled && (
-        <div className="rounded-xl border border-pi-noir-hairline bg-pi-stage p-8 text-center space-y-2">
-          <p className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-[0.2em]">Status: Not Configured</p>
-          <p className="text-sm text-pi-noir-sub max-w-sm mx-auto">
+        <div className="rounded-xl border border-pi-hairline bg-pi-card p-8 text-center space-y-2">
+          <p className="text-[10px] font-mono text-pi-faint uppercase tracking-[0.2em]">Status: Not Configured</p>
+          <p className="text-sm text-pi-sub max-w-sm mx-auto">
             Billing is not yet configured for this deployment — your free-tier usage below is unaffected.
           </p>
         </div>
@@ -156,36 +157,36 @@ function BillingContent() {
       {!loading && status && (
         <>
           {/* Current plan / usage */}
-          <div className="rounded-xl border border-pi-noir-hairline bg-pi-stage p-4 sm:p-5">
+          <PiCard>
             <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
               <div>
-                <p className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-widest mb-1">Current Plan</p>
-                <h2 className="text-lg font-semibold text-pi-noir-text uppercase">
+                <p className="text-[10px] font-mono text-pi-faint uppercase tracking-widest mb-1">Current Plan</p>
+                <h2 className="text-lg font-semibold text-pi-ink uppercase">
                   {HAS_REAL_SUBSCRIPTION.has(status.profile.subscriptionStatus)
                     ? (status.plans.find(p => p.id === status.profile.subscriptionPriceId)?.productName ?? 'Active Subscription')
                     : 'Free Tier'}
                 </h2>
               </div>
-              <span className="text-[10px] font-mono uppercase tracking-wide rounded-full border border-pi-noir-hairline px-2 py-1 text-pi-noir-sub">
+              <span className="text-[10px] font-mono uppercase tracking-wide rounded-full border border-pi-hairline px-2 py-1 text-pi-sub">
                 {status.profile.subscriptionStatus}
               </span>
             </div>
 
             <div className="space-y-2 mb-6">
-              <div className="flex justify-between text-xs font-mono uppercase text-pi-noir-sub">
+              <div className="flex justify-between text-xs font-mono uppercase text-pi-sub">
                 <span>Analyses Usage</span>
                 <span>{status.profile.analysesUsed} / {status.profile.analysesLimit}</span>
               </div>
-              <div className="w-full h-4 rounded-full bg-pi-elevated border border-pi-noir-hairline overflow-hidden">
+              <div className="w-full h-4 rounded-full bg-pi-sand border border-pi-hairline overflow-hidden">
                 <div
-                  className="bg-pi-gold-deep h-full"
+                  className="bg-pi-ink h-full"
                   style={{ width: `${status.profile.analysesLimit > 0 ? Math.min(100, (status.profile.analysesUsed / status.profile.analysesLimit) * 100) : 0}%` }}
                 />
               </div>
             </div>
 
             {formatDate(status.profile.currentPeriodEnd) && (
-              <p className="text-xs font-mono text-pi-noir-sub mb-4">
+              <p className="text-xs font-mono text-pi-sub mb-4">
                 Current period ends {formatDate(status.profile.currentPeriodEnd)}
               </p>
             )}
@@ -194,42 +195,42 @@ function BillingContent() {
               <button
                 onClick={goToPortal}
                 disabled={actioning === 'portal'}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-pi-noir-hairline bg-pi-elevated px-5 py-2.5 text-sm font-semibold text-pi-noir-text hover:bg-pi-noir-text/[0.08] transition-colors duration-150 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-pi-hairline bg-pi-card px-5 py-2.5 text-sm font-semibold text-pi-ink hover:bg-pi-sand transition-colors duration-150 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {actioning === 'portal' ? 'Opening…' : 'Manage Billing →'}
               </button>
             )}
-          </div>
+          </PiCard>
 
           {/* Plans grid — only for users without an existing real subscription;
               see file header for why an active subscriber isn't offered a
               second Checkout Session here. */}
           {status.billingEnabled && !HAS_REAL_SUBSCRIPTION.has(status.profile.subscriptionStatus) && (
             <section className="space-y-4">
-              <div className="border-b border-pi-noir-hairline pb-3">
-                <h2 className="font-serif text-[22px] font-semibold leading-snug tracking-tight text-pi-noir-text">Available Plans</h2>
+              <div className="border-b border-pi-hairline pb-3">
+                <h2 className="font-serif text-[22px] font-semibold leading-snug tracking-tight text-pi-ink">Available Plans</h2>
               </div>
 
               {status.plans.length === 0 ? (
-                <p className="text-sm text-pi-noir-sub rounded-xl border border-pi-noir-hairline bg-pi-stage p-6 text-center">
+                <p className="text-sm text-pi-sub rounded-xl border border-pi-hairline bg-pi-card p-6 text-center">
                   No plans are configured yet.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-0 rounded-xl border border-pi-noir-hairline divide-y md:divide-y-0 md:divide-x divide-pi-noir-hairline bg-pi-stage overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-0 rounded-xl border border-pi-hairline divide-y md:divide-y-0 md:divide-x divide-pi-hairline bg-pi-card overflow-hidden">
                   {status.plans.map((plan, i) => (
                     <div key={plan.id} className="p-6 flex flex-col">
-                      <p className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-widest">Tier {String(i + 1).padStart(2, '0')}</p>
-                      <h3 className="text-lg font-semibold text-pi-noir-text uppercase mt-1">{plan.productName}</h3>
-                      <p className="text-2xl font-semibold text-pi-noir-text mt-3">{formatPlanPrice(plan)}</p>
+                      <p className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Tier {String(i + 1).padStart(2, '0')}</p>
+                      <h3 className="text-lg font-semibold text-pi-ink uppercase mt-1">{plan.productName}</h3>
+                      <p className="text-2xl font-semibold text-pi-ink mt-3">{formatPlanPrice(plan)}</p>
                       {plan.analysesLimit !== null && (
-                        <p className="text-xs font-mono text-pi-noir-sub uppercase mt-3">
+                        <p className="text-xs font-mono text-pi-sub uppercase mt-3">
                           {plan.analysesLimit} analyses / month
                         </p>
                       )}
                       <button
                         onClick={() => goToCheckout(plan.id)}
                         disabled={actioning === plan.id}
-                        className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-pi-gold-deep px-6 py-3 text-sm font-semibold text-[#16130a] shadow-[0_8px_18px_-8px_rgba(212,169,74,0.5)] transition-all duration-200 hover:-translate-y-px hover:bg-pi-gold-bright focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-deep active:scale-[0.985] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                        className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-pi-ink px-6 py-3 text-sm font-semibold text-pi-cream shadow-[0_1px_3px_rgba(22,23,26,0.15)] transition-all duration-200 hover:-translate-y-px hover:bg-[#24262B] hover:shadow-[0_4px_10px_rgba(22,23,26,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-bright active:scale-[0.985] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                       >
                         {actioning === plan.id ? 'Redirecting…' : 'Subscribe'}
                       </button>
@@ -242,7 +243,7 @@ function BillingContent() {
         </>
       )}
 
-      <Link href="/research/profile" className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wide text-pi-noir-sub hover:text-pi-noir-text transition-colors">
+      <Link href="/research/profile" className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wide text-pi-sub hover:text-pi-ink transition-colors">
         ← Back to Settings
       </Link>
     </div>
@@ -251,10 +252,10 @@ function BillingContent() {
 
 export default function BillingPage() {
   return (
-    <AppShell active="settings" variant="pi-noir">
+    <AppShell active="settings" variant="pi">
       <Suspense fallback={
         <div className="flex items-center justify-center py-24">
-          <p className="text-pi-noir-sub text-sm font-mono animate-pulse">Loading…</p>
+          <p className="text-pi-faint text-sm font-mono animate-pulse">Loading…</p>
         </div>
       }>
         <BillingContent />

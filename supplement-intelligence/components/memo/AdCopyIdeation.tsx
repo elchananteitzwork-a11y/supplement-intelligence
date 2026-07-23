@@ -31,14 +31,14 @@ function ConsumerArchetype({ m }: { m: MemoData }) {
   return (
     <PiCard>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider">Customer Archetype</p>
+        <p className="text-[10px] text-pi-faint uppercase tracking-wider">Customer Archetype</p>
         <ProvenanceBadge p={STATIC_PROVENANCE.customerLanguage} />
       </div>
       <dl className="grid sm:grid-cols-2 gap-x-5 gap-y-3.5">
         {fields.map(([label, value]) => (
           <div key={label} className="min-w-0">
-            <dt className="text-[9px] text-pi-noir-sub uppercase tracking-wider mb-1">{label}</dt>
-            <dd className="text-[13px] text-pi-noir-text leading-snug">{value}</dd>
+            <dt className="text-[9px] text-pi-faint uppercase tracking-wider mb-1">{label}</dt>
+            <dd className="text-[13px] text-pi-ink leading-snug">{value}</dd>
           </div>
         ))}
       </dl>
@@ -48,10 +48,10 @@ function ConsumerArchetype({ m }: { m: MemoData }) {
 
 type Kind = 'voice' | 'desire' | 'fear' | 'ad'
 const KIND_CFG: Record<Kind, { label: string; cls: string }> = {
-  voice:  { label: 'Voice of Customer', cls: 'border-l-pi-noir-sub' },
-  desire: { label: 'Desire',            cls: 'border-l-pi-noir-text' },
-  fear:   { label: 'Fear / Risk',       cls: 'border-l-pi-risk-noir' },
-  ad:     { label: 'Ad-Ready',          cls: 'border-l-pi-build-noir' },
+  voice:  { label: 'Voice of Customer', cls: 'border-l-pi-faint' },
+  desire: { label: 'Desire',            cls: 'border-l-pi-ink' },
+  fear:   { label: 'Fear / Risk',       cls: 'border-l-pi-risk' },
+  ad:     { label: 'Ad-Ready',          cls: 'border-l-pi-build' },
 }
 
 export default function AdCopyIdeation({ m }: { m: MemoData }) {
@@ -60,22 +60,22 @@ export default function AdCopyIdeation({ m }: { m: MemoData }) {
   const cards: { id: string; kind: Kind; node: React.ReactNode }[] = [
     ...cl.frustrations.map((q, i) => ({
       id: `fr-${i}`, kind: 'voice' as const,
-      node: <p className="italic text-[14px] text-pi-noir-sub leading-relaxed">&ldquo;{q}&rdquo;</p>,
+      node: <p className="italic text-[14px] text-pi-sub leading-relaxed">&ldquo;{q}&rdquo;</p>,
     })),
     ...cl.ad_phrases.map((ap, i) => ({
       id: `ad-${i}`, kind: 'ad' as const,
       node: (
         <div className="space-y-2">
-          <p className="text-[11px] text-pi-noir-sub italic leading-relaxed">&ldquo;{ap.they_say}&rdquo;</p>
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-pi-build-noir">
+          <p className="text-[11px] text-pi-faint italic leading-relaxed">&ldquo;{ap.they_say}&rdquo;</p>
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-pi-build">
             <IconArrowRight className="w-3 h-3" />Use in copy
           </div>
-          <p className="text-[13px] text-pi-noir-text font-medium leading-relaxed">{ap.use_in_copy}</p>
+          <p className="text-[13px] text-pi-ink font-medium leading-relaxed">{ap.use_in_copy}</p>
         </div>
       ),
     })),
-    ...cl.desires.map((d, i) => ({ id: `de-${i}`, kind: 'desire' as const, node: <p className="text-[13px] text-pi-noir-text leading-relaxed">{d}</p> })),
-    ...cl.fears.map((f, i) => ({ id: `fe-${i}`, kind: 'fear' as const, node: <p className="text-[13px] text-pi-noir-text leading-relaxed">{f}</p> })),
+    ...cl.desires.map((d, i) => ({ id: `de-${i}`, kind: 'desire' as const, node: <p className="text-[13px] text-pi-ink leading-relaxed">{d}</p> })),
+    ...cl.fears.map((f, i) => ({ id: `fe-${i}`, kind: 'fear' as const, node: <p className="text-[13px] text-pi-ink leading-relaxed">{f}</p> })),
   ]
 
   return (
@@ -83,7 +83,7 @@ export default function AdCopyIdeation({ m }: { m: MemoData }) {
       <ConsumerArchetype m={m} />
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-pi-noir-sub italic leading-relaxed max-w-2xl">
+        <p className="text-xs text-pi-faint italic leading-relaxed max-w-2xl">
           Every card below is AI-synthesized customer language, not a real review or survey quote. Useful for ideation and ad-copy testing, not as evidence of documented sentiment — see the Differentiation Brief section above for the real review-derived themes.
         </p>
         <ProvenanceBadge p={STATIC_PROVENANCE.customerLanguage} />
@@ -94,8 +94,8 @@ export default function AdCopyIdeation({ m }: { m: MemoData }) {
           {cards.map(card => {
             const cfg = KIND_CFG[card.kind]
             return (
-              <div key={card.id} className={`rounded-xl border border-pi-noir-hairline bg-pi-elevated border-l-[3px] ${cfg.cls} p-4`}>
-                <span className="text-[9px] font-semibold uppercase tracking-wider block mb-2 text-pi-noir-sub">{cfg.label}</span>
+              <div key={card.id} className={`rounded-xl border border-pi-hairline bg-pi-card border-l-[3px] ${cfg.cls} p-4`}>
+                <span className="text-[9px] font-semibold uppercase tracking-wider block mb-2 text-pi-faint">{cfg.label}</span>
                 {card.node}
               </div>
             )

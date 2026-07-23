@@ -4,7 +4,6 @@ import { LazyMotion, domAnimation } from 'framer-motion'
 import { createClient } from '@/lib/supabase/server'
 import type { Analysis, Profile } from '@/types/index'
 import { HomeShell } from '@/components/pi/HomeShell'
-import { GlassPanel } from '@/components/cine/GlassPanel'
 import { AttentionCard, type AttentionItemVM } from '@/components/pi/AttentionCard'
 import { StageGroup } from '@/components/pi/StageGroup'
 import { CandidateRow } from '@/components/pi/CandidateRow'
@@ -62,11 +61,11 @@ function PulseFigure({ value, label, color, node }: { value?: string; label: str
   return (
     <span className="flex items-baseline gap-1.5">
       {node ?? (
-        <span className="font-mono text-[15px] font-bold tabular-nums text-pi-noir-text" style={color ? { color } : undefined}>
+        <span className="font-mono text-[15px] font-bold tabular-nums text-pi-ink" style={color ? { color } : undefined}>
           {value}
         </span>
       )}
-      <span className="font-mono text-[10px] uppercase tracking-wide text-pi-noir-sub">{label}</span>
+      <span className="font-mono text-[10px] uppercase tracking-wide text-pi-sub">{label}</span>
     </span>
   )
 }
@@ -156,7 +155,7 @@ export default async function Dashboard() {
   const eyebrowDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 
   return (
-    <div className="min-h-screen bg-pi-void text-pi-noir-text">
+    <div className="min-h-screen bg-pi-cream text-pi-ink">
       <HomeShell canAnalyze={canAnalyze} quotaLabel={`${used}/${limit} analyses used`} />
 
       {/* CandidateRow/StageGroup/AttentionCard all render framer-motion `m`
@@ -167,10 +166,10 @@ export default async function Dashboard() {
       <main className="mx-auto max-w-[880px] px-5 pb-24 pt-10 sm:px-7 sm:pt-14">
         {/* Altitude 1: the answer — real counts, nothing else competing */}
         <header className="mb-11">
-          <p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold-deep">
+          <p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">
             Your pipeline · {eyebrowDate}
           </p>
-          <h1 className="max-w-[24ch] font-serif text-[26px] font-semibold leading-snug tracking-tight text-pi-noir-text sm:text-[36px]">
+          <h1 className="max-w-[24ch] font-serif text-[26px] font-semibold leading-snug tracking-tight text-pi-ink sm:text-[36px]">
             {total === 0 ? (
               'Your pipeline is empty. It won’t stay that way.'
             ) : (
@@ -179,7 +178,7 @@ export default async function Dashboard() {
                 {shortlistedCount > 0 && <> {shortlistedCount} being watched</>}
                 {attentionCount > 0 ? (
                   <>
-                    {' '}— <span className="text-pi-gold-deep">{attentionCount} need{attentionCount === 1 ? 's' : ''} your attention.</span>
+                    {' '}— <span className="text-pi-gold">{attentionCount} need{attentionCount === 1 ? 's' : ''} your attention.</span>
                   </>
                 ) : (
                   shortlistedCount > 0 && '.'
@@ -188,17 +187,15 @@ export default async function Dashboard() {
             )}
           </h1>
           {total > 0 && (
-            <p className="mt-2.5 text-sm text-pi-noir-sub">Last analysis finished {timeAgo(list[0]?.created_at)}.</p>
+            <p className="mt-2.5 text-sm text-pi-sub">Last analysis finished {timeAgo(list[0]?.created_at)}.</p>
           )}
 
           {total > 0 && (
-            <GlassPanel radius="rounded-2xl" className="mt-5 flex flex-wrap items-baseline gap-x-6 gap-y-3 px-5 py-4">
+            <div className="mt-5 flex flex-wrap items-baseline gap-x-6 gap-y-3">
               <PulseFigure
                 label="V2 build rate"
                 value={v2BuildRate ? `${v2BuildRate.ratePct}%` : '—'}
-                // pi-build-noir — the dark-safe equivalent of the cream
-                // register's #2E6B48, verified 8.84:1 against pi-stage.
-                color={v2BuildRate && v2BuildRate.ratePct >= 50 ? '#6FC492' : undefined}
+                color={v2BuildRate && v2BuildRate.ratePct >= 50 ? '#2E6B48' : undefined}
               />
 
               <PulseFigure label="Avg score" value={String(avgScore)} />
@@ -207,9 +204,9 @@ export default async function Dashboard() {
                 label="Avg confidence"
                 node={
                   <span className="inline-flex items-baseline gap-1.5">
-                    <span className="font-mono text-[15px] font-bold text-pi-noir-text">{confTier ? confTier.label : '—'}</span>
+                    <span className="font-mono text-[15px] font-bold text-pi-ink">{confTier ? confTier.label : '—'}</span>
                     {confTier && (
-                      <WitnessDots filled={confTier.dotsFilled} total={3} size="sm" variant="pi-noir" label={`${confTier.label} confidence`} />
+                      <WitnessDots filled={confTier.dotsFilled} total={3} size="sm" variant="pi" label={`${confTier.label} confidence`} />
                     )}
                   </span>
                 }
@@ -227,20 +224,20 @@ export default async function Dashboard() {
                 role="link"
                 aria-disabled="true"
                 title="Not yet available — each candidate's own → below already opens its full verdict page"
-                className="ml-auto cursor-not-allowed self-center text-[11.5px] font-semibold text-pi-noir-sub"
+                className="ml-auto cursor-not-allowed self-center text-[11.5px] font-semibold text-pi-faint"
               >
                 Sources →
               </span>
-            </GlassPanel>
+            </div>
           )}
         </header>
 
         {/* Altitude 2: needs your attention — real derivable events only, honest zero-state */}
         {total > 0 && (
           <section className="mb-11">
-            <p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold-deep">Needs your attention</p>
+            <p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">Needs your attention</p>
             {attentionItems.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-pi-noir-hairline px-5 py-4 text-[13px] text-pi-noir-sub">
+              <p className="rounded-xl border border-dashed border-pi-ink/15 px-5 py-4 text-[13px] text-pi-sub">
                 Nothing needs your attention right now.
               </p>
             ) : (
@@ -255,7 +252,7 @@ export default async function Dashboard() {
 
         {/* Altitude 3: the pipeline — stage-grouped, scannable rows, honest ghosts */}
         <section>
-          <p className="mb-4 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold-deep">The pipeline</p>
+          <p className="mb-4 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">The pipeline</p>
 
           <StageGroup name="Shortlisted" count={shortlisted.length} hint="Ideas you're serious about. Shortlisting arms monitoring — the product starts watching your back.">
             {shortlisted.map((c, i) => <CandidateRow key={c.id} c={c} index={i} />)}
@@ -269,7 +266,7 @@ export default async function Dashboard() {
           <StageGroup name="Committed / Killed" count={0} ghost hint="Commitment and kill records arrive with the ritual flows — nothing is hidden here, they don't exist yet." />
         </section>
 
-        <p className="mt-14 border-t border-pi-noir-hairline pt-5 text-xs leading-relaxed text-pi-noir-sub">
+        <p className="mt-14 border-t border-pi-hairline pt-5 text-xs leading-relaxed text-pi-sub">
           Every number on this page traces to your real stored analyses — verdicts, scores, and confidence are
           never re-derived for display. Confidence is gated by an analysis's single weakest input, never averaged.
           Dashed stages exist in the product model but have no data yet.

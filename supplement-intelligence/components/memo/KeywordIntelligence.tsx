@@ -22,12 +22,12 @@ import { ProvenanceBadge, ProvenanceCaption, LabNoData, LabEmptyState, SectionIn
 import { IconBeaker } from '@/components/icons'
 
 function KeywordTable({ keywords }: { keywords: KeywordMetric[] }) {
-  if (keywords.length === 0) return <p className="text-xs text-pi-noir-sub italic py-3">No keywords met this bucket's criteria for this query.</p>
+  if (keywords.length === 0) return <p className="text-xs text-pi-faint italic py-3">No keywords met this bucket's criteria for this query.</p>
   return (
-    <div className="overflow-x-auto rounded-lg border border-pi-noir-hairline">
+    <div className="overflow-x-auto rounded-lg border border-pi-hairline">
       <table className="w-full text-sm min-w-[420px]">
         <thead>
-          <tr className="bg-pi-elevated text-[10px] text-pi-noir-sub uppercase tracking-wider">
+          <tr className="bg-pi-sand text-[10px] text-pi-faint uppercase tracking-wider">
             <th className="text-left py-2.5 px-3">Keyword</th>
             <th className="text-right py-2.5 px-3">Monthly Searches</th>
             <th className="text-right py-2.5 px-3">Growth</th>
@@ -36,13 +36,13 @@ function KeywordTable({ keywords }: { keywords: KeywordMetric[] }) {
         </thead>
         <tbody>
           {keywords.map((k, i) => (
-            <tr key={i} className="border-t border-pi-noir-hairline hover:bg-pi-elevated/40 transition-colors">
-              <td className="py-2.5 px-3 font-medium text-pi-noir-text">{k.keyword}</td>
-              <td className="py-2.5 px-3 text-right font-mono text-pi-noir-sub">{k.monthly_searches.toLocaleString()}</td>
-              <td className={`py-2.5 px-3 text-right font-mono ${k.growth_pct === null ? 'text-pi-noir-sub' : k.growth_pct >= 0 ? 'text-pi-build-noir' : 'text-pi-risk-noir'}`}>
+            <tr key={i} className="border-t border-pi-hairline hover:bg-pi-sand/40 transition-colors">
+              <td className="py-2.5 px-3 font-medium text-pi-ink">{k.keyword}</td>
+              <td className="py-2.5 px-3 text-right font-mono text-pi-sub">{k.monthly_searches.toLocaleString()}</td>
+              <td className={`py-2.5 px-3 text-right font-mono ${k.growth_pct === null ? 'text-pi-faint' : k.growth_pct >= 0 ? 'text-pi-build' : 'text-pi-risk'}`}>
                 {k.growth_pct === null ? '—' : `${k.growth_pct >= 0 ? '+' : ''}${k.growth_pct}%`}
               </td>
-              <td className="py-2.5 px-3 text-right font-mono text-pi-noir-sub hidden sm:table-cell">{k.difficulty ?? '—'}</td>
+              <td className="py-2.5 px-3 text-right font-mono text-pi-faint hidden sm:table-cell">{k.difficulty ?? '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -68,11 +68,11 @@ function ExpandableKeywordTable({ keywords, collapseAt = 5 }: { keywords: Keywor
 function KeywordDataQualityBar({ ki }: { ki: KeywordIntelligenceData }) {
   const pct = ki.confidence !== undefined ? Math.round(ki.confidence * 100) : null
   return (
-    <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap text-[10px] text-pi-noir-sub rounded-lg bg-pi-elevated border border-pi-noir-hairline px-3.5 py-2.5">
-      <span>Seed: <span className="font-mono text-pi-noir-sub">&ldquo;{ki.seed_keyword}&rdquo;</span></span>
-      <span>Source: <span className="font-mono text-pi-noir-sub">{ki.provider === 'dataforseo' ? 'DataForSEO' : ki.provider}</span></span>
-      {pct !== null && <span>Real-data completeness: <span className="font-mono text-pi-noir-sub">{pct}%</span></span>}
-      <span>Last updated: <span className="font-mono text-pi-noir-sub">{new Date(ki.fetched_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</span></span>
+    <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap text-[10px] text-pi-faint rounded-lg bg-pi-sand border border-pi-hairline px-3.5 py-2.5">
+      <span>Seed: <span className="font-mono text-pi-sub">&ldquo;{ki.seed_keyword}&rdquo;</span></span>
+      <span>Source: <span className="font-mono text-pi-sub">{ki.provider === 'dataforseo' ? 'DataForSEO' : ki.provider}</span></span>
+      {pct !== null && <span>Real-data completeness: <span className="font-mono text-pi-sub">{pct}%</span></span>}
+      <span>Last updated: <span className="font-mono text-pi-sub">{new Date(ki.fetched_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</span></span>
     </div>
   )
 }
@@ -81,10 +81,10 @@ function KeywordClusterCard({ cluster }: { cluster: KeywordCluster }) {
   return (
     <PiCard>
       <div className="flex items-center justify-between gap-3 mb-1.5">
-        <p className="text-xs font-semibold text-pi-noir-text">{cluster.label}</p>
-        <span className="font-mono text-[10px] text-pi-noir-sub">{cluster.keywords.length}</span>
+        <p className="text-xs font-semibold text-pi-ink">{cluster.label}</p>
+        <span className="font-mono text-[10px] text-pi-faint">{cluster.keywords.length}</span>
       </div>
-      <p className="text-[10px] text-pi-noir-sub mb-3">{cluster.basis}</p>
+      <p className="text-[10px] text-pi-faint mb-3">{cluster.basis}</p>
       <ExpandableKeywordTable keywords={cluster.keywords} collapseAt={5} />
     </PiCard>
   )
@@ -102,19 +102,19 @@ function KeywordOpportunityDiscoverySection({ opp }: { opp: NonNullable<KeywordI
       <div className="grid sm:grid-cols-2 gap-4">
         {groups.map(g => (
           <PiCard key={g.label}>
-            <p className="text-xs font-semibold text-pi-noir-text mb-1">{g.label}</p>
-            <p className="text-[10px] text-pi-noir-sub mb-3">{g.hint}</p>
+            <p className="text-xs font-semibold text-pi-ink mb-1">{g.label}</p>
+            <p className="text-[10px] text-pi-faint mb-3">{g.hint}</p>
             <ExpandableKeywordTable keywords={g.keywords} collapseAt={5} />
           </PiCard>
         ))}
       </div>
       {opp.not_buildable.length > 0 && (
-        <div className="rounded-lg bg-pi-elevated border border-pi-noir-hairline px-4 py-3">
-          <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider mb-2">Requested, Not Currently Buildable With Real Data</p>
+        <div className="rounded-lg bg-pi-sand border border-pi-hairline px-4 py-3">
+          <p className="text-[10px] text-pi-faint uppercase tracking-wider mb-2">Requested, Not Currently Buildable With Real Data</p>
           <ul className="space-y-1.5">
             {opp.not_buildable.map(item => (
-              <li key={item.label} className="text-[11px] text-pi-noir-sub">
-                <span className="text-pi-noir-sub font-medium">{item.label}:</span> {item.reason}
+              <li key={item.label} className="text-[11px] text-pi-faint">
+                <span className="text-pi-sub font-medium">{item.label}:</span> {item.reason}
               </li>
             ))}
           </ul>
@@ -126,9 +126,9 @@ function KeywordOpportunityDiscoverySection({ opp }: { opp: NonNullable<KeywordI
 
 function ProductImpactStat({ label, value, provenance }: { label: string; value: string; provenance: ReturnType<typeof keywordClickConversionProvenance> | null }) {
   return (
-    <div className="rounded-lg bg-pi-elevated border border-pi-noir-hairline px-3 py-2.5">
-      <p className="text-[9px] text-pi-noir-sub uppercase tracking-wider mb-1">{label}</p>
-      <p className="font-mono text-sm font-semibold text-pi-noir-text">{value}</p>
+    <div className="rounded-lg bg-pi-sand border border-pi-hairline px-3 py-2.5">
+      <p className="text-[9px] text-pi-faint uppercase tracking-wider mb-1">{label}</p>
+      <p className="font-mono text-sm font-semibold text-pi-ink">{value}</p>
       {provenance && <div className="mt-1.5"><ProvenanceBadge p={provenance} /></div>}
     </div>
   )
@@ -142,12 +142,12 @@ function KeywordAIInsightsPanel({ insights }: { insights: KeywordAIInsights }) {
   ]
   return (
     <div className="space-y-4">
-      <p className="text-sm text-pi-noir-sub leading-relaxed italic">{insights.summary}</p>
+      <p className="text-sm text-pi-sub leading-relaxed italic">{insights.summary}</p>
       <div className="grid sm:grid-cols-2 gap-4">
         {rows.filter(([, v]) => v).map(([label, text]) => (
-          <div key={label} className="rounded-lg border border-pi-noir-hairline p-3.5">
-            <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider mb-1.5">{label}</p>
-            <p className="text-xs text-pi-noir-sub leading-relaxed">{text}</p>
+          <div key={label} className="rounded-lg border border-pi-hairline p-3.5">
+            <p className="text-[10px] text-pi-faint uppercase tracking-wider mb-1.5">{label}</p>
+            <p className="text-xs text-pi-sub leading-relaxed">{text}</p>
           </div>
         ))}
       </div>
@@ -186,7 +186,7 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
       {hasHistory && topKeyword?.monthly_history && volProv && (
         <PiCard>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-pi-noir-text">Search Demand — &ldquo;{topKeyword.keyword}&rdquo;</p>
+            <p className="text-xs font-semibold text-pi-ink">Search Demand — &ldquo;{topKeyword.keyword}&rdquo;</p>
             <ProvenanceBadge p={volProv} />
           </div>
           <VolumeTrendChart history={topKeyword.monthly_history} />
@@ -196,13 +196,13 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
       {ki.seasonality && topKeyword?.monthly_history && (
         <PiCard>
           <div className="flex items-center justify-between gap-3 mb-1">
-            <p className="text-xs font-semibold text-pi-noir-text">Seasonality</p>
+            <p className="text-xs font-semibold text-pi-ink">Seasonality</p>
             <ProvenanceBadge p={keywordSeasonalityProvenance(ki)!} />
           </div>
-          <p className="text-[11px] text-pi-noir-sub mb-3">
-            Pattern: <span className="text-pi-noir-sub font-medium">{ki.seasonality.pattern}</span>
-            {ki.seasonality.peak_months.length > 0 && <> · Peak: <span className="text-pi-build-noir">{ki.seasonality.peak_months.join(', ')}</span></>}
-            {ki.seasonality.low_months.length > 0  && <> · Low: <span className="text-pi-risk-noir">{ki.seasonality.low_months.join(', ')}</span></>}
+          <p className="text-[11px] text-pi-faint mb-3">
+            Pattern: <span className="text-pi-sub font-medium">{ki.seasonality.pattern}</span>
+            {ki.seasonality.peak_months.length > 0 && <> · Peak: <span className="text-pi-build">{ki.seasonality.peak_months.join(', ')}</span></>}
+            {ki.seasonality.low_months.length > 0  && <> · Low: <span className="text-pi-risk">{ki.seasonality.low_months.join(', ')}</span></>}
           </p>
           <SeasonalityChart history={topKeyword.monthly_history} seasonality={ki.seasonality} />
         </PiCard>
@@ -211,7 +211,7 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
       {ki.forecast_12mo && ki.forecast_12mo.length > 0 && (
         <PiCard>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-pi-noir-text">12-Month Forecast — &ldquo;{topKeyword?.keyword}&rdquo;</p>
+            <p className="text-xs font-semibold text-pi-ink">12-Month Forecast — &ldquo;{topKeyword?.keyword}&rdquo;</p>
             <ProvenanceBadge p={keywordForecastProvenance(ki)!} />
           </div>
           <ForecastChart forecast={ki.forecast_12mo} />
@@ -221,16 +221,16 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
       <div className="grid sm:grid-cols-2 gap-5">
         <PiCard>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-pi-noir-text">Opportunity Heatmap</p>
+            <p className="text-xs font-semibold text-pi-ink">Opportunity Heatmap</p>
             <ProvenanceBadge p={keywordOpportunityScoreProvenance()} />
           </div>
           <OpportunityHeatmap metrics={allMetrics} />
-          <p className="text-[10px] text-pi-noir-sub mt-2">X: real competition index · Y: real volume (log) · size/color: computed opportunity score</p>
+          <p className="text-[10px] text-pi-faint mt-2">X: real competition index · Y: real volume (log) · size/color: computed opportunity score</p>
         </PiCard>
         {ki.clusters && ki.clusters.length > 0 && (
           <PiCard>
             <div className="flex items-center justify-between gap-3 mb-3">
-              <p className="text-xs font-semibold text-pi-noir-text">Keyword Distribution by Cluster</p>
+              <p className="text-xs font-semibold text-pi-ink">Keyword Distribution by Cluster</p>
               <ProvenanceBadge p={keywordClusterProvenance()} />
             </div>
             <ClusterDistributionChart clusters={ki.clusters} />
@@ -240,20 +240,20 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
 
       {ki.clusters && ki.clusters.length > 0 ? (
         <div>
-          <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest mb-3">Keyword Clusters</p>
+          <p className="text-[10px] text-pi-faint uppercase tracking-widest mb-3">Keyword Clusters</p>
           <div className="grid sm:grid-cols-2 gap-4">{ki.clusters.map(c => <KeywordClusterCard key={c.label} cluster={c} />)}</div>
         </div>
       ) : (
         <div>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest">Keyword Buckets</p>
+            <p className="text-[10px] text-pi-faint uppercase tracking-widest">Keyword Buckets</p>
             {kiProv && <ProvenanceBadge p={kiProv} />}
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
-            <div><p className="text-[10px] text-pi-noir-sub mb-2">Top Buying</p><ExpandableKeywordTable keywords={ki.top_buying} /></div>
-            <div><p className="text-[10px] text-pi-noir-sub mb-2">Opportunity</p><ExpandableKeywordTable keywords={ki.opportunity} /></div>
-            <div><p className="text-[10px] text-pi-noir-sub mb-2">Long-Tail</p><ExpandableKeywordTable keywords={ki.long_tail} /></div>
-            <div><p className="text-[10px] text-pi-noir-sub mb-2">Fast-Growing</p><ExpandableKeywordTable keywords={ki.fast_growing} /></div>
+            <div><p className="text-[10px] text-pi-sub mb-2">Top Buying</p><ExpandableKeywordTable keywords={ki.top_buying} /></div>
+            <div><p className="text-[10px] text-pi-sub mb-2">Opportunity</p><ExpandableKeywordTable keywords={ki.opportunity} /></div>
+            <div><p className="text-[10px] text-pi-sub mb-2">Long-Tail</p><ExpandableKeywordTable keywords={ki.long_tail} /></div>
+            <div><p className="text-[10px] text-pi-sub mb-2">Fast-Growing</p><ExpandableKeywordTable keywords={ki.fast_growing} /></div>
           </div>
         </div>
       )}
@@ -261,7 +261,7 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
       {ki.opportunities && (
         <div>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest">Opportunity Discovery</p>
+            <p className="text-[10px] text-pi-faint uppercase tracking-widest">Opportunity Discovery</p>
             <ProvenanceBadge p={keywordOpportunityScoreProvenance()} />
           </div>
           <KeywordOpportunityDiscoverySection opp={ki.opportunities} />
@@ -270,7 +270,7 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
 
       {topKeyword && (topKeyword.amazon_ppc_estimate || topKeyword.click_potential !== undefined) && (
         <PiCard>
-          <p className="text-xs font-semibold text-pi-noir-text mb-3">Product Impact — &ldquo;{topKeyword.keyword}&rdquo;</p>
+          <p className="text-xs font-semibold text-pi-ink mb-3">Product Impact — &ldquo;{topKeyword.keyword}&rdquo;</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <ProductImpactStat label="Est. Monthly Clicks" value={topKeyword.click_potential != null ? `${topKeyword.click_potential.toLocaleString()}/mo` : '—'} provenance={keywordClickConversionProvenance()} />
             <ProductImpactStat label="Est. Monthly Conversions" value={topKeyword.conversion_potential != null ? `${topKeyword.conversion_potential.toLocaleString()}/mo` : '—'} provenance={keywordClickConversionProvenance()} />
@@ -278,8 +278,8 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
             <ProductImpactStat label="Amazon PPC (est.)" value={topKeyword.amazon_ppc_estimate ? `$${topKeyword.amazon_ppc_estimate.low.toFixed(2)}–$${topKeyword.amazon_ppc_estimate.high.toFixed(2)}` : '—'} provenance={keywordAmazonPpcProvenance()} />
           </div>
           {topKeyword.search_intent && (
-            <p className="text-[10px] text-pi-noir-sub mt-3">
-              Search intent: <span className="text-pi-noir-sub font-medium capitalize">{topKeyword.search_intent}</span>
+            <p className="text-[10px] text-pi-faint mt-3">
+              Search intent: <span className="text-pi-sub font-medium capitalize">{topKeyword.search_intent}</span>
               {keywordSearchIntentProvenance(topKeyword.search_intent_source) && (
                 <span className="ml-2"><ProvenanceBadge p={keywordSearchIntentProvenance(topKeyword.search_intent_source)!} /></span>
               )}
@@ -291,7 +291,7 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
       {topKeyword && (topKeyword.serp_features?.length || topKeyword.avg_referring_domains != null || topKeyword.top_of_page_bid_range || topKeyword.competition_level) && (
         <PiCard>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-xs font-semibold text-pi-noir-text">Search Visibility — &ldquo;{topKeyword.keyword}&rdquo;</p>
+            <p className="text-xs font-semibold text-pi-ink">Search Visibility — &ldquo;{topKeyword.keyword}&rdquo;</p>
             {kiProv && <ProvenanceBadge p={kiProv} />}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
@@ -302,10 +302,10 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
           </div>
           {topKeyword.serp_features && topKeyword.serp_features.length > 0 && (
             <div>
-              <p className="text-[10px] text-pi-noir-sub mb-1.5">SERP features currently shown for this query:</p>
+              <p className="text-[10px] text-pi-faint mb-1.5">SERP features currently shown for this query:</p>
               <div className="flex flex-wrap gap-1.5">
                 {topKeyword.serp_features.map(f => (
-                  <span key={f} className="text-[10px] text-pi-noir-sub rounded-full bg-pi-elevated border border-pi-noir-hairline px-2 py-0.5">{f.replace(/_/g, ' ')}</span>
+                  <span key={f} className="text-[10px] text-pi-sub rounded-full bg-pi-sand border border-pi-hairline px-2 py-0.5">{f.replace(/_/g, ' ')}</span>
                 ))}
               </div>
             </div>
@@ -314,7 +314,7 @@ export default function KeywordIntelligence({ m }: { m: MemoData }) {
       )}
 
       <div>
-        <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest mb-3">AI Insights</p>
+        <p className="text-[10px] text-pi-faint uppercase tracking-widest mb-3">AI Insights</p>
         {ki.ai_insights ? <KeywordAIInsightsPanel insights={ki.ai_insights} /> : <LabNoData label="No data available" />}
       </div>
     </div>

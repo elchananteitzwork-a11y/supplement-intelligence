@@ -54,28 +54,20 @@ function EconomicsLedger({ m }: { m: MemoData }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-3">
-        <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest">Unit Economics Ledger</p>
+        <p className="text-[10px] text-pi-faint uppercase tracking-widest">Unit Economics Ledger</p>
         <ProvenanceBadge p={hasRealFees ? realFeeDataProvenance(m.signal_evidence)! : { level: 'estimated', source: 'AI estimate', detail: 'Price and COGS are the model’s own estimate — no real Amazon fee-schedule data was available for this query to cross-check them.' }} />
       </div>
-      <div className="rounded-xl border border-pi-noir-hairline bg-pi-elevated overflow-hidden">
+      <div className="rounded-xl border border-pi-hairline bg-pi-card overflow-hidden">
         <table className="w-full font-mono text-sm text-left">
-          <thead className="bg-pi-elevated">
+          <thead className="bg-pi-sand">
             <tr>
-              <th className="p-3 uppercase text-[10px] tracking-wider text-pi-noir-sub">Component</th>
-              <th className="p-3 uppercase text-[10px] tracking-wider text-pi-noir-sub text-right">Value</th>
+              <th className="p-3 uppercase text-[10px] tracking-wider text-pi-faint">Component</th>
+              <th className="p-3 uppercase text-[10px] tracking-wider text-pi-faint text-right">Value</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-pi-noir-hairline">
+          <tbody className="divide-y divide-pi-hairline">
             {rows.map(r => (
-              // Terminal Noir fix: the "total" row used to be an inverted
-              // dark-bg/light-text highlight (bg-pi-ink text-pi-cream) to
-              // stand out on the old white pi-card table — a mechanical
-              // pi-ink→pi-noir-text token swap would have produced bright
-              // text on a bright bg (invisible), so this row is instead
-              // highlighted the same way every other "this is the headline
-              // number" row in this port is (ChapterNav's active pill,
-              // CustomersLenses' active tab): solid gold accent, dark text.
-              <tr key={r.id} className={r.isTotal ? 'bg-pi-gold-deep text-pi-void' : 'text-pi-noir-text'}>
+              <tr key={r.id} className={r.isTotal ? 'bg-pi-ink text-pi-cream' : 'text-pi-ink'}>
                 <td className={`p-3 ${r.isTotal ? 'font-bold uppercase' : ''}`}>{r.label}</td>
                 <td className={`p-3 text-right ${r.isTotal ? 'font-bold' : ''}`}>
                   {r.amount === null ? '—' : r.amount < 0 ? `($${Math.abs(r.amount).toFixed(2)})` : `$${r.amount.toFixed(2)}`}
@@ -87,7 +79,7 @@ function EconomicsLedger({ m }: { m: MemoData }) {
         </table>
       </div>
       {!hasRealFees && (
-        <p className="mt-2 text-[10px] text-pi-noir-sub italic">No real Amazon fee-schedule data for this query — Contribution Margin above is Price minus COGS only, before marketplace fees.</p>
+        <p className="mt-2 text-[10px] text-pi-faint italic">No real Amazon fee-schedule data for this query — Contribution Margin above is Price minus COGS only, before marketplace fees.</p>
       )}
     </div>
   )
@@ -99,7 +91,7 @@ function EconomicsLedger({ m }: { m: MemoData }) {
 function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
   if (!fp.ten_k_probability && !fp.hundred_k_probability && !fp.one_m_probability) return null
   const pct = (v?: string) => (v ? parseInt(v, 10) || 0 : 0)
-  const colorFor = (p: number) => (p >= 60 ? 'text-pi-build-noir' : p >= 30 ? 'text-pi-gold-bright' : 'text-pi-noir-sub')
+  const colorFor = (p: number) => (p >= 60 ? 'text-pi-build' : p >= 30 ? 'text-pi-gold-bright' : 'text-pi-faint')
 
   const milestones = [
     { label: 'Validate',   value: undefined as string | undefined },
@@ -111,14 +103,14 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
   return (
     <PiCard padded={false} className="p-5 sm:p-7">
       <div className="flex items-center justify-between gap-3 mb-6">
-        <p className="text-[10px] text-pi-noir-sub uppercase tracking-wider">Revenue Trajectory (legacy)</p>
+        <p className="text-[10px] text-pi-faint uppercase tracking-wider">Revenue Trajectory (legacy)</p>
         <ProvenanceBadge p={{ level: 'synthesized', source: 'Claude (AI synthesis)', detail: 'Legacy field from a memo generated before 2026-06-26 — these probability percentages were generated to look like forecasting-tool output, with no statistical base-rate model behind them. Memos generated after this date use a qualitative traction band instead.' }} />
       </div>
       <div className="flex justify-between">
         {milestones.map(ms => (
           <div key={ms.label} className="flex flex-col items-center flex-1">
-            <span className="text-sm font-semibold text-pi-noir-text text-center">{ms.label}</span>
-            <span className={`text-xs font-mono mt-1 ${ms.value ? colorFor(pct(ms.value)) : 'text-pi-noir-sub'}`}>
+            <span className="text-sm font-semibold text-pi-ink text-center">{ms.label}</span>
+            <span className={`text-xs font-mono mt-1 ${ms.value ? colorFor(pct(ms.value)) : 'text-pi-faint'}`}>
               {ms.value ? toConfidenceBand(ms.value) : '30–60 days'}
             </span>
           </div>
@@ -129,9 +121,9 @@ function TrajectoryTimeline({ fp }: { fp: MemoData['financial_projections'] }) {
 }
 
 function TractionBandCard({ band }: { band: string }) {
-  const cls = band === 'Strong comparable traction' ? 'text-pi-build-noir border-pi-build-noir/30 bg-pi-build-noir/10'
-    : band === 'Some comparable traction' ? 'text-pi-gold-deep border-pi-gold-deep/30 bg-pi-gold-deep/10'
-    : 'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated'
+  const cls = band === 'Strong comparable traction' ? 'text-pi-build border-pi-build/30 bg-pi-build/10'
+    : band === 'Some comparable traction' ? 'text-pi-gold-bright border-pi-gold/30 bg-pi-gold/10'
+    : 'text-pi-sub border-pi-hairline bg-pi-sand'
   return (
     <div className={`rounded-xl border p-5 sm:p-7 ${cls}`}>
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -159,17 +151,17 @@ export default function UnitEconomicsTable({ m }: { m: MemoData }) {
 
   const columns: LedgerColumn<MarginRow>[] = [
     { key: 'label', header: 'Component', render: r => r.label },
-    { key: 'value', header: 'Value', align: 'right', render: r => r.unverified ? <span className="text-pi-noir-sub italic">Not verified</span> : <span className="font-mono font-bold">{r.value}</span> },
+    { key: 'value', header: 'Value', align: 'right', render: r => r.unverified ? <span className="text-pi-faint italic">Not verified</span> : <span className="font-mono font-bold">{r.value}</span> },
   ]
 
   return (
     <div className="space-y-5">
       <EconomicsLedger m={m} />
       {marketSizeIsUnverified && (
-        <p className="text-[11px] text-pi-noir-sub italic leading-relaxed">Market size not independently verified. Figures shown are AI estimates — consult industry reports before citing.</p>
+        <p className="text-[11px] text-pi-faint italic leading-relaxed">Market size not independently verified. Figures shown are AI estimates — consult industry reports before citing.</p>
       )}
 
-      <div className="pt-5 border-t border-pi-noir-hairline">
+      <div className="pt-5 border-t border-pi-hairline">
         <div className="flex items-center justify-between gap-3 mb-3">
           <SectionIntro text="Probability estimates based on comparable DTC launches. Not independently verified — treat as directional, not forecasts." />
           <ProvenanceBadge p={STATIC_PROVENANCE.financialProjections} />
@@ -178,9 +170,9 @@ export default function UnitEconomicsTable({ m }: { m: MemoData }) {
         {fp.traction_band && <TractionBandCard band={fp.traction_band} />}
       </div>
 
-      <div className="pt-5 border-t border-pi-noir-hairline">
-        <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest mb-3">Margins (AI Estimate)</p>
-        <LedgerTable columns={columns} rows={marginRows} variant="pi-noir" />
+      <div className="pt-5 border-t border-pi-hairline">
+        <p className="text-[10px] text-pi-faint uppercase tracking-widest mb-3">Margins (AI Estimate)</p>
+        <LedgerTable columns={columns} rows={marginRows} variant="pi" />
       </div>
 
       {/* COGS provenance — same topic as this whole section (unit
@@ -188,8 +180,8 @@ export default function UnitEconomicsTable({ m }: { m: MemoData }) {
           Intelligence" section named after the backend field rather than
           grouped by subject matter. Fetch behavior (POST /api/manufacturing
           on mount) is unchanged. */}
-      <div className="pt-5 border-t border-pi-noir-hairline">
-        <p className="text-[10px] text-pi-noir-sub uppercase tracking-widest mb-3">Manufacturing &amp; COGS Provenance</p>
+      <div className="pt-5 border-t border-pi-hairline">
+        <p className="text-[10px] text-pi-faint uppercase tracking-widest mb-3">Manufacturing &amp; COGS Provenance</p>
         <ManufacturingIntelligence m={m} />
       </div>
     </div>

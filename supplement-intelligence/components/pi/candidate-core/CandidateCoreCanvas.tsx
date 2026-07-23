@@ -30,12 +30,10 @@ const REFLECTION_RIG = (
 // specific module. Next.js/WebGL have no meaningful SSR story, and R&D §4
 // explicitly flags bundle-size/first-load-JS impact as a real risk to
 // mitigate via code-splitting — this is that split point. Lighting is
-// ambient + three static directional lights (key, fill, and — RD-UIv2-M5,
-// owner-approved live via the isolated research harness on 2026-07-23 — a
-// backlight/rim light behind the rotor) PLUS (RD-UIv2-M4, owner-approved
-// live via the isolated research harness) a drei <Environment> fed entirely
-// by procedural <Lightformer> primitives — plain plane/ring geometry driven
-// by MeshBasicMaterial, no textures, baked once (`frames={1}`). This is
+// ambient + two directional lights PLUS (RD-UIv2-M4, owner-approved live
+// via the isolated research harness) a drei <Environment> fed entirely by
+// procedural <Lightformer> primitives — plain plane/ring geometry driven by
+// MeshBasicMaterial, no textures, baked once (`frames={1}`). This is
 // deliberately NOT drei's stock `preset`/`useMatcapTexture` helpers, which
 // fetch HDRI/matcap assets from cdn.jsdelivr.net at runtime — a real
 // network dependency this production page cannot take on. The Lightformer
@@ -102,23 +100,10 @@ export function CandidateCoreCanvas({
         {/* Procedural reflection rig (RD-UIv2-M4 §1/§3) — geometry-only
             Lightformer panels baked once into an offscreen cube map, never
             fetched from network. Deliberately positioned camera-side
-            (z > 0, no panel placed behind the rotor) — reflection-alone,
-            not a directional accent (that's the separate backlight below). */}
+            (z > 0, no panel placed behind the rotor) — the owner tested and
+            rejected a rim/backlight combo (R&D §1/§7); this is
+            reflection-alone, not an added directional accent. */}
         <Environment frames={1} resolution={256}>{REFLECTION_RIG}</Environment>
-        {/* RD-UIv2-M5 Terminal Noir backlight (owner-approved via live
-            harness demo 2026-07-23) — a THIRD, static directional light,
-            additive to the two key/fill lights above and the REFLECTION_RIG,
-            not a replacement for either. Positioned behind the rotor
-            relative to the camera ([0,0,4.2], fov 34 — identical to this
-            file's camera) to catch blade-edge rim highlights against the
-            dark Terminal Noir stage. Earlier in this project's history a
-            rim/backlight combo was tried and rejected on the (then) cream
-            background — this is a genuinely new comparison on a different
-            stage, tested fresh in an isolated harness (three intensities:
-            1.6/2.4/3.4) and approved by the owner live at this exact
-            position/intensity. Static — does not animate, so it needs no
-            prefers-reduced-motion gating, matching the two lights above. */}
-        <directionalLight position={[0, 1.4, -6]} intensity={3.4} color="#FFF3D6" />
         <CandidateCoreRotor
           animate={!reduceMotion}
           enableTransmission={false}
