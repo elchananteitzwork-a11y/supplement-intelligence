@@ -7,6 +7,8 @@ import type { PullDirection } from './corePullPhysics'
 import { DECISION_CHIP } from '@/components/pi/decisionChip'
 import { confidenceTier } from '@/components/pi/confidenceTier'
 import { WitnessDots } from '@/components/ui/WitnessDots'
+import { GlassPanel } from '@/components/cine/GlassPanel'
+import { RotorMark } from '@/components/cine/RotorMark'
 import { cn } from '@/lib/cn'
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -25,17 +27,28 @@ import { cn } from '@/lib/cn'
 // (real DOM buttons, keyboard/screen-reader native) — see
 // CandidateCoreRotor.tsx's own header comment.
 //
-// RD-UIv2-M4 cream reframe: the wrapping stage is now bg-pi-cream (was the
-// dark bg-[#14130f] "engine glows against a dark stage" stage) and every
-// text/border class below is new cream-native pi-ink/pi-sub/pi-sand
-// markup, not the old dark-tuned pi-cream/white classes recolored in
-// place — those were confirmed illegible (near-white on cream) by live
-// research this session. Layout order also changed: verdict word is now
-// large/dominant immediately under the rotor, one quiet why-sentence,
-// words+dots confidence, a visually de-emphasized signal grid, a neutral
-// (non-alarming) kill-line, and a real working Sources toggle revealing
-// the full, unmodified 14-section MemoDisplay (owned by the parent — see
-// app/memo/[id]/MemoDetailBody.tsx).
+// RD-UIv2-M4 cream reframe: the wrapping stage was bg-pi-cream (was the
+// dark bg-[#14130f] "engine glows against a dark stage" stage before that)
+// and every text/border class below was cream-native pi-ink/pi-sub/pi-sand
+// markup. Layout order: verdict word large/dominant immediately under the
+// rotor, one quiet why-sentence, words+dots confidence, a visually
+// de-emphasized signal grid, a neutral (non-alarming) kill-line, and a
+// real working Sources toggle revealing the full, unmodified 14-section
+// MemoDisplay (owned by the parent — see app/memo/[id]/MemoDetailBody.tsx).
+//
+// TERMINAL NOIR REGISTER PORT (2026-07-23, owner-approved after a
+// first-principles design critique, validated live in an isolated research
+// harness — design-prototypes/candidate-detail-noir.html): re-skins the
+// SAME layout above from cream back to a dark pi-stage register — this is
+// a register change on identical IA/data-wiring, not a redesign. The card
+// is now wrapped in the real, already-shipped <GlassPanel> (components/
+// cine/GlassPanel.tsx, same glass recipe Landing/Login use) over a
+// bg-pi-stage base; every text/border/surface class below reads from the
+// "Terminal Noir register" token set in tailwind.config.ts (pi-noir-text/
+// pi-noir-sub/pi-noir-hairline/pi-elevated/pi-{decision}-noir), NOT the
+// cream-tuned pi-ink/pi-sub/pi-sand/pi-hairline tokens (those stay defined
+// and in use elsewhere in the app, untouched). See DECISION_NOIR_TEXT below
+// for the verdict-word color mapping.
 // ═══════════════════════════════════════════════════════════════════════
 
 const CandidateCoreCanvas = dynamic(() => import('./CandidateCoreCanvas').then(m => m.CandidateCoreCanvas), {
@@ -74,9 +87,26 @@ function useWebglCapableViewport(): boolean {
 }
 
 function BladeMagnitudeReadout({ magnitude, qualitativeLevel, source }: { magnitude: number | null; qualitativeLevel: string | null; source: string }) {
-  if (source === 'verified' && magnitude !== null) return <span className="font-mono text-xs font-semibold text-pi-ink">{magnitude.toFixed(1)}/10</span>
-  if (source === 'synthesized') return <span className="text-[10px] italic text-pi-sub">AI judgment{qualitativeLevel ? ` · ${qualitativeLevel}` : ''}</span>
-  return <span className="text-[10px] italic text-pi-faint">Not computed</span>
+  if (source === 'verified' && magnitude !== null) return <span className="font-mono text-xs font-semibold text-pi-noir-text">{magnitude.toFixed(1)}/10</span>
+  if (source === 'synthesized') return <span className="text-[10px] italic text-pi-noir-sub">AI judgment{qualitativeLevel ? ` · ${qualitativeLevel}` : ''}</span>
+  return <span className="text-[10px] italic text-pi-noir-sub">Not computed</span>
+}
+
+// Terminal Noir verdict-word color — same decision identity as
+// DECISION_CHIP's `textCls` (which is tuned for dark-text-on-cream),
+// re-tuned for legibility as TEXT on the dark pi-stage surface. Maps 1:1
+// onto tailwind.config.ts's "Terminal Noir register" pi-{decision}-noir
+// tokens (build/invest/pass all contrast-checked 6.4:1+ against pi-stage).
+// CATEGORY_CREATION_CANDIDATE has no dedicated `-noir` token (only the
+// three real BUILD_NOW/VALIDATE_FURTHER/SKIP identities were re-tuned) —
+// pi-gold-deep is reused for it instead, the same bright, already
+// dark-stage-safe gold this component already uses for its own score
+// readout a few lines below.
+const DECISION_NOIR_TEXT: Record<keyof typeof DECISION_CHIP, string> = {
+  BUILD_NOW: 'text-pi-build-noir',
+  VALIDATE_FURTHER: 'text-pi-invest-noir',
+  SKIP: 'text-pi-pass-noir',
+  CATEGORY_CREATION_CANDIDATE: 'text-pi-gold-deep',
 }
 
 const KILL_WATCH_LABEL: Record<string, string> = {
@@ -154,13 +184,36 @@ export function CandidateCoreHero({
 
   const chip = DECISION_CHIP[vm.decision]
   const confTier = vm.confidencePct !== null ? confidenceTier(vm.confidencePct) : null
+  const verdictColorCls = DECISION_NOIR_TEXT[vm.decision]
 
   return (
-    <section aria-label="Candidate Core summary" className="relative mb-8 overflow-hidden rounded-2xl border border-pi-hairline bg-pi-cream">
+    <section aria-label="Candidate Core summary" className="relative mb-8">
+      {/* ambient breathing glow — ported from the noir mockup's ambient
+          gold-glow direction. opacity/transform ONLY (see the
+          "card-breathe" keyframe comment in tailwind.config.ts for the
+          measured perf reason box-shadow was rejected). Gated behind
+          prefers-reduced-motion via Tailwind's `motion-safe:` variant —
+          same convention components/cine/GlassInstrument.tsx and
+          AmbientWorld.tsx already use for their own keyframe animations,
+          so a reduced-motion user gets a static (not animated) glow, never
+          none at all. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-8 z-0 rounded-[36px] opacity-60 motion-safe:animate-card-breathe"
+        style={{ background: 'radial-gradient(closest-side, rgba(212,169,74,0.4), transparent 72%)' }}
+      />
+      <GlassPanel tone="neutral" hover3d={false} className="relative z-10 bg-pi-stage">
       <div className="relative px-6 py-10 sm:px-10 sm:py-12">
         <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-5 text-center">
-          {/* category name — quiet, small, sits above the rotor */}
-          <p className="text-sm font-semibold text-pi-ink">{categoryName}</p>
+          {/* category name — quiet, small, sits above the rotor. Small
+              RotorMark brand icon alongside it, ported from the noir
+              mockup's "eyebrow" position — the real shared brand mark
+              (components/cine/RotorMark.tsx), not a hand-drawn
+              approximation. */}
+          <p className="flex items-center gap-2 text-sm font-semibold text-pi-noir-text">
+            <RotorMark className="h-4 w-4 shrink-0 opacity-90" />
+            {categoryName}
+          </p>
 
           {/* rotor stage — a fixed-size box, NOT the whole card. The real
               WebGL <CandidateCoreCanvas> fills this box (absolute
@@ -187,18 +240,20 @@ export function CandidateCoreHero({
             {showDomScore && (
               <div className="relative z-10 flex h-full flex-col items-center justify-center gap-1">
                 <span className="font-mono text-[40px] font-semibold leading-none text-pi-gold-deep">{vm.score}</span>
-                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">Score</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold-deep">Score</span>
               </div>
             )}
           </div>
 
           {/* verdict word — LARGE, dominant, immediately under the
               rotor/score (not a small chip several elements later). Real
-              DECISION_CHIP glyph + color; real decisionLabel text (the
-              same legacy PILL_LABEL wording CurrentSignal.tsx's pill
-              already uses, so the two never disagree about what this
-              verdict is called). */}
-          <p className={cn('font-serif text-[32px] font-bold leading-tight', chip.textCls)}>
+              DECISION_CHIP glyph; real decisionLabel text (the same legacy
+              PILL_LABEL wording CurrentSignal.tsx's pill already uses, so
+              the two never disagree about what this verdict is called).
+              Color is DECISION_NOIR_TEXT (see its own comment above), not
+              chip.textCls — that field is cream-tuned and under-contrast
+              on this dark stage. */}
+          <p className={cn('font-serif text-[32px] font-bold leading-tight', verdictColorCls)}>
             <span aria-hidden className="mr-2 text-[22px] align-middle">{chip.glyph}</span>
             {vm.decisionLabel}
           </p>
@@ -206,24 +261,26 @@ export function CandidateCoreHero({
           {/* one-sentence why — real build_explanation, quiet styling,
               deliberately secondary to the verdict word above. */}
           {buildExplanation && (
-            <p className="max-w-[46ch] text-[15px] leading-relaxed text-pi-sub text-balance">{buildExplanation}</p>
+            <p className="max-w-[46ch] text-[15px] leading-relaxed text-pi-noir-sub text-balance">{buildExplanation}</p>
           )}
 
           {/* confidence line — words+dots, via the existing WitnessDots
               primitive (components/ui/WitnessDots.tsx) rather than a third
-              hand-rolled dot renderer (simplify-pass finding). */}
+              hand-rolled dot renderer (simplify-pass finding). variant=
+              "pi-noir" is the dark-stage-safe dot recipe (see that file's
+              own header comment). */}
           <div className="flex flex-wrap items-center justify-center gap-2">
             {confTier ? (
               <span className="inline-flex items-baseline gap-1.5">
-                <span className="font-mono text-sm font-bold text-pi-ink">{confTier.label}</span>
-                <WitnessDots filled={confTier.dotsFilled} total={3} size="sm" variant="pi" label={`${confTier.label} confidence`} />
-                <span className="font-mono text-[10px] uppercase tracking-[0.07em] text-pi-sub">Confidence</span>
+                <span className="font-mono text-sm font-bold text-pi-noir-text">{confTier.label}</span>
+                <WitnessDots filled={confTier.dotsFilled} total={3} size="sm" variant="pi-noir" label={`${confTier.label} confidence`} />
+                <span className="font-mono text-[10px] uppercase tracking-[0.07em] text-pi-noir-sub">Confidence</span>
               </span>
             ) : (
-              <span className="font-mono text-[10px] uppercase tracking-[0.07em] text-pi-sub">Confidence not available</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.07em] text-pi-noir-sub">Confidence not available</span>
             )}
             {vm.weakestDimensionLabel && vm.confidencePct !== null && (
-              <span className="text-xs text-pi-sub">· weakest link: {vm.weakestDimensionLabel}</span>
+              <span className="text-xs text-pi-noir-sub">· weakest link: {vm.weakestDimensionLabel}</span>
             )}
           </div>
 
@@ -240,11 +297,11 @@ export function CandidateCoreHero({
                 <button
                   type="button"
                   onClick={() => jumpToSection(b.sectionId)}
-                  className="flex w-full flex-col items-start gap-0.5 rounded-lg border border-pi-hairline bg-pi-sand px-3 py-2 text-left transition-colors hover:border-pi-gold/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-bright"
+                  className="flex w-full flex-col items-start gap-0.5 rounded-lg border border-pi-noir-hairline bg-pi-elevated px-3 py-2 text-left transition-colors hover:border-pi-gold-deep/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-bright"
                 >
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-pi-sub">{b.label}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-pi-noir-sub">{b.label}</span>
                   <BladeMagnitudeReadout magnitude={b.magnitude} qualitativeLevel={b.qualitativeLevel} source={b.source} />
-                  <span className="text-[9px] text-pi-faint">{b.sourceLabel}</span>
+                  <span className="text-[9px] text-pi-noir-sub">{b.sourceLabel}</span>
                 </button>
               </li>
             ))}
@@ -257,17 +314,17 @@ export function CandidateCoreHero({
               when this analysis is genuinely watchlisted — see
               coreDataAdapter.ts's own HONESTY CAVEAT. */}
           {vm.killCriteria.length > 0 && (
-            <div className="w-full rounded-lg border border-pi-hairline bg-pi-sand px-4 py-3 text-left">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-pi-sub">We would reverse this verdict if…</p>
+            <div className="w-full rounded-lg border border-pi-noir-hairline bg-pi-elevated px-4 py-3 text-left">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-pi-noir-sub">We would reverse this verdict if…</p>
               <ul className="space-y-1.5">
                 {vm.killCriteria.map(c => (
-                  <li key={c.key} className="flex items-start justify-between gap-3 text-xs text-pi-sub">
+                  <li key={c.key} className="flex items-start justify-between gap-3 text-xs text-pi-noir-sub">
                     <span>{c.label} — currently {c.valueAtGenerationText}</span>
                     {c.watchState !== 'not-watched' && (
                       <span
                         className={cn(
                           'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
-                          c.watchState === 'triggered' ? 'bg-pi-risk/20 text-pi-risk' : 'bg-pi-hairline text-pi-sub',
+                          c.watchState === 'triggered' ? 'bg-pi-risk-noir/20 text-pi-risk-noir' : 'bg-pi-noir-hairline text-pi-noir-sub',
                         )}
                       >
                         {KILL_WATCH_LABEL[c.watchState]}
@@ -294,6 +351,7 @@ export function CandidateCoreHero({
           </button>
         </div>
       </div>
+      </GlassPanel>
     </section>
   )
 }
