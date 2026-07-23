@@ -825,15 +825,30 @@ grant execute on function public.refund_analysis_slot(uuid)
 
 
 -- ── 028: LOCK DOWN LEADERBOARD TABLE RLS ────────────────────────────────────
+-- 2026-07-24: wrapped in pg_policies guards — this section had already been
+-- applied to production once, and its bare `create policy` statements were
+-- the one non-idempotent spot in this file, aborting the whole re-run with
+-- 42710 ("policy ... already exists") before the sections after it (029/030)
+-- could apply. Same guard convention as every other section here.
 
 drop policy if exists "authenticated insert leaderboard" on public.leaderboard;
 drop policy if exists "authenticated update leaderboard" on public.leaderboard;
 
-create policy "service role insert leaderboard" on public.leaderboard
-  for insert with check (auth.role() = 'service_role');
-
-create policy "service role update leaderboard" on public.leaderboard
-  for update using (auth.role() = 'service_role');
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'leaderboard' and policyname = 'service role insert leaderboard'
+  ) then
+    create policy "service role insert leaderboard" on public.leaderboard
+      for insert with check (auth.role() = 'service_role');
+  end if;
+  if not exists (
+    select 1 from pg_policies where tablename = 'leaderboard' and policyname = 'service role update leaderboard'
+  ) then
+    create policy "service role update leaderboard" on public.leaderboard
+      for update using (auth.role() = 'service_role');
+  end if;
+end $$;
 
 
 -- ── 011: REMOVE FAKE SEED DATA FROM LEADERBOARD ─────────────────────────────
