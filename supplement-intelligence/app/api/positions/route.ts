@@ -67,6 +67,26 @@ function isMissingTableError(error: { code?: string; message?: string } | null |
 
 const MIGRATION_PENDING_MSG = 'Positions are not yet available on this deployment — a pending database migration must be applied first.'
 
+// Input-size bounds (security-review advisory, 2026-07-24) — same
+// house convention as MAX_QUERY_LEN (app/api/thesis/route.ts),
+// MAX_INPUT/MAX_AUDIENCE (app/api/generate/route.ts), MAX_BODY_CHARS
+// (app/api/reviews/analyze/route.ts): an authenticated user must not be
+// able to store unbounded blobs. successMetrics is the real
+// deriveSuccessMetrics() string[] snapshot — a handful of short
+// sentences — so these bounds are generous for every legitimate payload.
+const MAX_KILL_REASON_CHARS     = 500
+const MAX_SUCCESS_METRICS_ITEMS = 20
+const MAX_SUCCESS_METRIC_CHARS  = 300
+
+// null → valid-and-absent; string[] within bounds → valid; anything else → null
+// means "reject" (distinguished by the boolean flag).
+function validateSuccessMetrics(v: unknown): { ok: boolean; value: string[] | null } {
+  if (v === undefined || v === null) return { ok: true, value: null }
+  if (!Array.isArray(v) || v.length > MAX_SUCCESS_METRICS_ITEMS) return { ok: false, value: null }
+  if (!v.every(item => typeof item === 'string' && item.length <= MAX_SUCCESS_METRIC_CHARS)) return { ok: false, value: null }
+  return { ok: true, value: v as string[] }
+}
+
 interface PositionRow {
   analysis_id:     string
   state:            PositionState
@@ -137,6 +157,12 @@ export async function POST(req: Request) {
   if (!isPositionState(body.state)) return err(`state must be one of: ${['validating', 'watching', 'killed'].join(', ')}`)
   const state = body.state
 
+  const metrics = validateSuccessMetrics(body.successMetrics)
+  if (!metrics.ok) return err(`successMetrics must be an array of at most ${MAX_SUCCESS_METRICS_ITEMS} strings (each at most ${MAX_SUCCESS_METRIC_CHARS} characters)`)
+  if (body.killReason !== undefined && body.killReason !== null && (typeof body.killReason !== 'string' || body.killReason.length > MAX_KILL_REASON_CHARS)) {
+    return err(`killReason must be a string of at most ${MAX_KILL_REASON_CHARS} characters`)
+  }
+
   const { data: analysis, error: analysisError } = await sb
     .from('analyses')
     .select('id, category_name, build_decision, memo_data')
@@ -150,7 +176,7 @@ export async function POST(req: Request) {
     user_id:         user.id,
     analysis_id:     analysisId,
     state,
-    success_metrics: body.successMetrics ?? null,
+    success_metrics: metrics.value,
     kill_reason:     state === 'killed' ? (body.killReason ?? null) : null,
     updated_at:      new Date().toISOString(),
   }

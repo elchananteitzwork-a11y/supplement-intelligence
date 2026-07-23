@@ -57,6 +57,21 @@ export async function POST(req: Request) {
     return err(`event must be one of: verdict_viewed, claim_tapped, pull_committed, returned_after_trip`)
   }
 
+  // Ownership check on the optional analysisId (security-review advisory,
+  // 2026-07-24): without it, a caller could tag their own event log with
+  // another user's analysis UUID — harmless to that user (RLS keeps reads
+  // owner-scoped) but a needless existence oracle and a dirty metric.
+  // Same check-before-write pattern as app/api/positions/route.ts.
+  if (body.analysisId) {
+    const { data: owned } = await sb
+      .from('analyses')
+      .select('id')
+      .eq('id', body.analysisId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!owned) return err('Not found', 404)
+  }
+
   const { error } = await sb
     .from('product_events')
     .insert({

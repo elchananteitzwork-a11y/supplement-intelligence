@@ -215,4 +215,32 @@ describe('POST /api/positions', () => {
     expect(res.status).toBe(503)
     expect(body.error).toMatch(/migration/i)
   })
+
+  // Input-size bounds (security-review advisory, 2026-07-24)
+  it('rejects a non-array successMetrics with a 400 and writes nothing', async () => {
+    analysesById = { a1: { id: 'a1', user_id: 'user-1', category_name: 'Creatine', build_decision: 'SKIP', memo_data: {} } }
+    const { POST } = await import('../route')
+    const res = await POST(new Request('http://localhost/api/positions', { method: 'POST', body: JSON.stringify({ analysisId: 'a1', state: 'validating', successMetrics: { blob: 'x' } }) }))
+    expect(res.status).toBe(400)
+    expect(capturedPositionsUpsertRow).toBeNull()
+  })
+
+  it('rejects successMetrics beyond the item/length bounds with a 400', async () => {
+    analysesById = { a1: { id: 'a1', user_id: 'user-1', category_name: 'Creatine', build_decision: 'SKIP', memo_data: {} } }
+    const { POST } = await import('../route')
+    const tooMany = Array.from({ length: 21 }, (_, i) => `metric ${i}`)
+    const resCount = await POST(new Request('http://localhost/api/positions', { method: 'POST', body: JSON.stringify({ analysisId: 'a1', state: 'validating', successMetrics: tooMany }) }))
+    expect(resCount.status).toBe(400)
+    const resLen = await POST(new Request('http://localhost/api/positions', { method: 'POST', body: JSON.stringify({ analysisId: 'a1', state: 'validating', successMetrics: ['x'.repeat(301)] }) }))
+    expect(resLen.status).toBe(400)
+    expect(capturedPositionsUpsertRow).toBeNull()
+  })
+
+  it('rejects a kill_reason longer than 500 characters with a 400', async () => {
+    analysesById = { a1: { id: 'a1', user_id: 'user-1', category_name: 'Creatine', build_decision: 'SKIP', memo_data: {} } }
+    const { POST } = await import('../route')
+    const res = await POST(new Request('http://localhost/api/positions', { method: 'POST', body: JSON.stringify({ analysisId: 'a1', state: 'killed', killReason: 'x'.repeat(501) }) }))
+    expect(res.status).toBe(400)
+    expect(capturedPositionsUpsertRow).toBeNull()
+  })
 })
