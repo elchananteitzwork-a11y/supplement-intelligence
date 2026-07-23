@@ -14,6 +14,7 @@
 --           · 013_lock_down_rpc_grants (re-appended, idempotent)
 --           · 028_lock_down_leaderboard_rls · 004_refund_slot
 --           · 011_remove_seed_data · 014_lock_discovery_cache_writes
+--           · 029_positions · 030_product_events
 --
 -- 2026-07-14: appended 020-026 after live production validation of M2.13
 -- discovered voc_problem_clusters (022) had never actually been applied to
@@ -106,6 +107,16 @@
 -- checks — tables, columns, and functions all present and matching. This
 -- file, as it stands now, is believed to bring production to a fully
 -- migrated, fully secured state. Re-run the entire file once more.
+--
+-- 2026-07-23: appended 029 (positions) and 030 (product_events) for V4
+-- Phase 1 (docs/RD_V4_PHASE1.md), created alongside
+-- supabase/migrations/029_positions.sql and 030_product_events.sql in the
+-- same commit — NOT yet applied to production. Per this file's own
+-- documented history above, that means app/api/positions/route.ts and
+-- app/api/events/route.ts will get real "table not found" errors from
+-- Supabase until the project owner runs this file's full contents; both
+-- routes are written to detect that and return an honest 503, never a
+-- crash or a silent success.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -844,3 +855,73 @@ where best_analysis_id is null
 
 drop policy if exists "authenticated insert" on public.discovery_cache;
 drop policy if exists "authenticated update" on public.discovery_cache;
+
+
+-- ── 029: POSITIONS — V4 Phase 1 (Pull) ───────────────────────────────────────
+-- See supabase/migrations/029_positions.sql. NOT YET APPLIED to production —
+-- app/api/positions/route.ts depends on this table existing and returns an
+-- honest 503 (not a crash, not a silent success) until this section is run.
+
+create table if not exists public.positions (
+  id                  uuid primary key default gen_random_uuid(),
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now(),
+
+  user_id             uuid not null references auth.users(id) on delete cascade,
+  analysis_id         uuid not null references public.analyses(id) on delete cascade,
+
+  state               text not null check (state in ('validating', 'watching', 'killed')),
+
+  success_metrics     jsonb,
+  kill_reason         text,
+
+  unique (user_id, analysis_id)
+);
+
+alter table public.positions enable row level security;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'positions' and policyname = 'owner all'
+  ) then
+    create policy "owner all" on public.positions for all using (auth.uid() = user_id);
+  end if;
+end $$;
+
+create index if not exists positions_user_created_idx on public.positions (user_id, created_at desc);
+create index if not exists positions_analysis_idx     on public.positions (analysis_id);
+
+
+-- ── 030: PRODUCT EVENTS — V4 Phase 1 gate instrumentation ───────────────────
+-- See supabase/migrations/030_product_events.sql. NOT YET APPLIED to
+-- production — app/api/events/route.ts depends on this table existing and
+-- returns an honest 503 (not a crash, not a silent success) until this
+-- section is run.
+
+create table if not exists public.product_events (
+  id                  uuid primary key default gen_random_uuid(),
+  created_at          timestamptz not null default now(),
+
+  user_id             uuid not null references auth.users(id) on delete cascade,
+  event               text not null check (event in ('verdict_viewed', 'claim_tapped', 'pull_committed', 'returned_after_trip')),
+
+  analysis_id         uuid references public.analyses(id) on delete cascade
+);
+
+alter table public.product_events enable row level security;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'product_events' and policyname = 'owner insert'
+  ) then
+    create policy "owner insert" on public.product_events for insert with check (auth.uid() = user_id);
+  end if;
+  if not exists (
+    select 1 from pg_policies where tablename = 'product_events' and policyname = 'owner select'
+  ) then
+    create policy "owner select" on public.product_events for select using (auth.uid() = user_id);
+  end if;
+end $$;
+
+create index if not exists product_events_user_created_idx on public.product_events (user_id, created_at desc);
+create index if not exists product_events_event_idx        on public.product_events (event, created_at desc);
