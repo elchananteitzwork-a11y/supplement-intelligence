@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>MOCKUP — Candidate Detail, "The Instrument Room" (Terminal Noir v2)</title>
+<title>MOCKUP — Candidate Detail, "The Instrument Room" (Terminal Noir v3)</title>
 <style>
 /* ============================================================================
    TERMINAL NOIR v2 — owner feedback on v1 (2026-07-23): missing glass, small
@@ -162,12 +162,44 @@ footer p{border-top:1px solid var(--hair-soft);padding-top:18px;font-size:11.5px
 </style>
 </head>
 <body>
-<div class="proto">MOCKUP v2 — Terminal Noir + real glass (GlassPanel.tsx recipe) + real RotorMark logo + label typography fixed · not a live route</div>
+<!-- Shared blade gradients — the dimensional/lit rendering owner approved
+     live today (Lightformer reflection + directional shading on the real
+     WebGL rotor, motion-3d-agent research session). RotorMark.tsx's real
+     path geometry, kept exact — only the fill changes from flat opacity to
+     a highlight→shadow gradient per blade, matching how the real 3D rotor
+     actually looks lit, so every mark on this page (hero + small icons)
+     reads as the same dimensional object, not a flat 2D stand-in. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="bladeA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F3D488"/><stop offset="55%" stop-color="#D4A94A"/><stop offset="100%" stop-color="#8D6A16"/>
+    </linearGradient>
+    <linearGradient id="bladeB" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#EFC978"/><stop offset="55%" stop-color="#C9971F"/><stop offset="100%" stop-color="#7C5C13"/>
+    </linearGradient>
+    <linearGradient id="bladeC" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ECC26E"/><stop offset="60%" stop-color="#C79143"/><stop offset="100%" stop-color="#77571A"/>
+    </linearGradient>
+    <linearGradient id="bladeD" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6B6252"/><stop offset="100%" stop-color="#3B362B"/>
+    </linearGradient>
+    <linearGradient id="bladeE" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EFCB7C"/><stop offset="55%" stop-color="#D6A94E"/><stop offset="100%" stop-color="#8A6819"/>
+    </linearGradient>
+    <linearGradient id="bladeF" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#DDB35E"/><stop offset="60%" stop-color="#AE8433"/><stop offset="100%" stop-color="#6B5019"/>
+    </linearGradient>
+    <radialGradient id="hubShade" cx="38%" cy="34%" r="75%">
+      <stop offset="0%" stop-color="#28241A"/><stop offset="60%" stop-color="#100F0B"/><stop offset="100%" stop-color="#050504"/>
+    </radialGradient>
+  </defs>
+</svg>
+<div class="proto">MOCKUP v3 — real dimensional rotor mark (gradient-shaded, owner-approved 3D look) everywhere · not a live route</div>
 
 <main>
   <div class="crumb">
     <a href="#">← Pipeline</a><span>/</span>
-    <svg class="rm" viewBox="0 0 200 200" role="img" aria-label="Product Intelligence"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="#D4A94A"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="#D4A94A" opacity="0.86"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="#D4A94A" opacity="0.72"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="#D4A94A" opacity="0.58"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="#D4A94A" opacity="0.72"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="#D4A94A" opacity="0.86"/><circle cx="100" cy="100" r="27" fill="#0f0e0c"/></svg>
+    <svg class="rm" viewBox="0 0 200 200" role="img" aria-label="Product Intelligence"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="url(#bladeA)"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="url(#bladeB)"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="url(#bladeC)"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="url(#bladeD)"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="url(#bladeE)"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="url(#bladeF)"/><circle cx="100" cy="100" r="27" fill="url(#hubShade)"/></svg>
     <span style="color:var(--txt)">Shift Work Sleep Reset</span>
   </div>
 
@@ -176,7 +208,7 @@ footer p{border-top:1px solid var(--hair-soft);padding-top:18px;font-size:11.5px
     <div class="content">
       <div class="live-row">
         <span class="eyebrow">
-          <svg class="rm" viewBox="0 0 200 200" aria-hidden="true"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="#D4A94A"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="#D4A94A" opacity="0.86"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="#D4A94A" opacity="0.72"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="#D4A94A" opacity="0.58"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="#D4A94A" opacity="0.72"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="#D4A94A" opacity="0.86"/><circle cx="100" cy="100" r="27" fill="#0f0e0c"/></svg>
+          <svg class="rm" viewBox="0 0 200 200" aria-hidden="true"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="url(#bladeA)"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="url(#bladeB)"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="url(#bladeC)"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="url(#bladeD)"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="url(#bladeE)"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="url(#bladeF)"/><circle cx="100" cy="100" r="27" fill="url(#hubShade)"/></svg>
           Shift Work Sleep Reset
         </span>
         <span class="live"><i></i>Evidence age <span class="val" id="age">3h 12m 04s</span></span>
@@ -186,15 +218,15 @@ footer p{border-top:1px solid var(--hair-soft);padding-top:18px;font-size:11.5px
         <svg viewBox="0 0 200 200">
           <g class="blades">
             <g stroke="#8D6A16" stroke-width="1">
-              <path d="M 100 100 L 108 40 L 140 55 Z" fill="#E2B95B"/>
-              <path d="M 100 100 L 152 78 L 165 115 Z" fill="#C79B3D"/>
-              <path d="M 100 100 L 148 138 L 122 168 Z" fill="#D0A748"/>
-              <path d="M 100 100 L 88 165 L 55 148 Z" fill="#5A5142" opacity=".55"/>
-              <path d="M 100 100 L 48 128 L 32 95 Z" fill="#E0B75A"/>
-              <path d="M 100 100 L 52 58 L 82 38 Z" fill="#A98A3E" opacity=".8"/>
+              <path d="M 100 100 L 108 40 L 140 55 Z" fill="url(#bladeA)"/>
+              <path d="M 100 100 L 152 78 L 165 115 Z" fill="url(#bladeB)"/>
+              <path d="M 100 100 L 148 138 L 122 168 Z" fill="url(#bladeC)"/>
+              <path d="M 100 100 L 88 165 L 55 148 Z" fill="url(#bladeD)"/>
+              <path d="M 100 100 L 48 128 L 32 95 Z" fill="url(#bladeE)"/>
+              <path d="M 100 100 L 52 58 L 82 38 Z" fill="url(#bladeF)"/>
             </g>
           </g>
-          <circle cx="100" cy="100" r="36" fill="#0C0B08" stroke="rgba(212,169,74,.3)" stroke-width="1"/>
+          <circle cx="100" cy="100" r="36" fill="url(#hubShade)" stroke="rgba(212,169,74,.3)" stroke-width="1"/>
         </svg>
         <div class="hub"><span class="score">66</span><span class="l">Score</span></div>
       </div>
@@ -251,15 +283,15 @@ footer p{border-top:1px solid var(--hair-soft);padding-top:18px;font-size:11.5px
     <p class="h">Identity — every analysis is its own fingerprint</p>
     <div class="row">
       <div class="fp-chip glass"><div class="content" style="display:flex;align-items:center;gap:10px;">
-        <svg class="rm" viewBox="0 0 200 200" aria-hidden="true"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="#D4A94A"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="#D4A94A" opacity="0.86"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="#D4A94A" opacity="0.72"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="#D4A94A" opacity="0.58"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="#D4A94A" opacity="0.72"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="#D4A94A" opacity="0.86"/><circle cx="100" cy="100" r="27" fill="#0f0e0c"/></svg>
+        <svg class="rm" viewBox="0 0 200 200" aria-hidden="true"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="url(#bladeA)"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="url(#bladeB)"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="url(#bladeC)"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="url(#bladeD)"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="url(#bladeE)"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="url(#bladeF)"/><circle cx="100" cy="100" r="27" fill="url(#hubShade)"/></svg>
         <span class="t"><b>Shift Work Sleep Reset</b>66 · Validation Required</span>
       </div></div>
       <div class="fp-chip glass"><div class="content" style="display:flex;align-items:center;gap:10px;">
-        <svg class="rm" viewBox="0 0 200 200" aria-hidden="true"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="#D4A94A" opacity=".8"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="#D4A94A" opacity="0.4"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="#D4A94A"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="#D4A94A" opacity="0.55"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="#D4A94A" opacity="0.7"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="#D4A94A" opacity="0.3"/><circle cx="100" cy="100" r="27" fill="#0f0e0c"/></svg>
+        <svg class="rm" viewBox="0 0 200 200" aria-hidden="true"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="url(#bladeA)" opacity="0.8"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="url(#bladeB)" opacity="0.4"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="url(#bladeC)" opacity="1"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="url(#bladeD)" opacity="0.55"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="url(#bladeE)" opacity="0.7"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="url(#bladeF)" opacity="0.3"/><circle cx="100" cy="100" r="27" fill="url(#hubShade)"/></svg>
         <span class="t"><b>PCOS Weight Loss Support</b>61 · Validation Required</span>
       </div></div>
       <div class="fp-chip glass"><div class="content" style="display:flex;align-items:center;gap:10px;">
-        <svg class="rm" viewBox="0 0 200 200" aria-hidden="true"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="#D4A94A" opacity=".5"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="#D4A94A" opacity="0.65"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="#D4A94A" opacity="0.4"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="#D4A94A" opacity="0.8"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="#D4A94A" opacity="0.45"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="#D4A94A" opacity="0.6"/><circle cx="100" cy="100" r="27" fill="#0f0e0c"/></svg>
+        <svg class="rm" viewBox="0 0 200 200" aria-hidden="true"><path d="M 132.45 86.89 L 133.47 110.23 L 172.75 142.00 L 182.97 86.86 Z" fill="url(#bladeA)" opacity="0.5"/><path d="M 127.58 121.55 L 107.87 134.10 L 100.00 184.00 L 152.86 165.28 Z" fill="url(#bladeB)" opacity="0.65"/><path d="M 95.13 134.66 L 74.40 123.87 L 27.25 142.00 L 69.90 178.42 Z" fill="url(#bladeC)" opacity="0.4"/><path d="M 67.55 113.11 L 66.53 89.77 L 27.25 58.00 L 17.03 113.14 Z" fill="url(#bladeD)" opacity="0.8"/><path d="M 72.42 78.45 L 92.13 65.90 L 100.00 16.00 L 47.14 34.72 Z" fill="url(#bladeE)" opacity="0.45"/><path d="M 104.87 65.34 L 125.60 76.13 L 172.75 58.00 L 130.10 21.58 Z" fill="url(#bladeF)" opacity="0.6"/><circle cx="100" cy="100" r="27" fill="url(#hubShade)"/></svg>
         <span class="t"><b>Women's Cortisol Support</b>49 · Validation Required</span>
       </div></div>
     </div>
@@ -270,13 +302,14 @@ footer p{border-top:1px solid var(--hair-soft);padding-top:18px;font-size:11.5px
 
 <footer>
   <p>Every number above is real (Shift Work Sleep Reset, live session data); the freshness figure and fingerprint
-  opacities are directional illustrations pending their real derivations. <span class="mono">[v2 changes from owner
-  feedback: (1) glass — ported verbatim from components/cine/GlassPanel.tsx's real recipe (gradient border,
-  backdrop-blur-2xl/brightness-75/saturate-150, corner sheen, reflection streak) onto the main card, each signal
-  tile, the kill-line, and the fingerprint chips. (2) logo — every icon now uses RotorMark.tsx's real path data
-  verbatim, not an approximation. (3) labels — removed the uppercase-tracked-monospace treatment from every
-  micro-label (the actual "AI dashboard" tell); monospace now appears only on real tabular data (scores,
-  percentages, timestamps), labels are quiet sentence-case Inter.]</span></p>
+  opacities are directional illustrations pending their real derivations. <span class="mono">[v2: glass ported
+  verbatim from components/cine/GlassPanel.tsx's real recipe onto the main card, each signal tile, the kill-line,
+  and the fingerprint chips; logo switched to RotorMark.tsx's real path data; labels moved off uppercase-tracked
+  monospace (the "AI dashboard" tell) to quiet sentence-case Inter, monospace reserved for real tabular data only.
+  v3 (this pass): every rotor mark — hero and small icons alike — now renders with the same per-blade
+  highlight-to-shadow gradient the real WebGL rotor actually shows once lit (the reflection material approved
+  earlier today), replacing flat/opacity-only fills, so every mark on the page reads as one dimensional object
+  rather than a flat 2D stand-in next to a "real" 3D hero.]</span></p>
 </footer>
 
 <script>
