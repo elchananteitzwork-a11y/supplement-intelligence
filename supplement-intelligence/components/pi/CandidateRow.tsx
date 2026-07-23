@@ -20,10 +20,22 @@ export function CandidateRow({ c, index }: { c: PipelineCandidate; index: number
   const chip = DECISION_CHIP[c.decision]
 
   return (
+    // Real hydration-mismatch fix (found live, on a machine with OS-level
+    // reduced motion actually ON): `useReducedMotion()` reads `null` during
+    // SSR (no `window`) but the real client-side value synchronously on
+    // first render — for a `prefers-reduced-motion: reduce` user, the
+    // server computed `initial={{opacity:0,y:16}}` while the client
+    // computed `initial={false}` (renders straight at the animate target),
+    // a genuine style-attribute mismatch React's hydration check caught.
+    // `initial`/`animate` must stay IDENTICAL between server and client's
+    // first render; reduced motion is honored by zeroing the *transition*
+    // duration/delay instead (duration:0 = instant, visually equivalent to
+    // no animation, and transition config isn't part of what hydration
+    // diffs).
     <m.li
-      initial={reduce ? false : { opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: Math.min(0.06 * index, 0.48), ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: reduce ? 0 : 0.4, delay: reduce ? 0 : Math.min(0.06 * index, 0.48), ease: [0.16, 1, 0.3, 1] }}
     >
       <Link
         href={c.memoHref}

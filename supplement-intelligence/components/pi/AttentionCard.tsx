@@ -29,10 +29,23 @@ export function AttentionCard({ item, index }: { item: AttentionItemVM; index: n
   const isStale = item.kind === 'stale-watch'
 
   return (
+    // Real hydration-mismatch fix (found live via qa-production-agent, on a
+    // machine with OS-level reduced motion actually ON): `useReducedMotion()`
+    // reads `null` during SSR (no `window`) but the real client-side value
+    // synchronously on first render — for a `prefers-reduced-motion: reduce`
+    // user, the server computed `initial={{opacity:0,y:10}}` while the
+    // client computed `initial={false}` (renders straight at the animate
+    // target), a genuine style-attribute mismatch React's hydration check
+    // caught. `initial`/`animate` must stay IDENTICAL between server and
+    // client's first render; reduced motion is honored by zeroing the
+    // *transition* duration/delay instead (duration:0 = instant, visually
+    // equivalent to no animation, and transition config isn't part of what
+    // hydration diffs). Same fix applied to CandidateRow.tsx's identical
+    // pattern.
     <m.li
-      initial={reduce ? false : { opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: Math.min(0.06 * index, 0.3), ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: reduce ? 0 : 0.4, delay: reduce ? 0 : Math.min(0.06 * index, 0.3), ease: [0.16, 1, 0.3, 1] }}
       className="flex items-start justify-between gap-3.5 rounded-2xl border border-pi-hairline bg-pi-card px-5 py-4 shadow-[0_1px_3px_rgba(22,23,26,0.05)] sm:items-center sm:gap-4"
     >
       <span
