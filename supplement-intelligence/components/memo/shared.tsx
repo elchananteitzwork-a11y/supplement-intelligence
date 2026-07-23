@@ -144,9 +144,14 @@ export function SectionIntro({ text }: { text: string }) {
 
 // Ascending 3-bar signal glyph — direct successor to
 // components/lab/Indicators.tsx SignalBars, same three-tier meaning.
+// Color-unified (2026-07-24, owner-approved) with ConfidencePill below —
+// Strong/Moderate/Weak is the exact same tier as High/Medium/Low
+// (LEVEL_TO_SIGNAL maps them 1:1), so both now share one gold/gray shade
+// per tier instead of two slightly different ones (was pi-gold-deep/
+// pi-faint here vs pi-gold-bright/pi-sub there).
 export function SignalBars({ level }: { level: 'Strong' | 'Moderate' | 'Weak' }) {
   const filled = level === 'Strong' ? 3 : level === 'Moderate' ? 2 : 1
-  const color  = level === 'Strong' ? 'bg-pi-build' : level === 'Moderate' ? 'bg-pi-gold-deep' : 'bg-pi-faint'
+  const color  = level === 'Strong' ? 'bg-pi-build' : level === 'Moderate' ? 'bg-pi-gold-bright' : 'bg-pi-sub'
   return (
     <div className="flex items-end gap-0.5 h-3.5 shrink-0">
       {[0, 1, 2].map(i => (
