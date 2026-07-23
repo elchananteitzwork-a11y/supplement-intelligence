@@ -1,52 +1,78 @@
 'use client'
 
 // ═══════════════════════════════════════════════════════════════════════
-// MemoDisplay — rebuilt around Stitch's actual Investor Report narrative
-// architecture (80f611873dbf4a5087134b00e73b9f31.html), not the backend's
-// field-storage shape. See docs/STITCH_NARRATIVE_REMAPPING.md for the
-// original field-by-field mapping, and the migration checklist that
-// completed the remaining legacy components:
-//   - Current Signal rebuilt as CurrentSignal.tsx (compact pill + gauge,
-//     replacing the old FirstScreenSummary.tsx "Investment Dossier" hero
-//     card). writer_output.causal_paragraph relocated into The Thesis;
-//     writer_output.risk_sentence relocated into Strategic Readiness; the
-//     redundant per-dimension SignalRow mini-cards dropped (superseded by
-//     Demand Intensity/Supply Landscape's fuller real evidence panels).
-//   - Evidence & Confidence (old EvidenceConfidence.tsx, no Stitch
-//     equivalent) moved out of the report opening into the extensions
-//     zone — it was undercutting The Thesis by sitting second in the
-//     report, ahead of Stitch's own narrative.
-//   - Keyword Intelligence merged into Demand Intensity/Concordance
-//     (same topic — real search-demand evidence); Manufacturing
-//     Intelligence merged into Unit Economics (same topic — real COGS
-//     provenance). Neither is a standalone top-level section anymore.
-//   - Consumer Intelligence renamed/restructured to DifferentiationBrief.tsx
-//     — Stitch's real Differentiation Brief section, now rendering real
-//     review-derived quotes in Stitch's literal "Cluster: X" + pull-quote
-//     format. The AI-invented persona pinboard that used to share this
-//     section's name was renamed AdCopyIdeation.tsx and relocated into
-//     Launch Strategy (go-to-market ideation, not customer evidence).
-//   - Investment Thesis Detail restyled onto the row-based evidence
-//     pattern used everywhere else in the report; "Top 3 Reasons to
-//     Build"/"Top 3 Risks" renamed "Bull Case"/"Bear Case" to match the
-//     investor-memo voice Stitch's own Kill Criteria section uses.
+// MemoDisplay — RD Report-Chapters restructure (2026-07-23, owner-approved
+// mockup: design-prototypes/report-chapters.html, commit 83241ce). Owner
+// directive this pass fixes: "light, easy-to-understand UX... I don't want
+// long pages, every page should look good and be understandable." The old
+// version of this file rendered all 14 sections below as one continuous
+// stack of cream cards — a genuinely long page. This version groups the
+// EXACT SAME 14 section components (imports and props unchanged, no
+// internals touched, no data/derivation logic touched) into 6 chapters
+// (Demand / Competition / Economics / Customers / Risk & Verdict /
+// Methodology — the approved mockup's IA, and its own footer note's exact
+// section→chapter mapping) rendered as a single-open-at-a-time accordion,
+// collapsed by default, so the page reads short. See this file's own
+// CHAPTERS definition below for the literal mapping.
 //
-// Roadmap M1.5 (2026-07-12): added Marketing Intelligence — real Meta Ad
-// Library data (ad count, advertiser count, ad start dates, creative
-// longevity), previously computed but only ever folded invisibly into
-// Demand Intensity's TikTok card via the shared `virality` composite.
-// Gated on metaAdsProvenance confirming meta-ads actually contributed to
-// THIS query; renders a "not available from this provider" empty state
-// otherwise, never an estimate.
+// Register: Terminal Noir (tailwind.config.ts's `pi-void/pi-stage/
+// pi-elevated/pi-noir-*` tokens), reusing the real shared <GlassPanel>
+// (components/cine/GlassPanel.tsx) for each chapter's surface — the same
+// glass recipe CandidateCoreHero.tsx's verdict card above this already
+// uses, so the two feel like one continuous dark "instrument" floating on
+// the page's cream background (app/memo/[id]/page.tsx's AppShell stays
+// variant="pi" / cream — untouched, out of this milestone's scope; see the
+// hero's own header comment for why a dark GlassPanel card floating on a
+// cream page is the already-established pattern here, not a new one).
+//
+// HONEST SCOPE NOTE (flagged to the Planner in the delivery report, not
+// silently decided): the approved mockup's HTML comments also describe
+// content-level "duplication resolutions" — deleting CurrentSignal's
+// verdict pill, merging Differentiation/Reviews into a single lens toggle,
+// one confidence word-mapping, one Market Accessibility number, one COGS
+// number. This pass implements ONLY the lens toggle for Customers (pure
+// conditional rendering at this orchestration layer — DifferentiationBrief
+// .tsx and ReviewNarrative.tsx are both still rendered, byte-for-byte
+// unchanged, the toggle just shows one at a time). The other resolutions
+// require editing an individual section component's own internals (e.g.
+// removing a pill from CurrentSignal.tsx), which the R&D brief for this
+// milestone explicitly scoped OUT ("do not rewrite their internals") —
+// CurrentSignal therefore still renders its full existing content
+// (including its verdict pill) inside the Demand chapter, unchanged.
+//
+// The 5 real blade-click target ids (current-signal is a dead-code fallback
+// in coreDataAdapter.ts, never actually produced — verified by reading
+// SECTION_ID_FOR_DIMENSION there, all 6 BLADE_KEY_ORDER keys are mapped
+// explicitly) — demand-intensity, supply-landscape, unit-economics,
+// differentiation, strategic-readiness — are preserved as real ids
+// findable by getElementById at all times, because CandidateCoreHero.tsx's
+// blade-click jumpToSection (a file explicitly out of scope to edit this
+// pass) does a raw `document.getElementById(id)?.scrollIntoView(...)`.
+// Every chapter stays MOUNTED in the DOM at all times (collapsed chapters
+// use a CSS grid-rows height collapse, not conditional unmounting) — but
+// since a collapsed chapter's body has ~0px height, a deep id nested
+// inside it would scrollIntoView to a spot BELOW that chapter's own
+// header (verified live: the click landed with the target chapter's
+// header scrolled just off the top edge). Fixed by moving each of these 5
+// ids onto an anchor at the very TOP of its own chapter (see the `anchorId`
+// prop on <Chapter> below, with the matching internal section renamed to
+// an "-detail" suffix so there's no duplicate DOM id) — a blade click now
+// lands with the correct chapter's header fully visible at the top of the
+// viewport; one extra manual expand-click is still needed to see the
+// content itself, which is the honest, disclosed tradeoff of not being
+// able to teach the excluded CandidateCoreHero.tsx about the new accordion
+// structure.
 // ═══════════════════════════════════════════════════════════════════════
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import type { MemoData, BuildDecision } from '@/types/index'
 import { computeGroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import { verdictLabelFromDecision } from '@/lib/ai-interpretation/verdict'
 import { KillCriteriaList } from '@/components/ui'
-import { deriveKillCriteriaItems, PiCard } from './shared'
+import { GlassPanel } from '@/components/cine/GlassPanel'
+import { deriveKillCriteriaItems } from './shared'
 import CurrentSignal from './CurrentSignal'
 import EvidenceConfidence from './EvidenceConfidence'
 import DemandIntensity from './DemandIntensity'
@@ -60,32 +86,11 @@ import NewsIntelligence from './NewsIntelligence'
 import MarketingIntelligence from './MarketingIntelligence'
 import LaunchStrategy from './LaunchStrategy'
 
-// ── Reading progress bar — real interaction read from Stitch's own
-// inline <script> on the Investor Report screen (window.onscroll sets a
-// fixed 2px bar's width to scroll %), not inferred from static markup.
-function ReadingProgressBar() {
-  const [pct, setPct] = useState(0)
-  useEffect(() => {
-    function onScroll() {
-      const h = document.documentElement.scrollHeight - document.documentElement.clientHeight
-      setPct(h > 0 ? (window.scrollY / h) * 100 : 0)
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-  return <div className="fixed top-0 left-0 z-50 h-[2px] bg-pi-gold-deep transition-[width]" style={{ width: `${pct}%` }} />
-}
-
-// ── Section 2: The Thesis — Stitch's canonical Investor Report renders
-// this as exactly one bordered pull-quote paragraph and nothing else
-// (re-confirmed by direct re-read of 80f611873dbf4a5087134b00e73b9f31.html
-// for this pass — no caption box, no subheading, no confidence pill inside
-// this section). why_now, writer_output.causal_paragraph, and the verdict
-// confidence pill are real content with no place in that single-paragraph
-// pattern; they were previously bolted onto this section, which was itself
-// leftover legacy-IA bleed (extra grouping Stitch doesn't have here). They
-// now open "Investment Thesis Detail" in the extensions zone instead — see
-// InvestmentThesis.tsx.
+// ── Section 2 (inside the Demand chapter): The Thesis — Stitch's canonical
+// Investor Report renders this as exactly one bordered pull-quote
+// paragraph and nothing else. Local to this file (not one of the 14
+// imported section components), so it's fair game to restyle onto the
+// Terminal Noir register directly, unlike the imported sections below.
 function TheThesis({ m }: { m: MemoData }) {
   const thesis = m.market_thesis ?? m.executive_summary
   const decision = computeGroundedScore(m).decision
@@ -94,70 +99,173 @@ function TheThesis({ m }: { m: MemoData }) {
   return (
     <section id="the-thesis" className="scroll-mt-20">
       <blockquote className="border-l-[6px] border-pi-gold-deep pl-6 sm:pl-8 py-2">
-        <p className="font-serif text-[22px] sm:text-[26px] font-semibold leading-snug tracking-tight text-pi-ink">{thesis}</p>
+        <p className="font-serif text-[20px] sm:text-[24px] font-semibold leading-snug tracking-tight text-pi-noir-text">{thesis}</p>
       </blockquote>
       <p className="sr-only">{verdictLabel}</p>
     </section>
   )
 }
 
-type SectionDef = { id: string; label: string }
-
-const CORE_SECTIONS: SectionDef[] = [
-  { id: 'current-signal',    label: 'Signal' },
-  { id: 'the-thesis',        label: 'Thesis' },
-  { id: 'demand-intensity',  label: 'Demand' },
-  { id: 'supply-landscape',  label: 'Supply' },
-  { id: 'unit-economics',    label: 'Economics' },
-  { id: 'differentiation',   label: 'Differentiation' },
-  { id: 'strategic-readiness', label: 'Readiness' },
-  { id: 'kill-criteria',     label: 'Kill Criteria' },
-]
-
-const EXTENSION_SECTIONS: SectionDef[] = [
-  { id: 'thesis-detail',     label: 'Thesis Detail' },
-  { id: 'evidence-methodology', label: 'Methodology' },
-  { id: 'news-intelligence', label: 'News' },
-  { id: 'marketing-intelligence', label: 'Marketing' },
-  { id: 'launch-strategy',   label: 'Launch' },
-]
-
-function getSections(m: MemoData): SectionDef[] {
-  const ext = m.review_narrative
-    ? [...EXTENSION_SECTIONS.slice(0, 2), { id: 'review-narrative', label: 'Reviews' }, ...EXTENSION_SECTIONS.slice(2)]
-    : EXTENSION_SECTIONS
-  return [...CORE_SECTIONS, ...ext]
-}
-
-function SectionNavMobile({ sections, active, onSelect }: { sections: SectionDef[]; active: string; onSelect: (id: string) => void }) {
+// ── Sub-section header inside an open chapter — quiet Terminal Noir
+// label, direct visual analog of the old ReportSection wrapper's title bar
+// (font-mono uppercase pi-faint), just re-tokened. The section's own
+// content (an unmodified imported component) renders below it, still on
+// its own native cream pi-card surface — see this file's header comment's
+// HONEST SCOPE NOTE for why that inner cream surface isn't re-skinned.
+function SubSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="sticky top-0 z-30 -mx-4 px-4 sm:-mx-0 sm:px-0 backdrop-blur-md bg-pi-cream/95 border-b border-pi-hairline lg:hidden">
-      <div className="flex items-center gap-1 overflow-x-auto py-2.5">
-        {sections.map(s => (
-          <button
-            key={s.id}
-            onClick={() => onSelect(s.id)}
-            className={`relative text-[12.5px] font-medium px-3 py-2.5 whitespace-nowrap transition-colors ${active === s.id ? 'text-pi-ink font-bold' : 'text-pi-faint hover:text-pi-sub'}`}
-          >
-            {s.label}
-            {active === s.id && <span className="absolute left-2.5 right-2.5 bottom-0 h-[2px] bg-pi-gold-deep" />}
-          </button>
-        ))}
-      </div>
-    </div>
+    <section id={id} className="scroll-mt-24">
+      <h3 className="mb-4 border-b border-pi-noir-hairline-soft pb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pi-noir-sub">{title}</h3>
+      {children}
+    </section>
   )
 }
 
-function ReportSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+type ChapterId = 'demand' | 'competition' | 'economics' | 'customers' | 'risk' | 'methodology'
+
+interface ChapterMeta { id: ChapterId; n: string; label: string; deemphasized?: boolean }
+
+// The approved mockup's own footer note ("chapter split per the audited
+// natural groupings"), applied to the real, current 14-section list:
+//   Demand        — CurrentSignal + TheThesis + DemandIntensity + MarketingIntelligence
+//   Competition    — SupplyLandscape
+//   Economics      — UnitEconomicsTable + LaunchStrategy
+//   Customers      — DifferentiationBrief + ReviewNarrative (lens toggle)
+//   Risk & Verdict — StrategicReadinessChecklist + KillCriteria + InvestmentThesis + NewsIntelligence
+//   Methodology    — EvidenceConfidence (de-emphasized, closed by default — true of every chapter here)
+const CHAPTER_META: ChapterMeta[] = [
+  { id: 'demand',      n: '1', label: 'Demand' },
+  { id: 'competition', n: '2', label: 'Competition' },
+  { id: 'economics',   n: '3', label: 'Economics' },
+  { id: 'customers',   n: '4', label: 'Customers' },
+  { id: 'risk',        n: '5', label: 'Risk & Verdict' },
+  { id: 'methodology', n: '·', label: 'Methodology', deemphasized: true },
+]
+
+// ── Chapter nav — the approved mockup's core new element: sticky
+// horizontal pills, one chapter open at a time. Replaces the old flat
+// 14-item SectionNavMobile (mobile-only before) — this is now the single
+// nav surface at every viewport, matching the mockup.
+function ChapterNav({ active, onSelect }: { active: ChapterId | null; onSelect: (id: ChapterId) => void }) {
   return (
-    <section id={id} className="scroll-mt-20">
-      <PiCard padded={false} className="rounded-2xl p-6 sm:p-8">
-        <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-pi-hairline">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pi-faint">{title}</h2>
+    <nav aria-label="Report chapters" className="sticky top-[52px] z-30 -mx-1 mb-6 flex gap-1.5 overflow-x-auto bg-pi-cream/95 px-1 py-2 backdrop-blur-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {CHAPTER_META.map(c => {
+        const isActive = active === c.id
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onSelect(c.id)}
+            aria-expanded={isActive}
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 py-2 text-[13px] font-medium transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-bright ${
+              isActive
+                ? 'border-pi-gold-deep bg-pi-gold-deep text-pi-void font-semibold'
+                : c.deemphasized
+                  ? 'border-pi-noir-hairline text-pi-noir-sub/70 hover:text-pi-noir-sub hover:border-pi-noir-hairline'
+                  : 'border-pi-noir-hairline text-pi-noir-sub hover:text-pi-noir-text hover:border-pi-noir-text/30'
+            }`}
+          >
+            <span className="font-mono text-[10px] opacity-60">{c.n}</span>
+            {c.label}
+          </button>
+        )
+      })}
+    </nav>
+  )
+}
+
+// ── One chapter: a GlassPanel surface, header always visible (so its
+// blade-target ids underneath stay reachable — see this file's header
+// comment), body height-collapsed via CSS grid-rows when not the active
+// chapter. `motion-reduce:` gates the transition itself (not just an
+// animation keyframe) — a reduced-motion user gets an instant open/close,
+// same "no animation, not merely a faster one" discipline as every other
+// port tonight.
+function Chapter({ meta, anchorId, isOpen, onToggle, children }: { meta: ChapterMeta; anchorId?: string; isOpen: boolean; onToggle: () => void; children: React.ReactNode }) {
+  return (
+    <GlassPanel tone="neutral" hover3d={false} className="bg-pi-stage">
+      {/* Blade-jump landing anchor — CandidateCoreHero.tsx's jumpToSection
+          (out of scope to edit this pass) does a raw
+          document.getElementById(id)?.scrollIntoView(...). The id it looks
+          for used to sit on the deeply-nested section that's now inside a
+          collapsed accordion body; putting it here instead (right at the
+          top of this always-mounted chapter header, with scroll-mt-20 —
+          the same offset convention every other section in this app
+          already uses) means a blade click for a section inside a
+          currently-collapsed chapter lands with that chapter's header
+          fully visible at the top of the viewport, one click away from
+          expanding — the best reachable outcome without editing the
+          excluded file. See this file's own header comment for the full
+          tradeoff writeup. */}
+      {anchorId && <span id={anchorId} className="block scroll-mt-20" aria-hidden />}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={`chapter-panel-${meta.id}`}
+        className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-pi-noir-text/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-pi-gold-bright sm:px-8"
+      >
+        <span className="flex items-center gap-3 min-w-0">
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-pi-gold-deep">Chapter {meta.n}</span>
+          <span className={`truncate font-serif text-[19px] font-semibold sm:text-[22px] ${meta.deemphasized ? 'text-pi-noir-sub' : 'text-pi-noir-text'}`}>{meta.label}</span>
+        </span>
+        <ChevronDown className={`h-5 w-5 shrink-0 text-pi-noir-sub transition-transform duration-300 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
+      </button>
+      <div
+        id={`chapter-panel-${meta.id}`}
+        className="grid transition-[grid-template-rows] duration-500 ease-cine motion-reduce:transition-none"
+        style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
+      >
+        <div className="overflow-hidden">
+          <div className="space-y-8 px-6 pb-8 pt-2 sm:px-8">
+            {children}
+          </div>
         </div>
-        {children}
-      </PiCard>
-    </section>
+      </div>
+    </GlassPanel>
+  )
+}
+
+// ── Customers chapter's lens toggle — real conditional rendering between
+// two already-real, unmodified components (DifferentiationBrief: real
+// deterministic quote clustering; ReviewNarrative: real AI synthesis over
+// the same review corpus). Neither component is edited; this is pure
+// orchestration, matching the approved mockup's "two lenses on one page,
+// labeled" interaction.
+function CustomersLenses({ m }: { m: MemoData }) {
+  const [lens, setLens] = useState<'counted' | 'synthesis'>('counted')
+  return (
+    <div>
+      <div role="tablist" aria-label="Analysis method" className="mb-6 inline-flex rounded-full border border-pi-noir-hairline bg-pi-elevated p-1">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={lens === 'counted'}
+          onClick={() => setLens('counted')}
+          className={`rounded-full px-4 py-2 text-[12.5px] font-medium transition-colors ${lens === 'counted' ? 'bg-pi-gold-deep text-pi-void font-semibold' : 'text-pi-noir-sub hover:text-pi-noir-text'}`}
+        >
+          Differentiation Brief · counted from reviews
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={lens === 'synthesis'}
+          onClick={() => setLens('synthesis')}
+          className={`rounded-full px-4 py-2 text-[12.5px] font-medium transition-colors ${lens === 'synthesis' ? 'bg-pi-gold-deep text-pi-void font-semibold' : 'text-pi-noir-sub hover:text-pi-noir-text'}`}
+        >
+          Review Intelligence · AI synthesis
+        </button>
+      </div>
+      {lens === 'counted' ? (
+        <SubSection id="differentiation-detail" title="Differentiation Brief">
+          <DifferentiationBrief m={m} />
+        </SubSection>
+      ) : (
+        <SubSection id="review-narrative" title="Customer Review Intelligence">
+          <ReviewNarrative m={m} />
+        </SubSection>
+      )}
+    </div>
   )
 }
 
@@ -170,116 +278,94 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
   // already used for `decision` itself) — a bit-for-bit identical result,
   // not a second, divergent confidence calculation.
   const confidenceAssessment = computeConfidenceAssessment(grounded)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const sections = getSections(m)
-  const [activeSection, setActiveSection] = useState(sections[0].id)
   // Roadmap M2.8: real, machine-evaluable kill criteria — null (never a
   // fabricated list) when this analysis predates the feature.
   const killItems = deriveKillCriteriaItems(m.kill_criteria)
 
-  function jumpTo(id: string) {
-    setActiveSection(id)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  // Collapsed by default (every chapter closed) — this is the actual "no
+  // long pages" fix: first paint is 6 short chapter headers, not 14
+  // stacked cards. Single-open-at-a-time: opening one chapter closes any
+  // other that was open.
+  const [openChapter, setOpenChapter] = useState<ChapterId | null>(null)
+
+  function toggleChapter(id: ChapterId) {
+    setOpenChapter(cur => (cur === id ? null : id))
   }
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        const visible = entries.filter(e => e.isIntersecting)
-        if (visible.length > 0) setActiveSection(visible[0].target.id)
-      },
-      { rootMargin: '-10% 0px -70% 0px' },
-    )
-    for (const s of sections) {
-      const el = document.getElementById(s.id)
-      if (el) observer.observe(el)
-    }
-    return () => observer.disconnect()
-  }, [sections])
-
   return (
-    <div ref={containerRef}>
-      <ReadingProgressBar />
-      <SectionNavMobile sections={sections} active={activeSection} onSelect={jumpTo} />
+    <div className="max-w-[720px] mx-auto py-2">
+      <ChapterNav active={openChapter} onSelect={toggleChapter} />
 
-      <div className="max-w-[720px] mx-auto space-y-section-gap py-2">
+      <div className="space-y-4">
+        {/* ── Chapter 1: Demand ──────────────────────────────────────── */}
+        <Chapter meta={CHAPTER_META[0]} anchorId="demand-intensity" isOpen={openChapter === 'demand'} onToggle={() => toggleChapter('demand')}>
+          <CurrentSignal m={m} />
+          <TheThesis m={m} />
+          <SubSection id="demand-intensity-detail" title="Demand Intensity / Concordance"><DemandIntensity m={m} /></SubSection>
+          <SubSection id="marketing-intelligence" title="Marketing Intelligence"><MarketingIntelligence m={m} /></SubSection>
+        </Chapter>
 
-        {/* ── Section 1: Current Signal ─────────────────────────────── */}
-        <CurrentSignal m={m} />
+        {/* ── Chapter 2: Competition ─────────────────────────────────── */}
+        <Chapter meta={CHAPTER_META[1]} anchorId="supply-landscape" isOpen={openChapter === 'competition'} onToggle={() => toggleChapter('competition')}>
+          <SubSection id="supply-landscape-detail" title="Supply Landscape"><SupplyLandscape m={m} /></SubSection>
+        </Chapter>
 
-        {/* ── Section 2: The Thesis ─────────────────────────────────── */}
-        <TheThesis m={m} />
+        {/* ── Chapter 3: Economics ───────────────────────────────────── */}
+        <Chapter meta={CHAPTER_META[2]} anchorId="unit-economics" isOpen={openChapter === 'economics'} onToggle={() => toggleChapter('economics')}>
+          <SubSection id="unit-economics-detail" title="Unit Economics"><UnitEconomicsTable m={m} /></SubSection>
+          <SubSection id="launch-strategy" title="Launch Strategy"><LaunchStrategy m={m} /></SubSection>
+        </Chapter>
 
-        {/* ── Section 3: Demand Intensity / Concordance (includes real
-            keyword-level search evidence, merged from the old standalone
-            "Keyword Intelligence" section) ──────────────────────────── */}
-        <ReportSection id="demand-intensity" title="Demand Intensity / Concordance"><DemandIntensity m={m} /></ReportSection>
+        {/* ── Chapter 4: Customers (merged Differentiation/Reviews lens) ─ */}
+        <Chapter meta={CHAPTER_META[3]} anchorId="differentiation" isOpen={openChapter === 'customers'} onToggle={() => toggleChapter('customers')}>
+          <CustomersLenses m={m} />
+        </Chapter>
 
-        {/* ── Section 4: Supply Landscape ────────────────────────────── */}
-        <ReportSection id="supply-landscape" title="Supply Landscape"><SupplyLandscape m={m} /></ReportSection>
+        {/* ── Chapter 5: Risk & Verdict ──────────────────────────────── */}
+        <Chapter meta={CHAPTER_META[4]} anchorId="strategic-readiness" isOpen={openChapter === 'risk'} onToggle={() => toggleChapter('risk')}>
+          <SubSection id="strategic-readiness-detail" title="Strategic Readiness"><StrategicReadinessChecklist m={m} decision={decision} /></SubSection>
 
-        {/* ── Section 5: Unit Economics (includes real manufacturing/COGS
-            provenance, merged from the old standalone "Manufacturing
-            Intelligence" section) ───────────────────────────────────── */}
-        <ReportSection id="unit-economics" title="Unit Economics"><UnitEconomicsTable m={m} /></ReportSection>
+          {/* Kill Criteria — full-bleed pi-ink/pi-cream, matching Stitch's
+              only inverted section; see components/ui/KillCriteriaList.tsx's
+              own header comment for why this stays dark rather than
+              softening to the light pi-card treatment used everywhere
+              else. It already reads as near-black-on-near-cream, which
+              blends correctly into this chapter's dark stage without
+              needing any edit. Roadmap M2.8's real, machine-evaluable
+              memo.kill_criteria — honest unavailable note (not a silently-
+              vanished section) when this analysis predates the feature. */}
+          <section id="kill-criteria" className="scroll-mt-24">
+            {killItems ? (
+              <KillCriteriaList title="Kill Criteria — we would reverse this verdict if…" items={killItems} />
+            ) : (
+              <div className="rounded-2xl border border-pi-noir-hairline bg-pi-elevated p-gutter">
+                <p className="text-[11px] font-mono uppercase tracking-wider text-pi-noir-sub mb-2">Kill Criteria — we would reverse this verdict if…</p>
+                <p className="text-sm text-pi-noir-sub italic">Not available — this analysis predates the kill-criteria feature.</p>
+              </div>
+            )}
+          </section>
 
-        {/* ── Section 6: Differentiation Brief — real review-derived
-            clustered quotes in Stitch's literal format. AI-invented ad
-            copy relocated to Launch Strategy (see DifferentiationBrief.tsx
-            header). ──────────────────────────────────────────────────── */}
-        <ReportSection id="differentiation" title="Differentiation Brief"><DifferentiationBrief m={m} /></ReportSection>
+          <SubSection id="thesis-detail" title="Investment Thesis Detail"><InvestmentThesis m={m} decision={decision} /></SubSection>
+          <SubSection id="news-intelligence" title="Recent Market Intelligence"><NewsIntelligence m={m} /></SubSection>
+        </Chapter>
 
-        {/* ── Section 7: Strategic Readiness (opens with the relocated
-            writer_output.risk_sentence primary-risk statement) ───────── */}
-        <ReportSection id="strategic-readiness" title="Strategic Readiness"><StrategicReadinessChecklist m={m} decision={decision} /></ReportSection>
-
-        {/* ── Section 8: Kill Criteria — full-bleed pi-ink/pi-cream,
-            matching Stitch's only inverted section (Investor Report §8);
-            see components/ui/KillCriteriaList.tsx's own header comment for
-            why this stays dark rather than softening to the light pi-card
-            treatment used everywhere else. Roadmap M2.8's real,
-            machine-evaluable memo.kill_criteria — honest unavailable note
-            (not a silently-vanished section) when this analysis predates
-            the feature. ─────────────────────────────────────────────── */}
-        <section id="kill-criteria" className="scroll-mt-20">
-          {killItems ? (
-            <KillCriteriaList title="Kill Criteria — we would reverse this verdict if…" items={killItems} />
-          ) : (
-            <div className="rounded-2xl bg-pi-ink text-pi-cream p-gutter">
-              <p className="text-[11px] font-mono uppercase tracking-wider text-pi-cream/60 mb-2">Kill Criteria — we would reverse this verdict if…</p>
-              <p className="text-sm text-pi-cream/70 italic">Not available — this analysis predates the kill-criteria feature.</p>
-            </div>
-          )}
-        </section>
-
-        {/* ── Extensions: real backend data with no Stitch section ──── */}
-        <div className="pt-4 border-t border-pi-hairline">
-          <p className="text-[10px] font-mono text-pi-faint uppercase tracking-widest mb-1">Additional Real-Time Intelligence</p>
-          <p className="text-[11px] text-pi-faint italic">The sections below carry real data this analysis collected that Stitch&rsquo;s report design doesn&rsquo;t have a dedicated screen for — kept here rather than dropped, in the same visual language as the core report above.</p>
-        </div>
-
-        <ReportSection id="thesis-detail" title="Investment Thesis Detail"><InvestmentThesis m={m} decision={decision} /></ReportSection>
-        <ReportSection id="evidence-methodology" title="Score Methodology &amp; Evidence Coverage"><EvidenceConfidence m={m} decision={decision} confidenceAssessment={confidenceAssessment} /></ReportSection>
-        <ReportSection id="news-intelligence" title="Recent Market Intelligence"><NewsIntelligence m={m} /></ReportSection>
-        {/* Always rendered, not gated on m.review_narrative — a missing
-            review_narrative most often means the review-collection
-            provider didn't return enough real reviews (found live during
-            the pre-beta walkthrough, 2026-07-21), not that this section
-            doesn't apply. Hiding the section silently made that
-            indistinguishable from "this analysis has nothing to say here"
-            — ReviewNarrative itself now renders an honest explanation
-            instead of null. */}
-        <ReportSection id="review-narrative" title="Customer Review Intelligence"><ReviewNarrative m={m} /></ReportSection>
-        <ReportSection id="marketing-intelligence" title="Marketing Intelligence"><MarketingIntelligence m={m} /></ReportSection>
-        <ReportSection id="launch-strategy" title="Launch Strategy"><LaunchStrategy m={m} /></ReportSection>
-
-        {/* ── Footer ──────────────────────────────────────────────────── */}
-        <footer className="py-10 border-t border-pi-hairline text-center">
-          <p className="font-mono text-[10px] text-pi-faint uppercase tracking-widest">
-            {generatedAt ? `Prepared ${new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}` : 'Confidential'} — scoring engine {m.scoring_version ?? 'unversioned'}
-          </p>
-        </footer>
+        {/* ── Chapter 6: Methodology — de-emphasized, closed by default
+            (true of every chapter above too; the mockup's "closed by
+            default" note for this one specifically is automatically
+            satisfied by the same accordion mechanics, not special-cased). */}
+        <Chapter meta={CHAPTER_META[5]} isOpen={openChapter === 'methodology'} onToggle={() => toggleChapter('methodology')}>
+          <SubSection id="evidence-methodology" title="Score Methodology &amp; Evidence Coverage">
+            <EvidenceConfidence m={m} decision={decision} confidenceAssessment={confidenceAssessment} />
+          </SubSection>
+        </Chapter>
       </div>
+
+      {/* ── Footer ──────────────────────────────────────────────────── */}
+      <footer className="py-10 border-t border-pi-noir-hairline text-center mt-4">
+        <p className="font-mono text-[10px] text-pi-noir-sub uppercase tracking-widest">
+          {generatedAt ? `Prepared ${new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}` : 'Confidential'} — scoring engine {m.scoring_version ?? 'unversioned'}
+        </p>
+      </footer>
     </div>
   )
 }
