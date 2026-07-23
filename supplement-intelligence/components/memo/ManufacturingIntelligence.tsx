@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { MemoData } from '@/types/index'
 import { manufacturingTabProvenance } from '@/lib/provenance'
-import { ProvenanceBadge, dimLevel, PiCard } from './shared'
+import { ProvenanceBadge, ConfidencePill, dimLevel, PiCard } from './shared'
 import { IconX } from '@/components/icons'
 
 interface MfgEstimate {
@@ -46,19 +46,6 @@ function PipelineStage({ label, value, sub }: { label: string; value: string; su
       <p className="text-sm font-semibold text-pi-ink font-mono leading-snug">{value}</p>
       {sub && <p className="text-[10px] text-pi-faint mt-0.5">{sub}</p>}
     </div>
-  )
-}
-
-function MfgConfidencePill({ label }: { label: 'High' | 'Medium' | 'Low' }) {
-  const cfg = {
-    High:   { cls: 'text-pi-build border-pi-build/30 bg-pi-build/10', dot: 'bg-pi-build' },
-    Medium: { cls: 'text-pi-gold-bright border-pi-gold/30 bg-pi-gold/10', dot: 'bg-pi-gold-bright' },
-    Low:    { cls: 'text-pi-sub border-pi-hairline bg-pi-sand', dot: 'bg-pi-faint' },
-  }[label]
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 ${cfg.cls}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />{label} confidence
-    </span>
   )
 }
 
@@ -110,7 +97,7 @@ function ManufacturingDisplay({ est, mfgLevel }: { est: MfgEstimate; mfgLevel: '
           <p className="text-[11px] text-pi-faint mt-0.5">AI ease judgment: {mfgLevel}</p>
         </div>
         <div className="flex-1 px-3 py-3 flex items-center justify-between">
-          <MfgConfidencePill label={est.confidence_label} />
+          <ConfidencePill level={est.confidence_label} note={`${est.confidence_label} confidence`} />
         </div>
       </div>
 
