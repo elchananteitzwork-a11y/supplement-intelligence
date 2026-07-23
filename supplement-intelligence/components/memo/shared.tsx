@@ -63,9 +63,18 @@ const EVIDENCE_CFG: Record<ProvenanceLevel, { label: string; cls: string; dot: s
   unsupported: { label: 'Unsupported / Needs Verification', cls: 'text-pi-risk border-pi-risk/30 bg-pi-risk/10',         dot: 'bg-pi-risk' },
 }
 
-export function EvidenceBadge({ type, detail, source }: { type: ProvenanceLevel; detail?: string; source?: string }) {
+// `compact` (2026-07-24, data-density pass): renders just the color dot
+// with the full label+detail moved into the title tooltip — same
+// EVIDENCE_CFG color mapping, no second palette. For rows where the same
+// 5-level fact repeats many times in a list (e.g. one per scored
+// dimension) and a full pill each row is more repetition than signal; the
+// non-compact pill stays the default for every existing call site.
+export function EvidenceBadge({ type, detail, source, compact = false }: { type: ProvenanceLevel; detail?: string; source?: string; compact?: boolean }) {
   const { label, cls, dot } = EVIDENCE_CFG[type]
   const title = detail ? (source ? `${source} — ${detail}` : detail) : undefined
+  if (compact) {
+    return <span className={`inline-block w-2 h-2 rounded-full shrink-0 cursor-help ${dot}`} title={title ? `${label}: ${title}` : label} />
+  }
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold rounded-full border px-2.5 py-0.5 uppercase tracking-wide shrink-0 cursor-default ${cls}`}

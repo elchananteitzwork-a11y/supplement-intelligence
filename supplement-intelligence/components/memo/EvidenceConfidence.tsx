@@ -15,54 +15,23 @@ import { WitnessDots } from '@/components/ui'
 import {
   computeEvidenceCoverage, opportunityScoreProvenance,
   consistencyFlagProvenance, evidenceBreadthProvenance, channelConcentrationProvenance,
-  coverageNoteProvenance, categoryCreationProvenance, confidenceAssessmentProvenance,
+  coverageNoteProvenance, categoryCreationProvenance,
 } from '@/lib/provenance'
 import { EvidenceBadge, ProvenanceCaption, ConfidencePill, shortFactValue, deriveConfidenceDisplay, PiCard } from './shared'
 
-// Roadmap M1.4 (Phase 3 integration) — real independence-aware confidence
-// breakdown per scored dimension. Reuses WitnessDots (already the real
-// evidence-breadth primitive elsewhere in this exact file) for each
-// dimension's own confirmingChannelCount/witnesses.length, instead of a
-// single opaque number.
-function IndependenceConfidenceBlock({ assessment }: { assessment: ConfidenceAssessment }) {
-  const pct = assessment.overallConfidence !== null ? Math.round(assessment.overallConfidence * 100) : null
-  return (
-    <div className="mt-7 pt-6 border-t border-pi-hairline">
-      <div className="flex items-baseline justify-between gap-3 mb-2">
-        <p className="text-[10px] text-pi-faint uppercase tracking-widest">Independence-Aware Confidence</p>
-        <span className={`font-mono text-lg font-bold ${pct !== null && pct >= 50 ? 'text-pi-build' : pct !== null && pct >= 25 ? 'text-pi-gold-bright' : 'text-pi-faint'}`}>
-          {pct !== null ? `${pct}%` : '—'}
-        </span>
-      </div>
-      <p className="text-[11px] text-pi-sub mb-1">
-        {assessment.weakestDimension
-          ? `Weakest-link composite — capped by "${assessment.weakestDimension}," this analysis's least-evidenced load-bearing dimension.`
-          : 'No scored dimension had a real confidence reading for this analysis.'}
-      </p>
-      <p className="text-[11px] text-pi-sub mb-3">
-        Confirmed by {assessment.distinctConfirmingChannels} distinct independent channel{assessment.distinctConfirmingChannels === 1 ? '' : 's'} across all scored dimensions.
-      </p>
-      <ProvenanceCaption p={confidenceAssessmentProvenance()} />
-
-      <div className="mt-3 space-y-2.5">
-        {assessment.dimensions.map(d => (
-          <div key={d.key} className="flex items-center gap-3">
-            <span className="text-xs text-pi-sub w-40 shrink-0 truncate">{d.label}</span>
-            {d.confidence !== null ? (
-              <>
-                <WitnessDots filled={d.confirmingChannelCount} total={Math.max(d.witnesses.length, d.confirmingChannelCount, 1)} size="sm" variant="pi" />
-                <span className="font-mono text-xs text-pi-sub w-10 text-right shrink-0">{Math.round(d.confidence * 100)}%</span>
-              </>
-            ) : (
-              <span className="flex-1 text-xs text-pi-faint italic">No real evidence to be confident about</span>
-            )}
-            {d.channelMismatch && <span className="text-[9px] text-pi-gold-bright uppercase tracking-wider shrink-0">Channel gap</span>}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
+// Data-density pass (2026-07-24, owner-approved mockup): this used to be a
+// SEPARATE block repeating the exact same 6 dimension rows the Score
+// Breakdown section above already lists — one bar-per-dimension for score,
+// then this whole second block re-listing the identical dimensions as a
+// dot-count-per-dimension for confidence. Merged directly into the Score
+// Breakdown loop below instead (bar length = score, a tick mark on the bar
+// = confidence) — same two real numbers per dimension, one row instead of
+// two. The overall confidence % this header used to show is not lost: it's
+// the same number already in the ConfidencePill at the top of this card
+// (`deriveConfidenceDisplay(confidenceAssessment)`), so restating it here
+// a second time was itself part of the duplication. weakestDimension /
+// distinctConfirmingChannels are now one compact sentence under the merged
+// list instead of their own header block.
 
 export default function EvidenceConfidence({
   m, decision, confidenceAssessment,
@@ -130,18 +99,28 @@ export default function EvidenceConfidence({
 
         {scored.length > 0 && (
           <div className="mt-3 space-y-2.5">
-            {scored.map(d => (
-              <div key={d.key}>
-                <div className="flex items-center gap-3">
+            {scored.map(d => {
+              const conf = confidenceAssessment.dimensions.find(cd => cd.key === d.key)
+              const confPct = conf?.confidence !== null && conf?.confidence !== undefined ? Math.round(conf.confidence * 100) : null
+              const tickColor = confPct === null ? '' : confPct >= 50 ? 'bg-pi-build' : confPct >= 25 ? 'bg-pi-gold-bright' : 'bg-pi-risk'
+              return (
+                <div key={d.key} className="flex items-center gap-3">
                   <span className="text-xs text-pi-sub w-40 shrink-0 truncate">{d.label}</span>
-                  <div className="flex-1 h-1.5 rounded-full bg-pi-hairline overflow-hidden">
-                    <div className="h-full bg-pi-ink" style={{ width: `${(d.rawScore ?? 0) * 10}%` }} />
+                  <div className="relative flex-1 h-1.5 rounded-full bg-pi-hairline overflow-visible">
+                    <div className="h-full rounded-full bg-pi-ink" style={{ width: `${(d.rawScore ?? 0) * 10}%` }} />
+                    {confPct !== null && (
+                      <span
+                        className={`absolute -top-0.5 w-0.5 h-2.5 rounded-full ${tickColor}`}
+                        style={{ left: `${confPct}%` }}
+                        title={`${confPct}% confidence${conf?.channelMismatch ? ' — channel gap' : ''}`}
+                      />
+                    )}
                   </div>
                   <span className="font-mono text-xs text-pi-sub w-10 text-right shrink-0">{d.rawScore}/10</span>
-                  <EvidenceBadge type={d.source} source={d.sourceLabel} detail={`Weighted ${Math.round(d.weight * 100)}% of the final score.`} />
+                  <EvidenceBadge compact type={d.source} source={d.sourceLabel} detail={`Weighted ${Math.round(d.weight * 100)}% of the final score.`} />
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -152,14 +131,27 @@ export default function EvidenceConfidence({
               <div key={d.key} className="flex items-center gap-3">
                 <span className="text-xs text-pi-sub w-40 shrink-0 truncate italic">{d.label}</span>
                 <span className="flex-1 text-xs text-pi-faint italic">{d.qualitativeLevel ?? 'Not assessed'}</span>
-                <EvidenceBadge type={d.source} source={d.sourceLabel} detail="Excluded from the 0-100 score entirely — shown for context only, never converted to a number." />
+                <EvidenceBadge compact type={d.source} source={d.sourceLabel} detail="Excluded from the 0-100 score entirely — shown for context only, never converted to a number." />
               </div>
             ))}
           </div>
         )}
-      </div>
 
-      <IndependenceConfidenceBlock assessment={confidenceAssessment} />
+        {/* Shared legend, once, instead of the old separate "Independence-
+            Aware Confidence" header block + its own per-dimension dot-count
+            list — same weakest-link/channel facts, one line. */}
+        <div className="mt-4 pt-3 border-t border-pi-hairline flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <span className="inline-flex items-center gap-1.5 text-[10px] text-pi-sub"><span className="w-2 h-2 rounded-full bg-pi-ink" />Verified data</span>
+          <span className="inline-flex items-center gap-1.5 text-[10px] text-pi-sub"><span className="w-2 h-2 rounded-full bg-pi-gold-bright" />AI interpretation</span>
+          <span className="inline-flex items-center gap-1.5 text-[10px] text-pi-sub"><span className="w-2 h-2 rounded-full bg-pi-risk" />Unsupported</span>
+          <span className="text-[10px] text-pi-faint">| the tick on each bar is that dimension's confidence</span>
+        </div>
+        <p className="mt-2 text-[11px] text-pi-sub">
+          {confidenceAssessment.weakestDimension
+            ? `Weakest link: ${confidenceAssessment.weakestDimension} — confirmed by ${confidenceAssessment.distinctConfirmingChannels} distinct independent channel${confidenceAssessment.distinctConfirmingChannels === 1 ? '' : 's'} across all scored dimensions.`
+            : 'No scored dimension had a real confidence reading for this analysis.'}
+        </p>
+      </div>
 
       {/* Evidence Breadth + Sources */}
       <div className="mt-7 pt-6 border-t border-pi-hairline">
