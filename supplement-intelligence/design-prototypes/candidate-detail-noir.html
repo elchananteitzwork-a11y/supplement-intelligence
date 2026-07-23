@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>MOCKUP — Candidate Detail, "The Instrument Room" (Terminal Noir v3)</title>
+<title>MOCKUP — Candidate Detail, "The Instrument Room" (Terminal Noir v4)</title>
 <style>
 /* ============================================================================
    TERMINAL NOIR v2 — owner feedback on v1 (2026-07-23): missing glass, small
@@ -77,19 +77,12 @@ main{max-width:780px;margin:0 auto;padding:36px 24px 90px;}
 }
 .live-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px;position:relative;}
 
-/* rotor */
+/* rotor — real capture, see the HTML comment at its usage site. Its own
+   baked-in background (#14130F) is identical to --stage, so it blends into
+   the card with no visible edge — no extra border/shadow needed, the glow
+   and shadow you see are the real WebGL render's own. */
 .rotor-stage{position:relative;width:250px;height:250px;margin:0 auto 20px;}
-.rotor-stage svg{width:100%;height:100%;overflow:visible;}
-.rotor-stage .blades{transform-origin:100px 100px;
-  filter:drop-shadow(0 0 20px rgba(212,169,74,.4)) drop-shadow(0 14px 30px rgba(0,0,0,.6));}
-@media (prefers-reduced-motion: no-preference){
-  .rotor-stage .blades{animation:turn 60s linear infinite;}
-  @keyframes turn{to{transform:rotate(360deg)}}
-}
-.hub{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-.hub .score{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-size:56px;font-weight:800;line-height:1;
-  color:var(--gold-bright);text-shadow:0 0 24px rgba(228,188,92,.45);font-variant-numeric:tabular-nums;}
-.hub .l{font-size:11px;color:var(--sub);margin-top:5px;}
+.rotor-stage img{width:100%;height:100%;object-fit:contain;display:block;}
 
 .verdict{text-align:center;position:relative;}
 .verdict .word{font-family:"Source Serif 4",Georgia,serif;font-size:clamp(30px,4.6vw,40px);font-weight:700;
@@ -194,7 +187,7 @@ footer p{border-top:1px solid var(--hair-soft);padding-top:18px;font-size:11.5px
     </radialGradient>
   </defs>
 </svg>
-<div class="proto">MOCKUP v3 — real dimensional rotor mark (gradient-shaded, owner-approved 3D look) everywhere · not a live route</div>
+<div class="proto">MOCKUP v4 — the hero rotor is a REAL screenshot of the live, shipped WebGL component, re-captured today on the noir stage · small marks are the real RotorMark geometry with matching gradient shading · not a live route</div>
 
 <main>
   <div class="crumb">
@@ -214,21 +207,16 @@ footer p{border-top:1px solid var(--hair-soft);padding-top:18px;font-size:11.5px
         <span class="live"><i></i>Evidence age <span class="val" id="age">3h 12m 04s</span></span>
       </div>
 
+      <!-- REAL capture, not a drawing: this is an actual screenshot of the
+           live, unmodified components/pi/candidate-core/CandidateCoreCanvas
+           component (real Three.js render, real reflection rig + contact
+           shadow already shipped in production), re-captured today on the
+           correct #14130F noir stage — see the harness at
+           scratchpad/core-rotor-motion-harness/. Static here only because
+           this is a flat mockup; on the real page it rotates and responds
+           to the Pull gesture. -->
       <div class="rotor-stage" aria-label="Score rotor: 66, six real evidence blades, luminosity = confidence">
-        <svg viewBox="0 0 200 200">
-          <g class="blades">
-            <g stroke="#8D6A16" stroke-width="1">
-              <path d="M 100 100 L 108 40 L 140 55 Z" fill="url(#bladeA)"/>
-              <path d="M 100 100 L 152 78 L 165 115 Z" fill="url(#bladeB)"/>
-              <path d="M 100 100 L 148 138 L 122 168 Z" fill="url(#bladeC)"/>
-              <path d="M 100 100 L 88 165 L 55 148 Z" fill="url(#bladeD)"/>
-              <path d="M 100 100 L 48 128 L 32 95 Z" fill="url(#bladeE)"/>
-              <path d="M 100 100 L 52 58 L 82 38 Z" fill="url(#bladeF)"/>
-            </g>
-          </g>
-          <circle cx="100" cy="100" r="36" fill="url(#hubShade)" stroke="rgba(212,169,74,.3)" stroke-width="1"/>
-        </svg>
-        <div class="hub"><span class="score">66</span><span class="l">Score</span></div>
+        <img src="assets/rotor-noir-real-capture.png" alt="Real 3D rotor render — score 66, six evidence blades, reflection and contact shadow" />
       </div>
 
       <div class="verdict">
@@ -306,10 +294,14 @@ footer p{border-top:1px solid var(--hair-soft);padding-top:18px;font-size:11.5px
   verbatim from components/cine/GlassPanel.tsx's real recipe onto the main card, each signal tile, the kill-line,
   and the fingerprint chips; logo switched to RotorMark.tsx's real path data; labels moved off uppercase-tracked
   monospace (the "AI dashboard" tell) to quiet sentence-case Inter, monospace reserved for real tabular data only.
-  v3 (this pass): every rotor mark — hero and small icons alike — now renders with the same per-blade
-  highlight-to-shadow gradient the real WebGL rotor actually shows once lit (the reflection material approved
-  earlier today), replacing flat/opacity-only fills, so every mark on the page reads as one dimensional object
-  rather than a flat 2D stand-in next to a "real" 3D hero.]</span></p>
+  v3: every rotor mark — hero and small icons alike — rendered with the same per-blade highlight-to-shadow gradient
+  the real WebGL rotor shows once lit, replacing flat/opacity-only fills. v4 (this pass, owner: "where is the 3D
+  one we built today"): the hero rotor is no longer a drawing at all — it's assets/rotor-noir-real-capture.png,
+  an actual screenshot of the live, shipped components/pi/candidate-core/CandidateCoreCanvas component (real
+  Three.js render, the real reflection rig + contact shadow already in production), re-captured today with its
+  stage swapped to the correct #14130F noir background instead of the cream it was originally tested on. Confirmed
+  zero external network dependency on the real render, same as the earlier research. On the live page it rotates
+  and responds to the Pull gesture; this mockup shows one real frame of it.]</span></p>
 </footer>
 
 <script>
