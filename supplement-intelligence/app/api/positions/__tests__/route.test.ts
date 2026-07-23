@@ -19,7 +19,7 @@ vi.mock('next/headers', () => ({
   }),
 }))
 
-const addWatchMock = vi.fn(async (_sb: unknown, userId: string, input: unknown) => ({ id: 'w1' }))
+const addWatchMock = vi.fn(async (_sb: unknown, userId: string, input: unknown): Promise<{ id: string } | null> => ({ id: 'w1' }))
 vi.mock('@/lib/watchlist/store', () => ({
   addWatch: (sb: unknown, userId: string, input: unknown) => addWatchMock(sb, userId, input),
 }))
@@ -262,6 +262,28 @@ describe('POST /api/positions', () => {
     const body = await res.json()
     expect(res.status).toBe(503)
     expect(body.error).toMatch(/migration/i)
+  })
+
+  // Live-QA fix (2026-07-24): 'watching' arms the real watchlist BEFORE the
+  // position upsert — a failed/aborted addWatch must change NOTHING (no
+  // position row flip), returning an honest 502, never a half-success where
+  // the strip says "Watching" with no guard actually on duty.
+  it('returns 502 and writes NO position when addWatch fails while arming watching', async () => {
+    analysesById = { a1: { id: 'a1', user_id: 'user-1', category_name: 'Creatine', build_decision: 'BUILD_NOW', memo_data: REAL_EVIDENCE_MEMO } }
+    addWatchMock.mockResolvedValueOnce(null)
+    const { POST } = await import('../route')
+    const res = await POST(new Request('http://localhost/api/positions', { method: 'POST', body: JSON.stringify({ analysisId: 'a1', state: 'watching' }) }))
+    expect(res.status).toBe(502)
+    expect(capturedPositionsUpsertRow).toBeNull()
+  })
+
+  it('returns 502 (never an unhandled 500) and writes NO position when addWatch throws', async () => {
+    analysesById = { a1: { id: 'a1', user_id: 'user-1', category_name: 'Creatine', build_decision: 'BUILD_NOW', memo_data: REAL_EVIDENCE_MEMO } }
+    addWatchMock.mockRejectedValueOnce(new Error('Default category (supplements) not registered'))
+    const { POST } = await import('../route')
+    const res = await POST(new Request('http://localhost/api/positions', { method: 'POST', body: JSON.stringify({ analysisId: 'a1', state: 'watching' }) }))
+    expect(res.status).toBe(502)
+    expect(capturedPositionsUpsertRow).toBeNull()
   })
 
   // Input-size bounds (security-review advisory, 2026-07-24)

@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { addWatch } from '@/lib/watchlist/store'
-import { categoryRegistry } from '@/lib/categories/registry'
+// MUST be the barrel (@/lib/categories), never @/lib/categories/registry
+// directly: module registration is a side-effect of importing the barrel
+// (lib/categories/index.ts). Importing the bare registry in a serverless
+// bundle that never loads the barrel leaves it empty, and getDefault()
+// throws — the exact live-QA 500 this line originally caused (and the same
+// long-standing "+ Watch" production bug in app/api/watchlist/route.ts).
+import { categoryRegistry } from '@/lib/categories'
 import { isPositionState, type Position, type PositionState } from '@/lib/positions'
 import { computeGroundedScore } from '@/lib/scoring'
 import type { MemoData } from '@/types/index'
@@ -194,6 +200,38 @@ export async function POST(req: Request) {
 
   if (analysisError || !analysis) return err('Not found', 404)
 
+  // 'watching' reuses the real watchlist mechanism (migration 023) rather
+  // than duplicating it — same addWatch() helper, same snapshot fields,
+  // app/api/watchlist/route.ts's own POST calls (addWatch upserts on
+  // user_id,analysis_id, so re-runs are idempotent).
+  //
+  // ORDER MATTERS (live-QA fix, 2026-07-24): this runs BEFORE the position
+  // upsert. The original version ran it after, with a comment claiming the
+  // linking was "non-fatal" — but there was no try/catch, and when it threw
+  // (empty category registry) the client got a false 500 while the position
+  // row had ALREADY silently flipped to 'watching' with no watchlist entry
+  // behind it: a user who believes a guard is on duty when none is. Arming
+  // the real monitoring first means a failure here changes nothing at all —
+  // the honest outcome — and only a successfully-armed watch ever lets the
+  // position say 'watching'.
+  if (state === 'watching') {
+    const memo = analysis.memo_data as MemoData
+    let watch = null
+    try {
+      watch = await addWatch(sb, user.id, {
+        analysisId,
+        categoryName: analysis.category_name,
+        categoryId:   categoryRegistry.getDefault().id,
+        lifecycleStageAtWatch: memo.lifecycle_classification?.stage ?? null,
+        killCriteria: memo.kill_criteria ?? [],
+      })
+    } catch (e) {
+      console.error('[positions] addWatch failed while arming watching state:', e)
+      watch = null
+    }
+    if (!watch) return err('Could not arm monitoring for this market — nothing was changed. Try again.', 502)
+  }
+
   const row = {
     user_id:         user.id,
     analysis_id:     analysisId,
@@ -212,23 +250,6 @@ export async function POST(req: Request) {
   if (error) {
     if (isMissingTableError(error)) return err(MIGRATION_PENDING_MSG, 503)
     return err('Failed to save position', 500)
-  }
-
-  // 'watching' reuses the real watchlist mechanism (migration 023) rather
-  // than duplicating it — same addWatch() helper, same snapshot fields,
-  // app/api/watchlist/route.ts's own POST calls. Non-fatal: matching this
-  // codebase's established persistence discipline (lib/provider-cache,
-  // lib/niche-timeseries), a failure here never blocks the position save
-  // that already succeeded above — addWatch() itself logs the failure.
-  if (state === 'watching') {
-    const memo = analysis.memo_data as MemoData
-    await addWatch(sb, user.id, {
-      analysisId,
-      categoryName: analysis.category_name,
-      categoryId:   categoryRegistry.getDefault().id,
-      lifecycleStageAtWatch: memo.lifecycle_classification?.stage ?? null,
-      killCriteria: memo.kill_criteria ?? [],
-    })
   }
 
   const saved = data as PositionRow

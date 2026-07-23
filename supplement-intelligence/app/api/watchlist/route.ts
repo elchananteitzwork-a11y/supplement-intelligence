@@ -3,7 +3,14 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { addWatch, listWatches, listAlerts } from '@/lib/watchlist/store'
 import { enrichWatch } from '@/lib/watchlist/enrich'
-import { categoryRegistry } from '@/lib/categories/registry'
+// Live-QA fix (2026-07-24): was `@/lib/categories/registry` — the bare
+// registry, whose module registration only happens as a side-effect of
+// importing the barrel (lib/categories/index.ts). In any process/bundle
+// where nothing had loaded the barrel first, getDefault() threw
+// "Default category (supplements) not registered" — the long-standing
+// "+ Watch" 500 first hit in production on 2026-07-21 and reproduced
+// live during V4 Phase 1 QA via the same import in /api/positions.
+import { categoryRegistry } from '@/lib/categories'
 import type { MemoData } from '@/types/index'
 
 // ── Watchlist API — Roadmap M2.8, enriched for Phase 3 UI integration ───────
