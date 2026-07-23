@@ -15,15 +15,15 @@
 // collapsed by default, so the page reads short. See this file's own
 // CHAPTERS definition below for the literal mapping.
 //
-// Register: Terminal Noir (tailwind.config.ts's `pi-void/pi-stage/
-// pi-elevated/pi-noir-*` tokens), reusing the real shared <GlassPanel>
-// (components/cine/GlassPanel.tsx) for each chapter's surface — the same
-// glass recipe CandidateCoreHero.tsx's verdict card above this already
-// uses, so the two feel like one continuous dark "instrument" floating on
-// the page's cream background (app/memo/[id]/page.tsx's AppShell stays
-// variant="pi" / cream — untouched, out of this milestone's scope; see the
-// hero's own header comment for why a dark GlassPanel card floating on a
-// cream page is the already-established pattern here, not a new one).
+// Register: pi-cream (2026-07-23, owner reverted the Terminal Noir dark
+// register back to the warm-cream design language after reviewing it live
+// — see CandidateCoreHero.tsx's own header comment for the same reversal).
+// Each chapter is a plain bordered pi-card surface (`bg-pi-card`,
+// `border-pi-hairline`) — the same convention every section component
+// already used before this restructure, and the one CandidateCoreHero.tsx
+// itself now uses again above this. GlassPanel (built for the dark/photo
+// "One World" register) doesn't suit a flat cream page, so this pass
+// doesn't use it, matching the sibling hero card's own reversion.
 //
 // HONEST SCOPE NOTE (flagged to the Planner in the delivery report, not
 // silently decided): the approved mockup's HTML comments also describe
@@ -71,7 +71,6 @@ import { computeGroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import { verdictLabelFromDecision } from '@/lib/ai-interpretation/verdict'
 import { KillCriteriaList } from '@/components/ui'
-import { GlassPanel } from '@/components/cine/GlassPanel'
 import { deriveKillCriteriaItems } from './shared'
 import CurrentSignal from './CurrentSignal'
 import EvidenceConfidence from './EvidenceConfidence'
@@ -99,23 +98,23 @@ function TheThesis({ m }: { m: MemoData }) {
   return (
     <section id="the-thesis" className="scroll-mt-20">
       <blockquote className="border-l-[6px] border-pi-gold-deep pl-6 sm:pl-8 py-2">
-        <p className="font-serif text-[20px] sm:text-[24px] font-semibold leading-snug tracking-tight text-pi-noir-text">{thesis}</p>
+        <p className="font-serif text-[20px] sm:text-[24px] font-semibold leading-snug tracking-tight text-pi-ink">{thesis}</p>
       </blockquote>
       <p className="sr-only">{verdictLabel}</p>
     </section>
   )
 }
 
-// ── Sub-section header inside an open chapter — quiet Terminal Noir
-// label, direct visual analog of the old ReportSection wrapper's title bar
-// (font-mono uppercase pi-faint), just re-tokened. The section's own
-// content (an unmodified imported component) renders below it, still on
-// its own native cream pi-card surface — see this file's header comment's
-// HONEST SCOPE NOTE for why that inner cream surface isn't re-skinned.
+// ── Sub-section header inside an open chapter — quiet cream label, direct
+// visual analog of the old ReportSection wrapper's title bar (font-mono
+// uppercase pi-sub), just re-tokened for the chapter layout. The section's
+// own content (an unmodified imported component) renders below it, on its
+// own native cream pi-card surface — see this file's header comment's
+// HONEST SCOPE NOTE for why that inner surface isn't touched here.
 function SubSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-24">
-      <h3 className="mb-4 border-b border-pi-noir-hairline-soft pb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pi-noir-sub">{title}</h3>
+      <h3 className="mb-4 border-b border-pi-hairline pb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-pi-sub">{title}</h3>
       {children}
     </section>
   )
@@ -159,10 +158,10 @@ function ChapterNav({ active, onSelect }: { active: ChapterId | null; onSelect: 
             aria-expanded={isActive}
             className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 py-2 text-[13px] font-medium transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-bright ${
               isActive
-                ? 'border-pi-gold-deep bg-pi-gold-deep text-pi-void font-semibold'
+                ? 'border-pi-gold-deep bg-pi-gold-deep text-pi-ink font-semibold'
                 : c.deemphasized
-                  ? 'border-pi-noir-hairline text-pi-noir-sub/70 hover:text-pi-noir-sub hover:border-pi-noir-hairline'
-                  : 'border-pi-noir-hairline text-pi-noir-sub hover:text-pi-noir-text hover:border-pi-noir-text/30'
+                  ? 'border-pi-hairline text-pi-faint hover:text-pi-sub hover:border-pi-hairline'
+                  : 'border-pi-hairline text-pi-sub hover:text-pi-ink hover:border-pi-ink/30'
             }`}
           >
             <span className="font-mono text-[10px] opacity-60">{c.n}</span>
@@ -174,7 +173,7 @@ function ChapterNav({ active, onSelect }: { active: ChapterId | null; onSelect: 
   )
 }
 
-// ── One chapter: a GlassPanel surface, header always visible (so its
+// ── One chapter: a plain pi-card surface, header always visible (so its
 // blade-target ids underneath stay reachable — see this file's header
 // comment), body height-collapsed via CSS grid-rows when not the active
 // chapter. `motion-reduce:` gates the transition itself (not just an
@@ -183,7 +182,7 @@ function ChapterNav({ active, onSelect }: { active: ChapterId | null; onSelect: 
 // port tonight.
 function Chapter({ meta, anchorId, isOpen, onToggle, children }: { meta: ChapterMeta; anchorId?: string; isOpen: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
-    <GlassPanel tone="neutral" hover3d={false} className="bg-pi-stage">
+    <div className="overflow-hidden rounded-2xl border border-pi-hairline bg-pi-card">
       {/* Blade-jump landing anchor — CandidateCoreHero.tsx's jumpToSection
           (out of scope to edit this pass) does a raw
           document.getElementById(id)?.scrollIntoView(...). The id it looks
@@ -203,13 +202,13 @@ function Chapter({ meta, anchorId, isOpen, onToggle, children }: { meta: Chapter
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls={`chapter-panel-${meta.id}`}
-        className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-pi-noir-text/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-pi-gold-bright sm:px-8"
+        className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-pi-ink/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-pi-gold-bright sm:px-8"
       >
         <span className="flex items-center gap-3 min-w-0">
           <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-pi-gold-deep">Chapter {meta.n}</span>
-          <span className={`truncate font-serif text-[19px] font-semibold sm:text-[22px] ${meta.deemphasized ? 'text-pi-noir-sub' : 'text-pi-noir-text'}`}>{meta.label}</span>
+          <span className={`truncate font-serif text-[19px] font-semibold sm:text-[22px] ${meta.deemphasized ? 'text-pi-sub' : 'text-pi-ink'}`}>{meta.label}</span>
         </span>
-        <ChevronDown className={`h-5 w-5 shrink-0 text-pi-noir-sub transition-transform duration-300 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
+        <ChevronDown className={`h-5 w-5 shrink-0 text-pi-sub transition-transform duration-300 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
       </button>
       <div
         id={`chapter-panel-${meta.id}`}
@@ -222,7 +221,7 @@ function Chapter({ meta, anchorId, isOpen, onToggle, children }: { meta: Chapter
           </div>
         </div>
       </div>
-    </GlassPanel>
+    </div>
   )
 }
 
@@ -236,13 +235,13 @@ function CustomersLenses({ m }: { m: MemoData }) {
   const [lens, setLens] = useState<'counted' | 'synthesis'>('counted')
   return (
     <div>
-      <div role="tablist" aria-label="Analysis method" className="mb-6 inline-flex rounded-full border border-pi-noir-hairline bg-pi-elevated p-1">
+      <div role="tablist" aria-label="Analysis method" className="mb-6 inline-flex rounded-full border border-pi-hairline bg-pi-sand p-1">
         <button
           type="button"
           role="tab"
           aria-selected={lens === 'counted'}
           onClick={() => setLens('counted')}
-          className={`rounded-full px-4 py-2 text-[12.5px] font-medium transition-colors ${lens === 'counted' ? 'bg-pi-gold-deep text-pi-void font-semibold' : 'text-pi-noir-sub hover:text-pi-noir-text'}`}
+          className={`rounded-full px-4 py-2 text-[12.5px] font-medium transition-colors ${lens === 'counted' ? 'bg-pi-gold-deep text-pi-ink font-semibold' : 'text-pi-sub hover:text-pi-ink'}`}
         >
           Differentiation Brief · counted from reviews
         </button>
@@ -251,7 +250,7 @@ function CustomersLenses({ m }: { m: MemoData }) {
           role="tab"
           aria-selected={lens === 'synthesis'}
           onClick={() => setLens('synthesis')}
-          className={`rounded-full px-4 py-2 text-[12.5px] font-medium transition-colors ${lens === 'synthesis' ? 'bg-pi-gold-deep text-pi-void font-semibold' : 'text-pi-noir-sub hover:text-pi-noir-text'}`}
+          className={`rounded-full px-4 py-2 text-[12.5px] font-medium transition-colors ${lens === 'synthesis' ? 'bg-pi-gold-deep text-pi-ink font-semibold' : 'text-pi-sub hover:text-pi-ink'}`}
         >
           Review Intelligence · AI synthesis
         </button>
@@ -327,20 +326,20 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
 
           {/* Kill Criteria — full-bleed pi-ink/pi-cream, matching Stitch's
               only inverted section; see components/ui/KillCriteriaList.tsx's
-              own header comment for why this stays dark rather than
+              own header comment for why this stays deliberately dark
+              (a pre-existing, standalone design choice, not part of
+              tonight's noir register or its reversal) rather than
               softening to the light pi-card treatment used everywhere
-              else. It already reads as near-black-on-near-cream, which
-              blends correctly into this chapter's dark stage without
-              needing any edit. Roadmap M2.8's real, machine-evaluable
-              memo.kill_criteria — honest unavailable note (not a silently-
-              vanished section) when this analysis predates the feature. */}
+              else. Roadmap M2.8's real, machine-evaluable memo.kill_criteria
+              — honest unavailable note (not a silently-vanished section)
+              when this analysis predates the feature. */}
           <section id="kill-criteria" className="scroll-mt-24">
             {killItems ? (
               <KillCriteriaList title="Kill Criteria — we would reverse this verdict if…" items={killItems} />
             ) : (
-              <div className="rounded-2xl border border-pi-noir-hairline bg-pi-elevated p-gutter">
-                <p className="text-[11px] font-mono uppercase tracking-wider text-pi-noir-sub mb-2">Kill Criteria — we would reverse this verdict if…</p>
-                <p className="text-sm text-pi-noir-sub italic">Not available — this analysis predates the kill-criteria feature.</p>
+              <div className="rounded-2xl border border-pi-hairline bg-pi-sand p-gutter">
+                <p className="text-[11px] font-mono uppercase tracking-wider text-pi-sub mb-2">Kill Criteria — we would reverse this verdict if…</p>
+                <p className="text-sm text-pi-sub italic">Not available — this analysis predates the kill-criteria feature.</p>
               </div>
             )}
           </section>
@@ -361,8 +360,8 @@ export default function MemoDisplay({ memo: m, generatedAt }: { memo: MemoData; 
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
-      <footer className="py-10 border-t border-pi-noir-hairline text-center mt-4">
-        <p className="font-mono text-[10px] text-pi-noir-sub uppercase tracking-widest">
+      <footer className="py-10 border-t border-pi-hairline text-center mt-4">
+        <p className="font-mono text-[10px] text-pi-sub uppercase tracking-widest">
           {generatedAt ? `Prepared ${new Date(generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}` : 'Confidential'} — scoring engine {m.scoring_version ?? 'unversioned'}
         </p>
       </footer>
