@@ -13,7 +13,7 @@
 // import sites are unaffected.
 // ═══════════════════════════════════════════════════════════════════════
 
-import type { MemoData } from '@/types/index'
+import type { MemoData, BuildDecision } from '@/types/index'
 import type { ConfidenceAssessment } from '@/lib/confidence'
 import type { LifecycleStage, GapVelocity } from '@/lib/lifecycle'
 import type { KillCriterion } from '@/lib/kill-criteria'
@@ -120,6 +120,62 @@ export function deriveV2VerdictDisplay(
 ): V2VerdictDisplay | null {
   if (!quality || !verdict) return null
   return { verdict: verdict.verdict, qualityScore: quality.score, qualityTier: quality.tier, lifecycleStage: verdict.lifecycleStage }
+}
+
+// ── Verdict cross-check (data-density pass, 2026-07-24, owner-approved) ──
+// Replaces CurrentSignal's old always-present "Alternate Verdict Check"
+// row — which put a second, complete verdict system on screen behind a
+// toggle, with a caption admitting the two are "not guaranteed to match."
+// The only time the V2 verdict adds information a reader can act on is
+// when the two systems genuinely DISAGREE — so this returns null (render
+// nothing) on agreement, and a structured disagreement readout otherwise.
+//
+// "Agreement" needs a defined rule because the two vocabularies differ (4
+// legacy values vs 7 V2 values). The bands below are deliberately
+// conservative — overlapping/adjacent readings count as agreement, so the
+// line only ever fires on a real directional gap, not a wording nuance:
+//   BUILD_NOW          ~ Build Now / Build If Differentiated
+//   VALIDATE_FURTHER   ~ Build If Differentiated / Watch Closely / Watch / Investigate
+//   SKIP               ~ Avoid / Pass
+//   CATEGORY_CREATION_CANDIDATE — never compared: the V2 matrix has no
+//   category-creation concept, so agreement/disagreement isn't meaningful.
+const V2_RANK: Record<MarketVerdictResult['verdict'], number> = {
+  BUILD_NOW: 0, BUILD_IF_DIFFERENTIATED: 1, WATCH_CLOSELY: 2, WATCH: 3, INVESTIGATE: 4, AVOID: 5, PASS: 6,
+}
+const V2_LABEL: Record<MarketVerdictResult['verdict'], string> = {
+  BUILD_NOW: 'Build Now', BUILD_IF_DIFFERENTIATED: 'Build If Differentiated', WATCH_CLOSELY: 'Watch Closely',
+  WATCH: 'Watch', INVESTIGATE: 'Investigate', AVOID: 'Avoid', PASS: 'Pass',
+}
+const LEGACY_AGREEMENT_BAND: Record<Exclude<BuildDecision, 'CATEGORY_CREATION_CANDIDATE'>, [number, number]> = {
+  BUILD_NOW:        [0, 1],
+  VALIDATE_FURTHER: [1, 4],
+  SKIP:             [5, 6],
+}
+
+export interface VerdictCrossCheck {
+  qualityScore: number
+  qualityTier:  OpportunityQuality['tier']
+  v2Label:      string
+  direction:    'more cautious' | 'more optimistic'
+}
+
+export function deriveVerdictCrossCheck(
+  decision: BuildDecision,
+  quality:  OpportunityQuality | undefined,
+  verdict:  MarketVerdictResult | undefined,
+): VerdictCrossCheck | null {
+  const v2 = deriveV2VerdictDisplay(quality, verdict)
+  if (!v2) return null
+  if (decision === 'CATEGORY_CREATION_CANDIDATE') return null
+  const [lo, hi] = LEGACY_AGREEMENT_BAND[decision]
+  const rank = V2_RANK[v2.verdict]
+  if (rank >= lo && rank <= hi) return null
+  return {
+    qualityScore: v2.qualityScore,
+    qualityTier:  v2.qualityTier,
+    v2Label:      V2_LABEL[v2.verdict],
+    direction:    rank > hi ? 'more cautious' : 'more optimistic',
+  }
 }
 
 // ── Roadmap M2.3 — supply velocity display ───────────────────────────────

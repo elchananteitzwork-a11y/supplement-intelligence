@@ -12,8 +12,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   deriveLifecycleDisplay, formatGapVelocity, deriveKillCriteriaItems,
-  deriveConfidenceDisplay, deriveV2VerdictDisplay, deriveSupplyVelocityDisplay,
-  deriveScienceDisplay, LIFECYCLE_STAGES,
+  deriveConfidenceDisplay, deriveV2VerdictDisplay, deriveVerdictCrossCheck,
+  deriveSupplyVelocityDisplay, deriveScienceDisplay, LIFECYCLE_STAGES,
 } from '../field-derivations'
 import type { MemoData } from '@/types/index'
 import type { LifecycleClassification, GapVelocity } from '@/lib/lifecycle'
@@ -151,6 +151,49 @@ describe('deriveV2VerdictDisplay', () => {
     const verdict: MarketVerdictResult = { verdict: 'INVESTIGATE', qualityTier: 'Mid', lifecycleStage: 'Window Open', buildNowGate: null, version: 'heuristic-v1' }
     expect(deriveV2VerdictDisplay(quality, verdict)).toEqual({
       verdict: 'INVESTIGATE', qualityScore: 62, qualityTier: 'Mid', lifecycleStage: 'Window Open',
+    })
+  })
+})
+
+describe('deriveVerdictCrossCheck', () => {
+  const quality = (score: number, tier: OpportunityQuality['tier']): OpportunityQuality =>
+    ({ score, tier, pillars: [], version: 'heuristic-v1' })
+  const verdict = (v: MarketVerdictResult['verdict']): MarketVerdictResult =>
+    ({ verdict: v, qualityTier: 'Mid', lifecycleStage: 'Window Open', buildNowGate: null, version: 'heuristic-v1' })
+
+  it('returns null (renders nothing) when V2 was never computed', () => {
+    expect(deriveVerdictCrossCheck('VALIDATE_FURTHER', undefined, undefined)).toBeNull()
+  })
+
+  it('returns null on agreement — overlapping/adjacent readings are never flagged', () => {
+    expect(deriveVerdictCrossCheck('BUILD_NOW', quality(78, 'High'), verdict('BUILD_NOW'))).toBeNull()
+    expect(deriveVerdictCrossCheck('BUILD_NOW', quality(78, 'High'), verdict('BUILD_IF_DIFFERENTIATED'))).toBeNull()
+    expect(deriveVerdictCrossCheck('VALIDATE_FURTHER', quality(58, 'Mid'), verdict('BUILD_IF_DIFFERENTIATED'))).toBeNull()
+    expect(deriveVerdictCrossCheck('VALIDATE_FURTHER', quality(58, 'Mid'), verdict('WATCH_CLOSELY'))).toBeNull()
+    expect(deriveVerdictCrossCheck('VALIDATE_FURTHER', quality(58, 'Mid'), verdict('INVESTIGATE'))).toBeNull()
+    expect(deriveVerdictCrossCheck('SKIP', quality(22, 'Low'), verdict('AVOID'))).toBeNull()
+    expect(deriveVerdictCrossCheck('SKIP', quality(22, 'Low'), verdict('PASS'))).toBeNull()
+  })
+
+  it('never compares CATEGORY_CREATION_CANDIDATE — the V2 matrix has no such concept', () => {
+    expect(deriveVerdictCrossCheck('CATEGORY_CREATION_CANDIDATE', quality(70, 'High'), verdict('AVOID'))).toBeNull()
+  })
+
+  it('flags a real cautious gap with the exact V2 label and score', () => {
+    expect(deriveVerdictCrossCheck('BUILD_NOW', quality(48, 'Mid'), verdict('WATCH_CLOSELY'))).toEqual({
+      qualityScore: 48, qualityTier: 'Mid', v2Label: 'Watch Closely', direction: 'more cautious',
+    })
+    expect(deriveVerdictCrossCheck('VALIDATE_FURTHER', quality(30, 'Low'), verdict('AVOID'))).toEqual({
+      qualityScore: 30, qualityTier: 'Low', v2Label: 'Avoid', direction: 'more cautious',
+    })
+  })
+
+  it('flags a real optimistic gap in the other direction', () => {
+    expect(deriveVerdictCrossCheck('SKIP', quality(74, 'High'), verdict('BUILD_NOW'))).toEqual({
+      qualityScore: 74, qualityTier: 'High', v2Label: 'Build Now', direction: 'more optimistic',
+    })
+    expect(deriveVerdictCrossCheck('VALIDATE_FURTHER', quality(81, 'High'), verdict('BUILD_NOW'))).toEqual({
+      qualityScore: 81, qualityTier: 'High', v2Label: 'Build Now', direction: 'more optimistic',
     })
   })
 })

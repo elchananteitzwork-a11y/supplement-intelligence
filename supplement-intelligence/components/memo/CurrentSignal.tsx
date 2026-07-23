@@ -32,26 +32,23 @@
 // per explicit instruction, since the two verdict systems are independent
 // and not guaranteed to agree.
 //
-// Roadmap M2.23 (2026-07-14, Analyst Experience Consolidation): the V2
-// verdict/quality row above was rendering unconditionally, which meant
-// this screen showed two complete verdict systems at once — a real
-// violation of the locked "one visible verdict vocabulary" / "progressive
-// disclosure" principles, self-acknowledged by this file's own prior
-// comment ("not guaranteed to agree"). It's now collapsed by default
-// behind TechnicalDetailToggle, same "Show ... more →" idiom already used
-// by shared.tsx's NumList and KeywordIntelligence.tsx's
-// ExpandableKeywordTable — no data, computation, or prop changed, only
-// default visibility. The legacy BuildDecision pill remains the one
-// unconditional, primary verdict on this screen.
+// Roadmap M2.23 (2026-07-14) hid the V2 verdict row behind a "Show
+// technical detail →" toggle. Data-density pass (2026-07-24, owner-
+// approved mockup, option B) goes further: a second complete verdict
+// system — even collapsed — answers the same question as the pill above
+// it, and its own caption admitted the two are "not guaranteed to match."
+// The toggle and the V2 row/badge are gone; in their place, a single
+// cross-check line renders ONLY when the two verdict systems genuinely
+// disagree (see field-derivations.ts's deriveVerdictCrossCheck for the
+// conservative agreement bands). When they agree — the common case —
+// nothing extra renders at all.
 // ═══════════════════════════════════════════════════════════════════════
 
-import { useState } from 'react'
 import type { MemoData, BuildDecision } from '@/types/index'
-import type { MarketVerdict as V2Verdict } from '@/lib/verdict-matrix'
 import { computeGroundedScore } from '@/lib/scoring'
 import { LifecycleArc } from '@/components/ui'
 import { lifecycleProvenance, gapVelocityProvenance, v2VerdictProvenance } from '@/lib/provenance'
-import { ProvenanceBadge, deriveLifecycleDisplay, formatGapVelocity, deriveV2VerdictDisplay, LabNoData } from './shared'
+import { ProvenanceBadge, deriveLifecycleDisplay, formatGapVelocity, deriveVerdictCrossCheck, LabNoData } from './shared'
 
 // pi-* decision colors — same mapping as CandidateCoreHero's DECISION_COLOR
 // (components/pi/candidate-core/CandidateCoreHero.tsx) so this legacy
@@ -62,29 +59,6 @@ const PILL_CFG: Record<BuildDecision, { label: string; cls: string }> = {
   VALIDATE_FURTHER:            { label: 'Validation Required', cls: 'bg-pi-invest text-pi-cream' },
   SKIP:                        { label: 'Not Supported',       cls: 'bg-pi-pass text-pi-cream' },
   CATEGORY_CREATION_CANDIDATE: { label: 'Category Creation',   cls: 'bg-pi-gold-deep text-pi-ink' },
-}
-
-// components/ui/VerdictBadge.tsx renders the legacy black/white verdict-*
-// vocabulary and is still used by several out-of-scope pages (dashboard,
-// leaderboard, watchlist, alerts) — inlined here instead of reused so this
-// screen doesn't reintroduce that palette next to the pi-* hero above it.
-const V2_VERDICT_CFG: Record<V2Verdict, { label: string; cls: string }> = {
-  BUILD_NOW:                { label: 'Build Now',                cls: 'text-pi-build border-pi-build/40 bg-pi-build/10' },
-  BUILD_IF_DIFFERENTIATED:  { label: 'Build If Differentiated',   cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
-  WATCH_CLOSELY:            { label: 'Watch Closely',             cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
-  WATCH:                    { label: 'Watch',                     cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
-  INVESTIGATE:              { label: 'Investigate',               cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
-  AVOID:                    { label: 'Avoid',                     cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
-  PASS:                     { label: 'Pass',                      cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
-}
-
-function V2VerdictBadge({ verdict }: { verdict: V2Verdict }) {
-  const cfg = V2_VERDICT_CFG[verdict]
-  return (
-    <span className={`inline-flex items-center font-bold uppercase tracking-wide rounded-full border text-[10px] px-2.5 py-1 ${cfg.cls}`}>
-      {cfg.label}
-    </span>
-  )
 }
 
 function LifecycleStageBlock({ m }: { m: MemoData }) {
@@ -128,41 +102,23 @@ function GapVelocityRow({ m }: { m: MemoData }) {
   )
 }
 
-function V2VerdictRow({ m }: { m: MemoData }) {
-  const v2 = deriveV2VerdictDisplay(m.opportunity_quality, m.market_verdict)
+// Renders ONLY on real disagreement between the two verdict systems —
+// null (nothing at all) when they agree or when V2 wasn't computed. The
+// legacy pill's own label is passed in so the sentence names both sides
+// with the exact wording the reader sees on screen.
+function VerdictCrossCheckRow({ m, decision, decisionLabel }: { m: MemoData; decision: BuildDecision; decisionLabel: string }) {
+  const cc = deriveVerdictCrossCheck(decision, m.opportunity_quality, m.market_verdict)
+  if (!cc) return null
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-pi-hairline pt-3 mt-3">
-      <div>
-        <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Alternate Verdict Check</span>
-        <p className="text-[9px] text-pi-faint italic mt-0.5">Separate, parallel verdict — not guaranteed to match the pill above.</p>
-      </div>
-      {v2 ? (
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-pi-sub">Quality {v2.qualityScore}/100 ({v2.qualityTier})</span>
-          <V2VerdictBadge verdict={v2.verdict} />
-          <ProvenanceBadge p={v2VerdictProvenance()} />
-        </div>
-      ) : <LabNoData label="Not computed for this analysis" />}
-    </div>
-  )
-}
-
-// Roadmap M2.23 — collapsed by default, same "Show ... →" idiom already
-// used by components/memo/shared.tsx's NumList and KeywordIntelligence.tsx's
-// ExpandableKeywordTable, reused here rather than inventing a new pattern.
-// Keeps the legacy build-decision pill as the one unconditional, primary
-// verdict on this screen; the second (V2) verdict system stays fully
-// intact and unchanged, just pulled rather than pushed — per the locked
-// "progressive disclosure" / "one visible verdict vocabulary" principles.
-function TechnicalDetailToggle({ m }: { m: MemoData }) {
-  const [expanded, setExpanded] = useState(false)
-  if (expanded) return <V2VerdictRow m={m} />
-  return (
-    <div className="flex items-center justify-between gap-3 border-t border-pi-hairline pt-3 mt-3">
-      <span className="text-[10px] font-mono text-pi-faint uppercase tracking-widest">Technical Detail</span>
-      <button onClick={() => setExpanded(true)} className="text-[11px] text-pi-gold-bright hover:underline transition-colors">
-        Show technical detail →
-      </button>
+    <div className="flex items-start justify-between gap-3 border-t border-pi-hairline pt-3 mt-3">
+      <p className="flex items-start gap-2 text-[11px] text-pi-sub leading-relaxed">
+        <span aria-hidden className="shrink-0 text-pi-gold-bright">⚠</span>
+        <span>
+          Cross-check: the model&apos;s own quality score ({cc.qualityScore}/100, {cc.qualityTier}) leans {cc.direction} —
+          &ldquo;{cc.v2Label},&rdquo; not &ldquo;{decisionLabel}.&rdquo;
+        </span>
+      </p>
+      <ProvenanceBadge p={v2VerdictProvenance()} />
     </div>
   )
 }
@@ -188,13 +144,14 @@ export default function CurrentSignal({ m }: { m: MemoData; generatedAt?: string
               {cfg.label}
             </div>
             <p className="font-mono text-xs text-pi-faint mt-2">{m.category_name} — {score} / 100</p>
-            <p className="text-[9px] text-pi-faint uppercase tracking-wider mt-1">Legacy build-decision verdict</p>
           </div>
           <LifecycleStageBlock m={m} />
         </div>
 
         <GapVelocityRow m={m} />
-        <TechnicalDetailToggle m={m} />
+        {/* No cross-check when the pill itself says "Insufficient Data" —
+            there's no real verdict on this side to compare against. */}
+        {!insufficientEvidence && <VerdictCrossCheckRow m={m} decision={decision} decisionLabel={cfg.label} />}
       </div>
 
       {consumerIntelTimedOut && (

@@ -26,11 +26,12 @@ export {
   deriveLifecycleDisplay, LIFECYCLE_STAGES,
   formatGapVelocity,
   deriveV2VerdictDisplay,
+  deriveVerdictCrossCheck,
   deriveSupplyVelocityDisplay,
   deriveScienceDisplay,
 } from './field-derivations'
 export type {
-  LifecycleDisplay, GapVelocityDisplay, V2VerdictDisplay, SupplyVelocityDisplay, ScienceDisplay,
+  LifecycleDisplay, GapVelocityDisplay, V2VerdictDisplay, VerdictCrossCheck, SupplyVelocityDisplay, ScienceDisplay,
 } from './field-derivations'
 
 // ── pi-* surface primitive ────────────────────────────────────────────────
