@@ -34,6 +34,49 @@ const labelCls = 'font-mono text-[10px] font-bold uppercase tracking-wider text-
 const submitCls =
   'mt-1.5 w-full rounded-xl bg-gradient-to-br from-[#F6E7B8] via-pi-gold-deep to-pi-gold-bright px-[18px] py-[13px] text-[14.5px] font-semibold text-[#16130a] shadow-[0_10px_22px_-8px_rgba(212,169,74,0.45)] transition-transform duration-200 hover:-translate-y-px active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0'
 
+// Hoisted to module scope (real bug fix, 2026-07-23): these were previously
+// defined INSIDE LoginPage's function body, which means React saw a brand
+// new component type on every render and tore down + rebuilt the entire
+// subtree — including the email/password <input> nodes — on every single
+// keystroke. That's what broke browser/password-manager autofill (it loses
+// its reference to a node the instant it's replaced) and made manual typing
+// feel like it lost focus after one character. Neither component closes
+// over any per-render local state, so hoisting them is a pure, safe move —
+// Shell takes no state at all; ConfirmScreen takes its one callback as an
+// explicit prop instead of a closure.
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-pi-cream">
+      <nav className="flex items-center px-6 py-5 sm:px-8">
+        <Link href="/" className="flex items-center gap-2.5 text-sm font-semibold text-pi-ink">
+          <RotorMark className="h-5 w-5" />
+          Product Intelligence
+        </Link>
+      </nav>
+      <div className="flex min-h-[calc(100vh-76px)] items-center justify-center px-6 py-10">
+        <div className="w-full max-w-[420px] rounded-2xl border border-pi-hairline bg-pi-card px-9 pb-8 pt-10 shadow-[0_1px_3px_rgba(22,23,26,0.06),0_20px_44px_-16px_rgba(22,23,26,0.12)]">
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmScreen({ title, body, onBack }: { title: string; body: React.ReactNode; onBack: () => void }) {
+  return (
+    <Shell>
+      <div className="text-center">
+        <MailIcon />
+        <h1 className="mb-2 font-serif text-[24px] font-semibold leading-tight tracking-tight text-pi-ink">{title}</h1>
+        <p className="mb-7 text-[13.5px] leading-relaxed text-pi-sub">{body}</p>
+        <button onClick={onBack} className="font-mono text-[11px] text-pi-faint hover:text-pi-ink">
+          ← Back to sign in
+        </button>
+      </div>
+    </Shell>
+  )
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [mode,     setMode]     = useState<Mode>('signin')
@@ -82,44 +125,13 @@ export default function LoginPage() {
     }
   }
 
-  function Shell({ children }: { children: React.ReactNode }) {
-    return (
-      <div className="min-h-screen bg-pi-cream">
-        <nav className="flex items-center px-6 py-5 sm:px-8">
-          <Link href="/" className="flex items-center gap-2.5 text-sm font-semibold text-pi-ink">
-            <RotorMark className="h-5 w-5" />
-            Product Intelligence
-          </Link>
-        </nav>
-        <div className="flex min-h-[calc(100vh-76px)] items-center justify-center px-6 py-10">
-          <div className="w-full max-w-[420px] rounded-2xl border border-pi-hairline bg-pi-card px-9 pb-8 pt-10 shadow-[0_1px_3px_rgba(22,23,26,0.06),0_20px_44px_-16px_rgba(22,23,26,0.12)]">
-            {children}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const ConfirmScreen = ({ title, body }: { title: string; body: React.ReactNode }) => (
-    <Shell>
-      <div className="text-center">
-        <MailIcon />
-        <h1 className="mb-2 font-serif text-[24px] font-semibold leading-tight tracking-tight text-pi-ink">{title}</h1>
-        <p className="mb-7 text-[13.5px] leading-relaxed text-pi-sub">{body}</p>
-        <button
-          onClick={() => { setResetSent(false); setAwaitingConfirm(false); switchMode('signin') }}
-          className="font-mono text-[11px] text-pi-faint hover:text-pi-ink"
-        >
-          ← Back to sign in
-        </button>
-      </div>
-    </Shell>
-  )
+  function backToSignIn() { setResetSent(false); setAwaitingConfirm(false); switchMode('signin') }
 
   if (resetSent) return (
     <ConfirmScreen
       title="Check your email"
       body={<>Reset link sent to <span className="font-semibold text-pi-ink">{email}</span>. Click it to choose a new password.</>}
+      onBack={backToSignIn}
     />
   )
 
@@ -127,6 +139,7 @@ export default function LoginPage() {
     <ConfirmScreen
       title="Confirm your email"
       body={<>Confirmation link sent to <span className="font-semibold text-pi-ink">{email}</span>. Click it to activate your account.</>}
+      onBack={backToSignIn}
     />
   )
 
