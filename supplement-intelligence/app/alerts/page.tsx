@@ -38,19 +38,19 @@ import type { V2VerdictDisplay } from '@/components/memo/field-derivations'
 import type { EnrichedAlert, AlertDayGroup } from '@/lib/watchlist/alerts-display'
 import { groupAlertsByDay } from '@/lib/watchlist/alerts-display'
 
-// pi-* verdict pill — same mapping as components/memo/CurrentSignal.tsx's
-// local V2VerdictBadge (components/ui/VerdictBadge.tsx has no pi variant
-// and is still used by other out-of-scope legacy pages, so it is inlined
-// here rather than modified — same resolution used there).
+// Terminal Noir port (2026-07-23): dark-stage verdict pill — same mapping
+// as before, colors re-tuned to the noir TEXT tokens (see app/watchlist's
+// identical port for the full rationale). components/ui/VerdictBadge.tsx
+// still has no pi/noir variant, so this stays inlined.
 type V2Verdict = V2VerdictDisplay['verdict']
 const V2_VERDICT_CFG: Record<V2Verdict, { label: string; cls: string }> = {
-  BUILD_NOW:                { label: 'Build Now',                cls: 'text-pi-build border-pi-build/40 bg-pi-build/10' },
-  BUILD_IF_DIFFERENTIATED:  { label: 'Build If Differentiated',   cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
-  WATCH_CLOSELY:            { label: 'Watch Closely',             cls: 'text-pi-gold-bright border-pi-gold/40 bg-pi-gold/10' },
-  WATCH:                    { label: 'Watch',                     cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
-  INVESTIGATE:              { label: 'Investigate',               cls: 'text-pi-sub border-pi-hairline bg-pi-card' },
-  AVOID:                    { label: 'Avoid',                     cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
-  PASS:                     { label: 'Pass',                      cls: 'text-pi-risk border-pi-risk/40 bg-pi-risk/10' },
+  BUILD_NOW:                { label: 'Build Now',                cls: 'text-pi-build-noir border-pi-build-noir/40 bg-pi-build-noir/10' },
+  BUILD_IF_DIFFERENTIATED:  { label: 'Build If Differentiated',   cls: 'text-pi-gold-deep border-pi-gold-deep/40 bg-pi-gold-deep/10' },
+  WATCH_CLOSELY:            { label: 'Watch Closely',             cls: 'text-pi-gold-deep border-pi-gold-deep/40 bg-pi-gold-deep/10' },
+  WATCH:                    { label: 'Watch',                     cls: 'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated' },
+  INVESTIGATE:              { label: 'Investigate',               cls: 'text-pi-noir-sub border-pi-noir-hairline bg-pi-elevated' },
+  AVOID:                    { label: 'Avoid',                     cls: 'text-pi-risk-noir border-pi-risk-noir/40 bg-pi-risk-noir/10' },
+  PASS:                     { label: 'Pass',                      cls: 'text-pi-risk-noir border-pi-risk-noir/40 bg-pi-risk-noir/10' },
 }
 function V2VerdictPill({ verdict }: { verdict: V2Verdict }) {
   const cfg = V2_VERDICT_CFG[verdict]
@@ -66,38 +66,38 @@ function formatTime(iso: string): string {
 }
 
 function AlertCard({ item }: { item: EnrichedAlert }) {
-  const dotColor = item.severity === 'critical' ? 'bg-pi-risk' : 'bg-pi-ink'
-  const labelColor = item.severity === 'critical' ? 'text-pi-risk' : 'text-pi-ink'
+  const dotColor = item.severity === 'critical' ? 'bg-pi-risk-noir' : 'bg-pi-gold-deep'
+  const labelColor = item.severity === 'critical' ? 'text-pi-risk-noir' : 'text-pi-noir-text'
 
   return (
-    <div className="rounded-xl border border-pi-hairline bg-pi-card p-6 flex flex-col md:flex-row gap-6">
+    <div className="rounded-xl border border-pi-noir-hairline bg-pi-stage p-6 flex flex-col md:flex-row gap-6">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-2">
           <div className={`w-2 h-2 rounded-full ${dotColor}`} />
           <span className={`text-xs font-mono uppercase font-bold tracking-wide ${labelColor}`}>{item.severityLabel}</span>
-          <span className="text-[10px] font-mono text-pi-faint ml-auto md:ml-2 whitespace-nowrap">{formatTime(item.alert.created_at)}</span>
+          <span className="text-[10px] font-mono text-pi-noir-sub ml-auto md:ml-2 whitespace-nowrap">{formatTime(item.alert.created_at)}</span>
         </div>
-        <h3 className="text-lg font-semibold text-pi-ink leading-snug mb-1">{item.headline}</h3>
-        {item.detail && <p className="text-xs font-mono text-pi-sub mb-3">{item.detail}</p>}
+        <h3 className="text-lg font-semibold text-pi-noir-text leading-snug mb-1">{item.headline}</h3>
+        {item.detail && <p className="text-xs font-mono text-pi-noir-sub mb-3">{item.detail}</p>}
         <Link
           href={`/memo/${item.analysisId}`}
-          className="inline-flex items-center gap-1 text-xs font-mono font-bold uppercase border-b border-pi-ink hover:border-transparent hover:text-pi-gold-bright transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-mono font-bold uppercase border-b border-pi-noir-text hover:border-transparent hover:text-pi-gold-deep transition-colors"
         >
           See what changed →
         </Link>
       </div>
 
       <div className="md:w-56 shrink-0">
-        <div className="rounded-lg border border-pi-hairline bg-pi-sand p-4 h-full flex flex-col justify-between gap-3">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-pi-faint">Current Verdict</p>
+        <div className="rounded-lg border border-pi-noir-hairline bg-pi-elevated p-4 h-full flex flex-col justify-between gap-3">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-pi-noir-sub">Current Verdict</p>
           {item.currentVerdict
             ? <V2VerdictPill verdict={item.currentVerdict} />
-            : <span className="text-xs text-pi-faint">Not available</span>}
+            : <span className="text-xs text-pi-noir-sub">Not available</span>}
           <div className="mt-auto">
-            <p className="text-[10px] font-mono uppercase tracking-widest text-pi-faint mb-1">Current Confidence</p>
+            <p className="text-[10px] font-mono uppercase tracking-widest text-pi-noir-sub mb-1">Current Confidence</p>
             {item.currentConfidencePct !== null
-              ? <div className="flex items-center gap-2"><WitnessDots variant="pi" filled={Math.round(item.currentConfidencePct / 20)} total={5} size="sm" /><span className="font-mono text-xs text-pi-ink">{item.currentConfidencePct}%</span></div>
-              : <span className="text-xs text-pi-faint">Not available</span>}
+              ? <div className="flex items-center gap-2"><WitnessDots variant="pi-noir" filled={Math.round(item.currentConfidencePct / 20)} total={5} size="sm" /><span className="font-mono text-xs text-pi-noir-text">{item.currentConfidencePct}%</span></div>
+              : <span className="text-xs text-pi-noir-sub">Not available</span>}
           </div>
         </div>
       </div>
@@ -109,9 +109,9 @@ function DayGroup({ group }: { group: AlertDayGroup }) {
   return (
     <section className="mb-12">
       <div className="flex items-center gap-4 mb-4">
-        <h2 className="text-xs font-mono uppercase font-bold bg-pi-ink text-pi-cream rounded-full px-3 py-1">{group.label}</h2>
-        <div className="h-px flex-1 bg-pi-hairline" />
-        <span className="text-[10px] font-mono text-pi-faint whitespace-nowrap">
+        <h2 className="text-xs font-mono uppercase font-bold bg-pi-elevated text-pi-noir-text border border-pi-noir-hairline rounded-full px-3 py-1">{group.label}</h2>
+        <div className="h-px flex-1 bg-pi-noir-hairline" />
+        <span className="text-[10px] font-mono text-pi-noir-sub whitespace-nowrap">
           {group.items.length} {group.items.length === 1 ? 'LOG' : 'LOGS'}
         </span>
       </div>
@@ -147,39 +147,39 @@ export default function AlertsPage() {
   const groups = groupAlertsByDay(alerts)
 
   return (
-    <AppShell active={null} variant="pi">
+    <AppShell active={null} variant="pi-noir">
       <div className="max-w-5xl space-y-6">
-        <div className="border-b border-pi-hairline pb-4">
-          <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-ink sm:text-[32px]">Alerts</h1>
-          <p className="text-sm text-pi-sub">
+        <div className="border-b border-pi-noir-hairline pb-4">
+          <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-noir-text sm:text-[32px]">Alerts</h1>
+          <p className="text-sm text-pi-noir-sub">
             {loading ? 'Loading…' : `${alerts.length} ${alerts.length === 1 ? 'alert' : 'alerts'} from your watchlist`}
           </p>
         </div>
 
         {error && (
-          <p className="text-sm text-pi-risk rounded-lg border border-pi-risk/30 bg-pi-risk/10 px-3 py-2">{error}</p>
+          <p className="text-sm text-pi-risk-noir rounded-lg border border-pi-risk-noir/30 bg-pi-risk-noir/10 px-3 py-2">{error}</p>
         )}
 
         {loading && (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="rounded-xl border border-pi-hairline bg-pi-card p-6 animate-pulse">
-                <div className="h-4 bg-pi-sand w-64 mb-2" />
-                <div className="h-3 bg-pi-sand w-40" />
+              <div key={i} className="rounded-xl border border-pi-noir-hairline bg-pi-stage p-6 animate-pulse">
+                <div className="h-4 bg-pi-elevated w-64 mb-2" />
+                <div className="h-3 bg-pi-elevated w-40" />
               </div>
             ))}
           </div>
         )}
 
         {!loading && !error && alerts.length === 0 && (
-          <div className="rounded-xl border border-pi-hairline bg-pi-card p-12 text-center space-y-3">
-            <p className="text-[10px] font-mono text-pi-faint uppercase tracking-[0.2em]">Status: Quiet</p>
-            <p className="text-pi-sub text-sm max-w-sm mx-auto">
+          <div className="rounded-xl border border-pi-noir-hairline bg-pi-stage p-12 text-center space-y-3">
+            <p className="text-[10px] font-mono text-pi-noir-sub uppercase tracking-[0.2em]">Status: Quiet</p>
+            <p className="text-pi-noir-sub text-sm max-w-sm mx-auto">
               No alerts yet. Watch a market from its Investor Report and we&rsquo;ll notify you here the moment its lifecycle stage shifts or a kill criterion triggers.
             </p>
             <Link
               href="/watchlist"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-pi-ink px-4 py-2 text-xs font-mono uppercase tracking-wide text-pi-cream hover:bg-[#24262B] transition-colors"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-pi-gold-deep px-4 py-2 text-xs font-mono uppercase tracking-wide text-[#16130a] hover:bg-pi-gold-bright transition-colors"
             >
               Go to Watchlist →
             </Link>

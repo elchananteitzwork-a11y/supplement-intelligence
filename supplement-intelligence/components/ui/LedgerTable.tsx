@@ -20,9 +20,53 @@ export interface LedgerColumn<T> {
 // outside components/memo/* (app/research/history, app/watchlist) is
 // unaffected. No column logic, sorting, or click behavior changes either
 // way — visual only.
+//
+// `variant="pi-noir"` (Terminal Noir port, 2026-07-23): additive dark-stage
+// restyle — app/watchlist passes this now. Same column/row logic as 'pi',
+// only the surface tokens change (pi-stage/pi-elevated/pi-noir-hairline/
+// pi-noir-sub). 'legacy'/'pi' consumers (app/research/history,
+// components/memo/UnitEconomicsTable) fully unaffected.
 export function LedgerTable<T extends { id: string }>({
   columns, rows, onRowClick, variant = 'legacy',
-}: { columns: LedgerColumn<T>[]; rows: T[]; onRowClick?: (row: T) => void; variant?: 'legacy' | 'pi' }) {
+}: { columns: LedgerColumn<T>[]; rows: T[]; onRowClick?: (row: T) => void; variant?: 'legacy' | 'pi' | 'pi-noir' }) {
+  if (variant === 'pi-noir') {
+    return (
+      <div className="rounded-xl border border-pi-noir-hairline overflow-x-auto bg-pi-stage">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-pi-elevated text-[10px] font-mono uppercase tracking-wider text-pi-noir-sub">
+              {columns.map(c => (
+                <th
+                  key={c.key}
+                  className={`px-4 py-2.5 font-medium ${c.align === 'right' ? 'text-right' : 'text-left'} ${c.hideOnMobile ? 'hidden sm:table-cell' : ''}`}
+                >
+                  {c.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-pi-noir-hairline">
+            {rows.map(row => (
+              <tr
+                key={row.id}
+                onClick={() => onRowClick?.(row)}
+                className={onRowClick ? 'hover:bg-pi-elevated/60 transition-colors cursor-pointer' : ''}
+              >
+                {columns.map(c => (
+                  <td key={c.key} className={`px-4 py-3 ${c.align === 'right' ? 'text-right' : 'text-left'} ${c.hideOnMobile ? 'hidden sm:table-cell' : ''}`}>
+                    {c.render(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && (
+          <p className="text-center text-sm text-pi-noir-sub py-10">No records yet.</p>
+        )}
+      </div>
+    )
+  }
   if (variant === 'pi') {
     return (
       <div className="rounded-xl border border-pi-hairline overflow-x-auto">

@@ -82,18 +82,25 @@ export default async function Leaderboard() {
   const canAnalyze = devUnlimited || used < limit
 
   return (
-    <AppShell active="track" canAnalyze={canAnalyze} variant="pi">
+    <AppShell active="track" canAnalyze={canAnalyze} variant="pi-noir">
       <div className="max-w-6xl">
-        <div className="flex items-baseline justify-between mb-8 border-b border-pi-hairline pb-4">
-          <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-ink sm:text-[32px]">Track Record</h1>
-          <p className="font-mono text-xs text-pi-faint">{rows.length} categories ranked</p>
+        <div className="flex items-baseline justify-between mb-8 border-b border-pi-noir-hairline pb-4">
+          <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-noir-text sm:text-[32px]">Track Record</h1>
+          <p className="font-mono text-xs text-pi-noir-sub">{rows.length} categories ranked</p>
         </div>
 
+        {/* Noir-safe hex per tile — the cream tokens (#2E6B48/#8D6A16/#16171A/
+            #A13F2E) are tuned for text-on-white and read muddy or near-
+            invisible on pi-elevated; these are the tailwind.config.ts
+            pi-*-noir token values (build/gold-deep/risk), same identities,
+            re-tuned for a dark card. "Category Creation" has no dedicated
+            noir token (it was plain ink, i.e. "neutral" in the cream
+            register) — pi-noir-text is its direct dark-register analog. */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-          <StatTile variant="pi" label="Entry Supported" value={String(build)} color="#2E6B48" />
-          <StatTile variant="pi" label="Validation Required" value={String(validate)} color="#8D6A16" />
-          <StatTile variant="pi" label="Category Creation" value={String(categoryCreation)} color="#16171A" />
-          <StatTile variant="pi" label="Not Supported" value={String(skip)} color="#A13F2E" />
+          <StatTile variant="pi-noir" label="Entry Supported" value={String(build)} color="#6FC492" />
+          <StatTile variant="pi-noir" label="Validation Required" value={String(validate)} color="#D4A94A" />
+          <StatTile variant="pi-noir" label="Category Creation" value={String(categoryCreation)} color="#F5EFDF" />
+          <StatTile variant="pi-noir" label="Not Supported" value={String(skip)} color="#E8785E" />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

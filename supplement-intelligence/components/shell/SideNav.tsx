@@ -46,7 +46,7 @@ const NAV = [
 ]
 
 export type NavId = typeof NAV[number]['id']
-export type ShellVariant = 'legacy' | 'pi'
+export type ShellVariant = 'legacy' | 'pi' | 'pi-noir'
 
 // `variant="pi"` (UIv2-M2, 2026-07-21): additive opt-in restyle. Default
 // ('legacy') stays byte-identical to before for any route that hasn't
@@ -56,16 +56,25 @@ export type ShellVariant = 'legacy' | 'pi'
 // and the old /research/* Stage 1-4 tree are still genuinely 'legacy'.
 // Check each route's own AppShell call for its current truth rather than
 // trusting this list as it keeps growing.)
-// Zero behavior change either way: same NAV data, same active/canAnalyze
-// logic, same sign-out form, same mobile open/close state.
+//
+// `variant="pi-noir"` (Terminal Noir port, 2026-07-23): additive dark-stage
+// restyle for the sidebar shell shared by Watchlist/Alerts/Track
+// Record/Settings — same NAV data, same active/canAnalyze logic, same
+// sign-out form, same mobile open/close state as 'pi'; only the token
+// mapping changes (pi-void/pi-noir-text/pi-noir-sub/pi-noir-hairline,
+// gold-deep active/CTA treatment matching components/pi/HomeShell.tsx's
+// already-shipped noir nav pattern). 'legacy'/'pi' consumers fully
+// unaffected.
 export function SideNav({ active, canAnalyze = true, variant = 'legacy' }: { active: NavId | null; canAnalyze?: boolean; variant?: ShellVariant }) {
   const pi = variant === 'pi'
+  const noir = variant === 'pi-noir'
   return (
     <aside className={`hidden lg:flex lg:flex-col lg:w-[240px] lg:shrink-0 lg:px-5 lg:py-8 lg:sticky lg:top-0 lg:h-screen ${
-      pi ? 'lg:border-r lg:border-pi-hairline bg-pi-cream' : 'lg:border-r lg:border-black bg-surface'
+      noir ? 'lg:border-r lg:border-pi-noir-hairline bg-pi-void'
+      : pi ? 'lg:border-r lg:border-pi-hairline bg-pi-cream' : 'lg:border-r lg:border-black bg-surface'
     }`}>
       <Link href="/dashboard" className="mb-10">
-        <span className={`text-sm font-black uppercase tracking-tight ${pi ? 'text-pi-ink' : 'text-black'}`}>Product Intelligence</span>
+        <span className={`text-sm font-black uppercase tracking-tight ${noir ? 'text-pi-noir-text' : pi ? 'text-pi-ink' : 'text-black'}`}>Product Intelligence</span>
       </Link>
 
       <nav className="space-y-0.5 mb-8">
@@ -74,7 +83,9 @@ export function SideNav({ active, canAnalyze = true, variant = 'legacy' }: { act
             key={n.id}
             href={n.href}
             className={`block text-sm px-3 py-2 font-mono uppercase tracking-wide transition-colors ${
-              pi
+              noir
+                ? active === n.id ? 'bg-pi-gold-deep/10 text-pi-gold-deep font-bold rounded-lg' : 'text-pi-noir-sub hover:text-pi-noir-text hover:bg-pi-noir-text/[0.06] rounded-lg'
+                : pi
                 ? active === n.id ? 'bg-pi-ink text-pi-cream font-bold rounded-lg' : 'text-pi-sub hover:text-pi-ink hover:bg-pi-sand rounded-lg'
                 : active === n.id ? 'bg-black text-white font-bold' : 'text-ink-variant hover:text-black hover:bg-surface-container'
             }`}
@@ -88,7 +99,9 @@ export function SideNav({ active, canAnalyze = true, variant = 'legacy' }: { act
         <Link
           href="/analyze"
           className={`flex items-center justify-center gap-2 w-full text-sm font-black uppercase tracking-wide py-2.5 mb-8 transition-colors duration-150 active:scale-[0.98] ${
-            pi
+            noir
+              ? 'rounded-lg text-[#16130a] bg-pi-gold-deep hover:bg-pi-gold-bright'
+              : pi
               ? 'rounded-lg text-pi-cream bg-pi-ink hover:bg-[#24262B]'
               : 'text-white bg-black hover:bg-white hover:text-black border-2 border-black'
           }`}
@@ -97,14 +110,14 @@ export function SideNav({ active, canAnalyze = true, variant = 'legacy' }: { act
         </Link>
       ) : (
         <div className={`text-xs font-mono uppercase tracking-wide px-3 py-2.5 text-center mb-8 ${
-          pi ? 'text-pi-faint border border-pi-hairline rounded-lg' : 'text-outline border border-black'
+          noir ? 'text-pi-noir-sub border border-pi-noir-hairline rounded-lg' : pi ? 'text-pi-faint border border-pi-hairline rounded-lg' : 'text-outline border border-black'
         }`}>
           No analyses left
         </div>
       )}
 
       <form action="/auth/signout" method="post" className="mt-auto">
-        <button className={`text-xs font-mono uppercase tracking-wide transition-colors px-3 py-1 ${pi ? 'text-pi-sub hover:text-pi-ink' : 'text-ink-variant hover:text-black'}`}>
+        <button className={`text-xs font-mono uppercase tracking-wide transition-colors px-3 py-1 ${noir ? 'text-pi-noir-sub hover:text-pi-noir-text' : pi ? 'text-pi-sub hover:text-pi-ink' : 'text-ink-variant hover:text-black'}`}>
           Sign out
         </button>
       </form>
@@ -115,10 +128,11 @@ export function SideNav({ active, canAnalyze = true, variant = 'legacy' }: { act
 export function MobileNav({ active, canAnalyze = true, variant = 'legacy' }: { active: NavId | null; canAnalyze?: boolean; variant?: ShellVariant }) {
   const [open, setOpen] = useState(false)
   const pi = variant === 'pi'
+  const noir = variant === 'pi-noir'
 
   return (
-    <div className={`lg:hidden sticky top-0 z-40 ${pi ? 'bg-pi-cream' : 'bg-surface'}`}>
-      <div className={`px-4 py-3 flex items-center justify-between ${pi ? 'border-b border-pi-hairline' : 'border-b-2 border-black'}`}>
+    <div className={`lg:hidden sticky top-0 z-40 ${noir ? 'bg-pi-void' : pi ? 'bg-pi-cream' : 'bg-surface'}`}>
+      <div className={`px-4 py-3 flex items-center justify-between ${noir ? 'border-b border-pi-noir-hairline' : pi ? 'border-b border-pi-hairline' : 'border-b-2 border-black'}`}>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setOpen(o => !o)}
@@ -126,11 +140,11 @@ export function MobileNav({ active, canAnalyze = true, variant = 'legacy' }: { a
             aria-expanded={open}
             className="flex flex-col justify-center gap-[3px] w-6 h-6 shrink-0"
           >
-            <span className={`block h-[2px] transition-transform ${pi ? 'bg-pi-ink' : 'bg-black'} ${open ? 'translate-y-[5px] rotate-45' : ''}`} />
-            <span className={`block h-[2px] transition-opacity ${pi ? 'bg-pi-ink' : 'bg-black'} ${open ? 'opacity-0' : ''}`} />
-            <span className={`block h-[2px] transition-transform ${pi ? 'bg-pi-ink' : 'bg-black'} ${open ? '-translate-y-[5px] -rotate-45' : ''}`} />
+            <span className={`block h-[2px] transition-transform ${noir ? 'bg-pi-noir-text' : pi ? 'bg-pi-ink' : 'bg-black'} ${open ? 'translate-y-[5px] rotate-45' : ''}`} />
+            <span className={`block h-[2px] transition-opacity ${noir ? 'bg-pi-noir-text' : pi ? 'bg-pi-ink' : 'bg-black'} ${open ? 'opacity-0' : ''}`} />
+            <span className={`block h-[2px] transition-transform ${noir ? 'bg-pi-noir-text' : pi ? 'bg-pi-ink' : 'bg-black'} ${open ? '-translate-y-[5px] -rotate-45' : ''}`} />
           </button>
-          <Link href="/dashboard" className={`text-sm font-black uppercase tracking-tight ${pi ? 'text-pi-ink' : 'text-black'}`}>
+          <Link href="/dashboard" className={`text-sm font-black uppercase tracking-tight ${noir ? 'text-pi-noir-text' : pi ? 'text-pi-ink' : 'text-black'}`}>
             Product Intelligence
           </Link>
         </div>
@@ -138,7 +152,7 @@ export function MobileNav({ active, canAnalyze = true, variant = 'legacy' }: { a
           {canAnalyze && (
             <Link
               href="/analyze"
-              className={`text-xs font-black uppercase px-3 py-2 ${pi ? 'rounded-lg text-pi-cream bg-pi-ink' : 'text-white bg-black border-2 border-black'}`}
+              className={`text-xs font-black uppercase px-3 py-2 ${noir ? 'rounded-lg text-[#16130a] bg-pi-gold-deep' : pi ? 'rounded-lg text-pi-cream bg-pi-ink' : 'text-white bg-black border-2 border-black'}`}
             >
               + New
             </Link>
@@ -147,14 +161,16 @@ export function MobileNav({ active, canAnalyze = true, variant = 'legacy' }: { a
       </div>
 
       {open && (
-        <nav className={pi ? 'border-b border-pi-hairline bg-pi-cream' : 'border-b-2 border-black bg-surface'}>
+        <nav className={noir ? 'border-b border-pi-noir-hairline bg-pi-void' : pi ? 'border-b border-pi-hairline bg-pi-cream' : 'border-b-2 border-black bg-surface'}>
           {NAV.map(n => (
             <Link
               key={n.id}
               href={n.href}
               onClick={() => setOpen(false)}
               className={`block text-sm px-4 py-3 font-mono uppercase tracking-wide ${
-                pi
+                noir
+                  ? `border-t border-pi-noir-hairline first:border-t-0 ${active === n.id ? 'text-pi-gold-deep font-bold' : 'text-pi-noir-sub'}`
+                  : pi
                   ? `border-t border-pi-hairline first:border-t-0 ${active === n.id ? 'bg-pi-ink text-pi-cream font-bold' : 'text-pi-sub'}`
                   : `border-t border-black first:border-t-0 ${active === n.id ? 'bg-black text-white font-bold' : 'text-ink-variant'}`
               }`}
@@ -162,8 +178,8 @@ export function MobileNav({ active, canAnalyze = true, variant = 'legacy' }: { a
               {n.label}
             </Link>
           ))}
-          <form action="/auth/signout" method="post" className={pi ? 'border-t border-pi-hairline' : 'border-t border-black'}>
-            <button className={`w-full text-left text-sm px-4 py-3 font-mono uppercase tracking-wide ${pi ? 'text-pi-sub' : 'text-ink-variant'}`}>
+          <form action="/auth/signout" method="post" className={noir ? 'border-t border-pi-noir-hairline' : pi ? 'border-t border-pi-hairline' : 'border-t border-black'}>
+            <button className={`w-full text-left text-sm px-4 py-3 font-mono uppercase tracking-wide ${noir ? 'text-pi-noir-sub' : pi ? 'text-pi-sub' : 'text-ink-variant'}`}>
               Sign out
             </button>
           </form>
