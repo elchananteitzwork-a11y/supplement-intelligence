@@ -102,6 +102,13 @@ export interface CoreViewModel {
    * consistent with the existing weighting — R&D §1). */
   blades: CoreBladeViewModel[]
   killCriteria: CoreKillCriterionViewModel[]
+  /** Real count of providers that actually contributed evidence to this
+   * analysis — grounded.evidenceBreadth.contributingProviders.length, the
+   * exact same field components/memo/EvidenceConfidence.tsx:168 already
+   * renders as "{n} / {total} providers". Never re-derived or approximated
+   * here; used verbatim as the `Sources · {sourcesCount} ->` toggle label's
+   * count (R&D-UIv2-M4 §1/§3). */
+  sourcesCount: number
 }
 
 // ── HONESTY CAVEAT — blade -> MemoDisplay section mapping (R&D §4, open
@@ -264,5 +271,6 @@ export function buildCoreViewModel(m: MemoData, watch: WatchStateInput): CoreVie
     weakestDimensionLabel: weakestDim?.label ?? confidence.weakestDimension,
     blades,
     killCriteria: buildKillCriteria(m.kill_criteria, watch),
+    sourcesCount: grounded.evidenceBreadth.contributingProviders.length,
   }
 }

@@ -10,7 +10,7 @@ import { CandidateRow } from '@/components/pi/CandidateRow'
 import { DECISION_CHIP } from '@/components/pi/decisionChip'
 import { derivePipelineViewModel } from '@/components/pi/derive'
 import { confidenceTier } from '@/components/pi/confidenceTier'
-import { cn } from '@/lib/cn'
+import { WitnessDots } from '@/components/ui/WitnessDots'
 import { computeGroundedScore, type GroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import { deriveLifecycleDisplay, deriveV2VerdictDisplay, deriveScienceDisplay } from '@/components/memo/field-derivations'
@@ -206,17 +206,7 @@ export default async function Dashboard() {
                   <span className="inline-flex items-baseline gap-1.5">
                     <span className="font-mono text-[15px] font-bold text-pi-ink">{confTier ? confTier.label : '—'}</span>
                     {confTier && (
-                      <span className="inline-flex gap-[3px]" aria-hidden>
-                        {[1, 2, 3].map(i => (
-                          <span
-                            key={i}
-                            className={cn(
-                              'inline-block h-[6px] w-[6px] rounded-full',
-                              i <= confTier.dotsFilled ? 'bg-pi-ink' : 'border border-pi-sub bg-transparent',
-                            )}
-                          />
-                        ))}
-                      </span>
+                      <WitnessDots filled={confTier.dotsFilled} total={3} size="sm" variant="pi" label={`${confTier.label} confidence`} />
                     )}
                   </span>
                 }

@@ -3,11 +3,11 @@ import Link                   from 'next/link'
 import { createClient }       from '@/lib/supabase/server'
 import type { Analysis }      from '@/types/index'
 import { AppShell }           from '@/components/shell/AppShell'
-import MemoDisplay            from '@/components/memo/MemoDisplay'
 import FeedbackWidget         from '@/components/FeedbackWidget'
 import OutcomeWidget          from '@/components/OutcomeWidget'
 import CopyLinkButton         from '@/components/CopyLinkButton'
-import { CandidateCoreHero, buildCoreViewModel } from '@/components/pi/candidate-core'
+import { buildCoreViewModel } from '@/components/pi/candidate-core'
+import { MemoDetailBody }     from './MemoDetailBody'
 import { listWatches, listAlerts } from '@/lib/watchlist/store'
 
 export default async function MemoPage({ params }: { params: { id: string } }) {
@@ -57,13 +57,19 @@ export default async function MemoPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        {/* Core/hero summary layer — UIv2-M2 Phase 1 */}
-        <div className="max-w-[720px] mx-auto mb-2">
-          <CandidateCoreHero vm={coreVm} />
-        </div>
-
-        {/* memo */}
-        <MemoDisplay memo={a.memo_data} generatedAt={a.created_at} />
+        {/* Core/hero summary card (RD-UIv2-M4 cream reframe) + the
+            Sources-gated full 14-section memo below it. The sourcesOpen
+            toggle state lives in MemoDetailBody (a client component) —
+            this page stays a Server Component doing the real Supabase
+            fetch above; see MemoDetailBody.tsx's own header comment for
+            why the state boundary sits there and not here. */}
+        <MemoDetailBody
+          vm={coreVm}
+          categoryName={a.category_name}
+          buildExplanation={a.memo_data.build_explanation}
+          memo={a.memo_data}
+          generatedAt={a.created_at}
+        />
 
         {/* outcome tracking */}
         <div className="mt-8 max-w-[720px] mx-auto">
