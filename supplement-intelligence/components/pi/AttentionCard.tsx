@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { m, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/cn'
+import { GlassPanel } from '@/components/cine/GlassPanel'
 import type { ChangedItem } from './types'
 
 // Home rebuild (UIv2-M3) — renders the SAME derived attention events
@@ -46,22 +47,25 @@ export function AttentionCard({ item, index }: { item: AttentionItemVM; index: n
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduce ? 0 : 0.4, delay: reduce ? 0 : Math.min(0.06 * index, 0.3), ease: [0.16, 1, 0.3, 1] }}
-      className="flex items-start justify-between gap-3.5 rounded-2xl border border-pi-hairline bg-pi-card px-5 py-4 shadow-[0_1px_3px_rgba(22,23,26,0.05)] sm:items-center sm:gap-4"
     >
-      <span
-        aria-hidden
-        className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full sm:mt-0', isStale ? 'bg-pi-risk' : 'bg-pi-gold-deep')}
-      />
-      <p className="flex-1 text-sm leading-relaxed text-pi-ink">
-        <b className="font-semibold">{item.name}</b> {item.message}
-      </p>
-      <span className="hidden shrink-0 whitespace-nowrap font-mono text-[10.5px] text-pi-sub sm:block">{item.whenLabel}</span>
-      <Link
-        href={item.href}
-        className="shrink-0 whitespace-nowrap text-xs font-semibold text-pi-gold transition-colors duration-150 hover:text-pi-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-bright"
-      >
-        {item.actionLabel}
-      </Link>
+      {/* One GlassPanel per attention item — the "attention cards" surface
+          named in the Terminal Noir rollout instructions. */}
+      <GlassPanel radius="rounded-2xl" className="flex items-start justify-between gap-3.5 px-5 py-4 sm:items-center sm:gap-4">
+        <span
+          aria-hidden
+          className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full sm:mt-0', isStale ? 'bg-pi-risk-noir' : 'bg-pi-gold-deep')}
+        />
+        <p className="flex-1 text-sm leading-relaxed text-pi-noir-text">
+          <b className="font-semibold">{item.name}</b> {item.message}
+        </p>
+        <span className="hidden shrink-0 whitespace-nowrap font-mono text-[10.5px] text-pi-noir-sub sm:block">{item.whenLabel}</span>
+        <Link
+          href={item.href}
+          className="shrink-0 whitespace-nowrap text-xs font-semibold text-pi-gold-deep transition-colors duration-150 hover:text-pi-noir-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-deep"
+        >
+          {item.actionLabel}
+        </Link>
+      </GlassPanel>
     </m.li>
   )
 }
