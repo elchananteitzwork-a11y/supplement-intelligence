@@ -160,7 +160,7 @@ export default function LoginPage() {
         <div>
           <label className={`mb-1.5 block ${labelCls}`} htmlFor="email">Work email</label>
           <input
-            id="email" type="email" required autoFocus autoComplete="email"
+            id="email" name="email" type="email" required autoFocus autoComplete="email"
             value={email} onChange={e => setEmail(e.target.value)}
             placeholder="name@company.com"
             className={inputCls}
@@ -178,7 +178,7 @@ export default function LoginPage() {
               )}
             </div>
             <input
-              id="password" type="password" required
+              id="password" name="password" type="password" required
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               minLength={6}
               value={password} onChange={e => setPassword(e.target.value)}
