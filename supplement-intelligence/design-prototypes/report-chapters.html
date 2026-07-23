@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MOCKUP — Full Report as Chapters ("The Reading Room", cream register)</title>
+<style>
+/* ============================================================================
+   FULL REPORT RESTRUCTURE MOCKUP — owner directive 2026-07-23: the report
+   "shows data without pause, has many duplications... what doesn't have to
+   be shown, don't show; several different pages, not one long page; clean,
+   light user experience."
+
+   Grounded in the architecture audit (this session): 14 sections → 5 real
+   chapters, each opening with its own bottom-line sentence (L1) before
+   evidence (L2/L3), per UX_EXPERIENCE_PLAN.md. One chapter on screen at a
+   time — chapter tabs, not a stack.
+
+   DUPLICATION RESOLUTIONS THIS DESIGN COMMITS TO (from the audit):
+   1. CurrentSignal's verdict pill+score → REMOVED (fully redundant with the
+      always-visible verdict card above). Lifecycle/gap-velocity survive
+      inside Demand.
+   2. DifferentiationBrief + ReviewNarrative (same review corpus, two
+      parallel grids) → ONE merged "Customers" chapter; the two derivation
+      methods become labeled lenses, not two lookalike sections.
+   3. One confidence word-mapping everywhere (the hero's confidenceTier) —
+      fixes the real 55%="Moderate"-here-"High"-there bug.
+   4. One "Market Accessibility" number (the real blended dimension);
+      review_velocity.score relabeled as the sub-signal it actually is.
+   5. Methodology (EvidenceConfidence) → its own last chapter, closed by
+      default. Per-number provenance badges STAY with their numbers in
+      every chapter (honesty rule — only the central restatement moves).
+   6. InvestmentThesis synthesis → folded into "Risk & Verdict" chapter.
+   All data below: real values from the real "Shift Work Sleep Reset"
+   analysis (audit + live session). Names marked [ill.] are illustrative.
+   ========================================================================= */
+:root{
+  --cream:#FBF7EE; --card:#FFFFFF; --sand:#F6F0E0; --ink:#16171A; --sub:#6B6F76;
+  --faint:#8C877C; --gold:#8D6A16; --gold-deep:#D4A94A; --gold-bright:#C9971F;
+  --build:#2E6B48; --invest:#35507A; --risk:#A13F2E; --pass:#6E6A5C;
+  --hairline:rgba(22,23,26,0.09);
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;}
+.serif{font-family:"Source Serif 4",Georgia,serif;}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;}
+
+.proto{position:sticky;top:0;z-index:99;background:var(--ink);color:#F6E7B8;text-align:center;
+  font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.05em;padding:6px 10px;}
+
+main{max-width:760px;margin:0 auto;padding:36px 24px 90px;}
+
+/* ── the verdict card (SHIPPED, unchanged — compressed stand-in) ── */
+.hero-mini{background:var(--card);border:1px solid var(--hairline);border-radius:20px;
+  padding:20px 26px;display:flex;align-items:center;gap:18px;margin-bottom:26px;
+  box-shadow:0 1px 3px rgba(22,23,26,.05);}
+.hero-mini .rotor{flex:none;width:56px;height:56px;position:relative;}
+.hero-mini .rotor svg{width:100%;height:100%;}
+.hero-mini .vw{font-family:"Source Serif 4",Georgia,serif;font-size:19px;font-weight:700;color:var(--invest);}
+.hero-mini .meta{font-size:12px;color:var(--sub);margin-top:2px;}
+.hero-mini .note{margin-left:auto;font-family:ui-monospace,monospace;font-size:9px;color:var(--sub);
+  text-transform:uppercase;letter-spacing:.06em;text-align:right;max-width:130px;}
+
+/* ── chapter nav — the core new element ── */
+.chapters{position:sticky;top:29px;z-index:50;background:rgba(251,247,238,.92);backdrop-filter:blur(12px);
+  display:flex;gap:4px;overflow-x:auto;padding:10px 2px;margin:0 -2px 26px;
+  border-bottom:1px solid var(--hairline);-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.chapters::-webkit-scrollbar{display:none;}
+.chapters a{flex:none;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
+  padding:9px 16px;border-radius:999px;font-size:13px;color:var(--sub);text-decoration:none;
+  transition:all .2s var(--ease);cursor:pointer;}
+.chapters a:hover{color:var(--ink);background:rgba(22,23,26,.04);}
+.chapters a.active{background:var(--ink);color:var(--cream);font-weight:600;}
+.chapters a .n{font-family:ui-monospace,monospace;font-size:10px;opacity:.55;}
+
+/* ── chapter page ── */
+.chapter-head{margin-bottom:24px;}
+.chapter-head .eyebrow{font-family:ui-monospace,monospace;font-size:10px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin:0 0 10px;}
+.chapter-head h1{font-family:"Source Serif 4",Georgia,serif;font-size:clamp(22px,3.4vw,30px);
+  font-weight:600;line-height:1.3;margin:0;max-width:30ch;text-wrap:balance;}
+.chapter-head h1 b{color:var(--gold);font-weight:600;}
+.chapter-head .sub{font-size:13.5px;color:var(--sub);margin-top:8px;max-width:60ch;line-height:1.55;}
+
+.card{background:var(--card);border:1px solid var(--hairline);border-radius:16px;
+  padding:20px 24px;margin-bottom:14px;box-shadow:0 1px 3px rgba(22,23,26,.05);}
+.card .k{font-family:ui-monospace,monospace;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--sub);margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+.card .k .prov{font-weight:400;letter-spacing:.04em;color:var(--build);text-transform:none;
+  font-size:9.5px;margin-left:auto;}
+.card .k .prov.synth{color:var(--gold);}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 22px;}
+.fact .v{font-family:ui-monospace,monospace;font-size:17px;font-weight:700;}
+.fact .v small{font-size:11px;font-weight:500;color:var(--sub);}
+.fact .l{font-size:11px;color:var(--sub);margin-top:2px;line-height:1.4;}
+.sentence{font-size:14px;line-height:1.6;color:var(--ink);margin:0;}
+.sentence + .sentence{margin-top:8px;}
+.caveat{font-size:11.5px;color:var(--sub);font-style:italic;margin-top:10px;line-height:1.5;
+  border-top:1px dashed var(--hairline);padding-top:10px;}
+
+.drill{display:flex;justify-content:space-between;align-items:center;border:1px dashed rgba(22,23,26,.18);
+  border-radius:12px;padding:13px 18px;margin-bottom:14px;font-size:13px;color:var(--sub);}
+.drill a{color:var(--gold);font-weight:600;text-decoration:none;font-size:12.5px;white-space:nowrap;}
+
+/* lens toggle (Customers chapter) */
+.lens{display:inline-flex;background:var(--sand);border:1px solid var(--hairline);border-radius:999px;
+  padding:3px;margin-bottom:14px;}
+.lens button{border:none;background:transparent;font-family:inherit;font-size:12px;padding:7px 15px;
+  border-radius:999px;color:var(--sub);cursor:pointer;}
+.lens button.on{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(22,23,26,.08);}
+
+.quote{border-left:2px solid var(--gold-deep);padding:2px 0 2px 14px;font-size:13px;color:var(--ink);
+  line-height:1.55;margin:0 0 10px;}
+.quote .src{display:block;font-family:ui-monospace,monospace;font-size:9.5px;color:var(--sub);margin-top:4px;}
+
+.pager{display:flex;justify-content:space-between;margin-top:34px;padding-top:20px;border-top:1px solid var(--hairline);}
+.pager a{font-size:13px;font-weight:600;color:var(--gold);text-decoration:none;}
+.pager a span{display:block;font-family:ui-monospace,monospace;font-size:9px;color:var(--sub);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;font-weight:400;}
+.pager a.next{text-align:right;}
+
+footer{max-width:760px;margin:40px auto 0;padding:0 24px 60px;}
+footer p{border-top:1px solid var(--hairline);padding-top:18px;font-size:11.5px;line-height:1.65;color:var(--sub);}
+
+.divider-note{text-align:center;font-family:ui-monospace,monospace;font-size:10px;color:var(--sub);
+  text-transform:uppercase;letter-spacing:.14em;margin:44px 0 24px;}
+
+@media (max-width:640px){
+  main{padding:28px 16px 70px;}
+  .hero-mini{flex-wrap:wrap;}
+  .hero-mini .note{margin-left:0;max-width:none;text-align:left;}
+}
+</style>
+</head>
+<body>
+<div class="proto">MOCKUP — Full Report as chapters · real values from a real stored analysis, names [ill.] illustrative · design-prototypes/, not a live route</div>
+
+<main>
+  <!-- verdict card: SHIPPED component, unchanged — compressed stand-in for context -->
+  <div class="hero-mini">
+    <div class="rotor" aria-hidden="true">
+      <svg viewBox="0 0 200 200"><g fill="#D4A94A" stroke="#8D6A16" stroke-width="2" opacity="0.94"><path d="M 100 100 L 108 40 L 140 55 Z"/><path d="M 100 100 L 152 78 L 165 115 Z"/><path d="M 100 100 L 148 138 L 122 168 Z"/><path d="M 100 100 L 88 165 L 55 148 Z" opacity="0.5"/><path d="M 100 100 L 48 128 L 32 95 Z"/><path d="M 100 100 L 52 58 L 82 38 Z" opacity="0.7"/></g><circle cx="100" cy="100" r="30" fill="#16171C"/></svg>
+    </div>
+    <div>
+      <div class="vw">◆ Validation Required</div>
+      <div class="meta">Shift Work Sleep Reset · Score 66 · Moderate ●●○ confidence</div>
+    </div>
+    <div class="note">The shipped verdict card — unchanged, stays above the report</div>
+  </div>
+
+  <!-- ═══ THE NEW ELEMENT: chapter nav. One chapter on screen at a time. ═══ -->
+  <nav class="chapters" aria-label="Report chapters">
+    <a class="active" href="#"><span class="n">1</span> Demand</a>
+    <a href="#"><span class="n">2</span> Competition</a>
+    <a href="#"><span class="n">3</span> Economics</a>
+    <a href="#"><span class="n">4</span> Customers</a>
+    <a href="#"><span class="n">5</span> Risk &amp; Verdict</a>
+    <a href="#" style="opacity:.65"><span class="n">·</span> Methodology</a>
+  </nav>
+
+  <!-- ═══ CHAPTER 1: DEMAND (open example) ═══ -->
+  <div class="chapter-head">
+    <p class="eyebrow">Chapter 1 · Demand</p>
+    <h1 class="serif">Demand is real and strong — <b>8.7 out of 10, from verified search and social data.</b></h1>
+    <p class="sub">Search interest grew 70% recently but momentum is decelerating. TikTok signal is strong. Every figure below carries its own source.</p>
+  </div>
+
+  <div class="card">
+    <p class="k">Search demand <span class="prov">● dataforseo + google-trends</span></p>
+    <div class="facts">
+      <div class="fact"><div class="v">+70%</div><div class="l">Recent search growth</div></div>
+      <div class="fact"><div class="v">Decelerating</div><div class="l">Momentum</div></div>
+      <div class="fact"><div class="v">9</div><div class="l">Valid buying keywords</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="k">Marketplace reality <span class="prov">● keepa (real Amazon data)</span></p>
+    <div class="facts">
+      <div class="fact"><div class="v">92,000 <small>units/mo</small></div><div class="l">Bestseller velocity</div></div>
+      <div class="fact"><div class="v">Stable</div><div class="l">Amazon channel trend</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="k">Social signal <span class="prov">● tiktok</span></p>
+    <div class="facts">
+      <div class="fact"><div class="v">8.0 / 10</div><div class="l">Virality score</div></div>
+      <div class="fact"><div class="v">Strong</div><div class="l">Creator ecosystem</div></div>
+    </div>
+    <p class="caveat">Cross-channel check: Search says decelerating, Amazon says stable, consumer voice absent — channels disagree; treat trend direction with care.</p>
+  </div>
+
+  <div class="drill">
+    <span>Full keyword intelligence — 9 keywords, clusters, seasonality, PPC estimates</span>
+    <a href="#">Open the tables →</a>
+  </div>
+
+  <div class="pager">
+    <span></span>
+    <a class="next" href="#"><span>Next chapter</span>Competition →</a>
+  </div>
+
+  <!-- ═══ divider: second example chapter ═══ -->
+  <p class="divider-note">— second example: the Customers chapter (the merge that kills the biggest duplication) —</p>
+
+  <div class="chapter-head">
+    <p class="eyebrow">Chapter 4 · Customers</p>
+    <h1 class="serif">Customers keep buying, but they complain about <b>taste and next-day grogginess.</b> [ill.]</h1>
+    <p class="sub">One review corpus (312 real reviews), two reads of it — a statistical count and an AI synthesis. Today these were two separate lookalike sections; now they're two lenses on one page, labeled.</p>
+  </div>
+
+  <div class="lens" role="tablist" aria-label="Analysis method">
+    <button class="on" role="tab" aria-selected="true">Counted from reviews</button>
+    <button role="tab" aria-selected="false">AI synthesis</button>
+  </div>
+
+  <div class="card">
+    <p class="k">Top complaints <span class="prov">● deterministic count · 312 reviews</span></p>
+    <p class="quote">"Left me groggy until noon — had to stop taking it before shifts." [ill.]<span class="src">amazon review · counted in 47 similar</span></p>
+    <p class="quote">"The taste is genuinely hard to get past." [ill.]<span class="src">amazon review · counted in 31 similar</span></p>
+  </div>
+
+  <div class="card">
+    <p class="k">What customers love <span class="prov">● deterministic count</span></p>
+    <p class="sentence">Fast onset and no dependency feeling were the two dominant positive themes. [ill.]</p>
+    <p class="caveat">Switching the lens above shows the AI-synthesized reading of the same corpus — with its mandatory disclaimer attached. The two lenses may disagree; that disagreement is now visible instead of hidden in two far-apart sections.</p>
+  </div>
+
+  <div class="pager">
+    <a href="#"><span>Previous</span>← Economics</a>
+    <a class="next" href="#"><span>Next chapter</span>Risk &amp; Verdict →</a>
+  </div>
+</main>
+
+<footer>
+  <p>Every number keeps its provenance badge next to it, in whatever chapter it lives — the honesty layer moves
+  with the numbers, never to a separate page. <span class="mono">[Mockup notes: chapter split per the audited natural
+  groupings — Demand (DemandIntensity + KeywordIntelligence drill-down + MarketingIntelligence + lifecycle/gap-velocity),
+  Competition (SupplyLandscape), Economics (UnitEconomics + Manufacturing + LaunchStrategy product core),
+  Customers (DifferentiationBrief + ReviewNarrative merged as lenses), Risk &amp; Verdict (StrategicReadiness + Kill
+  Criteria + News + InvestmentThesis synthesis), Methodology (EvidenceConfidence, de-emphasized, closed by default).
+  Deleted outright as duplication: CurrentSignal's verdict pill + score (redundant with the verdict card). Bug fixes
+  riding along: one confidence word-mapping everywhere (confidenceTier); one Market Accessibility number (the real
+  blended dimension); COGS shown once with labeled variants. Blade-clicks map to chapters. Real sub-routes
+  (/memo/[id]/demand etc.) vs client tabs is an R&D-doc decision — audit confirmed no external deep-link breaks
+  either way.]</span></p>
+</footer>
+</body>
+</html>
