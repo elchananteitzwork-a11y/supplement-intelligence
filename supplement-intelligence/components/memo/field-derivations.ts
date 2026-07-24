@@ -58,6 +58,32 @@ function formatCriterionValue(v: KillCriterion['valueAtGeneration']): string {
   return typeof v === 'number' ? v.toFixed(1) : String(v)
 }
 
+// ── V4 Phase 2 — reversal-condition threshold marker ─────────────────────
+// A visual "currently here, trips there" bar needs a real, naturally-bounded
+// 0–100 scale to sit on — inventing a min/max for an unbounded metric would
+// be exactly the "invented precision" this codebase's honesty rules forbid.
+// Of the four real kill-criteria metrics (lib/kill-criteria.ts), only
+// supply_young_listing_pct_24m is a genuine 0–1 percentage — gap_velocity
+// is an unbounded points delta, and search_momentum/lifecycle_stage are
+// categorical (comparator 'eq'/'in', string thresholds). So this only ever
+// renders for that one metric; every other condition stays text-only,
+// which callers already handle via deriveKillCriteriaItems above.
+export interface ReversalMarker {
+  currentPct:   number  // 0–100
+  thresholdPct: number  // 0–100
+}
+
+export function deriveReversalMarker(criterion: KillCriterion): ReversalMarker | null {
+  if (criterion.metric !== 'supply_young_listing_pct_24m') return null
+  if (criterion.comparator !== 'gt' && criterion.comparator !== 'lt') return null
+  if (typeof criterion.threshold !== 'number') return null
+  if (typeof criterion.valueAtGeneration !== 'number') return null
+  return {
+    currentPct: Math.max(0, Math.min(100, criterion.valueAtGeneration * 100)),
+    thresholdPct: Math.max(0, Math.min(100, criterion.threshold * 100)),
+  }
+}
+
 // ── Roadmap M2.2 — lifecycle stage display ───────────────────────────────
 // Real six-stage progression (lib/lifecycle.ts) for components/ui's
 // LifecycleArc. Null (never a fabricated stage) when this analysis

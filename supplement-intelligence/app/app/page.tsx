@@ -4,6 +4,7 @@ import { listAlerts } from '@/lib/watchlist/store'
 import { enrichAlert } from '@/lib/watchlist/alerts-display'
 import type { WatchlistEntry } from '@/lib/watchlist/types'
 import type { MemoData } from '@/types/index'
+import { buildOpportunities, type OpportunityRow } from '@/lib/opportunities'
 import { Stream, type MovedItemVM } from '@/components/partner/Stream'
 
 // ── /app — the Stream (V4 Phase 1, docs/V4_PRODUCT_ARCHITECTURE.md §5,
@@ -52,9 +53,35 @@ export default async function StreamPage() {
       }
     })
 
+  // Milestone D: "Opportunities worth a look" — the user's own past
+  // positive-verdict analyses, deduped via the real supersede rule
+  // (lib/opportunities.ts). RLS already scopes `analyses` to its owner
+  // ("owner all" using auth.uid() = user_id); the explicit .eq below is
+  // defense-in-depth, matching the ownership-check convention already used
+  // in app/app/brief/[id]/page.tsx.
+  const { data: opportunityRows } = await sb
+    .from('analyses')
+    .select('id, category_name, scoring_version, build_decision, opportunity_score, created_at')
+    .eq('user_id', user.id)
+    .in('build_decision', ['BUILD_NOW', 'CATEGORY_CREATION_CANDIDATE'])
+
+  const opportunities = buildOpportunities(
+    ((opportunityRows ?? []) as {
+      id: string; category_name: string; scoring_version: string | null
+      build_decision: OpportunityRow['buildDecision']; opportunity_score: number; created_at: string
+    }[]).map(r => ({
+      id: r.id,
+      categoryName: r.category_name,
+      scoringVersion: r.scoring_version,
+      buildDecision: r.build_decision,
+      opportunityScore: r.opportunity_score,
+      createdAt: r.created_at,
+    })),
+  )
+
   return (
     <div className="min-h-screen bg-pi-cream text-pi-ink">
-      <Stream movedItems={movedItems} />
+      <Stream movedItems={movedItems} opportunities={opportunities} />
     </div>
   )
 }

@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion'
-import { revealTransition, type PullVerb } from '@/lib/partner-copy'
+import { revealTransition, verdictTone, type PullVerb } from '@/lib/partner-copy'
 import { logEvent } from '@/lib/positions'
 import type { BriefViewModel } from './types'
 import { CaseRow } from './CaseRow'
@@ -12,6 +13,7 @@ import { ReversalConditions } from './ReversalConditions'
 import { PullBar } from './PullBar'
 import { PullSheet } from './PullSheet'
 import { VocabularyTerm } from '../VocabularyTerm'
+import { LifecycleArc } from './LifecycleArc'
 
 // ── S-Brief (V4_PRODUCT_ARCHITECTURE.md §5) ──────────────────────────────
 // First viewport, exactly three things: the verdict (the only large
@@ -37,11 +39,12 @@ export function BriefView({ vm }: { vm: BriefViewModel }) {
   const allDrivers = [...vm.forDrivers, ...vm.againstDrivers]
   const openDriver = allDrivers.find(d => d.claimKey === openClaimKey) ?? null
   const openEvidence = openClaimKey ? vm.claimEvidence[openClaimKey] : undefined
+  const tone = verdictTone({ decision: vm.decision, insufficientEvidence: vm.insufficientEvidence })
 
   return (
     <LazyMotion features={domAnimation} strict>
       <div className="min-h-screen bg-pi-cream pb-28 text-pi-ink">
-        <div className="mx-auto max-w-[640px] px-5 pt-12 sm:pt-16">
+        <div className="relative mx-auto max-w-[640px] px-5 pt-12 sm:pt-16">
 
           {/* ── First viewport: exactly three elements ──────────────────
               (1) the answer — the verdict word, WITH conviction folded
@@ -58,30 +61,48 @@ export function BriefView({ vm }: { vm: BriefViewModel }) {
               "The Case" to peek into the first viewport even with a
               structurally-correct 3-element block above it. This reserves
               the full viewport for the answer regardless of how long or
-              short its real content happens to be. */}
-          <div className="flex min-h-screen flex-col justify-center py-10">
-            <m.h1
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={revealTransition(!!reduce)}
-              className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold"
-            >
-              {vm.categoryName}
-            </m.h1>
+              short its real content happens to be.
 
-            {/* (1) The answer */}
+              Visual-polish pass (2026-07-24): a soft radial wash tinted by
+              the real verdict's tone sits behind the answer — ambient
+              depth, not a new claim (color follows the same decision the
+              text already carries). Absolutely positioned + aria-hidden so
+              it never affects layout or is read by a screen reader.
+              Anchored inside the flex-centered block (not the outer
+              scroll container) so it tracks the answer's real position —
+              content above/below shifts where "centered" lands, and a
+              container-top anchor would miss it entirely on a short
+              analysis. */}
+          <div className="relative flex min-h-screen flex-col justify-center py-10">
+            <div
+              aria-hidden
+              className={`pointer-events-none absolute left-1/2 top-1/2 z-0 h-[440px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-radial ${tone.wash} to-transparent blur-3xl`}
+            />
             <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={revealTransition(!!reduce)}
+              className="mb-2 flex items-center gap-2"
+            >
+              <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+              <h1 className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">
+                {vm.categoryName}
+              </h1>
+            </m.div>
+
+            {/* (1) The answer */}
+            <m.div
+              initial={{ opacity: 0, y: 12, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={revealTransition(!!reduce, 0.05)}
               className="mb-6"
             >
-              <p className="font-serif text-[34px] font-semibold leading-tight tracking-tight text-pi-ink sm:text-[42px]">
+              <p className={`text-balance font-serif text-[38px] font-semibold leading-[1.05] tracking-tight sm:text-[46px] ${tone.text}`}>
                 {vm.verdictWord}
               </p>
               {!vm.insufficientEvidence && (
                 <VocabularyTerm term="conviction" subtitle="Conviction — how sure I am.">
-                  <p className="mt-1.5 text-sm text-pi-sub">{vm.convictionSentence}</p>
+                  <p className="mt-2 text-sm text-pi-sub">{vm.convictionSentence}</p>
                 </VocabularyTerm>
               )}
             </m.div>
@@ -118,22 +139,68 @@ export function BriefView({ vm }: { vm: BriefViewModel }) {
               <p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">The case</p>
               <div className="space-y-2">
                 {vm.forDrivers.map((d, i) => (
-                  <CaseRow key={d.claimKey} driver={d} suggested={i < 3} onTap={() => setOpenClaimKey(d.claimKey)} />
+                  <CaseRow key={d.claimKey} driver={d} suggested={i < 3} polarity="for" onTap={() => setOpenClaimKey(d.claimKey)} />
                 ))}
                 {vm.againstDrivers.map(d => (
-                  <CaseRow key={`against-${d.claimKey}`} driver={d} suggested={false} onTap={() => setOpenClaimKey(d.claimKey)} />
+                  <CaseRow key={`against-${d.claimKey}`} driver={d} suggested={false} polarity="against" onTap={() => setOpenClaimKey(d.claimKey)} />
                 ))}
               </div>
             </section>
           )}
 
           {vm.windowText && (
-            <p className="mb-8 max-w-[65ch] text-sm text-pi-sub">{vm.windowText}</p>
+            <section className="mb-8">
+              {vm.lifecycle && (
+                <div className="mb-3">
+                  <LifecycleArc stages={vm.lifecycle.stages} currentIndex={vm.lifecycle.currentIndex} />
+                </div>
+              )}
+              <p className="max-w-[65ch] text-sm text-pi-sub">{vm.windowText}</p>
+              {vm.windowNumbers && (
+                <p className="mt-1 font-mono text-[11px] tabular-nums text-pi-faint">
+                  {vm.windowNumbers.demandLabel} · {vm.windowNumbers.supplyLabel}
+                </p>
+              )}
+            </section>
+          )}
+
+          {vm.whyNow && (
+            <section className="mb-8">
+              <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">Why now</p>
+              <p className="max-w-[65ch] text-sm leading-relaxed text-pi-ink">{vm.whyNow}</p>
+            </section>
+          )}
+
+          {vm.channelAgreement && (
+            <p className="mb-8 max-w-[65ch] text-xs text-pi-faint">{vm.channelAgreement}</p>
           )}
 
           <ReversalConditions items={vm.reversalConditions} />
 
-          <p className="mb-10 text-xs text-pi-faint">{vm.freshness}</p>
+          <p className="mb-3 text-xs text-pi-faint">{vm.freshness}</p>
+
+          <div className="mb-10 flex flex-wrap justify-center gap-5 text-sm text-pi-gold">
+            <Link href={`/app/record/${vm.analysisId}`} className="hover:underline">
+              Read the full record →
+            </Link>
+            {vm.hasGapChapter && (
+              <Link href={`/app/record/${vm.analysisId}/gap`} className="hover:underline">
+                The gap — how you'd win →
+              </Link>
+            )}
+          </div>
+
+          {/* Not Supported fallback (Milestone D) — corpus browsing only,
+              never a specific "build this instead" suggestion (RD_V4_
+              PHASE2.md §7 Non-goals): a generic link back to the user's own
+              other positive-verdict analyses, not a computed alternative. */}
+          {!vm.insufficientEvidence && vm.decision === 'SKIP' && (
+            <div className="mb-10 text-center">
+              <Link href="/app#opportunities" className="text-sm text-pi-gold hover:underline">
+                Not what you hoped? Browse other opportunities →
+              </Link>
+            </div>
+          )}
         </div>
 
         <PullBar

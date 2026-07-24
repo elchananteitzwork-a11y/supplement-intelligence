@@ -64,6 +64,25 @@ export const VERDICT_WORD: Record<BuildDecision, string> = {
 
 export const INSUFFICIENT_EVIDENCE_VERDICT_WORD = "I can't call this one"
 
+// ── Verdict tone (V4 Phase 2 visual pass) — the existing pi-build/pi-invest/
+// pi-risk/pi-gold-deep semantic tokens (tailwind.config.ts) were defined
+// early in the V4 reset but never actually wired into BriefView; every
+// verdict rendered in plain ink regardless of decision. Full literal class
+// strings (not template-built) so Tailwind's static analyzer can see them.
+export interface VerdictTone { text: string; ring: string; wash: string; dot: string }
+export const VERDICT_TONE: Record<BuildDecision, VerdictTone> = {
+  BUILD_NOW:                   { text: 'text-pi-build',      ring: 'ring-pi-build/25',      wash: 'from-pi-build/[0.22]',      dot: 'bg-pi-build' },
+  CATEGORY_CREATION_CANDIDATE: { text: 'text-pi-gold-deep',  ring: 'ring-pi-gold-deep/25',  wash: 'from-pi-gold-deep/[0.22]',  dot: 'bg-pi-gold-deep' },
+  VALIDATE_FURTHER:            { text: 'text-pi-invest',     ring: 'ring-pi-invest/25',     wash: 'from-pi-invest/[0.22]',     dot: 'bg-pi-invest' },
+  SKIP:                        { text: 'text-pi-risk',       ring: 'ring-pi-risk/25',       wash: 'from-pi-risk/[0.22]',       dot: 'bg-pi-risk' },
+}
+export const INSUFFICIENT_EVIDENCE_TONE: VerdictTone = { text: 'text-pi-sub', ring: 'ring-pi-hairline', wash: 'from-pi-ink/[0.08]', dot: 'bg-pi-faint' }
+
+export function verdictTone(grounded: Pick<GroundedScore, 'decision' | 'insufficientEvidence'>): VerdictTone {
+  if (grounded.insufficientEvidence) return INSUFFICIENT_EVIDENCE_TONE
+  return VERDICT_TONE[grounded.decision]
+}
+
 /** The verdict word shown as the Brief's one large first-viewport element. */
 export function verdictWord(grounded: Pick<GroundedScore, 'decision' | 'insufficientEvidence'>): string {
   if (grounded.insufficientEvidence) return INSUFFICIENT_EVIDENCE_VERDICT_WORD
@@ -413,6 +432,46 @@ export function windowInWords(
   if (!gapVelocity) return `The window: ${lifecycle.stage}.`
   const direction = gapVelocity.value > 0 ? 'widening' : gapVelocity.value < 0 ? 'narrowing' : 'flat'
   return `The window: ${lifecycle.stage}, and ${direction} (${gapVelocity.display}).`
+}
+
+// ── Why now (V4 Phase 2) — the real m.why_now field, verbatim. No
+// generation happens here; this is a pass-through with the one honest
+// transform (trim + null-if-empty) so callers never render a blank
+// section. Optional field (types/index.ts:165) — absent on older memos. ──
+export function whyNowLine(m: Pick<MemoData, 'why_now'>): string | null {
+  const text = m.why_now?.trim()
+  return text ? text : null
+}
+
+// ── Channel agreement (V4 Phase 2) — surfaces lib/concordance.ts's real
+// cross-channel read, but ONLY when it's genuinely mixed: per the honesty
+// rule, this line exists to explain a confidence ceiling, not to describe
+// every case — a Unanimous/Majority read doesn't need a callout, and
+// 'Insufficient' (<2 reporting channels) isn't a disagreement to report.
+// ─────────────────────────────────────────────────────────────────────
+export function channelAgreementLine(
+  concordance: { agreement: string; reads: { label: string; momentum: string }[] } | null | undefined,
+): string | null {
+  if (!concordance || concordance.agreement !== 'Mixed') return null
+  const reporting = concordance.reads.filter(r => r.momentum !== 'Absent')
+  if (reporting.length < 2) return null
+  const parts = reporting.map(r => `${r.label.toLowerCase()} is ${r.momentum.toLowerCase()}`)
+  return `My channels disagree — ${parts.join(', while ')}. That disagreement is part of why my confidence isn't higher.`
+}
+
+// ── Window numbers (V4 Phase 2) — real demand/supply acceleration
+// percentages from gap velocity, when both halves exist (never one alone,
+// which would misleadingly imply a comparison that isn't there). Additive
+// sibling to windowInWords above — that function's exact output strings
+// are covered by existing tests and are left untouched. ─────────────────
+export function windowNumbers(
+  gapVelocity: { demandPct: number | null; supplyPct: number | null } | null,
+): { demandLabel: string; supplyLabel: string } | null {
+  if (!gapVelocity) return null
+  const { demandPct, supplyPct } = gapVelocity
+  if (demandPct === null || supplyPct === null) return null
+  const fmt = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`
+  return { demandLabel: `Demand ${fmt(demandPct)}`, supplyLabel: `Supply ${fmt(supplyPct)}` }
 }
 
 // ── Freshness stamp (CPO amendment, mandatory — V4_PRODUCT_ARCHITECTURE.md

@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DEFAULT_CATEGORY_ID } from '@/lib/categories/client-config'
 import { logEvent } from '@/lib/positions'
+import type { OpportunityVM } from '@/lib/opportunities'
 import { Hunt } from './Hunt'
 import { PositionsStrip } from './PositionsStrip'
+import { Opportunities } from './Opportunities'
 
 // ── S-Stream (V4_PRODUCT_ARCHITECTURE.md §5) ──────────────────────────────
 // The home surface: partner-speaks-first opening, positions strip, then
@@ -33,7 +35,7 @@ export interface MovedItemVM {
   href:       string
 }
 
-export function Stream({ movedItems }: { movedItems: MovedItemVM[] }) {
+export function Stream({ movedItems, opportunities }: { movedItems: MovedItemVM[]; opportunities: OpportunityVM[] }) {
   const router = useRouter()
   const [input, setInput] = useState('')
   const [hunting, setHunting] = useState(false)
@@ -117,15 +119,19 @@ export function Stream({ movedItems }: { movedItems: MovedItemVM[] }) {
         {movedItems.length === 0 ? (
           <p className="text-[15px] leading-relaxed text-pi-sub">Nothing moved since your last visit.</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-2.5">
             {movedItems.map(item => (
               <li key={item.key}>
                 <Link
                   href={item.href}
-                  className={`block rounded-xl border bg-pi-card px-4 py-3.5 transition-colors hover:border-pi-ink/30 ${
-                    item.severity === 'critical' ? 'border-pi-risk/30' : 'border-pi-hairline'
+                  className={`group relative block overflow-hidden rounded-xl border bg-pi-card py-3.5 pl-5 pr-4 shadow-[0_1px_2px_rgba(22,23,26,0.04)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_16px_-4px_rgba(22,23,26,0.12)] ${
+                    item.severity === 'critical' ? 'border-pi-risk/30 hover:border-pi-risk/50' : 'border-pi-hairline hover:border-pi-ink/25'
                   }`}
                 >
+                  <span
+                    aria-hidden
+                    className={`absolute inset-y-0 left-0 w-[3px] ${item.severity === 'critical' ? 'bg-pi-risk' : 'bg-pi-gold-deep'} opacity-70 transition-opacity group-hover:opacity-100`}
+                  />
                   <p className="text-sm text-pi-ink">{item.headline}</p>
                   {item.detail && <p className="mt-1 text-xs text-pi-sub">{item.detail}</p>}
                 </Link>
@@ -141,7 +147,7 @@ export function Stream({ movedItems }: { movedItems: MovedItemVM[] }) {
         <Hunt done={huntDone} />
       ) : (
         <section>
-          <label htmlFor="stream-input" className="mb-3 block font-serif text-[22px] font-semibold leading-snug text-pi-ink sm:text-[26px]">
+          <label htmlFor="stream-input" className="mb-4 block text-balance font-serif text-[24px] font-semibold leading-snug tracking-tight text-pi-ink sm:text-[28px]">
             Tell me what you&rsquo;re thinking of building.
           </label>
           <form onSubmit={e => { e.preventDefault(); void submit(input) }} className="flex flex-col gap-3 sm:flex-row">
@@ -150,12 +156,12 @@ export function Stream({ movedItems }: { movedItems: MovedItemVM[] }) {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="e.g. a magnesium gummy for sleep"
-              className="flex-1 rounded-xl border border-pi-hairline bg-pi-card px-4 py-3 text-sm text-pi-ink placeholder:text-pi-faint focus:outline-none focus:ring-2 focus:ring-pi-gold-bright"
+              className="flex-1 rounded-xl border border-pi-hairline bg-pi-card px-4 py-3.5 text-[15px] text-pi-ink shadow-[0_1px_2px_rgba(22,23,26,0.04)] transition-shadow placeholder:text-pi-faint focus:outline-none focus:ring-2 focus:ring-pi-gold-bright"
             />
             <button
               type="submit"
               disabled={!input.trim()}
-              className="shrink-0 rounded-xl bg-pi-ink px-5 py-3 text-sm font-semibold text-pi-cream transition-colors hover:bg-[#24262B] disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-[44px] shrink-0 rounded-xl bg-pi-ink px-5 py-3 text-sm font-semibold text-pi-cream shadow-[0_4px_14px_-4px_rgba(22,23,26,0.35)] transition-all duration-200 hover:-translate-y-px hover:bg-[#24262B] hover:shadow-[0_8px_20px_-6px_rgba(22,23,26,0.4)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
             >
               Hunt it →
             </button>
@@ -178,11 +184,15 @@ export function Stream({ movedItems }: { movedItems: MovedItemVM[] }) {
                 key={h}
                 type="button"
                 onClick={() => setInput(h)}
-                className="rounded-full border border-pi-hairline bg-pi-card px-3.5 py-1.5 text-xs text-pi-sub transition-colors hover:border-pi-ink/30 hover:text-pi-ink"
+                className="rounded-full border border-pi-hairline bg-pi-card px-3.5 py-1.5 text-xs text-pi-sub shadow-[0_1px_2px_rgba(22,23,26,0.03)] transition-all duration-200 hover:-translate-y-px hover:border-pi-ink/25 hover:text-pi-ink hover:shadow-[0_3px_8px_-2px_rgba(22,23,26,0.1)]"
               >
                 {h}
               </button>
             ))}
+          </div>
+
+          <div className="mt-10">
+            <Opportunities items={opportunities} />
           </div>
         </section>
       )}

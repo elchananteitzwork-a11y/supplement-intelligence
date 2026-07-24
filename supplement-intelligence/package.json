@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "lint:v4": "eslint app/app components/partner lib/partner-copy.ts lib/positions.ts",
+    "lint:v4": "eslint app/app components/partner lib/partner-copy.ts lib/partner-copy-record.ts lib/positions.ts lib/opportunities.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

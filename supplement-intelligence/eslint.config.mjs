@@ -72,7 +72,10 @@ export default tseslint.config(
     // (lib/partner-copy.ts, lib/positions.ts) previously matched no config
     // block at all — `npx eslint` silently skipped them ("no matching
     // configuration"), so the import ban was never actually enforced there.
-    files: ['app/app/**/*.{ts,tsx}', 'components/partner/**/*.{ts,tsx}', 'lib/partner-copy.ts', 'lib/positions.ts'],
+    // lib/partner-copy-record.ts (V4 Phase 2, RD_V4_PHASE2.md Milestone B)
+    // and lib/opportunities.ts (Milestone D) added to this same list for the
+    // same reason on creation, not found silently missing later.
+    files: ['app/app/**/*.{ts,tsx}', 'components/partner/**/*.{ts,tsx}', 'lib/partner-copy.ts', 'lib/partner-copy-record.ts', 'lib/positions.ts', 'lib/opportunities.ts'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: { sourceType: 'module', ecmaFeatures: { jsx: true } },

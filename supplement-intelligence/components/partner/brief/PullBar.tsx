@@ -16,12 +16,12 @@ export function PullBar({
   const [showAlts, setShowAlts] = useState(false)
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-pi-hairline bg-pi-cream/95 px-5 py-3 backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-pi-hairline bg-pi-cream/90 px-5 py-3 shadow-[0_-8px_24px_-8px_rgba(22,23,26,0.14)] backdrop-blur-md">
       <div className="mx-auto flex max-w-[640px] items-center gap-3">
         <button
           type="button"
           onClick={() => onChoose(recommendedVerb)}
-          className="min-h-[44px] flex-1 rounded-xl bg-pi-ink px-5 text-sm font-semibold text-pi-cream transition-colors hover:bg-[#24262B]"
+          className="min-h-[44px] flex-1 rounded-xl bg-pi-ink px-5 text-sm font-semibold text-pi-cream shadow-[0_4px_14px_-4px_rgba(22,23,26,0.35)] transition-all duration-200 hover:-translate-y-px hover:bg-[#24262B] hover:shadow-[0_8px_20px_-6px_rgba(22,23,26,0.4)] active:translate-y-0"
         >
           {recommendedVerb} <span className="font-normal opacity-70">— {recommendedSublabel}</span>
         </button>

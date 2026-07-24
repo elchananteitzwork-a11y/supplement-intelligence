@@ -11,9 +11,23 @@ const config: Config = {
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
+    // Added for VERDICT_TONE (lib/partner-copy.ts): pure .ts modules can
+    // hold literal Tailwind class-name strings too (e.g. a decision→tone
+    // lookup table), and those were silently never scanned/generated
+    // before this — a real, previously-latent gap, not new-code-only risk.
+    './lib/**/*.{ts,tsx}',
   ],
   theme: {
   	extend: {
+  		backgroundImage: {
+  			// Standard Tailwind recipe: reuses the same --tw-gradient-stops
+  			// pipeline the built-in bg-gradient-to-* linear utilities already
+  			// populate via from-*/to-*, so `bg-gradient-radial from-x to-transparent`
+  			// works exactly like the linear ones, just radial. Added for the
+  			// V4 Phase 2 visual-polish pass (ambient verdict-tone wash behind
+  			// the Brief's first-viewport answer).
+  			'gradient-radial': 'radial-gradient(circle, var(--tw-gradient-stops))',
+  		},
   		fontFamily: {
   			sans: [
   				'var(--font-inter)',
@@ -227,7 +241,11 @@ const config: Config = {
   			'cine-kenburns': 'cine-kenburns 42s ease-in-out infinite alternate',
   			'cine-drift': 'cine-drift ease-in-out infinite',
   			'cine-pulse': 'cine-pulse 2.6s ease-in-out infinite',
-  			'cine-travel': 'cine-travel 4.2s linear infinite'
+  			'cine-travel': 'cine-travel 4.2s linear infinite',
+  			'cine-blink': 'cine-blink 1.1s step-end infinite',
+  			'cine-breathe': 'cine-breathe 4.5s cubic-bezier(0.16,1,0.3,1) infinite',
+  			'cine-spin-slow': 'cine-spin-slow 14s linear infinite',
+  			'cine-ray-drift': 'cine-ray-drift 90s ease-in-out infinite'
   		},
   		keyframes: {
   			'cine-kenburns': {
@@ -251,6 +269,23 @@ const config: Config = {
   			'cine-travel': {
   				from: { offsetDistance: '0%' },
   				to: { offsetDistance: '100%' }
+  			},
+  			'cine-blink': {
+  				'0%, 49%': { opacity: '1' },
+  				'50%, 100%': { opacity: '0' }
+  			},
+  			'cine-breathe': {
+  				'0%, 100%': { transform: 'scale(1)', opacity: '0.92' },
+  				'50%': { transform: 'scale(1.05)', opacity: '1' }
+  			},
+  			'cine-spin-slow': {
+  				from: { transform: 'rotate(0deg)' },
+  				to: { transform: 'rotate(360deg)' }
+  			},
+  			'cine-ray-drift': {
+  				'0%': { transform: 'translateX(-15%) rotate(8deg)', opacity: '0.35' },
+  				'50%': { transform: 'translateX(15%) rotate(8deg)', opacity: '0.55' },
+  				'100%': { transform: 'translateX(-15%) rotate(8deg)', opacity: '0.35' }
   			}
   		}
   	}

@@ -9,6 +9,12 @@ import type { CaseDriver, ClaimEvidence, PullVerb } from '@/lib/partner-copy'
 export interface ReversalConditionVM {
   label:      string
   watching:   boolean   // true only when this analysis is genuinely on the user's watchlist
+  marker:     { currentPct: number; thresholdPct: number } | null  // only for the one naturally-bounded metric; see field-derivations.ts's deriveReversalMarker
+}
+
+export interface LifecycleVM {
+  stages:       string[]
+  currentIndex: number
 }
 
 export interface BriefViewModel {
@@ -35,6 +41,11 @@ export interface BriefViewModel {
   claimEvidence:  Record<string, ClaimEvidence>
 
   windowText: string | null
+  windowNumbers: { demandLabel: string; supplyLabel: string } | null
+  lifecycle:     LifecycleVM | null
+  whyNow:        string | null
+  channelAgreement: string | null
+  hasGapChapter: boolean
 
   reversalConditions: ReversalConditionVM[]
 

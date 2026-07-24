@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   VERDICT_WORD, INSUFFICIENT_EVIDENCE_VERDICT_WORD, verdictWord, positionVerdictLabel,
+  VERDICT_TONE, INSUFFICIENT_EVIDENCE_TONE, verdictTone,
   RECOMMENDED_PULL, recommendedPull, alternativePulls,
   buildConvictionSentence,
   buildWhySentence,
@@ -82,6 +83,24 @@ describe('verdictWord', () => {
 
   it('overrides to the insufficient-evidence first-class state regardless of decision', () => {
     expect(verdictWord(grounded({ decision: 'BUILD_NOW', insufficientEvidence: true }))).toBe(INSUFFICIENT_EVIDENCE_VERDICT_WORD)
+  })
+})
+
+describe('verdictTone', () => {
+  it('gives every real decision a distinct tone', () => {
+    const decisions = Object.keys(VERDICT_WORD) as BuildDecision[]
+    const tones = decisions.map(d => VERDICT_TONE[d].text)
+    expect(new Set(tones).size).toBe(decisions.length)
+  })
+
+  it('returns each decision tone for a normal, sufficient-evidence result', () => {
+    for (const d of Object.keys(VERDICT_WORD) as BuildDecision[]) {
+      expect(verdictTone(grounded({ decision: d, insufficientEvidence: false }))).toBe(VERDICT_TONE[d])
+    }
+  })
+
+  it('overrides to the neutral insufficient-evidence tone regardless of decision', () => {
+    expect(verdictTone(grounded({ decision: 'BUILD_NOW', insufficientEvidence: true }))).toBe(INSUFFICIENT_EVIDENCE_TONE)
   })
 })
 

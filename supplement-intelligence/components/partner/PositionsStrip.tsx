@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { fetchPositions, type Position } from '@/lib/positions'
-import { positionVerdictLabel } from '@/lib/partner-copy'
+import { positionVerdictLabel, VERDICT_TONE, INSUFFICIENT_EVIDENCE_TONE } from '@/lib/partner-copy'
 
 // ── Positions strip (V4_PRODUCT_ARCHITECTURE.md §4: "Positions live in a
 // strip that grows into a desk only when the portfolio does") — "hidden
@@ -35,20 +35,24 @@ export function PositionsStrip() {
         Your positions
       </p>
       <ul className="flex gap-2.5 overflow-x-auto pb-1">
-        {positions.map(p => (
-          <li key={p.analysisId} className="shrink-0">
-            <Link
-              href={`/app/brief/${p.analysisId}`}
-              className="flex min-w-[180px] flex-col gap-1 rounded-xl border border-pi-hairline bg-pi-card px-4 py-3 transition-colors hover:border-pi-ink/30"
-            >
-              <span className="truncate text-sm font-semibold text-pi-ink">{p.categoryName}</span>
-              <span className="font-mono text-[10px] uppercase tracking-wide text-pi-sub">
-                {p.state === 'validating' ? 'Validating' : p.state === 'watching' ? 'Watching' : 'Killed'}
-                {' · '}{positionVerdictLabel(p.decision, p.insufficientEvidence)}
-              </span>
-            </Link>
-          </li>
-        ))}
+        {positions.map(p => {
+          const tone = p.decision && !p.insufficientEvidence ? VERDICT_TONE[p.decision] : INSUFFICIENT_EVIDENCE_TONE
+          return (
+            <li key={p.analysisId} className="shrink-0">
+              <Link
+                href={`/app/brief/${p.analysisId}`}
+                className="flex min-w-[180px] flex-col gap-1.5 rounded-xl border border-pi-hairline bg-pi-card px-4 py-3 shadow-[0_1px_2px_rgba(22,23,26,0.04)] transition-all duration-200 hover:-translate-y-px hover:border-pi-ink/25 hover:shadow-[0_6px_16px_-4px_rgba(22,23,26,0.12)]"
+              >
+                <span className="truncate text-sm font-semibold text-pi-ink">{p.categoryName}</span>
+                <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide text-pi-sub">
+                  <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`} />
+                  {p.state === 'validating' ? 'Validating' : p.state === 'watching' ? 'Watching' : 'Killed'}
+                  {' · '}<span className={tone.text}>{positionVerdictLabel(p.decision, p.insufficientEvidence)}</span>
+                </span>
+              </Link>
+            </li>
+          )
+        })}
       </ul>
     </section>
   )

@@ -3,13 +3,14 @@ import { createClient } from '@/lib/supabase/server'
 import type { Analysis } from '@/types/index'
 import { computeGroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
-import { deriveKillCriteriaItems, deriveLifecycleDisplay, formatGapVelocity } from '@/components/memo/field-derivations'
+import { deriveKillCriteriaItems, deriveLifecycleDisplay, formatGapVelocity, deriveReversalMarker } from '@/components/memo/field-derivations'
 import { listWatches } from '@/lib/watchlist/store'
 import {
   verdictWord, buildWhySentence, buildConvictionSentence, buildInsufficientEvidenceReadout,
   recommendedPull, alternativePulls,
   selectForDrivers, buildAgainstCase, buildClaimEvidence,
-  windowInWords, freshnessStamp, buildValidationPlan, killRedirectionLine,
+  windowInWords, windowNumbers, whyNowLine, channelAgreementLine,
+  freshnessStamp, buildValidationPlan, killRedirectionLine,
 } from '@/lib/partner-copy'
 import type { BriefViewModel, ReversalConditionVM } from '@/components/partner/brief/types'
 import { BriefView } from '@/components/partner/brief/BriefView'
@@ -44,7 +45,11 @@ export default async function BriefPage({ params }: { params: { id: string } }) 
 
   const watches = await listWatches(sb, user.id)
   const isWatching = watches.some(w => w.analysis_id === a.id && w.active)
-  const reversalConditions: ReversalConditionVM[] = (killItems ?? []).map(label => ({ label, watching: isWatching }))
+  const reversalConditions: ReversalConditionVM[] = (m.kill_criteria ?? []).map((criterion, i) => ({
+    label: (killItems ?? [])[i],
+    watching: isWatching,
+    marker: deriveReversalMarker(criterion),
+  }))
 
   const forDrivers = grounded.insufficientEvidence ? [] : selectForDrivers(grounded)
   const againstDrivers = grounded.insufficientEvidence ? [] : buildAgainstCase(m, grounded)
@@ -95,6 +100,11 @@ export default async function BriefPage({ params }: { params: { id: string } }) 
     claimEvidence,
 
     windowText: windowInWords(lifecycle, gapVelocity),
+    windowNumbers: windowNumbers(gapVelocity),
+    lifecycle: lifecycle ? { stages: lifecycle.stages, currentIndex: lifecycle.currentIndex } : null,
+    whyNow: whyNowLine(m),
+    channelAgreement: channelAgreementLine(m.concordance_matrix ?? null),
+    hasGapChapter: (m.market_gaps?.length ?? 0) > 0,
 
     reversalConditions,
 
