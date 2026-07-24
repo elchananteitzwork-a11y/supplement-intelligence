@@ -10,6 +10,17 @@ import { RotorMark } from '@/components/cine/RotorMark'
 export type AuthMode = 'login' | 'signup'
 export interface AuthModalHandle { open: (mode: AuthMode) => void }
 
+// Same post-login destination fix as app/login/page.tsx's safeRedirectTarget
+// (2026-07-24 routing fix) — honors middleware.ts's real ?next=<path>
+// when present (e.g. a deep link to /?next=/app/brief/xyz&auth=login),
+// falls back to /app (V4 Stream), never /dashboard. Open-redirect guard:
+// only a same-origin relative path is ever accepted.
+function safeRedirectTarget(fallback: string): string {
+  const next = new URLSearchParams(window.location.search).get('next')
+  if (next && next.startsWith('/') && !next.startsWith('//') && !next.includes('://')) return next
+  return fallback
+}
+
 // AuthModal — real Supabase auth (sign in / sign up), hosted as a glass
 // modal over the Landing world instead of its own route (RD_V4_PHASE2.md
 // Milestone C). Same two real Supabase calls as app/login/page.tsx's
@@ -95,12 +106,12 @@ export const AuthModal = forwardRef<AuthModalHandle>(function AuthModal(_props, 
       const { error } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
       setLoading(false)
       if (error) setError(error.message)
-      else { router.push('/dashboard'); router.refresh() }
+      else { router.push(safeRedirectTarget('/app')); router.refresh() }
     } else {
       const { data, error } = await sb.auth.signUp({ email: email.trim().toLowerCase(), password })
       setLoading(false)
       if (error) setError(error.message)
-      else if (data.session) { router.push('/dashboard'); router.refresh() }
+      else if (data.session) { router.push(safeRedirectTarget('/app')); router.refresh() }
       else setAwaitingConfirm(true)
     }
   }
