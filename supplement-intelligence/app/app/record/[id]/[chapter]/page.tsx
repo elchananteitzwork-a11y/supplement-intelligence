@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Analysis } from '@/types/index'
 import { buildRecordChapters, buildGapLetter } from '@/lib/partner-copy-record'
 import { ChapterPage } from '@/components/partner/record/ChapterPage'
+import { AvatarMenu } from '@/components/partner/AvatarMenu'
 
 // ── /app/record/[id]/[chapter] — one Record chapter (V4 Phase 2,
 // RD_V4_PHASE2.md Milestone B). Real route, deep-linkable; Back returns to
@@ -26,5 +27,13 @@ export default async function RecordChapterPage({ params }: { params: { id: stri
 
   const gap = chapter.key === 'gap' ? buildGapLetter(m) : null
 
-  return <ChapterPage chapter={chapter} gap={gap} />
+  const { data: profileRow } = await sb.from('profiles').select('analyses_used, analyses_limit').eq('id', user.id).single()
+  const usage = profileRow ? { used: profileRow.analyses_used ?? 0, limit: profileRow.analyses_limit ?? 3 } : null
+
+  return (
+    <>
+      <AvatarMenu email={user.email ?? null} usage={usage} />
+      <ChapterPage chapter={chapter} gap={gap} />
+    </>
+  )
 }

@@ -6,6 +6,7 @@ import type { WatchlistEntry } from '@/lib/watchlist/types'
 import type { MemoData } from '@/types/index'
 import { buildOpportunities, type OpportunityRow } from '@/lib/opportunities'
 import { Stream, type MovedItemVM } from '@/components/partner/Stream'
+import { AvatarMenu } from '@/components/partner/AvatarMenu'
 
 // ── /app — the Stream (V4 Phase 1, docs/V4_PRODUCT_ARCHITECTURE.md §5,
 // docs/RD_V4_PHASE1.md). Auth pattern only reused from app/dashboard/
@@ -21,6 +22,12 @@ export default async function StreamPage() {
   const { data: authData, error: authError } = await sb.auth.getUser()
   if (authError || !authData?.user) redirect('/login')
   const user = authData.user
+
+  // Real quota for the AvatarMenu's usage card — same profiles columns
+  // /dashboard and /settings/billing already render; no invented numbers
+  // (menu simply omits the card when the row is missing).
+  const { data: profileRow } = await sb.from('profiles').select('analyses_used, analyses_limit').eq('id', user.id).single()
+  const usage = profileRow ? { used: profileRow.analyses_used ?? 0, limit: profileRow.analyses_limit ?? 3 } : null
 
   const alerts = await listAlerts(sb, user.id, 20)
 
@@ -81,6 +88,7 @@ export default async function StreamPage() {
 
   return (
     <div className="min-h-screen bg-pi-cream text-pi-ink">
+      <AvatarMenu email={user.email ?? null} usage={usage} />
       <Stream movedItems={movedItems} opportunities={opportunities} />
     </div>
   )

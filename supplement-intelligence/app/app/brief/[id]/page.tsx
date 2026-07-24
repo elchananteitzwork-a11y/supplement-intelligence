@@ -14,6 +14,7 @@ import {
 } from '@/lib/partner-copy'
 import type { BriefViewModel, ReversalConditionVM } from '@/components/partner/brief/types'
 import { BriefView } from '@/components/partner/brief/BriefView'
+import { AvatarMenu } from '@/components/partner/AvatarMenu'
 
 // ── /app/brief/[id] — the Brief (V4 Phase 1, docs/V4_PRODUCT_ARCHITECTURE.md
 // §5, docs/RD_V4_PHASE1.md). Auth/fetch/ownership-check pattern reused from
@@ -114,5 +115,13 @@ export default async function BriefPage({ params }: { params: { id: string } }) 
     killRedirect: killRedirectionLine(m),
   }
 
-  return <BriefView vm={vm} />
+  const { data: profileRow } = await sb.from('profiles').select('analyses_used, analyses_limit').eq('id', user.id).single()
+  const usage = profileRow ? { used: profileRow.analyses_used ?? 0, limit: profileRow.analyses_limit ?? 3 } : null
+
+  return (
+    <>
+      <AvatarMenu email={user.email ?? null} usage={usage} />
+      <BriefView vm={vm} />
+    </>
+  )
 }
