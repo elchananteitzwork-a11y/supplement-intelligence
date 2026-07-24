@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion'
-import { Search, User, CreditCard, LogOut, X } from 'lucide-react'
+import { Search, Scale, History, Eye, Bell, User, CreditCard, LogOut, X } from 'lucide-react'
 
 // AvatarMenu — the account/navigation panel behind the avatar button, the
 // only persistent chrome on the V4 surfaces (docs/RD_V4_PHASE2.md §4 risk
@@ -12,9 +12,10 @@ import { Search, User, CreditCard, LogOut, X } from 'lucide-react'
 // 2026-07-24). Rendered on every V4 screen (Stream/Brief/Record/Appendix)
 // so "New hunt" is reachable from deep pages.
 //
-// Owner decision (2026-07-24): V4 + account destinations only — the
-// legacy-skinned product pages (Compare/Watchlist/History/Alerts) join
-// this menu only after they're redesigned. Every row is a real existing
+// Owner decision (2026-07-24, revised same day): the FULL set of real
+// product destinations — including the legacy-skinned pages (Compare/
+// History/Watchlist/Alerts) — functionality over skin-consistency until
+// those pages get their own redesign. Every row is a real existing
 // destination; the usage meter shows the same real profiles.analyses_used/
 // analyses_limit numbers /dashboard and /settings/billing already render
 // (passed from the server component — no client fetch, no invented
@@ -133,6 +134,22 @@ export function AvatarMenu({ email, usage }: { email: string | null; usage: Avat
                 <Link href="/app" onClick={close} className={rowCls}>
                   <Search size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
                   New hunt
+                </Link>
+                <Link href="/research/compare" onClick={close} className={rowCls}>
+                  <Scale size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
+                  Compare
+                </Link>
+                <Link href="/research/history" onClick={close} className={rowCls}>
+                  <History size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
+                  History
+                </Link>
+                <Link href="/watchlist" onClick={close} className={rowCls}>
+                  <Eye size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
+                  Watchlist
+                </Link>
+                <Link href="/alerts" onClick={close} className={rowCls}>
+                  <Bell size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
+                  Alerts
                 </Link>
               </nav>
 
