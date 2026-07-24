@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { safeRedirectTarget } from '@/lib/safe-redirect'
 import { RotorMark } from '@/components/cine/RotorMark'
 
 type Mode = 'signin' | 'signup' | 'forgot'
@@ -44,22 +45,6 @@ const submitCls =
 // over any per-render local state, so hoisting them is a pure, safe move —
 // Shell takes no state at all; ConfirmScreen takes its one callback as an
 // explicit prop instead of a closure.
-// Post-login destination (2026-07-24 routing fix): middleware.ts already
-// sets ?next=<path> when it bounces an unauthenticated user off a guarded
-// route (e.g. /app/brief/xyz -> /login?next=%2Fapp%2Fbrief%2Fxyz), but
-// this page never read it — every successful sign-in/sign-up hardcoded
-// /dashboard (the legacy pi-* home), losing the user's real destination
-// and, now that /app (V4 Stream) is the primary product surface, sending
-// them to the wrong place by default too. Falls back to /app, not
-// /dashboard. Only ever a same-origin relative path (starts with a single
-// "/", never "//" or an absolute URL) — an open-redirect guard, since
-// `next` is attacker-controllable query-string input.
-function safeRedirectTarget(fallback: string): string {
-  const next = new URLSearchParams(window.location.search).get('next')
-  if (next && next.startsWith('/') && !next.startsWith('//') && !next.includes('://')) return next
-  return fallback
-}
-
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-pi-cream">
@@ -114,6 +99,7 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     const sb = createClient()
+    const postLoginTarget = safeRedirectTarget(new URLSearchParams(window.location.search).get('next'), window.location.origin, '/app')
 
     if (mode === 'forgot') {
       const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
@@ -131,12 +117,12 @@ export default function LoginPage() {
       const { error } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
       setLoading(false)
       if (error) setError(error.message)
-      else { router.push(safeRedirectTarget('/app')); router.refresh() }
+      else { router.push(postLoginTarget); router.refresh() }
     } else {
       const { data, error } = await sb.auth.signUp({ email: email.trim().toLowerCase(), password })
       setLoading(false)
       if (error) setError(error.message)
-      else if (data.session) { router.push(safeRedirectTarget('/app')); router.refresh() }
+      else if (data.session) { router.push(postLoginTarget); router.refresh() }
       else setAwaitingConfirm(true)
     }
   }

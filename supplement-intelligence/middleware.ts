@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeRedirectTarget } from '@/lib/safe-redirect'
 
 // Pre-beta audit fix: /pipeline, /watchlist, /alerts, /settings were never
 // added here — each of their own API routes independently checks auth (so
@@ -42,9 +43,14 @@ export async function middleware(req: NextRequest) {
   }
 
   if (user && path === '/login') {
-    const url = req.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    // An already-authenticated visitor hitting /login (e.g. clicking a
+    // Landing "Enter" link) never reaches app/login/page.tsx's own
+    // redirect logic at all — this server-side redirect fires first — so
+    // it needs the same /app default + real ?next= handling, via the
+    // same shared, security-reviewed helper (lib/safe-redirect.ts).
+    const requestedNext = req.nextUrl.searchParams.get('next')
+    const target = safeRedirectTarget(requestedNext, req.nextUrl.origin, '/app')
+    return NextResponse.redirect(new URL(target, req.nextUrl.origin))
   }
 
   return res

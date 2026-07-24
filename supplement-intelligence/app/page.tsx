@@ -1,12 +1,11 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion'
 import { AmbientVideo } from '@/components/cine/AmbientVideo'
 import { AmbientParticles } from '@/components/cine/AmbientParticles'
 import { RotorMark } from '@/components/cine/RotorMark'
-import { AuthModal, type AuthModalHandle } from '@/components/landing/AuthModal'
 
 // Landing — V4 Phase 2 rebuild (docs/RD_V4_PHASE2.md Milestone C), per the
 // approved Claude Design prototype ("Landing Page.dc.html", Claude Design
@@ -16,8 +15,7 @@ import { AuthModal, type AuthModalHandle } from '@/components/landing/AuthModal'
 // comment) — Login/Brief/Record moved to the calm cream register, Landing
 // deliberately did not.
 //
-// Two honest deviations from the prototype's literal content, both
-// necessary because this is a real public page, not a mockup:
+// Three honest deviations from the prototype's literal content:
 //   1. The verdict/window/quote moments below are illustrative example
 //      copy, not a live analysis — each is labeled as such (same pattern
 //      the prior version of this page used for PREVIEW_CARDS).
@@ -27,6 +25,15 @@ import { AuthModal, type AuthModalHandle } from '@/components/landing/AuthModal'
 //      there is no real price this pre-auth page can honestly display.
 //      The Plans section below keeps the two-tier visual rhythm without
 //      inventing a number — real pricing is shown post-signup.
+//   3. Real usability feedback (owner, 2026-07-24, after seeing it live):
+//      every auth entry point below now navigates to the real /login page
+//      instead of opening components/landing/AuthModal.tsx's in-place
+//      modal — "I would like the login to be a complete different page,
+//      not a small window." AuthModal was deleted (no other caller ever
+//      existed for it); the modal-over-the-world interaction from the
+//      approved prototype is superseded by this real feedback, per the
+//      FROZEN architecture's own rule that usability testing/real user
+//      feedback is a legitimate reason to deviate.
 //
 // `position:fixed` (Tailwind's `fixed`), not `background-attachment:
 // fixed` — the iOS-safe form of a pinned atmosphere layer.
@@ -72,7 +79,6 @@ function StepRing({ kind }: { kind: 'waiting' | 'checking' | 'confirmed' }) {
 
 export default function Landing() {
   const reduce = useReducedMotion()
-  const authRef = useRef<AuthModalHandle>(null)
   const [ctaOffset, setCtaOffset] = useState({ x: 0, y: 0 })
 
   const reveal = (delay = 0) => ({
@@ -107,14 +113,12 @@ export default function Landing() {
           <AmbientParticles count={18} />
         </div>
 
-        <AuthModal ref={authRef} />
-
         {/* ── minimal nav ── */}
         <div className="fixed inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 sm:px-10">
           <RotorMark className="h-[22px] w-[22px]" />
-          <button onClick={() => authRef.current?.open('login')} className="text-[13px] font-medium tracking-wide text-pi-cream/85 transition-colors hover:text-[#F0DBA0]">
+          <Link href="/login" className="text-[13px] font-medium tracking-wide text-pi-cream/85 transition-colors hover:text-[#F0DBA0]">
             Enter →
-          </button>
+          </Link>
         </div>
 
         {/* ── content ── */}
@@ -138,10 +142,10 @@ export default function Landing() {
           {/* search a tracked product */}
           <div className="flex min-h-[36vh] flex-col items-center justify-center px-6 py-[4vh] text-center sm:px-[8%]">
             <p className="mb-7 text-xs uppercase tracking-[0.1em] text-pi-cream/45">Already tracking something?</p>
-            <button onClick={() => authRef.current?.open('login')} className="group inline-flex items-center gap-3.5 border-b border-white/[0.18] pb-3.5 transition-colors duration-300 hover:border-pi-gold-deep">
+            <Link href="/login" className="group inline-flex items-center gap-3.5 border-b border-white/[0.18] pb-3.5 transition-colors duration-300 hover:border-pi-gold-deep">
               <svg width="20" height="20" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="6.5" stroke="#8F8A79" strokeWidth="1.6" fill="none" /><path d="M13.5 13.5L18 18" stroke="#8F8A79" strokeWidth="1.6" strokeLinecap="round" /></svg>
               <span className="font-sans text-lg text-pi-cream/70 transition-colors group-hover:text-pi-cream">Search an ingredient, a format, or a market…</span>
-            </button>
+            </Link>
             <p className="mt-5 text-[13px] text-pi-cream/45">Or browse verdicts already reached on Desk and Compare.</p>
           </div>
 
@@ -155,9 +159,8 @@ export default function Landing() {
           {/* the ask — emotional center */}
           <div className="flex min-h-screen flex-col items-center justify-center px-6 py-[8vh] text-center sm:px-[8%]">
             <p className="mb-7 text-sm uppercase tracking-[0.1em] text-pi-cream/55">Describe the product the way you&rsquo;d tell a friend</p>
-            <a
-              href="#"
-              onClick={e => { e.preventDefault(); authRef.current?.open('signup') }}
+            <Link
+              href="/login?signup=1"
               onMouseMove={onCtaMove}
               onMouseLeave={() => setCtaOffset({ x: 0, y: 0 })}
               style={{ transform: `translate(${ctaOffset.x.toFixed(1)}px, ${ctaOffset.y.toFixed(1)}px)` }}
@@ -165,7 +168,7 @@ export default function Landing() {
             >
               <span className="font-serif text-[28px] font-medium text-pi-cream/80 sm:text-[42px] md:text-[54px]">a sleep reset kit for night-shift workers</span>
               <span className="inline-block h-[0.9em] w-[2px] bg-pi-gold-deep motion-safe:animate-cine-blink" />
-            </a>
+            </Link>
             <div className="mt-9 flex flex-wrap justify-center gap-4 text-[13px] text-pi-cream/45">
               <span>magnesium sleep gummies</span><span className="text-pi-cream/25">·</span>
               <span>berberine for blood-sugar support</span><span className="text-pi-cream/25">·</span>
@@ -286,9 +289,9 @@ export default function Landing() {
                 <p className="mb-1.5 font-serif text-2xl text-pi-cream">Starter</p>
                 <p className="mb-5 text-sm text-pi-cream/45">Free</p>
                 <p className="mb-6 text-[15px] leading-relaxed text-pi-cream/60">3 research runs a month, weekly re-checks, unlimited tracked ideas.</p>
-                <button onClick={() => authRef.current?.open('signup')} className="border-b border-pi-gold-deep/40 pb-1 text-sm font-semibold text-pi-gold-deep hover:border-[#F0DBA0] hover:text-[#F0DBA0]">
+                <Link href="/login?signup=1" className="border-b border-pi-gold-deep/40 pb-1 text-sm font-semibold text-pi-gold-deep hover:border-[#F0DBA0] hover:text-[#F0DBA0]">
                   Start free →
-                </button>
+                </Link>
               </div>
               <div className="relative max-w-[260px] rounded-[20px] px-6 py-8 text-center transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02]">
                 <div aria-hidden className="absolute left-1/2 top-0 h-[220px] w-[220px] -translate-x-1/2 -translate-y-[20%] rounded-full blur-sm" style={{ background: 'radial-gradient(circle, rgba(212,169,74,0.14), transparent 70%)' }} />
@@ -297,9 +300,9 @@ export default function Landing() {
                   <p className="mb-1.5 font-serif text-2xl text-pi-cream">Pro</p>
                   <p className="mb-5 text-sm text-pi-cream/45">Pricing shown after signup</p>
                   <p className="mb-6 text-[15px] leading-relaxed text-pi-cream/60">More research runs, daily re-checks, unlimited tracked ideas.</p>
-                  <button onClick={() => authRef.current?.open('signup')} className="border-b border-pi-gold-deep/40 pb-1 text-sm font-semibold text-pi-gold-deep hover:border-[#F0DBA0] hover:text-[#F0DBA0]">
+                  <Link href="/login?signup=1" className="border-b border-pi-gold-deep/40 pb-1 text-sm font-semibold text-pi-gold-deep hover:border-[#F0DBA0] hover:text-[#F0DBA0]">
                     See Pro →
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -314,9 +317,9 @@ export default function Landing() {
             </div>
             <p className="relative mb-4 font-serif text-[38px] font-medium text-pi-cream sm:text-[52px]">Stop guessing. Ask.</p>
             <p className="relative mb-9 text-base text-pi-cream/55">Your first research run is on us.</p>
-            <button onClick={() => authRef.current?.open('signup')} className="relative border-b border-pi-gold-deep/40 pb-1.5 font-serif text-xl font-medium text-pi-gold-deep transition-colors duration-300 hover:border-[#F0DBA0] hover:text-[#F0DBA0]">
+            <Link href="/login?signup=1" className="relative border-b border-pi-gold-deep/40 pb-1.5 font-serif text-xl font-medium text-pi-gold-deep transition-colors duration-300 hover:border-[#F0DBA0] hover:text-[#F0DBA0]">
               Describe your idea →
-            </button>
+            </Link>
             <p className="relative mt-7 text-[13px] text-pi-cream/35">No credit card. No sales call. Just a straight answer.</p>
           </m.div>
 
