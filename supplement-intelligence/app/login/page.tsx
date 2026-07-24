@@ -18,6 +18,17 @@ type Mode = 'signin' | 'signup' | 'forgot'
 // email/password/loading/error/awaitingConfirm/resetSent state, the three
 // real Supabase calls, the ?signup=1 deep link) is byte-identical to the
 // prior version — only markup/classNames changed.
+//
+// Full-page split layout (2026-07-24, owner feedback: "I would like the
+// login to be across a whole page, not a small part of the page" — the
+// prior version was a small centered card floating in mostly-empty
+// viewport). Two full-height columns on wide screens: the real form (left,
+// no floating card — it's the column's own content now) and a light
+// editorial brand panel (right, hidden below lg — a 50/50 split doesn't
+// work on a phone). The panel is a solid pi-sand fill with the rotor mark
+// and a short line, not photo/video — stays in the "simple, light"
+// register the 2026-07-22 decision locked in, doesn't reintroduce
+// Landing's cinematic treatment.
 
 function MailIcon() {
   return (
@@ -47,17 +58,34 @@ const submitCls =
 // explicit prop instead of a closure.
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-pi-cream">
-      <nav className="flex items-center px-6 py-5 sm:px-8">
+    <div className="flex min-h-screen bg-pi-cream">
+      <div className="flex flex-1 flex-col px-6 py-6 sm:px-10 sm:py-8 lg:px-16">
         <Link href="/" className="flex items-center gap-2.5 text-sm font-semibold text-pi-ink">
           <RotorMark className="h-5 w-5" />
           Product Intelligence
         </Link>
-      </nav>
-      <div className="flex min-h-[calc(100vh-76px)] items-center justify-center px-6 py-10">
-        <div className="w-full max-w-[420px] rounded-2xl border border-pi-hairline bg-pi-card px-9 pb-8 pt-10 shadow-[0_1px_3px_rgba(22,23,26,0.06),0_20px_44px_-16px_rgba(22,23,26,0.12)]">
-          {children}
+
+        <div className="flex flex-1 items-center">
+          <div className="mx-auto w-full max-w-[400px] py-10">
+            {children}
+          </div>
         </div>
+      </div>
+
+      {/* Editorial brand panel — light register, no photo/video (see file
+          header). Hidden below lg: a 50/50 split has no room on a phone,
+          and the form column above already reads as a complete page on
+          its own without it. */}
+      <div className="relative hidden flex-1 flex-col justify-between overflow-hidden border-l border-pi-hairline bg-pi-sand px-16 py-16 lg:flex">
+        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full bg-pi-gold-deep/[0.07] blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-16 h-[360px] w-[360px] rounded-full bg-pi-gold-deep/[0.05] blur-3xl" />
+        <RotorMark className="relative h-8 w-8" />
+        <p className="relative max-w-[26ch] text-balance font-serif text-[32px] font-medium leading-[1.2] tracking-tight text-pi-ink">
+          Know it&rsquo;s worth launching — before you order the first bottle.
+        </p>
+        <p className="relative max-w-[36ch] text-sm leading-relaxed text-pi-sub">
+          Real evidence, honestly marked. Every verdict names the conditions that would reverse it, and re-checks them weekly.
+        </p>
       </div>
     </div>
   )
