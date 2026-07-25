@@ -23,16 +23,16 @@ interface MarketSignalRow {
 }
 
 const QUALITY_COLOR: Record<QualityLevel, string> = {
-  strong:   'text-verdict-positive border-verdict-positive',
-  adequate: 'text-black border-black',
-  thin:     'text-verdict-caution-text border-verdict-caution-text',
-  missing:  'text-outline border-outline-variant',
+  strong:   'text-pi-build border-pi-build/40',
+  adequate: 'text-pi-ink border-pi-hairline',
+  thin:     'text-pi-gold border-pi-gold/40',
+  missing:  'text-pi-faint border-pi-hairline',
 }
 
 const GRADE_COLOR: Record<string, string> = {
-  sufficient:   'text-verdict-positive',
-  thin:         'text-verdict-caution-text',
-  insufficient: 'text-verdict-negative',
+  sufficient:   'text-pi-build',
+  thin:         'text-pi-gold',
+  insufficient: 'text-pi-risk',
 }
 
 function SourceTypeBadge({ type }: { type: string }) {
@@ -43,7 +43,7 @@ function SourceTypeBadge({ type }: { type: string }) {
     computed:            'Computed',
   }
   return (
-    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-black text-ink-variant bg-white whitespace-nowrap">
+    <span className="rounded-xl text-[10px] font-mono uppercase px-1.5 py-0.5 border border-pi-hairline text-pi-sub bg-pi-card whitespace-nowrap">
       {labels[type] ?? type}
     </span>
   )
@@ -66,19 +66,19 @@ function EvidenceRow({
 }) {
   if (value == null) return null
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-black/10 last:border-0">
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-pi-hairline/10 last:border-0">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-ink">{label}</span>
+          <span className="text-sm text-pi-ink">{label}</span>
           <SourceTypeBadge type={source_type} />
         </div>
-        <div className="text-[10px] font-mono text-outline mt-0.5">
+        <div className="text-[10px] font-mono text-pi-faint mt-0.5">
           {source}
           {scope_note && ` · ${scope_note}`}
           {sample_size !== undefined && ` · n=${sample_size}`}
         </div>
       </div>
-      <div className="text-sm font-mono text-ink whitespace-nowrap">
+      <div className="text-sm font-mono text-pi-ink whitespace-nowrap">
         {typeof value === 'number' ? value.toLocaleString('en-US') : String(value)}
       </div>
     </div>
@@ -87,7 +87,7 @@ function EvidenceRow({
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[11px] font-mono font-semibold text-outline uppercase tracking-wider mb-3">
+    <h2 className="text-[11px] font-mono font-semibold text-pi-faint uppercase tracking-wider mb-3">
       {children}
     </h2>
   )
@@ -112,14 +112,14 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="space-y-1 border-b-2 border-black pb-4">
+      <div className="space-y-1 border-b border-pi-hairline pb-4">
         <div className="flex items-baseline gap-3 flex-wrap">
-          <h1 className="text-headline-md text-black">{signal.query}</h1>
+          <h1 className="font-serif text-[26px] font-semibold leading-snug tracking-tight text-pi-ink">{signal.query}</h1>
           <span className={`text-sm font-mono font-bold ${GRADE_COLOR[signal.quality_grade]}`}>
             {signal.quality_grade.toUpperCase()}
           </span>
         </div>
-        <p className="text-[11px] font-mono text-outline">
+        <p className="text-[11px] font-mono text-pi-faint">
           Stage 1 · {new Date(signal.created_at).toLocaleString('en-US')} ·{' '}
           {meta.duration_ms ? `${(meta.duration_ms / 1000).toFixed(1)}s` : '—'} ·{' '}
           Confidence {Math.min(100, Math.round(meta.overall_confidence * 100))}%
@@ -128,9 +128,9 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
 
       {/* Pipeline block notice */}
       {signal.pipeline_blocked && (
-        <div className="border-2 border-verdict-negative bg-white px-4 py-3 text-sm">
-          <p className="font-bold text-verdict-negative mb-1">Pipeline Blocked — Stage 2 unavailable</p>
-          <p className="text-verdict-negative text-xs">{signal.blocked_reason}</p>
+        <div className="rounded-xl border-2 border-pi-risk/40 bg-pi-card px-4 py-3 text-sm">
+          <p className="font-bold text-pi-risk mb-1">Pipeline Blocked — Stage 2 unavailable</p>
+          <p className="text-pi-risk text-xs">{signal.blocked_reason}</p>
         </div>
       )}
 
@@ -141,23 +141,23 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
           {Object.entries(quality.dimensions).map(([key, dim]) => (
             <div
               key={key}
-              className={`border px-3 py-2 text-xs bg-white ${QUALITY_COLOR[dim.level as QualityLevel]}`}
+              className={`border px-3 py-2 text-xs bg-pi-card ${QUALITY_COLOR[dim.level as QualityLevel]}`}
             >
               <p className="font-bold capitalize">{key.replace(/_/g, ' ')}</p>
               <p className="text-[11px] mt-0.5 opacity-80">{dim.reason}</p>
             </div>
           ))}
         </div>
-        <div className="flex gap-6 text-xs text-ink-variant font-mono">
-          <span>Demand signals confirmed: <strong className="text-black">{quality.demand_signals_confirmed}</strong> / 2 required</span>
-          <span>Competitors found: <strong className="text-black">{quality.competitor_products_found}</strong> / 5 required</span>
+        <div className="flex gap-6 text-xs text-pi-sub font-mono">
+          <span>Demand signals confirmed: <strong className="text-pi-ink">{quality.demand_signals_confirmed}</strong> / 2 required</span>
+          <span>Competitors found: <strong className="text-pi-ink">{quality.competitor_products_found}</strong> / 5 required</span>
         </div>
       </section>
 
       {/* Demand & Revenue */}
       <section className="space-y-1">
         <SectionHeading>Demand &amp; Revenue</SectionHeading>
-        <HardCard padded={false} className="divide-y divide-black/10 px-4">
+        <HardCard variant="pi" padded={false} className="divide-y divide-pi-hairline/10 px-4">
           {ev.monthly_search_volume?.value != null && (
             <EvidenceRow
               label="Monthly Search Volume (US)"
@@ -225,7 +225,7 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
       {/* Pricing & Price Compression */}
       <section className="space-y-1">
         <SectionHeading>Pricing</SectionHeading>
-        <HardCard padded={false} className="divide-y divide-black/10 px-4">
+        <HardCard variant="pi" padded={false} className="divide-y divide-pi-hairline/10 px-4">
           <EvidenceRow
             label="Median price (avg90)"
             value={ev.median_price?.value != null ? `$${ev.median_price.value}` : null}
@@ -245,19 +245,19 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
             <div className="flex items-start justify-between gap-4 py-2.5">
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-ink">Price compression (90d vs 12mo)</span>
+                  <span className="text-sm text-pi-ink">Price compression (90d vs 12mo)</span>
                   <SourceTypeBadge type="computed" />
                 </div>
-                <div className="text-[10px] font-mono text-outline mt-0.5">
+                <div className="text-[10px] font-mono text-pi-faint mt-0.5">
                   {ev.price_compression_pct?.source} ·{' '}
                   avg90 ${ev.price_avg_90d?.value?.toFixed(2) ?? 'N/A'} vs avg365 ${ev.price_avg_365d?.value?.toFixed(2) ?? 'N/A'} ·
                   12-month proxy (not full 24-month window)
                 </div>
               </div>
               <div className={`text-sm font-mono whitespace-nowrap ${
-                (priceCompressionPct ?? 0) < -10 ? 'text-verdict-negative' :
-                (priceCompressionPct ?? 0) < -3  ? 'text-verdict-caution-text' :
-                'text-ink'
+                (priceCompressionPct ?? 0) < -10 ? 'text-pi-risk' :
+                (priceCompressionPct ?? 0) < -3  ? 'text-pi-gold' :
+                'text-pi-ink'
               }`}>
                 {compressionLabel}
               </div>
@@ -285,62 +285,62 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
       {ev.ppc_economics?.value && (() => {
         const ppc = ev.ppc_economics!.value
         const riskColor =
-          ppc.ppc_risk_level === 'Low'     ? 'text-verdict-positive border-verdict-positive' :
-          ppc.ppc_risk_level === 'Medium'  ? 'text-verdict-caution-text border-verdict-caution-text' :
-          ppc.ppc_risk_level === 'High'    ? 'text-verdict-negative border-verdict-negative' :
-                                             'text-white bg-verdict-negative border-verdict-negative'
+          ppc.ppc_risk_level === 'Low'     ? 'text-pi-build border-pi-build/40' :
+          ppc.ppc_risk_level === 'Medium'  ? 'text-pi-gold border-pi-gold/40' :
+          ppc.ppc_risk_level === 'High'    ? 'text-pi-risk border-pi-risk/40' :
+                                             'text-pi-cream bg-pi-risk border-pi-risk/40'
         return (
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <SectionHeading>PPC Economics (Estimated)</SectionHeading>
               <SourceTypeBadge type="computed" />
             </div>
-            <HardCard className="space-y-3">
+            <HardCard variant="pi" className="space-y-3">
               <div className="flex items-center gap-3 flex-wrap">
                 <span className={`text-sm font-bold px-3 py-1 border ${riskColor}`}>
                   {ppc.ppc_risk_level} PPC Risk
                 </span>
-                <span className={`text-xs px-2 py-0.5 border font-mono uppercase ${ppc.paid_viable ? 'border-verdict-positive text-verdict-positive' : 'border-verdict-negative text-verdict-negative'}`}>
+                <span className={`text-xs px-2 py-0.5 border font-mono uppercase ${ppc.paid_viable ? 'border-pi-build/40 text-pi-build' : 'border-pi-risk/40 text-pi-risk'}`}>
                   Paid launch {ppc.paid_viable ? 'viable' : 'not viable'}
                 </span>
               </div>
-              <p className="text-xs text-ink-variant">{ppc.risk_reason}</p>
+              <p className="text-xs text-pi-sub">{ppc.risk_reason}</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 {ppc.google_cpc_p50 !== null && (
                   <div>
-                    <p className="text-outline">Google CPC (p50)</p>
-                    <p className="text-ink font-mono">${ppc.google_cpc_p50.toFixed(2)}</p>
-                    <p className="text-[10px] text-outline">DataForSEO · real</p>
+                    <p className="text-pi-faint">Google CPC (p50)</p>
+                    <p className="text-pi-ink font-mono">${ppc.google_cpc_p50.toFixed(2)}</p>
+                    <p className="text-[10px] text-pi-faint">DataForSEO · real</p>
                   </div>
                 )}
                 {ppc.amazon_ppc_high !== null && (
                   <div>
-                    <p className="text-outline">Est. Amazon PPC</p>
-                    <p className="text-ink font-mono">${ppc.amazon_ppc_low?.toFixed(2)}–${ppc.amazon_ppc_high.toFixed(2)}</p>
-                    <p className="text-[10px] text-outline">Derived estimate · NOT real Amazon Ads</p>
+                    <p className="text-pi-faint">Est. Amazon PPC</p>
+                    <p className="text-pi-ink font-mono">${ppc.amazon_ppc_low?.toFixed(2)}–${ppc.amazon_ppc_high.toFixed(2)}</p>
+                    <p className="text-[10px] text-pi-faint">Derived estimate · NOT real Amazon Ads</p>
                   </div>
                 )}
                 {ppc.est_acos_pct !== null && (
                   <div>
-                    <p className="text-outline">Est. ACOS (launch)</p>
-                    <p className={`font-mono font-bold ${ppc.est_acos_pct > 50 ? 'text-verdict-negative' : ppc.est_acos_pct > 30 ? 'text-verdict-caution-text' : 'text-verdict-positive'}`}>
+                    <p className="text-pi-faint">Est. ACOS (launch)</p>
+                    <p className={`font-mono font-bold ${ppc.est_acos_pct > 50 ? 'text-pi-risk' : ppc.est_acos_pct > 30 ? 'text-pi-gold' : 'text-pi-build'}`}>
                       {ppc.est_acos_pct}%
                     </p>
-                    <p className="text-[10px] text-outline">At {ppc.est_conversion_rate_pct}% conv. rate</p>
+                    <p className="text-[10px] text-pi-faint">At {ppc.est_conversion_rate_pct}% conv. rate</p>
                   </div>
                 )}
                 {ppc.headroom_after_ads !== null && (
                   <div>
-                    <p className="text-outline">Headroom after ads</p>
-                    <p className={`font-mono font-bold ${ppc.headroom_after_ads > 0 ? 'text-ink' : 'text-verdict-negative'}`}>
+                    <p className="text-pi-faint">Headroom after ads</p>
+                    <p className={`font-mono font-bold ${ppc.headroom_after_ads > 0 ? 'text-pi-ink' : 'text-pi-risk'}`}>
                       ${ppc.headroom_after_ads.toFixed(2)}/unit
                     </p>
-                    <p className="text-[10px] text-outline">Before COGS</p>
+                    <p className="text-[10px] text-pi-faint">Before COGS</p>
                   </div>
                 )}
               </div>
               {ppc.est_tacos_pct_low !== null && ppc.est_tacos_pct_high !== null && (
-                <p className="text-[10px] text-outline">
+                <p className="text-[10px] text-pi-faint">
                   Est. TACoS range: {ppc.est_tacos_pct_low}–{ppc.est_tacos_pct_high}% ·
                   CPC from Google Ads (DataForSEO) · {ppc.keywords_with_cpc} keywords with real CPC data
                 </p>
@@ -353,7 +353,7 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
       {/* Competition */}
       <section className="space-y-1">
         <SectionHeading>Competition</SectionHeading>
-        <HardCard padded={false} className="divide-y divide-black/10 px-4">
+        <HardCard variant="pi" padded={false} className="divide-y divide-pi-hairline/10 px-4">
           <EvidenceRow
             label="Meaningful competitors (≥20 reviews)"
             value={ev.competitor_count?.value}
@@ -381,10 +381,10 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
 
         {/* Top competitors table */}
         {ev.top_competitors?.value?.length ? (
-          <div className="mt-3 border border-black overflow-x-auto">
+          <div className="mt-3 border border-pi-hairline overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-black text-outline bg-surface-container-low">
+                <tr className="rounded-xl border-b border-pi-hairline text-pi-faint bg-pi-sand">
                   <th className="px-3 py-2 text-left font-mono uppercase tracking-wide">#</th>
                   <th className="px-3 py-2 text-left font-mono uppercase tracking-wide">Brand</th>
                   <th className="px-3 py-2 text-right font-mono uppercase tracking-wide">Reviews</th>
@@ -394,17 +394,17 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
               </thead>
               <tbody>
                 {ev.top_competitors.value.slice(0, 10).map((c, i) => (
-                  <tr key={c.productId} className="border-b border-black/10 hover:bg-surface-container-low">
-                    <td className="px-3 py-2 text-outline">{c.position ?? i + 1}</td>
-                    <td className="px-3 py-2 text-ink max-w-[160px] truncate">{c.brand}</td>
-                    <td className="px-3 py-2 text-right text-ink-variant font-mono">{(c.reviewCount ?? 0).toLocaleString('en-US')}</td>
-                    <td className="px-3 py-2 text-right text-ink-variant font-mono">{(c.rating ?? 0).toFixed(1)}</td>
-                    <td className="px-3 py-2 text-right text-ink-variant font-mono">${(c.price ?? 0).toFixed(0)}</td>
+                  <tr key={c.productId} className="rounded-xl border-b border-pi-hairline/10 hover:bg-pi-sand">
+                    <td className="px-3 py-2 text-pi-faint">{c.position ?? i + 1}</td>
+                    <td className="px-3 py-2 text-pi-ink max-w-[160px] truncate">{c.brand}</td>
+                    <td className="px-3 py-2 text-right text-pi-sub font-mono">{(c.reviewCount ?? 0).toLocaleString('en-US')}</td>
+                    <td className="px-3 py-2 text-right text-pi-sub font-mono">{(c.rating ?? 0).toFixed(1)}</td>
+                    <td className="px-3 py-2 text-right text-pi-sub font-mono">${(c.price ?? 0).toFixed(0)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="px-3 py-2 text-[10px] text-outline border-t border-black">
+            <p className="px-3 py-2 text-[10px] text-pi-faint border-t border-pi-hairline">
               Source: {ev.top_competitors.source} ·{' '}
               <SourceTypeBadge type={ev.top_competitors.source_type} /> ·{' '}
               {ev.top_competitors.scope_note}
@@ -416,14 +416,14 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
         {ev.ranking_difficulty?.value && (() => {
           const rd = ev.ranking_difficulty!.value
           const diffColor =
-            rd.page1_difficulty === 'Low'     ? 'text-verdict-positive border-verdict-positive' :
-            rd.page1_difficulty === 'Medium'  ? 'text-verdict-caution-text border-verdict-caution-text' :
-            rd.page1_difficulty === 'High'    ? 'text-verdict-negative border-verdict-negative' :
-                                                'text-white bg-verdict-negative border-verdict-negative'
+            rd.page1_difficulty === 'Low'     ? 'text-pi-build border-pi-build/40' :
+            rd.page1_difficulty === 'Medium'  ? 'text-pi-gold border-pi-gold/40' :
+            rd.page1_difficulty === 'High'    ? 'text-pi-risk border-pi-risk/40' :
+                                                'text-pi-cream bg-pi-risk border-pi-risk/40'
           return (
-            <HardCard className="mt-3 space-y-3">
+            <HardCard variant="pi" className="mt-3 space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[10px] font-mono font-semibold text-outline uppercase tracking-wider">
+                <p className="text-[10px] font-mono font-semibold text-pi-faint uppercase tracking-wider">
                   Amazon Ranking Difficulty
                 </p>
                 <SourceTypeBadge type="computed" />
@@ -433,26 +433,26 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
                   {rd.page1_difficulty} Difficulty
                 </span>
                 {rd.is_review_protected && (
-                  <span className="text-xs px-2 py-0.5 border border-verdict-negative text-verdict-negative font-mono uppercase">
+                  <span className="text-xs px-2 py-0.5 border border-pi-risk/40 text-pi-risk font-mono uppercase">
                     Review-protected market
                   </span>
                 )}
               </div>
               <div className="grid grid-cols-3 gap-3 text-xs">
                 <div>
-                  <p className="text-outline">Median top-5 reviews</p>
-                  <p className="text-ink font-mono font-bold">{(rd.median_reviews_top5 ?? 0).toLocaleString()}</p>
+                  <p className="text-pi-faint">Median top-5 reviews</p>
+                  <p className="text-pi-ink font-mono font-bold">{(rd.median_reviews_top5 ?? 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-outline">Avg top-10 reviews</p>
-                  <p className="text-ink font-mono">{(rd.avg_reviews_top10 ?? 0).toLocaleString()}</p>
+                  <p className="text-pi-faint">Avg top-10 reviews</p>
+                  <p className="text-pi-ink font-mono">{(rd.avg_reviews_top10 ?? 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-outline">Reviews to compete</p>
-                  <p className="text-ink font-mono font-bold">~{(rd.reviews_to_compete ?? 0).toLocaleString()}</p>
+                  <p className="text-pi-faint">Reviews to compete</p>
+                  <p className="text-pi-ink font-mono font-bold">~{(rd.reviews_to_compete ?? 0).toLocaleString()}</p>
                 </div>
               </div>
-              <p className="text-[10px] text-outline">{rd.sample_note} · reviews to compete = 70% of median top-5</p>
+              <p className="text-[10px] text-pi-faint">{rd.sample_note} · reviews to compete = 70% of median top-5</p>
             </HardCard>
           )
         })()}
@@ -461,7 +461,7 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
       {/* Social & Virality */}
       <section className="space-y-1">
         <SectionHeading>Social Demand</SectionHeading>
-        <HardCard padded={false} className="divide-y divide-black/10 px-4">
+        <HardCard variant="pi" padded={false} className="divide-y divide-pi-hairline/10 px-4">
           <EvidenceRow
             label="TikTok videos"
             value={ev.tiktok_video_count?.value}
@@ -490,43 +490,43 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
       {ev.regulatory_intelligence?.value && (() => {
         const reg = ev.regulatory_intelligence!.value
         const riskColor: Record<string, string> = {
-          Low:      'text-verdict-positive border-verdict-positive',
-          Medium:   'text-verdict-caution-text border-verdict-caution-text',
-          High:     'text-verdict-negative border-verdict-negative',
-          Critical: 'text-white bg-verdict-negative border-verdict-negative',
+          Low:      'text-pi-build border-pi-build/40',
+          Medium:   'text-pi-gold border-pi-gold/40',
+          High:     'text-pi-risk border-pi-risk/40',
+          Critical: 'text-pi-cream bg-pi-risk border-pi-risk/40',
         }
         const ae  = reg.adverse_events
         const rec = reg.recalls
         return (
           <section className="space-y-3">
             <SectionHeading>Regulatory Intelligence</SectionHeading>
-            <HardCard className={`space-y-3 border-2 ${riskColor[reg.risk_level]?.split(' ')[1] ?? 'border-black'}`}>
+            <HardCard variant="pi" className={`space-y-3 border-2 ${riskColor[reg.risk_level]?.split(' ')[1] ?? 'border-pi-hairline'}`}>
               <div className="flex items-center gap-3 flex-wrap">
                 <span className={`text-xs font-bold px-2 py-0.5 border ${riskColor[reg.risk_level] ?? riskColor.Low}`}>
                   {reg.risk_level} Risk
                 </span>
-                <span className="text-xs text-ink-variant">{reg.risk_summary}</span>
+                <span className="text-xs text-pi-sub">{reg.risk_summary}</span>
               </div>
 
               {ae && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div>
-                    <p className="text-outline mb-0.5">FAERS Reports</p>
-                    <p className="font-mono text-ink">{ae.total_reports.toLocaleString()}</p>
+                    <p className="text-pi-faint mb-0.5">FAERS Reports</p>
+                    <p className="font-mono text-pi-ink">{ae.total_reports.toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-outline mb-0.5">Serious Events</p>
-                    <p className="font-mono text-ink">{ae.serious_reports.toLocaleString()}</p>
+                    <p className="text-pi-faint mb-0.5">Serious Events</p>
+                    <p className="font-mono text-pi-ink">{ae.serious_reports.toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-outline mb-0.5">Hospitalizations</p>
-                    <p className={`font-mono ${ae.hospitalization_count > 20 ? 'text-verdict-negative' : 'text-ink'}`}>
+                    <p className="text-pi-faint mb-0.5">Hospitalizations</p>
+                    <p className={`font-mono ${ae.hospitalization_count > 20 ? 'text-pi-risk' : 'text-pi-ink'}`}>
                       {ae.hospitalization_count.toLocaleString()}
                     </p>
                   </div>
                   <div>
-                    <p className="text-outline mb-0.5">Deaths</p>
-                    <p className={`font-mono ${ae.death_count > 0 ? 'text-verdict-negative' : 'text-ink'}`}>
+                    <p className="text-pi-faint mb-0.5">Deaths</p>
+                    <p className={`font-mono ${ae.death_count > 0 ? 'text-pi-risk' : 'text-pi-ink'}`}>
                       {ae.death_count.toLocaleString()}
                     </p>
                   </div>
@@ -535,25 +535,25 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
 
               {ae?.top_reactions.length ? (
                 <div className="text-xs">
-                  <span className="text-outline">Top reported reactions: </span>
-                  <span className="text-ink-variant">{ae.top_reactions.join(', ')}</span>
+                  <span className="text-pi-faint">Top reported reactions: </span>
+                  <span className="text-pi-sub">{ae.top_reactions.join(', ')}</span>
                 </div>
               ) : null}
 
               {rec && rec.total_recalls > 0 && (
                 <div className="text-xs space-y-1">
                   <div className="flex items-center gap-3">
-                    <span className="text-outline">Recalls on record:</span>
-                    <span className="font-mono text-ink">{rec.total_recalls}</span>
+                    <span className="text-pi-faint">Recalls on record:</span>
+                    <span className="font-mono text-pi-ink">{rec.total_recalls}</span>
                     {rec.class_i_recalls > 0 && (
-                      <span className="text-verdict-negative font-bold">Class I: {rec.class_i_recalls}</span>
+                      <span className="text-pi-risk font-bold">Class I: {rec.class_i_recalls}</span>
                     )}
                     {rec.class_ii_recalls > 0 && (
-                      <span className="text-verdict-caution-text">Class II: {rec.class_ii_recalls}</span>
+                      <span className="text-pi-gold">Class II: {rec.class_ii_recalls}</span>
                     )}
                   </div>
                   {rec.recent_recall_descriptions.map((d, i) => (
-                    <p key={i} className="text-outline pl-3 border-l border-black/20">{d}</p>
+                    <p key={i} className="text-pi-faint pl-3 border-l border-pi-hairline/20">{d}</p>
                   ))}
                 </div>
               )}
@@ -561,35 +561,35 @@ export function MarketBriefing({ signal }: { signal: MarketSignalRow }) {
               {reg.warning_flags.length > 0 && (
                 <div className="text-xs space-y-1">
                   {reg.warning_flags.map((f, i) => (
-                    <p key={i} className="text-verdict-caution-text">⚑ {f}</p>
+                    <p key={i} className="text-pi-gold">⚑ {f}</p>
                   ))}
                 </div>
               )}
 
-              <p className="text-[10px] text-outline leading-snug">{reg.disclaimer}</p>
+              <p className="text-[10px] text-pi-faint leading-snug">{reg.disclaimer}</p>
             </HardCard>
           </section>
         )
       })()}
 
       {/* Provider metadata */}
-      <HardCard className="space-y-2">
-        <h2 className="text-[10px] font-mono font-semibold text-outline uppercase tracking-wider">
+      <HardCard variant="pi" className="space-y-2">
+        <h2 className="text-[10px] font-mono font-semibold text-pi-faint uppercase tracking-wider">
           Provider Metadata
         </h2>
         <div className="flex flex-wrap gap-2">
           {meta.providers_used.map(p => (
-            <span key={p} className="text-xs bg-white border border-black text-ink-variant px-2 py-0.5 font-mono">
+            <span key={p} className="rounded-xl text-xs bg-pi-card border border-pi-hairline text-pi-sub px-2 py-0.5 font-mono">
               {p}
             </span>
           ))}
           {meta.failed_providers?.map(p => (
-            <span key={p} className="text-xs bg-white border border-verdict-negative text-verdict-negative px-2 py-0.5 font-mono">
+            <span key={p} className="rounded-xl text-xs bg-pi-card border border-pi-risk/40 text-pi-risk px-2 py-0.5 font-mono">
               {p} (failed)
             </span>
           ))}
         </div>
-        <p className="text-xs text-outline">
+        <p className="text-xs text-pi-faint">
           Overall confidence: {Math.min(100, Math.round(meta.overall_confidence * 100))}% ·{' '}
           Fetched at: {meta.fetched_at ? new Date(meta.fetched_at).toLocaleString('en-US') : '—'}
         </p>

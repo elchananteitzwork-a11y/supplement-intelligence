@@ -16,9 +16,9 @@ interface PastSignal {
 }
 
 const QUALITY_COLOR: Record<string, string> = {
-  sufficient:   'text-verdict-positive',
-  thin:         'text-verdict-caution-text',
-  insufficient: 'text-verdict-negative',
+  sufficient:   'text-pi-build',
+  thin:         'text-pi-gold',
+  insufficient: 'text-pi-risk',
 }
 
 export default function ResearchPage() {
@@ -81,26 +81,27 @@ export default function ResearchPage() {
   }
 
   return (
-    <AppShell active={null}>
+    <AppShell active={null} variant="pi">
       <div className="max-w-2xl space-y-8">
-        <div className="flex items-start justify-between gap-4 border-b-2 border-black pb-4">
+        <div className="flex items-start justify-between gap-4 border-b border-pi-hairline pb-5">
           <div className="space-y-2">
-            <h1 className="text-headline-md text-black">Market Intelligence Engine</h1>
-            <p className="text-sm text-ink-variant leading-relaxed">
+            <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-ink sm:text-[32px]">Market Intelligence Engine</h1>
+            <p className="text-sm text-pi-sub leading-relaxed">
               Stage 1: Provider data collection — no AI synthesis. All signals
               are labeled by source type and evidence quality before any
               interpretation occurs.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <SecondaryLinkButton href="/research/compare">Compare →</SecondaryLinkButton>
-            <SecondaryLinkButton href="/research/history">History →</SecondaryLinkButton>
+            <SecondaryLinkButton variant="pi" href="/research/compare">Compare →</SecondaryLinkButton>
+            <SecondaryLinkButton variant="pi" href="/research/history">History →</SecondaryLinkButton>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-3">
             <HardShadowSearchInput
+              variant="pi"
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -108,19 +109,19 @@ export default function ResearchPage() {
               disabled={loading}
               className="flex-1"
             />
-            <PrimaryButton type="submit" disabled={loading || !query.trim()}>
+            <PrimaryButton variant="pi" type="submit" disabled={loading || !query.trim()}>
               {loading ? 'Running…' : 'Analyze'}
             </PrimaryButton>
           </div>
 
           {loading && (
-            <p className="text-xs font-mono text-ink-variant animate-pulse">
+            <p className="text-xs font-mono text-pi-sub animate-pulse">
               Collecting provider signals — Keepa, Apify, Google Trends, TikTok, openFDA, PubMed…
             </p>
           )}
 
           {error && (
-            <p className="text-xs text-verdict-negative bg-white border border-verdict-negative px-3 py-2">
+            <p className="rounded-lg text-xs text-pi-risk bg-pi-risk/10 border border-pi-risk/30 px-3 py-2">
               {error}
             </p>
           )}
@@ -131,8 +132,8 @@ export default function ResearchPage() {
           <FounderProfileBanner profile={profile} returnTo="/research" />
         )}
 
-        <HardCard className="text-xs text-ink-variant space-y-1">
-          <p className="font-bold text-ink">What Stage 1 collects:</p>
+        <HardCard variant="pi" className="text-xs text-pi-sub space-y-1">
+          <p className="font-semibold text-pi-ink">What Stage 1 collects:</p>
           <ul className="list-disc list-inside space-y-1 ml-1">
             <li>Demand signals — Keepa BSR, monthly units sold, Google Trends</li>
             <li>Competition map — Apify Amazon search, review concentration</li>
@@ -141,7 +142,7 @@ export default function ResearchPage() {
             <li>Social demand — TikTok hashtag views</li>
             <li>Safety signals — openFDA recalls, PubMed adverse events</li>
           </ul>
-          <p className="pt-1 text-outline">
+          <p className="pt-1 text-pi-faint">
             No AI synthesis in Stage 1. Data Quality Gate runs before Stage 2.
           </p>
         </HardCard>
@@ -149,22 +150,22 @@ export default function ResearchPage() {
         {past.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-mono font-semibold text-outline uppercase tracking-wider">Recent</p>
-              <SecondaryLinkButton href="/research/history" className="text-xs px-3 py-1.5">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">Recent</p>
+              <SecondaryLinkButton variant="pi" href="/research/history" className="text-xs px-3 py-1.5">
                 View all {past.length} →
               </SecondaryLinkButton>
             </div>
-            <div className="border border-black divide-y divide-black">
+            <div className="overflow-hidden rounded-xl border border-pi-hairline bg-pi-card divide-y divide-pi-hairline shadow-[0_1px_2px_rgba(22,23,26,0.04)]">
               {past.slice(0, 3).map(s => (
-                <HardCardInteractive key={s.id} href={`/research/${s.id}`} className="border-0">
+                <HardCardInteractive variant="pi" key={s.id} href={`/research/${s.id}`} className="rounded-none border-0 shadow-none">
                   <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-sm text-ink truncate">{s.query}</span>
+                      <span className="text-sm text-pi-ink truncate">{s.query}</span>
                       <span className={`text-[10px] font-mono shrink-0 ${QUALITY_COLOR[s.quality_grade]}`}>
                         {s.quality_grade.toUpperCase()}
                       </span>
                     </div>
-                    <span className="text-xs font-mono text-outline shrink-0 ml-4">
+                    <span className="text-xs font-mono tabular-nums text-pi-faint shrink-0 ml-4">
                       {new Date(s.created_at).toLocaleDateString()}
                     </span>
                   </div>

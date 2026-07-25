@@ -21,9 +21,9 @@ interface Props {
 }
 
 const KS_COLORS: Record<string, string> = {
-  clear:    'border-verdict-positive',
-  flagged:  'border-verdict-caution-text',
-  boundary: 'border-verdict-negative',
+  clear:    'border-pi-build/40',
+  flagged:  'border-pi-gold/40',
+  boundary: 'border-pi-risk/40',
 }
 
 function KillSwitchPanel({ ks }: { ks: KillSwitchResult }) {
@@ -32,20 +32,20 @@ function KillSwitchPanel({ ks }: { ks: KillSwitchResult }) {
   const colors = KS_COLORS[state]
 
   return (
-    <div className={`border px-4 py-3 space-y-1 bg-white ${colors}`}>
+    <div className={`border px-4 py-3 space-y-1 bg-pi-card ${colors}`}>
       <div className="flex items-start gap-2">
         <span className={`font-bold text-sm ${
-          state === 'flagged' ? 'text-verdict-caution-text' :
-          state === 'boundary' ? 'text-verdict-negative' :
-          'text-verdict-positive'
+          state === 'flagged' ? 'text-pi-gold' :
+          state === 'boundary' ? 'text-pi-risk' :
+          'text-pi-build'
         }`}>{icon}</span>
         <div className="flex-1">
-          <p className="text-xs font-mono font-semibold text-ink-variant">{ks.id}</p>
-          <p className="text-xs text-ink-variant mt-0.5">{ks.reason}</p>
+          <p className="text-xs font-mono font-semibold text-pi-sub">{ks.id}</p>
+          <p className="text-xs text-pi-sub mt-0.5">{ks.reason}</p>
         </div>
       </div>
       {ks.mandatory_notice && (
-        <div className="mt-2 text-xs text-verdict-caution-text border-t border-black/10 pt-2 leading-relaxed">
+        <div className="mt-2 text-xs text-pi-gold border-t border-pi-hairline/10 pt-2 leading-relaxed">
           {ks.mandatory_notice}
         </div>
       )}
@@ -62,31 +62,31 @@ function CasePanel({
   color: 'bull' | 'bear'
   case: InvestmentCase
 }) {
-  const headerClass = color === 'bull' ? 'border-verdict-positive' : 'border-verdict-negative'
-  const labelClass  = color === 'bull' ? 'text-verdict-positive' : 'text-verdict-negative'
-  const pointDot    = color === 'bull' ? 'text-verdict-positive' : 'text-verdict-negative'
+  const headerClass = color === 'bull' ? 'border-pi-build/40' : 'border-pi-risk/40'
+  const labelClass  = color === 'bull' ? 'text-pi-build' : 'text-pi-risk'
+  const pointDot    = color === 'bull' ? 'text-pi-build' : 'text-pi-risk'
 
   return (
-    <div className={`border-2 ${headerClass} bg-white p-4 space-y-3`}>
+    <div className={`border-2 ${headerClass} bg-pi-card p-4 space-y-3`}>
       <div className="flex items-center gap-2">
         <span className={`text-xs font-bold uppercase tracking-wider ${labelClass}`}>{label}</span>
-        <span className="text-xs text-outline font-mono">
+        <span className="text-xs text-pi-faint font-mono">
           {color === 'bull' ? 'temp 0.5' : 'temp 0.8'} · confidence {Math.round(c.confidence * 100)}%
         </span>
       </div>
 
-      <p className="text-sm text-ink leading-relaxed">{c.core_argument}</p>
+      <p className="text-sm text-pi-ink leading-relaxed">{c.core_argument}</p>
 
       {c.strongest_points.length > 0 && (
         <div className="space-y-1">
-          <p className="text-[10px] font-mono font-semibold text-outline uppercase tracking-wider">Strongest points</p>
+          <p className="text-[10px] font-mono font-semibold text-pi-faint uppercase tracking-wider">Strongest points</p>
           <ul className="space-y-1">
             {c.strongest_points.map((pt, i) => (
               <li key={i} className="flex items-start gap-2 text-xs">
                 <span className={`mt-0.5 ${pointDot} font-bold shrink-0`}>·</span>
-                <span className="text-ink-variant">{pt}</span>
+                <span className="text-pi-sub">{pt}</span>
                 {c.evidence_citations?.[i] && (
-                  <span className="text-outline shrink-0 italic text-[10px] ml-auto">
+                  <span className="text-pi-faint shrink-0 italic text-[10px] ml-auto">
                     [{c.evidence_citations[i]}]
                   </span>
                 )}
@@ -98,10 +98,10 @@ function CasePanel({
 
       {c.key_assumptions.length > 0 && (
         <div className="space-y-1">
-          <p className="text-[10px] font-mono font-semibold text-outline uppercase tracking-wider">Assumptions</p>
+          <p className="text-[10px] font-mono font-semibold text-pi-faint uppercase tracking-wider">Assumptions</p>
           <ul className="space-y-1">
             {c.key_assumptions.map((a, i) => (
-              <li key={i} className="text-xs text-outline flex gap-1.5">
+              <li key={i} className="text-xs text-pi-faint flex gap-1.5">
                 <span className="shrink-0">if</span>{a}
               </li>
             ))}
@@ -109,7 +109,7 @@ function CasePanel({
         </div>
       )}
 
-      <p className="text-xs text-outline italic border-t border-black/10 pt-2">{c.confidence_note}</p>
+      <p className="text-xs text-pi-faint italic border-t border-pi-hairline/10 pt-2">{c.confidence_note}</p>
     </div>
   )
 }
@@ -122,24 +122,24 @@ export function AdversarialDebate({ debate, thesisLabel }: Props) {
       {/* Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-headline-md text-black">Adversarial Evaluation</h2>
+          <h2 className="font-serif text-[26px] font-semibold leading-snug tracking-tight text-pi-ink">Adversarial Evaluation</h2>
           {debate.all_switches_clear ? (
-            <span className="text-xs font-mono uppercase px-2 py-0.5 border border-verdict-positive text-verdict-positive bg-white">
+            <span className="rounded-xl text-xs font-mono uppercase px-2 py-0.5 border border-pi-build/40 text-pi-build bg-pi-card">
               All kill switches clear
             </span>
           ) : (
-            <span className="text-xs font-mono uppercase px-2 py-0.5 border border-verdict-caution-text text-verdict-caution-text bg-white">
+            <span className="rounded-xl text-xs font-mono uppercase px-2 py-0.5 border border-pi-gold/40 text-pi-gold bg-pi-card">
               {debate.kill_switches.filter(k => k.triggered).length} kill switch(es) triggered
             </span>
           )}
         </div>
-        <p className="text-xs font-mono text-outline">{thesisLabel} · {debate.ai_model_version}</p>
+        <p className="text-xs font-mono text-pi-faint">{thesisLabel} · {debate.ai_model_version}</p>
       </div>
 
       {/* Kill switches */}
       {triggeredSwitches.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-mono font-semibold text-outline uppercase tracking-wider">Kill Switches</p>
+          <p className="text-xs font-mono font-semibold text-pi-faint uppercase tracking-wider">Kill Switches</p>
           {triggeredSwitches.map(ks => <KillSwitchPanel key={ks.id} ks={ks} />)}
         </div>
       )}
@@ -153,12 +153,12 @@ export function AdversarialDebate({ debate, thesisLabel }: Props) {
       {/* Conflicts */}
       {debate.conflicts.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-mono font-semibold text-outline uppercase tracking-wider">Direct Conflicts</p>
-          <HardCard padded={false} className="divide-y divide-black/10">
+          <p className="text-xs font-mono font-semibold text-pi-faint uppercase tracking-wider">Direct Conflicts</p>
+          <HardCard variant="pi" padded={false} className="divide-y divide-pi-hairline/10">
             {debate.conflicts.map((c, i) => (
               <div key={i} className="flex gap-3 px-4 py-2.5 text-xs">
-                <span className="text-verdict-caution-text font-bold shrink-0">⇔</span>
-                <span className="text-ink-variant">{c}</span>
+                <span className="text-pi-gold font-bold shrink-0">⇔</span>
+                <span className="text-pi-sub">{c}</span>
               </div>
             ))}
           </HardCard>
@@ -168,12 +168,12 @@ export function AdversarialDebate({ debate, thesisLabel }: Props) {
       {/* Unknowns */}
       {debate.unknowns.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-mono font-semibold text-outline uppercase tracking-wider">Key Unknowns</p>
-          <HardCard padded={false} className="divide-y divide-black/10">
+          <p className="text-xs font-mono font-semibold text-pi-faint uppercase tracking-wider">Key Unknowns</p>
+          <HardCard variant="pi" padded={false} className="divide-y divide-pi-hairline/10">
             {debate.unknowns.map((u, i) => (
               <div key={i} className="flex gap-3 px-4 py-2.5 text-xs">
-                <span className="text-outline font-bold shrink-0">?</span>
-                <span className="text-ink-variant">{u}</span>
+                <span className="text-pi-faint font-bold shrink-0">?</span>
+                <span className="text-pi-sub">{u}</span>
               </div>
             ))}
           </HardCard>
@@ -183,7 +183,7 @@ export function AdversarialDebate({ debate, thesisLabel }: Props) {
       {/* Kill switches — all (clear ones shown as confirmation) */}
       {triggeredSwitches.length === 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-mono font-semibold text-outline uppercase tracking-wider">Kill Switch Status</p>
+          <p className="text-xs font-mono font-semibold text-pi-faint uppercase tracking-wider">Kill Switch Status</p>
           {debate.kill_switches.map(ks => <KillSwitchPanel key={ks.id} ks={ks} />)}
         </div>
       )}

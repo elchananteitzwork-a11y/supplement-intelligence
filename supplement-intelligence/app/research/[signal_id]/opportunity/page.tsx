@@ -16,9 +16,9 @@ interface StoredThesis extends InvestmentThesis {
 type Stage = 'idle' | 'generating' | 'scoring_fit' | 'done' | 'error'
 
 const THRESHOLD_RESULT_COLORS: Record<string, string> = {
-  pass: 'text-verdict-positive',
-  warn: 'text-verdict-caution-text',
-  fail: 'text-verdict-negative',
+  pass: 'text-pi-build',
+  warn: 'text-pi-gold',
+  fail: 'text-pi-risk',
 }
 
 export default function OpportunityMapPage() {
@@ -144,22 +144,22 @@ export default function OpportunityMapPage() {
   })
 
   return (
-    <main className="min-h-screen bg-surface font-sans text-ink max-w-3xl mx-auto px-6 py-12 space-y-8">
+    <main className="min-h-screen bg-pi-cream font-sans text-pi-ink max-w-3xl mx-auto px-6 py-12 space-y-8">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-3 text-xs font-mono text-outline uppercase">
-        <Link href="/research" className="hover:text-black transition-colors">Research</Link>
-        <span className="text-outline-variant">/</span>
-        <Link href={`/research/${signal_id}`} className="hover:text-black transition-colors">
+      <div className="flex items-center gap-3 text-xs font-mono text-pi-faint uppercase">
+        <Link href="/research" className="hover:text-pi-ink transition-colors">Research</Link>
+        <span className="text-pi-faint">/</span>
+        <Link href={`/research/${signal_id}`} className="hover:text-pi-ink transition-colors">
           {query || signal_id.slice(0, 8) + '…'}
         </Link>
-        <span className="text-outline-variant">/</span>
-        <span className="text-ink-variant">Opportunity Map</span>
+        <span className="text-pi-faint">/</span>
+        <span className="text-pi-sub">Opportunity Map</span>
       </div>
 
       {/* Header */}
-      <div className="space-y-1 border-b-2 border-black pb-4">
-        <h1 className="text-headline-md text-black">Opportunity Map</h1>
-        <p className="text-sm text-ink-variant">
+      <div className="space-y-1 border-b border-pi-hairline pb-4">
+        <h1 className="font-serif text-[26px] font-semibold leading-snug tracking-tight text-pi-ink">Opportunity Map</h1>
+        <p className="text-sm text-pi-sub">
           Stage 2 — AI synthesizes {theses.length > 0 ? theses.length : '3–5'} investment theses
           grounded in Stage 1 evidence.
           {Object.keys(fitMap).length > 0 && ' Sorted by your founder fit score.'}
@@ -168,9 +168,9 @@ export default function OpportunityMapPage() {
 
       {/* Launch thresholds */}
       {thresholds && (
-        <HardCard className="space-y-3">
+        <HardCard variant="pi" className="space-y-3">
           <div className="flex items-center gap-3">
-            <p className="text-[11px] font-mono font-semibold text-outline uppercase tracking-wider">Launch Thresholds</p>
+            <p className="text-[11px] font-mono font-semibold text-pi-faint uppercase tracking-wider">Launch Thresholds</p>
             <span className={`text-xs font-mono font-bold ${THRESHOLD_RESULT_COLORS[thresholds.overall]}`}>
               {thresholds.overall.toUpperCase()} ({thresholds.pass_count}P / {thresholds.warn_count}W / {thresholds.fail_count}F)
             </span>
@@ -182,10 +182,10 @@ export default function OpportunityMapPage() {
                   {c.result === 'pass' ? '✓' : c.result === 'warn' ? '⚠' : '✗'}
                 </span>
                 <div>
-                  <span className="text-ink-variant">{c.metric}</span>
+                  <span className="text-pi-sub">{c.metric}</span>
                   {' '}
-                  <span className="text-outline font-mono">{c.value}</span>
-                  <p className="text-outline">{c.reason}</p>
+                  <span className="text-pi-faint font-mono">{c.value}</span>
+                  <p className="text-pi-faint">{c.reason}</p>
                 </div>
               </div>
             ))}
@@ -195,13 +195,13 @@ export default function OpportunityMapPage() {
 
       {/* Founder profile notice */}
       {hasProfile === false && theses.length === 0 && (
-        <div className="border border-verdict-caution-text bg-white px-4 py-3 space-y-2">
-          <p className="text-sm text-verdict-caution-text">
+        <div className="rounded-xl border border-pi-gold/40 bg-pi-card px-4 py-3 space-y-2">
+          <p className="text-sm text-pi-gold">
             No founder profile — theses will be generated without fit scoring.
           </p>
           <Link
             href={`/research/profile?return_to=/research/${signal_id}/opportunity`}
-            className="text-xs text-verdict-caution-text underline hover:text-black"
+            className="text-xs text-pi-gold underline hover:text-pi-ink"
           >
             Complete profile first for personalized fit scores →
           </Link>
@@ -210,7 +210,7 @@ export default function OpportunityMapPage() {
 
       {/* Generate button */}
       {theses.length === 0 && stage !== 'generating' && (
-        <PrimaryButton onClick={generateTheses} disabled={stage === 'error'} className="w-full">
+        <PrimaryButton variant="pi" onClick={generateTheses} disabled={stage === 'error'} className="w-full">
           Generate Investment Theses
         </PrimaryButton>
       )}
@@ -218,32 +218,32 @@ export default function OpportunityMapPage() {
       {/* Status */}
       {stage === 'generating' && (
         <div className="text-center py-8 space-y-2">
-          <div className="text-black text-sm animate-pulse font-mono">Generating investment theses…</div>
-          <p className="text-xs text-outline">Claude is synthesizing Stage 1 evidence into product opportunities. ~30–60s</p>
+          <div className="text-pi-ink text-sm animate-pulse font-mono">Generating investment theses…</div>
+          <p className="text-xs text-pi-faint">Claude is synthesizing Stage 1 evidence into product opportunities. ~30–60s</p>
         </div>
       )}
       {stage === 'scoring_fit' && (
         <div className="text-center py-4">
-          <p className="text-xs text-ink-variant animate-pulse font-mono">Scoring founder fit (deterministic)…</p>
+          <p className="text-xs text-pi-sub animate-pulse font-mono">Scoring founder fit (deterministic)…</p>
         </div>
       )}
 
       {error && (
-        <div className="border border-verdict-negative bg-white px-4 py-3 text-sm text-verdict-negative">
+        <div className="rounded-xl border border-pi-risk/40 bg-pi-card px-4 py-3 text-sm text-pi-risk">
           {error}
         </div>
       )}
 
       {/* Generation note */}
       {generationNote && (
-        <p className="text-xs text-outline italic border-l-2 border-black pl-3">{generationNote}</p>
+        <p className="text-xs text-pi-faint italic border-l-2 border-pi-gold-deep pl-3">{generationNote}</p>
       )}
 
       {fromCache && theses.length > 0 && (
-        <p className="text-xs font-mono text-outline">
+        <p className="text-xs font-mono text-pi-faint">
           Theses from previous generation.{' '}
           <button
-            className="text-ink-variant underline hover:text-black"
+            className="text-pi-sub underline hover:text-pi-ink"
             onClick={() => {
               setTheses([])
               setStage('idle')
@@ -273,9 +273,9 @@ export default function OpportunityMapPage() {
 
       {/* Footer actions */}
       {theses.length > 0 && hasProfile === false && (
-        <div className="border-t-2 border-black pt-6 space-y-3">
-          <p className="text-sm text-ink-variant">Add a founder profile to see which thesis fits your situation best.</p>
-          <SecondaryLinkButton href={`/research/profile?return_to=/research/${signal_id}/opportunity`}>
+        <div className="border-t border-pi-hairline pt-6 space-y-3">
+          <p className="text-sm text-pi-sub">Add a founder profile to see which thesis fits your situation best.</p>
+          <SecondaryLinkButton variant="pi" href={`/research/profile?return_to=/research/${signal_id}/opportunity`}>
             Complete Founder Profile →
           </SecondaryLinkButton>
         </div>
@@ -283,15 +283,15 @@ export default function OpportunityMapPage() {
 
       {/* Next: Stage 3 */}
       {theses.length > 0 && (
-        <div className="border-2 border-black bg-white px-5 py-4">
-          <p className="text-sm font-bold text-black mb-1">Stage 3 — Adversarial Evaluation</p>
-          <p className="text-xs text-ink-variant">
+        <div className="rounded-xl border border-pi-hairline bg-pi-card px-5 py-4">
+          <p className="text-sm font-bold text-pi-ink mb-1">Stage 3 — Adversarial Evaluation</p>
+          <p className="text-xs text-pi-sub">
             Bull case (temp 0.5) and Bear case (temp 0.8) run in parallel with no shared context.
             Kill switches then execute deterministically before synthesis.
           </p>
           <Link
             href={`/research/${signal_id}/evaluate`}
-            className="inline-block mt-3 bg-black border-2 border-black text-white px-4 py-2 text-sm font-black uppercase tracking-wide hover:bg-white hover:text-black transition-colors duration-200 active:scale-[0.98]"
+            className="rounded-xl inline-block mt-3 bg-pi-ink border border-pi-hairline text-pi-cream px-4 py-2 text-sm font-black uppercase tracking-wide hover:bg-pi-card hover:text-pi-ink transition-colors duration-200 active:scale-[0.98]"
           >
             Run Adversarial Evaluation →
           </Link>
