@@ -22,7 +22,7 @@ export function HomeShell({ canAnalyze, quotaLabel }: { canAnalyze: boolean; quo
   return (
     <header className="sticky top-0 z-50 border-b border-pi-hairline bg-pi-cream/90 backdrop-blur-md">
       <nav className="mx-auto flex max-w-[880px] items-center justify-between gap-3 px-5 py-3.5 sm:px-7">
-        <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5 text-sm font-semibold text-pi-ink">
+        <Link href="/app" className="flex shrink-0 items-center gap-2.5 text-sm font-semibold text-pi-ink">
           <RotorMark className="h-5 w-5 shrink-0" />
           <span className="hidden sm:inline">Product Intelligence</span>
         </Link>

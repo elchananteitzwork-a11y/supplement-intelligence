@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
     if (error) {
       setError(error.message)
     } else {
-      router.push('/dashboard')
+      router.push('/app')
       router.refresh()
     }
   }

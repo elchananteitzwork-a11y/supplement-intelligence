@@ -38,7 +38,12 @@ import { useState } from 'react'
 // same old pipeline — it doesn't burn quota, so it stays linked for now;
 // tracked separately as known follow-up debt, not an active beta risk.
 const NAV = [
-  { href: '/dashboard',        label: 'Home',         id: 'home'     as const },
+  // Home duplication fix (owner decision 2026-07-26): /app (the V4 Stream)
+  // is the product's ONE home — post-login already lands there, so every
+  // nav "Home" points there too. /dashboard (the legacy analyses list)
+  // stays reachable by URL and via deep "check your dashboard" recovery
+  // links, but no primary navigation targets it anymore.
+  { href: '/app',              label: 'Home',         id: 'home'     as const },
   { href: '/research/compare', label: 'Compare',      id: 'compare'  as const },
   { href: '/research/history', label: 'History',      id: 'history'  as const },
   { href: '/leaderboard',      label: 'Track Record', id: 'track'    as const },
@@ -64,7 +69,7 @@ export function SideNav({ active, canAnalyze = true, variant = 'legacy' }: { act
     <aside className={`hidden lg:flex lg:flex-col lg:w-[240px] lg:shrink-0 lg:px-5 lg:py-8 lg:sticky lg:top-0 lg:h-screen ${
       pi ? 'lg:border-r lg:border-pi-hairline bg-pi-cream' : 'lg:border-r lg:border-black bg-surface'
     }`}>
-      <Link href="/dashboard" className="mb-10">
+      <Link href="/app" className="mb-10">
         <span className={`text-sm font-black uppercase tracking-tight ${pi ? 'text-pi-ink' : 'text-black'}`}>Product Intelligence</span>
       </Link>
 
@@ -130,7 +135,7 @@ export function MobileNav({ active, canAnalyze = true, variant = 'legacy' }: { a
             <span className={`block h-[2px] transition-opacity ${pi ? 'bg-pi-ink' : 'bg-black'} ${open ? 'opacity-0' : ''}`} />
             <span className={`block h-[2px] transition-transform ${pi ? 'bg-pi-ink' : 'bg-black'} ${open ? '-translate-y-[5px] -rotate-45' : ''}`} />
           </button>
-          <Link href="/dashboard" className={`text-sm font-black uppercase tracking-tight ${pi ? 'text-pi-ink' : 'text-black'}`}>
+          <Link href="/app" className={`text-sm font-black uppercase tracking-tight ${pi ? 'text-pi-ink' : 'text-black'}`}>
             Product Intelligence
           </Link>
         </div>
