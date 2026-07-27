@@ -45,7 +45,11 @@ const NAV = [
   // links, but no primary navigation targets it anymore.
   { href: '/app',              label: 'Home',         id: 'home'     as const },
   { href: '/research/compare', label: 'Compare',      id: 'compare'  as const },
-  { href: '/research/history', label: 'History',      id: 'history'  as const },
+  // Screen-consolidation pass (2026-07-27): "History" (/research/history,
+  // the OLD Stage 1-4 pipeline's list) removed from menus — with the
+  // Stream's "Recent hunts" and /dashboard's "All analyses" both live,
+  // two different "history" concepts in navigation confused more than
+  // they helped. The route itself stays reachable by URL.
   { href: '/leaderboard',      label: 'Track Record', id: 'track'    as const },
   { href: '/settings/billing', label: 'Settings',     id: 'settings' as const },
 ]
@@ -91,7 +95,7 @@ export function SideNav({ active, canAnalyze = true, variant = 'legacy' }: { act
 
       {canAnalyze ? (
         <Link
-          href="/analyze"
+          href="/app"
           className={`flex items-center justify-center gap-2 w-full text-sm font-black uppercase tracking-wide py-2.5 mb-8 transition-colors duration-150 active:scale-[0.98] ${
             pi
               ? 'rounded-lg text-pi-cream bg-pi-ink hover:bg-[#24262B]'
@@ -142,7 +146,7 @@ export function MobileNav({ active, canAnalyze = true, variant = 'legacy' }: { a
         <div className="flex items-center gap-2">
           {canAnalyze && (
             <Link
-              href="/analyze"
+              href="/app"
               className={`text-xs font-black uppercase px-3 py-2 ${pi ? 'rounded-lg text-pi-cream bg-pi-ink' : 'text-white bg-black border-2 border-black'}`}
             >
               + New

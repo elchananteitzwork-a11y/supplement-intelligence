@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion'
-import { Search, Archive, Scale, History, Eye, Bell, User, CreditCard, LogOut, X } from 'lucide-react'
+import { Search, Archive, Scale, Eye, Bell, User, CreditCard, LogOut, X } from 'lucide-react'
 
 // AvatarMenu — the account/navigation panel behind the avatar button, the
 // only persistent chrome on the V4 surfaces (docs/RD_V4_PHASE2.md §4 risk
@@ -145,10 +145,6 @@ export function AvatarMenu({ email, usage }: { email: string | null; usage: Avat
                 <Link href="/research/compare" onClick={close} className={rowCls}>
                   <Scale size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
                   Compare
-                </Link>
-                <Link href="/research/history" onClick={close} className={rowCls}>
-                  <History size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
-                  History
                 </Link>
                 <Link href="/watchlist" onClick={close} className={rowCls}>
                   <Eye size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />

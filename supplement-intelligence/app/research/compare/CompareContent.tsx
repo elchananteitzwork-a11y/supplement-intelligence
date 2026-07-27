@@ -166,7 +166,7 @@ function CompareContentInner({ candidates }: { candidates: PipelineCandidate[] }
               <div className="rounded-xl border border-pi-hairline bg-pi-card p-10 text-center space-y-3">
                 <p className="text-pi-sub text-sm">No analyses found. Run at least 2 analyses first.</p>
                 <Link
-                  href="/analyze"
+                  href="/app"
                   className="inline-block text-sm font-semibold px-5 py-2.5 rounded-lg text-pi-cream bg-pi-ink hover:bg-[#24262B] transition-colors duration-150"
                 >
                   Start an analysis →

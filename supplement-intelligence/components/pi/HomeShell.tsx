@@ -60,7 +60,7 @@ export function HomeShell({ canAnalyze, quotaLabel }: { canAnalyze: boolean; quo
 
           {canAnalyze ? (
             <Link
-              href="/analyze"
+              href="/app"
               className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-gradient-to-br from-[#F6E7B8] via-pi-gold-deep to-pi-gold-bright px-4 py-2.5 text-[13px] font-semibold text-[#16130a] shadow-[0_8px_18px_-8px_rgba(212,169,74,0.5)] transition-transform duration-200 hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-ink sm:px-5 sm:text-[13.5px]"
             >
               + Log a hunch

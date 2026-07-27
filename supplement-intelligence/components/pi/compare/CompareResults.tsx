@@ -60,7 +60,7 @@ function relativeAge(iso: string): string {
 }
 
 function memoHref(item: AnalysisComparisonItem): string {
-  return `/memo/${item.analysis_id}`
+  return `/app/brief/${item.analysis_id}`
 }
 
 function itemLabel(item: AnalysisComparisonItem): string {

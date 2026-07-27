@@ -243,7 +243,7 @@ export default function WatchlistPage() {
               Watch a market and we&rsquo;ll re-check it on schedule — you&rsquo;ll hear from us only when the evidence moves.
             </p>
             <Link
-              href="/analyze"
+              href="/app"
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-pi-ink px-6 py-3 text-sm font-semibold text-pi-cream shadow-[0_1px_3px_rgba(22,23,26,0.15)] transition-all duration-200 hover:-translate-y-px hover:bg-[#24262B] hover:shadow-[0_4px_10px_rgba(22,23,26,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-pi-gold-bright active:scale-[0.985]"
             >
               Run an analysis →

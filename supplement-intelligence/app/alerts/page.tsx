@@ -80,7 +80,7 @@ function AlertCard({ item }: { item: EnrichedAlert }) {
         <h3 className="text-lg font-semibold text-pi-ink leading-snug mb-1">{item.headline}</h3>
         {item.detail && <p className="text-xs font-mono text-pi-sub mb-3">{item.detail}</p>}
         <Link
-          href={`/memo/${item.analysisId}`}
+          href={`/app/brief/${item.analysisId}`}
           className="inline-flex items-center gap-1 text-xs font-mono font-bold uppercase border-b border-pi-ink hover:border-transparent hover:text-pi-gold-bright transition-colors"
         >
           See what changed →

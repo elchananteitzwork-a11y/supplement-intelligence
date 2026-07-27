@@ -54,15 +54,10 @@ export function derivePipelineViewModel(
       insufficientEvidence: grounded.insufficientEvidence,
       confidencePct,
       createdAtIso: a.created_at,
-      // UIv2-M2 fix: `a.id` is an `analyses` row id, not a `market_signals`
-      // signal_id — `/research/[signal_id]/memo` is a different, older
-      // feature keyed off that other table (see CompareResults.tsx's own
-      // memoHref for the correct use of that route, from real thesis data).
-      // This candidate's real detail page is /memo/[id] (Candidate Detail,
-      // UIv2-M2 Phase 1+2) — the old route silently 404s/dead-ends for
-      // every analysis created via the current Discover/Analyze pipeline,
-      // found during the pre-beta end-to-end walkthrough.
-      memoHref: `/memo/${a.id}`,
+      // Screen-consolidation pass (2026-07-27): a candidate's one real
+      // detail view is the V4 Brief — /memo/[id] itself now redirects
+      // there, and every internal link goes direct.
+      memoHref: `/app/brief/${a.id}`,
     }
   })
 

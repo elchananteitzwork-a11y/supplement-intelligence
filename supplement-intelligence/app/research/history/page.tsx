@@ -206,7 +206,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <AppShell active="history" variant="pi">
+    <AppShell active={null} variant="pi">
       <div className="max-w-4xl space-y-8">
         {/* Header */}
         <div className="flex items-end justify-between gap-4 flex-wrap border-b border-pi-hairline pb-5">
