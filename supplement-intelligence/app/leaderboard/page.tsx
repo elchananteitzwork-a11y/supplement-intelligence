@@ -1,13 +1,11 @@
 import { redirect }  from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { LeaderboardRow, Profile, MemoData } from '@/types/index'
-import { AppShell } from '@/components/shell/AppShell'
+import { AvatarMenu } from '@/components/partner/AvatarMenu'
 import TrackRecordOpportunityCard from '@/components/leaderboard/TrackRecordOpportunityCard'
-import { StatTile } from '@/components/ui'
 import { computeGroundedScore } from '@/lib/scoring'
 import { computeConfidenceAssessment } from '@/lib/confidence'
 import { deriveLifecycleDisplay, deriveV2VerdictDisplay, type LifecycleDisplay, type V2VerdictDisplay } from '@/components/memo/field-derivations'
-import { isDevUnlimitedAnalysesEnabled } from '@/lib/billing/dev-bypass'
 
 function timeLabelFor(r: LeaderboardRow) {
   return `${r.analysis_count} run${r.analysis_count === 1 ? '' : 's'}`
@@ -36,6 +34,16 @@ function computeRowIntelligence(memo: MemoData | null): TrackRecordIntelligence 
   }
 }
 
+// V4 shell pass (2026-07-27): AppShell/StatTile swapped for the AvatarMenu
+// world; the four verdict counts render as an inline stat row in the same
+// tone tokens. All data derivation above is byte-identical.
+const STAT_TONES = [
+  { label: 'Entry Supported',     text: 'text-pi-build' },
+  { label: 'Validation Required', text: 'text-pi-gold' },
+  { label: 'Category Creation',   text: 'text-pi-ink' },
+  { label: 'Not Supported',       text: 'text-pi-risk' },
+]
+
 export default async function Leaderboard() {
   const sb = createClient()
   const { data: { user } } = await sb.auth.getUser()
@@ -51,6 +59,7 @@ export default async function Leaderboard() {
   const validate         = rows.filter(r => r.build_decision === 'VALIDATE_FURTHER').length
   const skip             = rows.filter(r => r.build_decision === 'SKIP').length
   const categoryCreation = rows.filter(r => r.build_decision === 'CATEGORY_CREATION_CANDIDATE').length
+  const statValues = [build, validate, categoryCreation, skip]
 
   // Batched real read of each row's own best_analysis_id — the specific
   // analysis this leaderboard entry's score/decision came from — for its
@@ -73,27 +82,28 @@ export default async function Leaderboard() {
   })
 
   const pro   = profile as Profile | null
-  const used  = pro?.analyses_used  ?? 0
-  const limit = pro?.analyses_limit ?? 3
-  const devUnlimited = isDevUnlimitedAnalysesEnabled()
-  const canAnalyze = devUnlimited || used < limit
+  const usage = pro ? { used: pro.analyses_used ?? 0, limit: pro.analyses_limit ?? 3 } : null
 
   return (
-    <AppShell active="track" canAnalyze={canAnalyze} variant="pi">
-      <div className="max-w-6xl">
-        <div className="flex items-baseline justify-between mb-8 border-b border-pi-hairline pb-4">
-          <h1 className="font-serif text-[28px] font-semibold leading-snug tracking-tight text-pi-ink sm:text-[32px]">Track Record</h1>
-          <p className="font-mono text-xs text-pi-faint">{rows.length} categories ranked</p>
+    <div className="min-h-screen bg-pi-cream pb-20 text-pi-ink">
+      <AvatarMenu email={user.email ?? null} usage={usage} />
+      <div className="mx-auto max-w-[960px] px-5 pt-12 sm:pt-16">
+        <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">
+          Track Record · {rows.length} categories ranked
+        </p>
+        <h1 className="mb-1 font-serif text-[28px] font-semibold leading-snug tracking-tight">Every call, on the record.</h1>
+        <p className="mb-8 text-sm text-pi-sub">Ranked by opportunity score across all researched categories.</p>
+
+        <div className="mb-8 flex flex-wrap gap-x-8 gap-y-2 rounded-xl border border-pi-hairline bg-pi-card px-5 py-4 shadow-[0_1px_2px_rgba(22,23,26,0.04)]">
+          {STAT_TONES.map((s, i) => (
+            <div key={s.label}>
+              <p className={`font-mono text-xl font-bold tabular-nums ${s.text}`}>{statValues[i]}</p>
+              <p className="font-mono text-[10px] uppercase tracking-wide text-pi-faint">{s.label}</p>
+            </div>
+          ))}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-          <StatTile variant="pi" label="Entry Supported" value={String(build)} color="#2E6B48" />
-          <StatTile variant="pi" label="Validation Required" value={String(validate)} color="#8D6A16" />
-          <StatTile variant="pi" label="Category Creation" value={String(categoryCreation)} color="#16171A" />
-          <StatTile variant="pi" label="Not Supported" value={String(skip)} color="#A13F2E" />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((r, i) => (
             <TrackRecordOpportunityCard
               key={r.id}
@@ -110,7 +120,11 @@ export default async function Leaderboard() {
             />
           ))}
         </div>
+
+        <div className="mt-10 text-center">
+          <a href="/app" className="text-sm text-pi-faint hover:text-pi-ink">← Back to the Stream</a>
+        </div>
       </div>
-    </AppShell>
+    </div>
   )
 }
