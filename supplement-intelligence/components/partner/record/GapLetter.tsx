@@ -7,7 +7,11 @@ import type { GapLetterVM } from '@/lib/partner-copy-record'
 // reading column, no cards, no dotted leaders.
 export function GapLetter({ gap }: { gap: GapLetterVM }) {
   return (
-    <div className="mx-auto max-w-[34em]">
+    // break-words (overflow-wrap) is set once here and inherits to every
+    // paragraph below — same overflow-safety reasoning as RecordCard, just
+    // without a card boundary since this chapter is deliberately a plain
+    // reading column.
+    <div className="mx-auto min-w-0 max-w-[34em] break-words">
       {gap.noReviewCorpus && (
         <p className="mb-6 font-serif text-[19px] italic leading-[1.75] text-pi-sub">
           No consumer review corpus yet — these gaps come from market structure, not customer complaints.
