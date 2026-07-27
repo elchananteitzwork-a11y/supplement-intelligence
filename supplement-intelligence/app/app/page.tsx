@@ -5,8 +5,10 @@ import { enrichAlert } from '@/lib/watchlist/alerts-display'
 import type { WatchlistEntry } from '@/lib/watchlist/types'
 import type { MemoData } from '@/types/index'
 import { buildOpportunities, type OpportunityRow } from '@/lib/opportunities'
+import { computeGroundedScore } from '@/lib/scoring'
 import { Stream, type MovedItemVM } from '@/components/partner/Stream'
 import { AvatarMenu } from '@/components/partner/AvatarMenu'
+import type { RecentHuntVM } from '@/components/partner/RecentHunts'
 
 // ── /app — the Stream (V4 Phase 1, docs/V4_PRODUCT_ARCHITECTURE.md §5,
 // docs/RD_V4_PHASE1.md). Auth pattern only reused from app/dashboard/
@@ -86,10 +88,34 @@ export default async function StreamPage() {
     })),
   )
 
+  // Recent hunts (2026-07-26 analyses-gap fix) — the 5 latest analyses,
+  // ALL verdicts. memo_data is fetched for exactly these 5 rows so
+  // insufficientEvidence comes from the real computeGroundedScore, never
+  // inferred from the raw persisted decision (a stored 'SKIP' can be an
+  // internal insufficient-evidence artifact — same honesty rule as
+  // lib/positions.ts's own field comment).
+  const { data: recentRows } = await sb
+    .from('analyses')
+    .select('id, category_name, build_decision, created_at, memo_data')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  const recentHunts: RecentHuntVM[] = ((recentRows ?? []) as {
+    id: string; category_name: string; build_decision: RecentHuntVM['decision']
+    created_at: string; memo_data: MemoData
+  }[]).map(r => ({
+    id: r.id,
+    categoryName: r.category_name,
+    decision: r.build_decision,
+    insufficientEvidence: computeGroundedScore(r.memo_data).insufficientEvidence,
+    createdAt: r.created_at,
+  }))
+
   return (
     <div className="min-h-screen bg-pi-cream text-pi-ink">
       <AvatarMenu email={user.email ?? null} usage={usage} />
-      <Stream movedItems={movedItems} opportunities={opportunities} />
+      <Stream movedItems={movedItems} opportunities={opportunities} recentHunts={recentHunts} />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import type { OpportunityVM } from '@/lib/opportunities'
 import { Hunt } from './Hunt'
 import { PositionsStrip } from './PositionsStrip'
 import { Opportunities } from './Opportunities'
+import { RecentHunts, type RecentHuntVM } from './RecentHunts'
 
 // ── S-Stream (V4_PRODUCT_ARCHITECTURE.md §5) ──────────────────────────────
 // The home surface: partner-speaks-first opening, positions strip, then
@@ -35,7 +36,7 @@ export interface MovedItemVM {
   href:       string
 }
 
-export function Stream({ movedItems, opportunities }: { movedItems: MovedItemVM[]; opportunities: OpportunityVM[] }) {
+export function Stream({ movedItems, opportunities, recentHunts }: { movedItems: MovedItemVM[]; opportunities: OpportunityVM[]; recentHunts: RecentHuntVM[] }) {
   const router = useRouter()
   const [input, setInput] = useState('')
   const [hunting, setHunting] = useState(false)
@@ -193,6 +194,7 @@ export function Stream({ movedItems, opportunities }: { movedItems: MovedItemVM[
 
           <div className="mt-10">
             <Opportunities items={opportunities} />
+            <RecentHunts items={recentHunts} />
           </div>
         </section>
       )}

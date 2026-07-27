@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion'
-import { Search, Scale, History, Eye, Bell, User, CreditCard, LogOut, X } from 'lucide-react'
+import { Search, Archive, Scale, History, Eye, Bell, User, CreditCard, LogOut, X } from 'lucide-react'
 
 // AvatarMenu — the account/navigation panel behind the avatar button, the
 // only persistent chrome on the V4 surfaces (docs/RD_V4_PHASE2.md §4 risk
@@ -134,6 +134,13 @@ export function AvatarMenu({ email, usage }: { email: string | null; usage: Avat
                 <Link href="/app" onClick={close} className={rowCls}>
                   <Search size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
                   New hunt
+                </Link>
+                {/* Analyses-gap fix (2026-07-26): /dashboard is the only
+                    complete all-analyses list; after the one-home change it
+                    needs a navigable entry somewhere — this menu is it. */}
+                <Link href="/dashboard" onClick={close} className={rowCls}>
+                  <Archive size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
+                  All analyses
                 </Link>
                 <Link href="/research/compare" onClick={close} className={rowCls}>
                   <Scale size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
