@@ -36,7 +36,7 @@ export interface MovedItemVM {
   href:       string
 }
 
-export function Stream({ movedItems, opportunities, recentHunts }: { movedItems: MovedItemVM[]; opportunities: OpportunityVM[]; recentHunts: RecentHuntVM[] }) {
+export function Stream({ movedItems, opportunities, recentHunts, activePositions }: { movedItems: MovedItemVM[]; opportunities: OpportunityVM[]; recentHunts: RecentHuntVM[]; activePositions: number }) {
   const router = useRouter()
   const [input, setInput] = useState('')
   const [hunting, setHunting] = useState(false)
@@ -143,6 +143,19 @@ export function Stream({ movedItems, opportunities, recentHunts }: { movedItems:
       </section>
 
       <PositionsStrip />
+
+      {/* Unlock ladder (V4_PRODUCT_ARCHITECTURE.md §4): Compare/Desk are
+          offered by the partner in-stream at their real thresholds — never
+          as permanent chrome, never as locked ghosts below them. */}
+      {activePositions >= 2 && (
+        <p className="mb-8 text-[13.5px] text-pi-sub">
+          You&rsquo;re tracking {activePositions} ideas now — {' '}
+          <Link href="/app/compare" className="text-pi-gold hover:underline">Compare is open →</Link>
+          {activePositions >= 3 && (
+            <>{' '}·{' '}<Link href="/app/desk" className="text-pi-gold hover:underline">the Desk is open →</Link></>
+          )}
+        </p>
+      )}
 
       {hunting ? (
         <Hunt done={huntDone} />

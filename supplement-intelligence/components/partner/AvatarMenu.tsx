@@ -139,7 +139,7 @@ export function AvatarMenu({ email, usage }: { email: string | null; usage: Avat
                   <Archive size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
                   All analyses
                 </Link>
-                <Link href="/research/compare" onClick={close} className={rowCls}>
+                <Link href="/app/compare" onClick={close} className={rowCls}>
                   <Scale size={17} strokeWidth={1.75} className="shrink-0 text-pi-sub" />
                   Compare
                 </Link>

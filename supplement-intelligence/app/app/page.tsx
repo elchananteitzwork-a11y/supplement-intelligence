@@ -29,6 +29,8 @@ export default async function StreamPage() {
   // /dashboard and /settings/billing already render; no invented numbers
   // (menu simply omits the card when the row is missing).
   const { data: profileRow } = await sb.from('profiles').select('analyses_used, analyses_limit').eq('id', user.id).single()
+  const { data: posRows } = await sb.from('positions').select('state').eq('user_id', user.id)
+  const activePositions = (posRows ?? []).filter((p: { state: string }) => p.state !== 'killed').length
   const usage = profileRow ? { used: profileRow.analyses_used ?? 0, limit: profileRow.analyses_limit ?? 3 } : null
 
   const alerts = await listAlerts(sb, user.id, 20)
@@ -115,7 +117,7 @@ export default async function StreamPage() {
   return (
     <div className="min-h-screen bg-pi-cream text-pi-ink">
       <AvatarMenu email={user.email ?? null} usage={usage} />
-      <Stream movedItems={movedItems} opportunities={opportunities} recentHunts={recentHunts} />
+      <Stream movedItems={movedItems} opportunities={opportunities} recentHunts={recentHunts} activePositions={activePositions} />
     </div>
   )
 }
