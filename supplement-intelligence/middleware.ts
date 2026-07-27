@@ -12,7 +12,13 @@ import { safeRedirectTarget } from '@/lib/safe-redirect'
 // V4 Phase 1 (2026-07-24): '/app' added — the new V4 surface (Stream/Brief).
 // Its pages already redirect('/login') themselves; this is the same
 // defense-in-depth consistency every other authenticated route gets.
-const GUARDED = ['/dashboard', '/memo', '/leaderboard', '/research', '/analyze', '/thesis', '/watchlist', '/alerts', '/settings', '/app']
+// Screen-consolidation pass (2026-07-27): '/dashboard' and '/thesis'
+// removed — both routes deleted with the legacy pipeline (a deleted route
+// 404s regardless of this list, per the /pipeline precedent above).
+// '/memo' and '/analyze' stay: they're live redirect stubs to the V4
+// surfaces, and the guard keeps the login→next chain working for old
+// bookmarks. '/research' stays for /research/compare.
+const GUARDED = ['/memo', '/leaderboard', '/research', '/analyze', '/watchlist', '/alerts', '/settings', '/app']
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req })

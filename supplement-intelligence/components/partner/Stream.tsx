@@ -173,7 +173,7 @@ export function Stream({ movedItems, opportunities, recentHunts }: { movedItems:
               <p>{error}</p>
               {networkFailure && (
                 <p className="mt-1.5 text-pi-risk/80">
-                  <Link href="/dashboard" className="underline hover:text-pi-risk">Check your dashboard</Link> before trying again — if it finished, you&rsquo;ll find it there.
+                  <Link href="/app/analyses" className="underline hover:text-pi-risk">Check your analyses</Link> before trying again — if it finished, you&rsquo;ll find it there.
                 </p>
               )}
             </div>

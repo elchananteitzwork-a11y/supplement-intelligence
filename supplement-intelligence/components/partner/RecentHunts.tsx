@@ -55,7 +55,7 @@ export function RecentHunts({ items }: { items: RecentHuntVM[] }) {
         })}
       </ul>
       <div className="mt-3 text-right">
-        <Link href="/dashboard" className="text-[13px] text-pi-gold hover:underline">
+        <Link href="/app/analyses" className="text-[13px] text-pi-gold hover:underline">
           All analyses →
         </Link>
       </div>

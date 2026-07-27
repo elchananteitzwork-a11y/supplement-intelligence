@@ -85,10 +85,8 @@ describe('single source of truth — no re-duplicated formula (Finding 8 reuse g
     expect(src).not.toMatch(/function computeOpportunityScore\(/)
   })
 
-  it('app/api/research/history/route.ts imports the shared function and does not redefine it locally', () => {
-    const src = readFileSync(join(repoRoot, 'app/api/research/history/route.ts'), 'utf8')
-    expect(src).toContain("import { computeOpportunityScore } from '@/lib/stage25/opportunity-score'")
-    expect(src).not.toMatch(/function computeOpportunityScore\(/)
-    expect(src).not.toContain('pass_count * 14')
-  })
+  // The history-route guard that used to sit here was removed in the
+  // screen-consolidation pass (2026-07-27): app/api/research/history was
+  // deleted with the rest of the old Stage 1-4 pipeline's screens/APIs,
+  // so there is no route left to guard against re-duplicating the formula.
 })

@@ -243,8 +243,8 @@ function BillingContent() {
         </>
       )}
 
-      <Link href="/research/profile" className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wide text-pi-sub hover:text-pi-ink transition-colors">
-        ← Founder profile
+      <Link href="/app" className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wide text-pi-sub hover:text-pi-ink transition-colors">
+        ← Back to home
       </Link>
     </div>
   )
