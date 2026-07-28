@@ -15,6 +15,7 @@
 --           · 028_lock_down_leaderboard_rls · 004_refund_slot
 --           · 011_remove_seed_data · 014_lock_discovery_cache_writes
 --           · 029_positions · 030_product_events
+--           · 031_competitive_review_reports
 --
 -- 2026-07-14: appended 020-026 after live production validation of M2.13
 -- discovered voc_problem_clusters (022) had never actually been applied to
@@ -117,6 +118,13 @@
 -- Supabase until the project owner runs this file's full contents; both
 -- routes are written to detect that and return an honest 503, never a
 -- crash or a silent success.
+--
+-- 2026-07-28: appended 031 (competitive_review_reports) for item ג
+-- (docs/RD_V4_COMPETITIVE_REVIEWS.md), created alongside
+-- supabase/migrations/031_competitive_review_reports.sql in the same
+-- commit — NOT yet applied to production. app/api/analyses/[id]/
+-- competitive-reviews depends on it and returns an honest 503 (not a
+-- crash) until the owner runs this file.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -940,3 +948,48 @@ end $$;
 
 create index if not exists product_events_user_created_idx on public.product_events (user_id, created_at desc);
 create index if not exists product_events_event_idx        on public.product_events (event, created_at desc);
+
+
+-- ── 031: COMPETITIVE REVIEW REPORTS — item ג ────────────────────────────────
+-- See supabase/migrations/031_competitive_review_reports.sql. Stores one
+-- CompetitiveReviewEngine MarketReport per analysis; unique(analysis_id) is
+-- the pay-once guarantee for the real-money interrogation trigger.
+
+create table if not exists public.competitive_review_reports (
+  id                  uuid primary key default gen_random_uuid(),
+  created_at          timestamptz not null default now(),
+
+  user_id             uuid not null references auth.users(id) on delete cascade,
+  analysis_id         uuid not null references public.analyses(id) on delete cascade,
+
+  report              jsonb not null,
+  engine_version      text not null,
+  asins_analyzed      text[] not null,
+
+  unique (analysis_id)
+);
+
+alter table public.competitive_review_reports enable row level security;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'competitive_review_reports' and policyname = 'owner all'
+  ) then
+    -- with-check also requires the referenced analysis to belong to the
+    -- caller: unique(analysis_id) is GLOBAL, so a user_id-only write policy
+    -- would let any authenticated user squat another user's analysis slot
+    -- via direct PostgREST insert (see migrations/031's comment).
+    create policy "owner all" on public.competitive_review_reports
+      for all
+      using (auth.uid() = user_id)
+      with check (
+        auth.uid() = user_id
+        and exists (
+          select 1 from public.analyses a
+          where a.id = analysis_id and a.user_id = auth.uid()
+        )
+      );
+  end if;
+end $$;
+
+create index if not exists competitive_review_reports_user_created_idx on public.competitive_review_reports (user_id, created_at desc);

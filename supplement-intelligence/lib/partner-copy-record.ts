@@ -15,6 +15,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 import type { MemoData } from '@/types/index'
+import type { MarketReport } from '@/lib/competitive-review-engine'
 
 export interface RecordRow {
   claim: string
@@ -263,6 +264,49 @@ export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
     competitorsNote: 'Full per-competitor pricing and listing-age table: not yet surfaced here — the underlying data is real and already captured (see the Competition chapter for the category leader), a fast follow to this appendix.',
     competitorRows,
     competitorsFootnote,
+  }
+}
+
+// ── Competitive reviews VM — item ג (docs/RD_V4_COMPETITIVE_REVIEWS.md §3.4)
+// Pure mapping from the engine's MarketReport to what the Record's
+// Competition chapter renders. Marker discipline (enforced by the UI's own
+// labels, encoded here structurally): counts/prevalence/ratings are
+// measured facts; gap/complaint/feature TEXT is AI synthesis over real
+// reviews — presented in the partner's judgment voice, never as a measured
+// claim.
+export interface CompetitiveReviewsVM {
+  statsLine: string   // deterministic from real counts
+  gaps: { text: string; prevalenceLabel: string; severity: 'High' | 'Medium' | 'Low' }[]
+  winnerFeatures: string[]
+  competitors: { name: string; rating: string; reviews: number; topComplaints: string[] }[]
+  productBrief: string | null
+}
+
+export function buildCompetitiveReviewsVM(report: MarketReport): CompetitiveReviewsVM {
+  const gaps = [...report.universal_gaps, ...report.common_gaps]
+    .sort((a, b) => b.prevalence - a.prevalence)
+    .slice(0, 6)
+    .map(g => ({
+      text: g.description,
+      prevalenceLabel: `${g.product_count} of ${report.products_analyzed} competitors`,
+      severity: g.severity,
+    }))
+
+  const competitors = report.products
+    .filter(p => !p.error)
+    .map(p => ({
+      name: p.brand || p.title || p.asin,
+      rating: p.avg_rating.toFixed(1),
+      reviews: p.reviews_collected,
+      topComplaints: (p.top_complaints ?? []).slice(0, 3),
+    }))
+
+  return {
+    statsLine: `${report.total_reviews_analyzed.toLocaleString()} real reviews across ${report.products_analyzed} competitors`,
+    gaps,
+    winnerFeatures: (report.winner_features ?? []).slice(0, 4),
+    competitors,
+    productBrief: report.ai_product_brief || null,
   }
 }
 

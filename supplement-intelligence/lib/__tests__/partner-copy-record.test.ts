@@ -5,8 +5,9 @@
 // suite for the other five chapters this file also builds.
 
 import { describe, it, expect } from 'vitest'
-import { buildRecordChapters, buildEvidenceAppendix } from '../partner-copy-record'
+import { buildRecordChapters, buildEvidenceAppendix, buildCompetitiveReviewsVM } from '../partner-copy-record'
 import type { MemoData } from '@/types/index'
+import type { MarketReport } from '@/lib/competitive-review-engine'
 
 // Same file-local scaffold-plus-cast convention as
 // lib/__tests__/scoring-honesty-pass.test.ts's REQUIRED_MEMO_SCAFFOLD —
@@ -190,5 +191,49 @@ describe('Item ב — measured competitor revenue surfaces', () => {
     expect(vm.competitorRows).toEqual([])
     expect(vm.competitorsFootnote).toBeNull()
     expect(vm.competitorsNote).toContain('not yet surfaced here')
+  })
+})
+
+// ── Item ג (docs/RD_V4_COMPETITIVE_REVIEWS.md §3.4) ────────────────────────
+
+function marketReportFixture(): MarketReport {
+  return {
+    asins_analyzed: ['A1', 'A2', 'A3'],
+    products_analyzed: 3,
+    products: [
+      { asin: 'A1', brand: 'Big Brand', avg_rating: 4.21, reviews_collected: 40, pain_score: 6, opportunity_score: 7, market_confidence: 0.7, top_complaints: ['tastes awful', 'clumps in water', 'weak scoop', 'fourth complaint'], top_requested_features: [], overall_sentiment: 'mixed' },
+      { asin: 'A2', title: 'Untitled Product Two', brand: '', avg_rating: 4.5, reviews_collected: 38, pain_score: 4, opportunity_score: 5, market_confidence: 0.7, top_complaints: ['pricey'], top_requested_features: [], overall_sentiment: 'positive' },
+      { asin: 'A3', brand: 'Broken Brand', avg_rating: 0, reviews_collected: 0, pain_score: 0, opportunity_score: 0, market_confidence: 0, top_complaints: [], top_requested_features: [], overall_sentiment: '', error: 'collection failed' },
+    ],
+    market_pain_score: 6, market_opportunity_score: 7, gap_score: 6.5, competition_risk: 4, market_confidence: 0.7,
+    universal_gaps: [
+      { description: 'Bad taste across the category', category: 'quality_issue', prevalence: 1, product_count: 3, asin_examples: ['A1'], severity: 'High' },
+    ],
+    common_gaps: [
+      { description: 'Packaging arrives damaged', category: 'packaging_issue', prevalence: 0.66, product_count: 2, asin_examples: ['A2'], severity: 'Medium' },
+    ],
+    niche_gaps: [],
+    top_market_gaps: [], winner_features: ['third-party tested', 'transparent labels', 'f3', 'f4', 'f5'],
+    ai_market_recommendation: 'rec', ai_product_brief: 'Build the clean-taste option.',
+    total_reviews_collected: 78, total_reviews_analyzed: 78,
+    analyzed_at: '2026-07-28T00:00:00Z', analysis_version: '1.0.0',
+  }
+}
+
+describe('buildCompetitiveReviewsVM', () => {
+  it('maps gaps with measured prevalence labels, sorted by prevalence, winners capped at 4', () => {
+    const vm = buildCompetitiveReviewsVM(marketReportFixture())
+    expect(vm.statsLine).toBe('78 real reviews across 3 competitors')
+    expect(vm.gaps[0]).toEqual({ text: 'Bad taste across the category', prevalenceLabel: '3 of 3 competitors', severity: 'High' })
+    expect(vm.gaps[1].prevalenceLabel).toBe('2 of 3 competitors')
+    expect(vm.winnerFeatures).toHaveLength(4)
+    expect(vm.productBrief).toBe('Build the clean-taste option.')
+  })
+
+  it('drops errored competitors, falls back brand→title→asin, caps complaints at 3', () => {
+    const vm = buildCompetitiveReviewsVM(marketReportFixture())
+    expect(vm.competitors).toHaveLength(2)
+    expect(vm.competitors[0]).toEqual({ name: 'Big Brand', rating: '4.2', reviews: 40, topComplaints: ['tastes awful', 'clumps in water', 'weak scoop'] })
+    expect(vm.competitors[1].name).toBe('Untitled Product Two')
   })
 })
