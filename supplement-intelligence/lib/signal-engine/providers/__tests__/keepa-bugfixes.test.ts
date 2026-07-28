@@ -130,6 +130,64 @@ describe('KeepaProvider.fetch() — Finding 1 end-to-end wiring', () => {
   })
 })
 
+// ── top_competitors price chain: MARKETPLACE_NEW fallback (2026-07-28) ──────
+// Live-confirmed gap: without the offers request param many 3P listings have
+// a price ONLY in CSV slot 1 (MARKETPLACE_NEW) — the old FBA→BuyBox→Amazon
+// chain returned null for them, dropping real competitors from
+// top_competitors (Cortisol run: 1 survived of 15 measurable), which starved
+// Consumer Intelligence's scrape targets and the Safety chapter's coverage.
+
+describe('computeKeepaReviewVelocity — MARKETPLACE_NEW price fallback', () => {
+  const ORIGINAL_KEY = process.env.KEEPA_API_KEY
+  beforeEach(() => { process.env.KEEPA_API_KEY = 'test-key' })
+  afterEach(() => { process.env.KEEPA_API_KEY = ORIGINAL_KEY; vi.restoreAllMocks() })
+
+  it('a search product priced ONLY in slot 1 still becomes a top_competitors entry', async () => {
+    // CSV: 0=AMAZON, 1=MARKETPLACE_NEW, 3=BSR, 16=RATING, 17=COUNT_REVIEWS
+    const slot1OnlyStats = {
+      current: [-1, 3295, null, 900, null, null, null, null, null, null, -1, 12, null, null, null, null, 46, 800],
+      avg90:   [-1, 3095, null, 900, null, null, null, null, null, null, -1, 12, null, null, null, null, null, null],
+      avg365:  [-1, 3094, null, 900, null, null, null, null, null, null, null, 12, null, null, null, null, null, null],
+    }
+    const searchAsins = ['Q1', 'Q2', 'Q3']
+
+    vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
+      const u = String(url)
+      if (u.includes('/bestsellers')) {
+        return { ok: true, status: 200, json: async () => ({ bestSellersList: { asinList: ['B1', 'B2', 'B3', 'B4', 'B5'] } }) } as Response
+      }
+      if (u.includes('/search')) {
+        return { ok: true, status: 200, json: async () => ({ asinList: searchAsins }) } as Response
+      }
+      if (u.includes('/product')) {
+        const asins = (new URL(u).searchParams.get('asin') ?? '').split(',')
+        return {
+          ok: true, status: 200,
+          json: async () => ({
+            products: asins.map(a => ({
+              asin: a, title: 'Creatine Monohydrate Powder', brand: `Brand-${a}`,
+              stats: slot1OnlyStats,
+            })),
+          }),
+        } as Response
+      }
+      if (u.includes('/category')) {
+        return { ok: true, status: 200, json: async () => ({ categories: {} }) } as Response
+      }
+      throw new Error('unexpected URL: ' + u)
+    })
+
+    const result = await new KeepaProvider().fetch({ query: 'creatine monohydrate', categoryId: 'supplements' })
+    expect(result?.review_velocity).toBeDefined()
+    const competitors = result!.review_velocity!.top_competitors ?? []
+    // All 3 query products carry reviews+rating+brand and a slot-1-only
+    // price — the old chain produced zero entries here.
+    const queryEntries = competitors.filter(c => searchAsins.includes(c.productId))
+    expect(queryEntries.length).toBe(3)
+    expect(queryEntries[0].price).toBeCloseTo(30.95, 2)
+  })
+})
+
 // ── Finding 2: calendar-accurate YoY growth ─────────────────────────────────
 
 // Keepa epoch: Jan 1 2011 00:00:00 UTC, in unix seconds — mirrors the

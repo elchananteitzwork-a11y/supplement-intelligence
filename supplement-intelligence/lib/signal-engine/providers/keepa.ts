@@ -481,11 +481,21 @@ async function computeKeepaReviewVelocity(
     .map(p => {
       const reviews = statVal(p.stats, 'current', CSV.COUNT_REVIEWS) ?? 0
       const rating  = (statVal(p.stats, 'current', CSV.RATING) ?? 0) / 10
-      // Prefer FBA price as it's what a buyer actually pays from a real brand
+      // Prefer FBA price as it's what a buyer actually pays from a real brand.
+      // MARKETPLACE_NEW added as last resort (2026-07-28, same live-confirmed
+      // gap as measuredCompetitorInputs' chain): without the offers request
+      // param, many 3P listings carry a price ONLY in slot 1 — the old
+      // 3-slot chain dropped them from top_competitors entirely, which
+      // starved Consumer Intelligence's scrape targets and the Safety
+      // chapter's claim-risk/recall coverage (live Cortisol run: 1 competitor
+      // survived out of 15 measurable). Scoring unaffected — score/
+      // concentration/brand counts come from withReviews, not this list.
       const fbaRaw    = statVal(p.stats, 'avg90', CSV.NEW_FBA)
       const buyBoxRaw = statVal(p.stats, 'avg90', CSV.BUYBOX_PRICE)
       const amazonRaw = statVal(p.stats, 'avg90', CSV.AMAZON_PRICE)
-      const price = keepaPrice(fbaRaw ?? undefined) ?? keepaPrice(buyBoxRaw ?? undefined) ?? keepaPrice(amazonRaw ?? undefined)
+      const newRaw    = statVal(p.stats, 'avg90', CSV.MARKETPLACE_NEW)
+      const price = keepaPrice(fbaRaw ?? undefined) ?? keepaPrice(buyBoxRaw ?? undefined)
+        ?? keepaPrice(amazonRaw ?? undefined) ?? keepaPrice(newRaw ?? undefined)
       if (price === null || !p.brand) return null
 
       // Sprint 3: categoryTree breadcrumb (specific→general; reverse for display).
@@ -950,6 +960,14 @@ export class KeepaProvider implements SignalProvider {
 
   // ── Private: API calls ────────────────────────────────────────
 
+  // Exception-safe (2026-07-28): a timeout/network throw here previously
+  // propagated to fetch()'s outer catch and killed the ENTIRE provider,
+  // despite this function's own non-fatal design (returns [] on non-OK).
+  // CONFIRMED VIA LIVE CALL: a transiently slow Keepa /search aborted at
+  // its 8s signal and zeroed out a whole analysis' Keepa signals. Timeout
+  // also raised 8s→15s — both endpoints measured slower than 8s under
+  // real load, and the caller runs them in Promise.all (wall time = max),
+  // well inside the route budget.
   private async fetchBestsellers(key: string, nodeId: number): Promise<string[]> {
     const url =
       `${KEEPA_API}/bestsellers` +
@@ -957,34 +975,62 @@ export class KeepaProvider implements SignalProvider {
       `&domain=1` +
       `&category=${nodeId}`
 
-    const res = await fetch(url, { signal: AbortSignal.timeout(8_000) })
-    if (!res.ok) {
-      console.error('Keepa bestsellers error', { status: res.status, nodeId })
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(15_000) })
+      if (!res.ok) {
+        console.error('Keepa bestsellers error', { status: res.status, nodeId })
+        return []
+      }
+      const data: KeepaBestsellerResponse = await res.json()
+      return data.bestSellersList?.asinList ?? []
+    } catch (e: unknown) {
+      console.error('Keepa bestsellers failed', { nodeId, error: e instanceof Error ? e.message : e })
       return []
     }
-    const data: KeepaBestsellerResponse = await res.json()
-    return data.bestSellersList?.asinList ?? []
   }
 
   private async fetchProducts(key: string, asins: string[], timeoutMs = 55_000): Promise<KeepaProduct[]> {
     // stats=365 gives current, avg90, avg365 arrays.
     // rating=1 includes RATING/COUNT_REVIEWS history (CSV[16]/[17]).
-    // Token cost: ~5 tokens/product × up to 10 products = ~50 tokens.
-    const url =
-      `${KEEPA_API}/product` +
-      `?key=${encodeURIComponent(key)}` +
-      `&domain=1` +
-      `&asin=${asins.join(',')}` +
-      `&stats=365` +
-      `&rating=1`
+    // Token cost: ~5 tokens/product (unchanged by chunking — Keepa bills
+    // per ASIN, not per request).
+    //
+    // Chunked into parallel ≤10-ASIN requests (2026-07-28): the 20-search-
+    // slice raise made single 25-ASIN calls intermittently exceed the 55s
+    // timeout (CONFIRMED VIA LIVE CALL: same query succeeded once, then
+    // aborted with 'operation was aborted due to timeout' minutes later —
+    // full-history payloads are ~2.5× the proven 10-ASIN size). Parallel
+    // 10-ASIN chunks keep per-request latency at the size this timeout was
+    // originally calibrated for. A failed/timed-out chunk drops only its own
+    // ASINs (same soft-fail contract as before: errors log and return []).
+    const CHUNK = 10
+    const chunks: string[][] = []
+    for (let i = 0; i < asins.length; i += CHUNK) chunks.push(asins.slice(i, i + CHUNK))
 
-    const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })
-    if (!res.ok) {
-      console.error('Keepa product error', { status: res.status, asins: asins.length })
-      return []
-    }
-    const data: KeepaProductResponse = await res.json()
-    return data.products ?? []
+    const results = await Promise.all(chunks.map(async chunk => {
+      const url =
+        `${KEEPA_API}/product` +
+        `?key=${encodeURIComponent(key)}` +
+        `&domain=1` +
+        `&asin=${chunk.join(',')}` +
+        `&stats=365` +
+        `&rating=1`
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })
+        if (!res.ok) {
+          console.error('Keepa product error', { status: res.status, asins: chunk.length })
+          return [] as KeepaProduct[]
+        }
+        const data: KeepaProductResponse = await res.json()
+        return data.products ?? []
+      } catch (e: unknown) {
+        console.error('Keepa product chunk failed', {
+          asins: chunk.length, error: e instanceof Error ? e.message : e,
+        })
+        return [] as KeepaProduct[]
+      }
+    }))
+    return results.flat()
   }
 
   // Sprint 2: fetch category-level aggregate stats via /category endpoint.
@@ -1023,7 +1069,17 @@ export class KeepaProvider implements SignalProvider {
       `&type=product` +
       `&term=${encodeURIComponent(query)}`
 
-    const res = await fetch(url, { signal: AbortSignal.timeout(8_000) })
+    // Exception-safe + 15s (2026-07-28) — same live-confirmed failure mode
+    // as fetchBestsellers: a timeout throw here killed the whole provider
+    // instead of degrading to bestsellers-only, contradicting the
+    // non-fatal contract the non-OK branch below always had.
+    let res: Response
+    try {
+      res = await fetch(url, { signal: AbortSignal.timeout(15_000) })
+    } catch (e: unknown) {
+      console.error('Keepa search failed', { query, error: e instanceof Error ? e.message : e })
+      return []
+    }
     if (!res.ok) {
       // Non-fatal: bestsellers can still power all category-level signals
       console.log('Keepa search: non-OK status', { status: res.status, query })
