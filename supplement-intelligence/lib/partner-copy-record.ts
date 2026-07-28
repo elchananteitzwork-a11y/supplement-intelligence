@@ -94,6 +94,20 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
   const econRows: RecordRow[] = []
   if (m.product_recommendation?.cogs_estimate) econRows.push({ claim: 'Landed unit cost', value: m.product_recommendation.cogs_estimate, marker: 'measured' })
   if (m.product_recommendation?.retail_price) econRows.push({ claim: 'Comparable retail price', value: m.product_recommendation.retail_price, marker: 'measured' })
+  // Real Amazon fee schedule for this category's top sellers, mirrored by
+  // Keepa per product and averaged at fetch time (docs/RD_V4_MEASURED_FEES.md).
+  // Placed between price and margin so the reading order is cost → price →
+  // what Amazon takes → margin. Each row gates on its own field; absence
+  // renders nothing. Deliberately NOT combined with cogs/price into a
+  // fee-adjusted margin — that would blend a measured number with an
+  // AI-judged one under a single marker (RD §7).
+  const revValue = m.signal_evidence?.revenue?.value
+  if (revValue?.avg_referral_fee_pct !== undefined) {
+    econRows.push({ claim: 'Amazon referral fee', value: `${revValue.avg_referral_fee_pct}% of price`, marker: 'measured' })
+  }
+  if (revValue?.avg_fba_pick_pack_fee) {
+    econRows.push({ claim: 'Fulfillment fee (FBA, category average)', value: revValue.avg_fba_pick_pack_fee, marker: 'measured' })
+  }
   if (m.product_recommendation?.gross_margin) econRows.push({ claim: 'Gross margin', value: m.product_recommendation.gross_margin, marker: 'judgment' })
   if (m.financial_projections?.traction_band) econRows.push({ claim: 'Traction band', value: m.financial_projections.traction_band, marker: 'judgment' })
   if (econRows.length > 0) {
