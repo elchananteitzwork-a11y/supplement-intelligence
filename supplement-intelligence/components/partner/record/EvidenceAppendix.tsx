@@ -44,6 +44,28 @@ export function EvidenceAppendix({
           </section>
         )}
 
+        {vm.competitorRows.length > 0 && (
+          <section className="mb-10">
+            <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">What the top sellers measurably gross</p>
+            <p className="mb-3 text-[13px] text-pi-sub">Each row is a real product from this exact search: its real price × Amazon's own reported monthly units.</p>
+            <div className="divide-y divide-pi-hairline rounded-2xl border border-pi-hairline bg-pi-card px-4 shadow-[0_1px_2px_rgba(22,23,26,0.04)]">
+              {vm.competitorRows.map((c, i) => (
+                <div key={i} className="flex items-baseline justify-between gap-3 py-2.5 text-[13px]">
+                  <span className="min-w-0 truncate text-pi-ink">{c.brand}</span>
+                  <span className="flex shrink-0 gap-3 whitespace-nowrap font-mono tabular-nums text-pi-ink">
+                    <span className="text-pi-faint">{c.price}</span>
+                    <span className="text-pi-faint">{c.unitsLabel}</span>
+                    <span className="font-semibold">{c.revenueLabel}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            {vm.competitorsFootnote && (
+              <p className="mt-2 text-[11px] italic leading-relaxed text-pi-faint">{vm.competitorsFootnote}</p>
+            )}
+          </section>
+        )}
+
         {vm.sources.length > 0 && (
           <section className="mb-10">
             <p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">Sources consulted</p>
@@ -56,7 +78,9 @@ export function EvidenceAppendix({
           </section>
         )}
 
-        <p className="mb-6 text-[12px] italic text-pi-faint">{vm.competitorsNote}</p>
+        {vm.competitorRows.length === 0 && (
+          <p className="mb-6 text-[12px] italic text-pi-faint">{vm.competitorsNote}</p>
+        )}
 
         {vm.coverageLine && (
           <p className="border-t border-pi-hairline pt-6 text-[12px] leading-relaxed text-pi-faint">{vm.coverageLine}</p>

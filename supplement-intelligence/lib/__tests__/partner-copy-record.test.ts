@@ -5,7 +5,7 @@
 // suite for the other five chapters this file also builds.
 
 import { describe, it, expect } from 'vitest'
-import { buildRecordChapters } from '../partner-copy-record'
+import { buildRecordChapters, buildEvidenceAppendix } from '../partner-copy-record'
 import type { MemoData } from '@/types/index'
 
 // Same file-local scaffold-plus-cast convention as
@@ -120,5 +120,75 @@ describe('Economics chapter — measured Amazon fee rows', () => {
     const claims = economicsRows(memo).map(r => r.claim)
     expect(claims).toContain('Amazon referral fee')
     expect(claims).not.toContain('Fulfillment fee (FBA, category average)')
+  })
+})
+
+// ── Item ב (docs/RD_V4_NICHE_COMPETITOR_ECONOMICS.md) ─────────────────────
+
+function memoWithCompetitorRevenues(): MemoData {
+  return memoWithEconomics({
+    signal_evidence: {
+      providers_used: ['keepa'], overall_confidence: 0.7,
+      demand_verified: true, virality_verified: false, pricing_verified: true, growth_verified: true,
+      revenue: {
+        value: {
+          score: 6, confidence: 0.7,
+          top_competitor_revenues: [
+            { productId: 'BIG', brand: 'Big Brand', price: 37, monthly_sold: 20000, est_monthly_revenue_mo: 740_000 },
+            { productId: 'MID', brand: 'Mid Brand', price: 30, monthly_sold: 3000, est_monthly_revenue_mo: 90_000 },
+          ],
+          measured_revenue_total_mo: 830_000,
+          revenue_concentration_top1: 0.89,
+          off_category_excluded_count: 2,
+        },
+        sources: ['keepa'], primarySource: 'keepa', confidence: 0.7,
+      },
+    } as unknown as MemoData['signal_evidence'],
+    // A competitor row is needed for the Competition chapter to exist at all.
+    biggest_competitor: { name: 'Big Brand', revenue: '~$740k/mo', gap: '' },
+  })
+}
+
+describe('Item ב — measured competitor revenue surfaces', () => {
+  it('Economics leads with the measured-total row; Competition carries the leader-share row', () => {
+    const chapters = buildRecordChapters(memoWithCompetitorRevenues())
+
+    const econ = chapters.find(c => c.key === 'economics')!
+    expect(econ.rows[0]).toEqual({
+      claim: 'Measured revenue, top 2 sellers',
+      value: '~$830k/mo',
+      marker: 'measured',
+    })
+
+    const comp = chapters.find(c => c.key === 'competition')!
+    const share = comp.rows.find(r => r.claim === "Leader's share of measured revenue")!
+    expect(share.value).toBe('~89%')
+    expect(share.marker).toBe('measured')
+  })
+
+  it('neither row appears without the fields (legacy analyses)', () => {
+    const chapters = buildRecordChapters(memoWithEconomics({
+      biggest_competitor: { name: 'Someone', revenue: '', gap: '' },
+    }))
+    const claims = chapters.flatMap(c => c.rows.map(r => r.claim))
+    expect(claims).not.toContain('Measured revenue, top 2 sellers')
+    expect(claims).not.toContain("Leader's share of measured revenue")
+  })
+
+  it('appendix: real table rows + floor/exclusion footnote when fields exist', () => {
+    const vm = buildEvidenceAppendix(memoWithCompetitorRevenues())
+    expect(vm.competitorRows).toEqual([
+      { brand: 'Big Brand', price: '$37', unitsLabel: '~20,000/mo', revenueLabel: '~$740k/mo' },
+      { brand: 'Mid Brand', price: '$30', unitsLabel: '~3,000/mo', revenueLabel: '~$90k/mo' },
+    ])
+    expect(vm.competitorsFootnote).toContain('rounded-down bands')
+    expect(vm.competitorsFootnote).toContain('2 search results from a different product category')
+  })
+
+  it('appendix: legacy analyses keep the empty table and the honest fallback note', () => {
+    const vm = buildEvidenceAppendix(memoWithEconomics())
+    expect(vm.competitorRows).toEqual([])
+    expect(vm.competitorsFootnote).toBeNull()
+    expect(vm.competitorsNote).toContain('not yet surfaced here')
   })
 })

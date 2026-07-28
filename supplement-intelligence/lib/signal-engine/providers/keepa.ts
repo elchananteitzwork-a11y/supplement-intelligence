@@ -12,6 +12,7 @@ import type {
   SupplyVelocitySignal,
 } from '../types'
 import { checkKeywordRelevance } from '../../keyword-engine/relevance-guard'
+import { buildCompetitorRevenueTable, type MeasuredCompetitorInput } from '../measured-competitor-economics'
 import { scanForClaimRiskLanguage } from '../../regulatory-engine/claim-risk'
 import {
   fetchManufacturerRecallHistoryBatch,
@@ -1465,11 +1466,44 @@ export class KeepaProvider implements SignalProvider {
       }
     }
 
+    // ── Item ב (docs/RD_V4_NICHE_COMPETITOR_ECONOMICS.md): per-competitor
+    // measured revenue from the query-specific /search products (queryProducts)
+    // — NOT the category bestsellers every other revenue field averages over.
+    // These products were already fetched (with monthlySold) for
+    // review_velocity; this block just stops discarding that data. Same
+    // relevance gate as computeKeepaReviewVelocity; the category/dedupe
+    // guards + the ≥2-measured-products floor live in the pure module.
+    const measuredCompetitorInputs: MeasuredCompetitorInput[] = queryProducts
+      .filter(p => !!p.title && checkKeywordRelevance(query, p.title).allowed && hasWordOverlap(query, p.title))
+      .map(p => {
+        const s = p.stats
+        // Price chain ends in MARKETPLACE_NEW (lowest 3P new-offer price) —
+        // CONFIRMED VIA LIVE CALL 2026-07-28 (item ב validation): for many
+        // 3P search listings (e.g. the 20k-units/mo creatine leader,
+        // B0DJDQCJX2) NEW[1] is the ONLY populated price slot; FBA/buybox/
+        // amazon are all -1 without the offers request param. A real
+        // observed price, lowest-priority fallback only.
+        const priceDollars =
+          keepaPrice(statVal(s, 'avg90', CSV.NEW_FBA) ?? undefined) ??
+          keepaPrice(statVal(s, 'avg90', CSV.BUYBOX_PRICE) ?? undefined) ??
+          keepaPrice(statVal(s, 'avg90', CSV.AMAZON_PRICE) ?? undefined) ??
+          keepaPrice(statVal(s, 'avg90', CSV.MARKETPLACE_NEW) ?? undefined)
+        const tree = p.categoryTree as Array<{ catId: number; name: string }> | undefined
+        return {
+          productId:        p.asin,
+          brand:            p.brand?.trim() ?? '',
+          price:            priceDollars,
+          monthlySold:      typeof p.monthlySold === 'number' && p.monthlySold > 0 ? p.monthlySold : null,
+          categoryLevel1Id: Array.isArray(tree) && typeof tree[1]?.catId === 'number' ? tree[1].catId : null,
+        }
+      })
+    const competitorEconomics = buildCompetitorRevenueTable(measuredCompetitorInputs)
+
     // ── Revenue signal ──
     const fmt = (n: number) => n >= 1000 ? `$${Math.round(n / 1000)}k/mo` : `$${Math.round(n)}/mo`
     let revenue: RevenueSignal | undefined
     if (productRevenues.length > 0 || avgRating !== null || avgReviewCount !== null ||
-        (avgPrice !== null && avgMonthlySold !== null)) {
+        (avgPrice !== null && avgMonthlySold !== null) || competitorEconomics !== null) {
       const topRevenue = productRevenues.length ? Math.max(...productRevenues) : null
       const perProductAvg = avg(productRevenues)
       const avgRevenue =
@@ -1498,6 +1532,16 @@ export class KeepaProvider implements SignalProvider {
         revenue_sample_count:   productRevenues.length > 0 ? productRevenues.length : undefined,
         revenue_is_category_estimate: !isPerProductRevenue && avgRevenue !== null ? true : undefined,
         revenue_estimate_unavailable: avgRevenue === null ? true : undefined,
+        // Item ב: attached only when the pure module produced a real table
+        // (≥2 relevant, deduped, both-axes-measured search products).
+        ...(competitorEconomics && {
+          top_competitor_revenues:     competitorEconomics.rows,
+          measured_revenue_total_mo:   competitorEconomics.measured_revenue_total_mo,
+          revenue_concentration_top1:  competitorEconomics.revenue_concentration_top1,
+          off_category_excluded_count: competitorEconomics.off_category_excluded_count > 0
+            ? competitorEconomics.off_category_excluded_count
+            : undefined,
+        }),
         ...(avgPrice !== null && avgPrice365 !== null && prices.length >= 3 && prices365.length >= 3 && {
           price_avg_90d:         Math.round(avgPrice * 100) / 100,
           price_avg_365d:        Math.round(avgPrice365 * 100) / 100,

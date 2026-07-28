@@ -110,6 +110,31 @@ export interface RevenueSignal extends SignalScore {
   // confirmed live in earlier Keepa API audit. Used for market accessibility context.
   category_fba_pct?: number          // from /category: % of category products FBA-fulfilled
   category_amazon_seller_pct?: number // from /category: % sold directly by Amazon
+  // Item ב (docs/RD_V4_NICHE_COMPETITOR_ECONOMICS.md): per-competitor measured
+  // revenue from the query-specific /search products — NOT the category
+  // bestsellers the fields above average over. Lives on RevenueSignal (Keepa
+  // is this dimension's only producer) rather than ReviewVelocitySignal
+  // deliberately: review_velocity's blended value takes its non-numeric
+  // fields from primarySource only, so a Keepa-only enrichment there would
+  // silently vanish whenever Apify also fires (its 0.80 confidence wins).
+  // Present only when ≥2 relevant, deduped search products carried BOTH a
+  // real price and a real monthlySold — a 1-product "table" is the same
+  // misleading n=1 average this milestone exists to kill. All figures are
+  // floors (monthlySold is Amazon's rounded-down band); the UI owns the
+  // ~/floor presentation.
+  top_competitor_revenues?: {
+    productId:              string
+    brand:                  string
+    price:                  number
+    monthly_sold:           number   // Amazon's rounded-down band — a floor
+    est_monthly_revenue_mo: number   // price × monthly_sold — therefore also a floor
+  }[]
+  measured_revenue_total_mo?:   number  // sum over top_competitor_revenues
+  revenue_concentration_top1?:  number  // 0–1: leader's share of that total
+  // Guard-1 disclosure: how many relevance-passing search results were
+  // excluded for sitting in a minority second-level category (the OTC-drug
+  // contamination case). Absent when zero — never a fabricated 0.
+  off_category_excluded_count?: number
 }
 
 export interface GrowthSignal extends SignalScore {

@@ -49,6 +49,16 @@ function splitFirstLetter(s: string): { first: string; rest: string } {
   return { first: s[0], rest: s.slice(1) }
 }
 
+// Item ב (docs/RD_V4_NICHE_COMPETITOR_ECONOMICS.md): every measured-revenue
+// figure carries a "~" because monthlySold is Amazon's rounded-down band —
+// these are floors, never exact counts. Same $Xk/mo convention as
+// lib/real-competitor.ts's fmtRevenue.
+function fmtMeasuredMonthly(n: number): string {
+  if (n >= 1_000_000) return `~$${(Math.round(n / 100_000) / 10).toFixed(1)}M/mo`
+  if (n >= 1000) return `~$${Math.round(n / 1000)}k/mo`
+  return `~$${Math.round(n)}/mo`
+}
+
 export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
   const chapters: RecordChapterVM[] = []
 
@@ -81,6 +91,16 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
   if (m.market_saturation?.dominant_brands) {
     compRows.push({ claim: 'Dominant brands', value: m.market_saturation.dominant_brands, marker: 'measured' })
   }
+  // Item ב: leader's share of the measured per-competitor revenue (only
+  // present when ≥2 niche search products were measured on both axes).
+  const revVal = m.signal_evidence?.revenue?.value
+  if (revVal?.revenue_concentration_top1 !== undefined) {
+    compRows.push({
+      claim: "Leader's share of measured revenue",
+      value: `~${Math.round(revVal.revenue_concentration_top1 * 100)}%`,
+      marker: 'measured',
+    })
+  }
   if (compRows.length > 0) {
     chapters.push({
       key: 'competition', title: 'Competition',
@@ -92,6 +112,16 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
 
   // ── Economics ───────────────────────────────────────────────────────
   const econRows: RecordRow[] = []
+  // Item ב: what this exact niche's top sellers measurably gross — market
+  // context first, then unit economics. Floor semantics via "~" (see
+  // fmtMeasuredMonthly).
+  if (revVal?.measured_revenue_total_mo !== undefined && revVal.top_competitor_revenues?.length) {
+    econRows.push({
+      claim: `Measured revenue, top ${revVal.top_competitor_revenues.length} sellers`,
+      value: fmtMeasuredMonthly(revVal.measured_revenue_total_mo),
+      marker: 'measured',
+    })
+  }
   if (m.product_recommendation?.cogs_estimate) econRows.push({ claim: 'Landed unit cost', value: m.product_recommendation.cogs_estimate, marker: 'measured' })
   if (m.product_recommendation?.retail_price) econRows.push({ claim: 'Comparable retail price', value: m.product_recommendation.retail_price, marker: 'measured' })
   // Real Amazon fee schedule for this category's top sellers, mirrored by
@@ -180,7 +210,12 @@ export interface EvidenceAppendixVM {
   sources:  { name: string }[]
   overallConfidence: number | null
   coverageLine: string | null
-  competitorsNote: string  // honest disclosure — see file header scope note
+  competitorsNote: string  // honest disclosure — rendered ONLY when competitorRows is empty (legacy analyses)
+  // Item ב: the per-competitor measured revenue table the note above always
+  // promised as "a fast follow". Empty for analyses generated before the
+  // fields existed (no backfill — real provider cost).
+  competitorRows: { brand: string; price: string; unitsLabel: string; revenueLabel: string }[]
+  competitorsFootnote: string | null  // floor semantics + off-category exclusion disclosure
 }
 
 export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
@@ -203,12 +238,31 @@ export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
     ? `Evidence coverage for this query: ${eds.contributions?.length ?? 0} of 6 deep-evidence clusters had data available (${Math.round(eds.coverage * 100)}%). A score built from partial coverage is never presented as equal to one built from full coverage.`
     : null
 
+  // Item ב: real per-competitor measured revenue rows, when this analysis
+  // has them. Values are floors (monthlySold is Amazon's rounded-down band).
+  const compRevs = m.signal_evidence?.revenue?.value?.top_competitor_revenues ?? []
+  const competitorRows = compRevs.map(r => ({
+    brand:        r.brand,
+    price:        `$${Math.round(r.price)}`,
+    unitsLabel:   `~${r.monthly_sold.toLocaleString()}/mo`,
+    revenueLabel: fmtMeasuredMonthly(r.est_monthly_revenue_mo),
+  }))
+  const excludedCount = m.signal_evidence?.revenue?.value?.off_category_excluded_count
+  const competitorsFootnote = competitorRows.length
+    ? 'Amazon reports monthly units in rounded-down bands, so every figure here is a floor, not an exact count.'
+      + (excludedCount
+        ? ` ${excludedCount} search result${excludedCount === 1 ? '' : 's'} from a different product category (e.g. OTC medicines a supplement can't legally compete with) excluded.`
+        : '')
+    : null
+
   return {
     keywords,
     sources,
     overallConfidence: m.signal_metadata?.overall_confidence ?? null,
     coverageLine,
     competitorsNote: 'Full per-competitor pricing and listing-age table: not yet surfaced here — the underlying data is real and already captured (see the Competition chapter for the category leader), a fast follow to this appendix.',
+    competitorRows,
+    competitorsFootnote,
   }
 }
 
