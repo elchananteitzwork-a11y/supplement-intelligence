@@ -623,9 +623,22 @@ export async function POST(req: Request) {
       })
     : Promise.resolve(null)
 
+  // Real current date + staleness guard (2026-07-28, owner-reported bug):
+  // the model's own sense of "now" / "the last 12-24 months" is anchored to
+  // its training cutoff, not the actual date — a real Brief presented a
+  // 2023-2024 TikTok wave as the currently-open window ("did not exist 24
+  // months ago") in mid-2026. Prepended here, the single assembly point for
+  // every category module's system prompt, so time-anchored fields (why_now
+  // above all) must either lean on the provided signal data — current by
+  // construction — or explicitly date background-knowledge claims.
+  const todayLine =
+    `Today's date is ${new Date().toISOString().slice(0, 10)}. Your background knowledge has a training cutoff and may be months or years out of date relative to this date. ` +
+    `For why_now and every other time-anchored claim: timing claims grounded in the live signal data provided in this prompt are current; anything drawn from your background knowledge must state its explicit year and must never be framed as "now", "recent", "today", or "the last N months" unless the provided data corroborates it. ` +
+    `If no data-backed recent driver exists, say plainly that the timing case rests on the measured signals alone — never dress a dated cultural narrative as a current window.`
+  const basePrompt = `${todayLine}\n\n${module.analysisSystemPrompt}`
   const systemPrompt = signals
-    ? module.buildSignalAugmentedPrompt(module.analysisSystemPrompt, input.trim(), signals, consumerIntelligence)
-    : module.analysisSystemPrompt
+    ? module.buildSignalAugmentedPrompt(basePrompt, input.trim(), signals, consumerIntelligence)
+    : basePrompt
 
   const signalMeta: SignalMetadata | undefined = signals ? {
     providers_used:     signals.providers_used,

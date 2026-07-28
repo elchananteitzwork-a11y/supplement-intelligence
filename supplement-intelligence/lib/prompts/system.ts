@@ -61,7 +61,7 @@ OUTPUT RULES:
 - build_explanation: 2 sentences max
 - path_to_10m: 1 sentence
 - market_thesis: 2–4 sentences. Investment thesis in active analyst voice — not a summary. State the structural opportunity, why it matters at this scale, and the core market insight. Write like a Sequoia or Benchmark partner writing a deal memo: specific numbers, clear point of view, no hedging.
-- why_now: 2–3 sentences. Explain what changed in the last 12–24 months that makes this window open today rather than two years ago or two years from now. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm change, manufacturing cost drop, incumbent strategic error, or category-defining brand exit. Be concrete—cite the mechanism, not just "the market is growing."
+- why_now: 2–3 sentences. Explain what changed in the 12–24 months BEFORE today's date (stated at the top of this prompt) that makes this window open today rather than two years ago or two years from now. Drivers from your background knowledge must carry their explicit year and must be recent relative to today's date — never present an event from your training past as the current wave. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm change, manufacturing cost drop, incumbent strategic error, or category-defining brand exit. Be concrete—cite the mechanism, not just "the market is growing."
 
 Return a JSON object with exactly these fields:
 {
@@ -128,5 +128,5 @@ Return a JSON object with exactly these fields:
 
   "market_thesis": "2–4 sentence investment thesis written in the voice of a senior analyst. State the structural opportunity, why it matters at this scale, and the core market insight. Active voice, specific numbers, clear point of view. Not a summary of the analysis above.",
 
-  "why_now": "2–3 sentences explaining what changed in the last 12–24 months that makes this window open today. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm, manufacturing cost, incumbent error, or category exit. Concrete mechanism, not generic market growth language."
+  "why_now": "2–3 sentences on what changed in the 12–24 months before today's date (see top of prompt) that makes this window open today; background-knowledge drivers must carry their explicit year. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm, manufacturing cost, incumbent error, or category exit. Concrete mechanism, not generic market growth language."
 }`

@@ -145,7 +145,7 @@ CALIBRATION RULES — read carefully:
 ADDITIONAL OUTPUT RULES:
 - market_saturation: describe the competitive landscape qualitatively — no score.
 - market_thesis: 2–4 sentences. Investment thesis in active analyst voice — not a summary. State the structural opportunity, why it matters at this scale, and the core market insight. Write like a senior VC partner writing a deal memo: specific point of view, no hedging, but no invented numbers either. This field must appear at the END of the JSON object, after financial_projections.
-- why_now: 2–3 sentences. Explain what changed in the last 12–24 months that makes this window open today rather than 2 years ago. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm change, manufacturing cost drop, incumbent strategic error, or category-defining brand exit. Concrete mechanism, not generic growth language, and no invented percentages. This field must appear at the END of the JSON object, after market_thesis.
+- why_now: 2–3 sentences. Explain what changed in the 12–24 months BEFORE today's date (stated at the top of this prompt) that makes this window open today rather than 2 years ago. Drivers from your background knowledge must carry their explicit year and be recent relative to today's date — never present an event from your training past as the current wave. Reference specific drivers: search acceleration, consumer behavior shift, platform algorithm change, manufacturing cost drop, incumbent strategic error, or category-defining brand exit. Concrete mechanism, not generic growth language, and no invented percentages. This field must appear at the END of the JSON object, after market_thesis.
 
 Return a JSON object with exactly these fields:
 {
@@ -213,5 +213,5 @@ Return a JSON object with exactly these fields:
 
   "market_thesis": "2–4 sentence investment thesis in senior analyst voice. State the structural opportunity, why it matters at this scale, and the core market insight. Active voice, clear POV, no invented numbers. Not a summary.",
 
-  "why_now": "2–3 sentences on what changed in the last 12–24 months that makes this window open today. Specific drivers: search acceleration, consumer behavior shift, platform change, manufacturing cost, incumbent error. Concrete mechanism, not generic growth language, no invented percentages."
+  "why_now": "2–3 sentences on what changed in the 12–24 months before today's date (see top of prompt); background-knowledge drivers must carry their explicit year. Specific drivers: search acceleration, consumer behavior shift, platform change, manufacturing cost, incumbent error. Concrete mechanism, not generic growth language, no invented percentages."
 }`
