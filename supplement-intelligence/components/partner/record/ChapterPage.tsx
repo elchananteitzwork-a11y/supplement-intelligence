@@ -2,13 +2,21 @@
 
 import { useRouter } from 'next/navigation'
 import type { RecordChapterVM, GapLetterVM } from '@/lib/partner-copy-record'
+import type { MarketReport } from '@/lib/competitive-review-engine'
 import { GapLetter } from './GapLetter'
 import { RecordCard, RecordCardRow } from './RecordCard'
+import { CompetitiveReviews } from './CompetitiveReviews'
 
 // One Record chapter (V4 Phase 2, RD_V4_PHASE2.md Milestone B) — pushed
 // screen with a back arrow, same top-bar pattern the Interrogation sheet
-// already uses elsewhere in this namespace.
-export function ChapterPage({ chapter, gap }: { chapter: RecordChapterVM; gap: GapLetterVM | null }) {
+// already uses elsewhere in this namespace. competitiveReviews (item ג) is
+// non-null only for the Competition chapter of an analysis with a stored
+// competitor set — the server page owns that gate.
+export function ChapterPage({ chapter, gap, competitiveReviews = null }: {
+  chapter: RecordChapterVM
+  gap: GapLetterVM | null
+  competitiveReviews?: { analysisId: string; topN: number; initialReport: MarketReport | null; initiallyRunning: boolean } | null
+}) {
   const router = useRouter()
 
   return (
@@ -49,6 +57,15 @@ export function ChapterPage({ chapter, gap }: { chapter: RecordChapterVM; gap: G
                   {chapter.read}
                 </p>
               </RecordCard>
+            )}
+
+            {competitiveReviews && (
+              <CompetitiveReviews
+                analysisId={competitiveReviews.analysisId}
+                topN={competitiveReviews.topN}
+                initialReport={competitiveReviews.initialReport}
+                initiallyRunning={competitiveReviews.initiallyRunning}
+              />
             )}
           </>
         )}
