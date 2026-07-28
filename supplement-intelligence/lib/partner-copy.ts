@@ -587,10 +587,21 @@ export function buildClaimEvidence(claimKey: string, m: MemoData): ClaimEvidence
     }
     case 'marketAccessibility': {
       const rv = se?.review_velocity?.value
-      if (rv?.meaningful_competitor_count !== undefined) facts.push({ label: 'Meaningful competitors', value: String(rv.meaningful_competitor_count), provenance: 'measured' })
+      // Owner-reported confusion (2026-07-28): a bare count ("3") read as
+      // "only 3 competitors exist" when dozens of listings obviously do.
+      // These are counts WITHIN the sampled head of the market, behind
+      // quality gates — the label/value must say that basis out loud. The
+      // tail of me-too listings is deliberately not counted: entry
+      // difficulty is set by brands with real traction at the top of
+      // search, not by every listing that exists.
+      if (rv?.meaningful_competitor_count !== undefined) {
+        facts.push({ label: 'Brands with real traction (≥20 reviews, top of search)', value: String(rv.meaningful_competitor_count), provenance: 'measured' })
+      }
       if (rv?.review_concentration_ratio !== undefined) facts.push({ label: 'Review concentration (top 3)', value: `${Math.round(rv.review_concentration_ratio * 100)}%`, provenance: 'measured' })
       const c = se?.competition?.value
-      if (c?.distinct_brand_count !== undefined) facts.push({ label: 'Distinct brands', value: String(c.distinct_brand_count), provenance: 'measured' })
+      if (c?.distinct_brand_count !== undefined) {
+        facts.push({ label: 'Distinct brands among top sellers sampled', value: String(c.distinct_brand_count), provenance: 'measured' })
+      }
       if (c?.barrier) facts.push({ label: 'Barrier to entry', value: c.barrier, provenance: 'measured' })
       return { title: 'Market Accessibility', facts }
     }
