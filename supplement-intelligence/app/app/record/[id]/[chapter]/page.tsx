@@ -41,7 +41,9 @@ export default async function RecordChapterPage({ params }: { params: { id: stri
   if (chapter.key === 'competition') {
     const revAsins = (m.signal_evidence?.revenue?.value?.top_competitor_revenues ?? []).map(r => r.productId)
     const rvAsins  = (m.signal_evidence?.review_velocity?.value?.top_competitors ?? []).map(c => c.productId)
-    const distinct = new Set([...revAsins, ...rvAsins].map(x => x.toUpperCase()))
+    // Same malformed-entry guard as the route's competitorAsinsFrom: an old
+    // stored entry with no productId must not crash the whole chapter page.
+    const distinct = new Set([...revAsins, ...rvAsins].filter((x): x is string => typeof x === 'string' && !!x).map(x => x.toUpperCase()))
     const topN = Math.min(5, distinct.size)
     if (topN >= 2) {
       const { data: reportRow } = await sb

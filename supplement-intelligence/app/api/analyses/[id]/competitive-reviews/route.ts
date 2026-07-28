@@ -79,8 +79,11 @@ function competitorAsinsFrom(memo: MemoData | null): string[] {
   const seen = new Set<string>()
   const out: string[] = []
   for (const asin of [...fromRevenue, ...fromReviewVelocity]) {
+    // Old stored analyses can carry malformed entries with no productId —
+    // found live 2026-07-28 (a pre-validation scan crashed on exactly this).
+    if (typeof asin !== 'string' || !asin) continue
     const key = asin.toUpperCase()
-    if (!asin || seen.has(key)) continue
+    if (seen.has(key)) continue
     seen.add(key)
     out.push(key)
     if (out.length >= MAX_ASINS) break
