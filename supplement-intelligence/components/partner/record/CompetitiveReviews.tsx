@@ -88,8 +88,9 @@ export function CompetitiveReviews({
         <RecordCard className="px-5 py-5">
           <p className="mb-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">Go deeper</p>
           <p className="mb-3 max-w-[60ch] font-serif text-[16px] italic leading-relaxed text-pi-ink">
-            I can read the actual reviews of your top {topN} competitors by measured revenue — and tell you
-            exactly why their buyers are disappointed, and what the winners get right.
+            I can read the actual reviews of the {topN} strongest brands in this market (by measured
+            revenue) — not every seller out there, the ones actually holding it — and tell you exactly
+            why their buyers are disappointed, and what the winners get right.
           </p>
           <p className="mb-4 max-w-[60ch] text-[13px] leading-relaxed text-pi-sub">
             This is a real run: it pulls live review data and takes about two minutes. It runs{' '}
@@ -155,7 +156,7 @@ function ReportView({ vm, unsaved }: { vm: CompetitiveReviewsVM; unsaved?: boole
 
       {vm.competitors.length > 0 && (
         <RecordCard className="px-5 py-5">
-          <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">Per competitor</p>
+          <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-pi-gold">Per brand</p>
           {vm.competitors.map((c, i) => (
             <div key={i} className="flex items-baseline justify-between gap-3 border-t border-pi-hairline py-3 first:border-t-0">
               <div className="min-w-0">

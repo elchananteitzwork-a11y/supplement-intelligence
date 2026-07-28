@@ -223,9 +223,9 @@ function marketReportFixture(): MarketReport {
 describe('buildCompetitiveReviewsVM', () => {
   it('maps gaps with measured prevalence labels, sorted by prevalence, winners capped at 4', () => {
     const vm = buildCompetitiveReviewsVM(marketReportFixture())
-    expect(vm.statsLine).toBe('78 real reviews across 3 competitors')
-    expect(vm.gaps[0]).toEqual({ text: 'Bad taste across the category', prevalenceLabel: '3 of 3 competitors', severity: 'High' })
-    expect(vm.gaps[1].prevalenceLabel).toBe('2 of 3 competitors')
+    expect(vm.statsLine).toBe('78 real reviews across the 3 strongest brands here')
+    expect(vm.gaps[0]).toEqual({ text: 'Bad taste across the category', prevalenceLabel: '3 of the 3 top brands', severity: 'High' })
+    expect(vm.gaps[1].prevalenceLabel).toBe('2 of the 3 top brands')
     expect(vm.winnerFeatures).toHaveLength(4)
     expect(vm.productBrief).toBe('Build the clean-taste option.')
   })
@@ -249,6 +249,6 @@ describe('buildCompetitiveReviewsVM — niche fallback (live finding 2026-07-28)
     ]
     const vm = buildCompetitiveReviewsVM(report)
     expect(vm.gaps).toHaveLength(2)
-    expect(vm.gaps[0].prevalenceLabel).toBe('1 of 3 competitors')
+    expect(vm.gaps[0].prevalenceLabel).toBe('1 of the 3 top brands')
   })
 })

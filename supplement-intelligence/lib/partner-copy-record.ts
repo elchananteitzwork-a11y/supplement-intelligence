@@ -188,7 +188,7 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
   const recallCount = topCompetitors.reduce((sum, c) => sum + (c.manufacturer_recall_flags?.reduce((s, r) => s + r.count, 0) ?? 0), 0)
   if (topCompetitors.length > 0) {
     safetyRows.push({
-      claim: 'Competitors with flagged claim language',
+      claim: 'Top brands with flagged claim language',
       value: `${flaggedForClaims} of ${topCompetitors.length}`,
       marker: 'measured',
     })
@@ -296,7 +296,7 @@ export function buildCompetitiveReviewsVM(report: MarketReport): CompetitiveRevi
     .slice(0, 6)
     .map(g => ({
       text: g.description,
-      prevalenceLabel: `${g.product_count} of ${report.products_analyzed} competitors`,
+      prevalenceLabel: `${g.product_count} of the ${report.products_analyzed} top brands`,
       severity: g.severity,
     }))
 
@@ -310,7 +310,7 @@ export function buildCompetitiveReviewsVM(report: MarketReport): CompetitiveRevi
     }))
 
   return {
-    statsLine: `${report.total_reviews_analyzed.toLocaleString()} real reviews across ${report.products_analyzed} competitors`,
+    statsLine: `${report.total_reviews_analyzed.toLocaleString()} real reviews across the ${report.products_analyzed} strongest brands here`,
     gaps,
     winnerFeatures: (report.winner_features ?? []).slice(0, 4),
     competitors,
