@@ -31,6 +31,13 @@ export const maxDuration = 300
 const ENGINE_OPTIONS = {
   max_products:        5,
   reviews_per_product: 40,
+  // Sequential on purpose (live validation 2026-07-28): both review
+  // providers are Apify actors, and 3 concurrent run-sync calls starve the
+  // Starter plan's actor capacity — 4 of 5 products timed out ("fetch
+  // failed — operation aborted") while the single uncontended run
+  // succeeded. Sequential runs each get full capacity; 5×40 reviews
+  // measured well inside maxDuration.
+  product_concurrency: 1,
   sort_by:             'helpful' as const,
 }
 const MAX_ASINS = 5

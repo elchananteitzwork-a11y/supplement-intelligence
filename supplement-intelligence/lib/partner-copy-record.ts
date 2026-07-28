@@ -283,7 +283,15 @@ export interface CompetitiveReviewsVM {
 }
 
 export function buildCompetitiveReviewsVM(report: MarketReport): CompetitiveReviewsVM {
-  const gaps = [...report.universal_gaps, ...report.common_gaps]
+  // Live finding (2026-07-28 validation): with real 5-product data the
+  // cross-product gap clustering can land EVERYTHING in niche_gaps
+  // (per-product phrasing varies too much to merge), leaving
+  // universal+common empty — which would render the marquee gaps block
+  // blank. Falling back to the top niche gaps is honest: each carries its
+  // real "1 of N" prevalence label, never an inflated tier.
+  const crossProduct = [...report.universal_gaps, ...report.common_gaps]
+  const gapSource = crossProduct.length > 0 ? crossProduct : report.niche_gaps
+  const gaps = [...gapSource]
     .sort((a, b) => b.prevalence - a.prevalence)
     .slice(0, 6)
     .map(g => ({

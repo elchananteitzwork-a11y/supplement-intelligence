@@ -237,3 +237,18 @@ describe('buildCompetitiveReviewsVM', () => {
     expect(vm.competitors[1].name).toBe('Untitled Product Two')
   })
 })
+
+describe('buildCompetitiveReviewsVM — niche fallback (live finding 2026-07-28)', () => {
+  it('falls back to niche_gaps with honest 1-of-N labels when cross-product tiers are empty', () => {
+    const report = marketReportFixture()
+    report.universal_gaps = []
+    report.common_gaps = []
+    report.niche_gaps = [
+      { description: 'Clumps in cold water', category: 'quality_issue', prevalence: 0.33, product_count: 1, asin_examples: ['A1'], severity: 'High' },
+      { description: 'Too sweet from stevia', category: 'quality_issue', prevalence: 0.33, product_count: 1, asin_examples: ['A2'], severity: 'Medium' },
+    ]
+    const vm = buildCompetitiveReviewsVM(report)
+    expect(vm.gaps).toHaveLength(2)
+    expect(vm.gaps[0].prevalenceLabel).toBe('1 of 3 competitors')
+  })
+})

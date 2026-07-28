@@ -122,6 +122,14 @@ export class CompetitiveReviewEngine {
       max_pages:     Math.ceil(opts.reviews_per_product / 10) + 2,
       sort_by:       opts.sort_by,
       country:       opts.country,
+      // The collector's 15s default is BELOW both Apify actors' own
+      // documented run-sync latency (axesso ~18s, junglee ~22s for 50
+      // reviews — see review-collector/providers/registry.ts) — live item-ג
+      // validation 2026-07-28: every un-cached ASIN timed out at 15s on
+      // BOTH providers, twice, while the one cache-warm ASIN succeeded.
+      // 90s bounds a slow actor without letting one product eat the route
+      // budget (maxDuration 300 with sequential collection).
+      timeout_ms:    90_000,
     }
 
     const productReviews = await collectCompetitorReviews(
