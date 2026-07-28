@@ -858,7 +858,13 @@ function computeProfitability(m: MemoData): RealResult {
   // Validated keyword (nav + semantic filtered) — never raw top_buying[0].
   // See getValidatedKeywords for rationale (audit finding, 2026-07).
   const cpc = getValidatedKeywords(m).keywords[0]?.cpc
-  const cacSourceNote = cpc != null ? ' (CPC proxy — see scoring.ts cacPressureToScore)' : ''
+  // User-facing sourceLabel — must name the real basis honestly without
+  // leaking internal code identifiers (E2E audit 2026-07-28 caught the old
+  // "see scoring.ts cacPressureToScore" reaching the Brief's Profitability
+  // card, a T4 internal-language violation). "CPC proxy" keeps the honest
+  // weak-evidence disclosure; the mechanism detail stays in the code
+  // comment above, not on screen.
+  const cacSourceNote = cpc != null ? ' (CPC proxy for acquisition cost)' : ''
   if (typeof cpc === 'number' && cpc > 0) {
     subSignals.push({ score: cacPressureToScore(cpc / price), weight: 0.25, source: `dataforseo${cacSourceNote}` })
   }
@@ -1246,7 +1252,10 @@ function assembleDimensions(m: MemoData): { candidates: ScoreDimension[]; gateTi
         dfConfirmed    ? `DataForSEO ${topKeyword!.monthly_searches!.toLocaleString()} searches/mo` : '',
         keepaConfirmed ? `Keepa ${keepaMonthlySold.toLocaleString()} units/mo` : '',
       ].filter(Boolean).join(' + ')
-      candidates.push(qualitative('consumerPain', 'Customer Opportunity', undefined, `Thin review corpus (${ci.totalReviewsCollected} reviews) with cross-validated demand — weight excluded and redistributed (see scoring.ts v2.3.0). Demand confirmed by: ${demandNote}.`))
+      // No internal version/code reference in this user-facing note (same
+      // T4 rule as the cacSourceNote fix above) — the redistribution is
+      // stated plainly without "see scoring.ts v2.3.0".
+      candidates.push(qualitative('consumerPain', 'Customer Opportunity', undefined, `Thin review corpus (${ci.totalReviewsCollected} reviews) with cross-validated demand — weight excluded and redistributed. Demand confirmed by: ${demandNote}.`))
     } else {
       // Scenario A (thin + no cross-validation) or normal corpus: report score.
       // Label key kept as 'consumerPain' for backward compat with UI and stored

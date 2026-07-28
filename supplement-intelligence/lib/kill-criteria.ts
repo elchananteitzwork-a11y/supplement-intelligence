@@ -81,16 +81,35 @@ export function computeKillCriteria(
     })
   }
 
-  // Always includable — classification.stage is always a real, computed value.
-  criteria.push({
-    key: 'lifecycle_stage_advanced',
-    label: 'Lifecycle stage advances into Saturated or Declining',
-    metric: 'lifecycle_stage', comparator: 'in', threshold: ['Saturated', 'Declining'],
-    valueAtGeneration: classification.stage,
-  })
+  // A reversal condition is only falsifiable if it is NOT already true at
+  // generation time. The old version always thresholded on
+  // ['Saturated','Declining'] — so an analysis generated while ALREADY
+  // Saturated shipped a "what would change my mind" condition that was born
+  // already-tripped ("advances into Saturated — currently Saturated"),
+  // caught in the 2026-07-28 E2E audit. Fix: threshold only on stages
+  // strictly WORSE than the current one, and omit the criterion entirely
+  // when the stage is already the worst (Declining) — same "omit, never
+  // fabricate" discipline as the criteria above.
+  const worseStages = LIFECYCLE_DOWNSIDE_STAGES.filter(
+    s => LIFECYCLE_ORDER.indexOf(s) > LIFECYCLE_ORDER.indexOf(classification.stage),
+  )
+  if (worseStages.length > 0) {
+    criteria.push({
+      key: 'lifecycle_stage_advanced',
+      label: `Lifecycle stage advances into ${worseStages.join(' or ')}`,
+      metric: 'lifecycle_stage', comparator: 'in', threshold: worseStages,
+      valueAtGeneration: classification.stage,
+    })
+  }
 
   return criteria.slice(0, 4)
 }
+
+// Stage progression, worst-last — mirrors lib/lifecycle.ts's LifecycleStage
+// union order. Only Saturated/Declining are downside stages a reversal
+// condition points at.
+const LIFECYCLE_ORDER: LifecycleStage[] = ['Latent', 'Emerging', 'Window Open', 'Contested', 'Saturated', 'Declining']
+const LIFECYCLE_DOWNSIDE_STAGES: LifecycleStage[] = ['Saturated', 'Declining']
 
 // Pure, deterministic evaluation — true only when the fresh value for this
 // criterion's metric is both present (a later re-check actually measured

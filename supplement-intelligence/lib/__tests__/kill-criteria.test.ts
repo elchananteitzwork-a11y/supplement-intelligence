@@ -61,6 +61,25 @@ describe('computeKillCriteria', () => {
     expect(criteria.find(c => c.key === 'gap_velocity_negative')?.valueAtGeneration).toBe(-3)
     expect(criteria.find(c => c.key === 'supply_velocity_surge')?.valueAtGeneration).toBe(0.55)
   })
+
+  it('lifecycle criterion is never born already-tripped: thresholds only on stages worse than the current one (E2E audit 2026-07-28)', () => {
+    // Already Saturated → the only worse stage left is Declining.
+    const sat = computeKillCriteria(classification({}, 'Saturated'), gapVelocity(10))
+    const satStage = sat.find(c => c.key === 'lifecycle_stage_advanced')!
+    expect(satStage.threshold).toEqual(['Declining'])
+    expect(satStage.label).toBe('Lifecycle stage advances into Declining')
+    // The stored current value is never itself in the threshold set.
+    expect(satStage.threshold as string[]).not.toContain(satStage.valueAtGeneration)
+
+    // Early stage → both downside stages are still ahead.
+    const early = computeKillCriteria(classification({}, 'Emerging'), gapVelocity(10))
+    expect(early.find(c => c.key === 'lifecycle_stage_advanced')!.threshold).toEqual(['Saturated', 'Declining'])
+  })
+
+  it('omits the lifecycle criterion entirely when already at the worst stage (Declining)', () => {
+    const declining = computeKillCriteria(classification({}, 'Declining'), gapVelocity(10))
+    expect(declining.find(c => c.key === 'lifecycle_stage_advanced')).toBeUndefined()
+  })
 })
 
 describe('evaluateKillCriterion', () => {
