@@ -137,6 +137,27 @@ both fixed before shipping:
    Tables therefore top out at n≤5 per analysis. Accepted (raising it is
    real token cost, explicitly non-goaled); revisit only with owner
    sign-off on the cost.
+   **SUPERSEDED 2026-07-28 — raised to 20 with owner sign-off**, decided
+   by a real sample-size experiment (6 of the owner's own niche queries,
+   full top-20 fetched, production gates applied at every n from 3 to 20):
+   - The concentration read is untrustworthy below n≈15: at n=5 the
+     Cortisol niche showed leader-share 83% vs a true 36% (a 47-point
+     error that reads as "locked market" when it's actually fragmented);
+     even n=12 still showed 65%.
+   - Big sellers hide deep: rank 13-15 held the product that took
+     Cortisol's revenue coverage from 45%→97%; Magnesium's biggest sat at
+     rank 16-20.
+   - The tail is NOT noise: ranks 13-20 measured 75% relevance-pass
+     (higher than ranks 6-8's 61%) and 83% monthlySold presence.
+   - Sparse niches only clear the ≥2 floor deep in the tail (Period
+     Bloating Relief gets its first real table at n=20).
+   New caps: search 20 (`fetchSearchAsins` + `buildAsinSets`), combined 25
+   (20 search + 5 bestseller backfill — category-signal sample unchanged).
+   Measured cost: ~3.5 tokens/ASIN → ~+50 tokens/analysis (≈2× total).
+   Consumer-intelligence review scraping verified unaffected
+   (`MAX_SOURCE_PRODUCTS = 2`); `top_competitors` stays sliced to 10.
+   Post-change live run (Cortisol, real provider path): 15 rows,
+   ~$719k/mo, top1 36% — matches the experiment's ground truth exactly.
 2. **The price chain was missing the one slot many 3P listings actually
    have.** CONFIRMED VIA LIVE CALL: the niche's 20k-units/mo leader
    (B0DJDQCJX2) has `-1` in AMAZON/NEW_FBA/BUYBOX and a real price only

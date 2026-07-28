@@ -52,11 +52,20 @@ describe('buildAsinSets — Finding 1 fix', () => {
     }
   })
 
-  it('caps combinedAsins at 10 total', () => {
-    const searchAsins     = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8']
-    const bestsellerAsins = ['B1', 'B2', 'B3', 'B4', 'B5']
-    const { combinedAsins } = buildAsinSets(searchAsins, bestsellerAsins)
-    expect(combinedAsins.length).toBeLessThanOrEqual(10)
+  it('caps at 25 total: 20 search + 5 bestseller backfill (sample-size experiment, 2026-07-28)', () => {
+    const searchAsins     = Array.from({ length: 23 }, (_, i) => `S${i + 1}`)
+    const bestsellerAsins = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7']
+    const { combinedAsins, bestsellerAsinsUsed } = buildAsinSets(searchAsins, bestsellerAsins)
+    expect(combinedAsins.length).toBe(25)
+    // Search portion capped at 20 (S21-S23 dropped), bestsellers at 5.
+    expect(combinedAsins.slice(0, 20)).toEqual(searchAsins.slice(0, 20))
+    expect(bestsellerAsinsUsed).toEqual(['B1', 'B2', 'B3', 'B4', 'B5'])
+  })
+
+  it('a full 20-result search page all passes through (the pre-2026-07-28 slice(0,5) would have kept only 5)', () => {
+    const searchAsins     = Array.from({ length: 20 }, (_, i) => `S${i + 1}`)
+    const { combinedAsins } = buildAsinSets(searchAsins, [])
+    expect(combinedAsins).toEqual(searchAsins)
   })
 })
 

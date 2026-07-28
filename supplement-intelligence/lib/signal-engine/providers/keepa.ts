@@ -847,6 +847,15 @@ export function computeSupplyVelocity(listedSinceMonths: number[]): SupplyVeloci
 // An ASIN present in both sets is deduped here — excluded from the
 // bestseller portion by `!searchSet.has(a)` — so it counts exactly once, as
 // a queryProduct (query relevance takes precedence).
+// Search slice raised 5 → 20 (owner-approved 2026-07-28) on the strength of
+// the sample-size experiment in docs/RD_V4_NICHE_COMPETITOR_ECONOMICS.md:
+// at n=5 the revenue-concentration read was overstated by up to 47 points
+// (Cortisol niche: 83% shown vs 36% true) and big sellers hide at ranks
+// 13-20; tail relevance measured HIGHER than ranks 6-8 (75% vs 61%), so the
+// tail is real data, not noise. Cost: ~+50 Keepa tokens/analysis (measured
+// ~3.5/ASIN), roughly doubling the per-analysis spend — an accepted,
+// owner-approved trade. Bestseller backfill deliberately stays 5: category
+// signals keep their existing sample; only query-specific data widens.
 export function buildAsinSets(
   searchAsins:     string[],
   bestsellerAsins: string[],
@@ -854,9 +863,9 @@ export function buildAsinSets(
   const searchSet = new Set(searchAsins)
   const bestsellerAsinsUsed = bestsellerAsins.filter(a => !searchSet.has(a)).slice(0, 5)
   const combinedAsins = [
-    ...searchAsins.slice(0, 5),
+    ...searchAsins.slice(0, 20),
     ...bestsellerAsinsUsed,
-  ].slice(0, 10)
+  ].slice(0, 25)
   return { combinedAsins, bestsellerAsinsUsed, searchSet }
 }
 
@@ -895,16 +904,17 @@ export class KeepaProvider implements SignalProvider {
       }
 
       // Merge: search-specific first (more query-relevant), then bestsellers not
-      // already in the search results. Cap at 10 total for a single /product call.
-      // See buildAsinSets's own comment for why bestsellerAsinsUsed (not a
-      // freshly re-derived bestsellerAsins.slice(0,5)) is what catProducts
-      // must be filtered against below (audit Finding 1 fix).
+      // already in the search results. Cap at 25 total (20 search + 5
+      // bestseller backfill — see buildAsinSets's comment for the measured
+      // rationale) for a single /product call. See also why bestsellerAsinsUsed
+      // (not a freshly re-derived bestsellerAsins.slice(0,5)) is what
+      // catProducts must be filtered against below (audit Finding 1 fix).
       const { combinedAsins, bestsellerAsinsUsed, searchSet } = buildAsinSets(searchAsins, bestsellerAsins)
 
       if (combinedAsins.length === 0) return null
 
       // Run /product and /category in parallel — /category is 1 token, non-blocking.
-      // /product timeout extended to 55s to accommodate up to 10 ASINs.
+      // /product timeout of 55s accommodates up to 25 ASINs (Keepa batches to 100).
       const [allProducts, categoryStats] = await Promise.all([
         this.fetchProducts(key, combinedAsins, 55_000),
         this.fetchCategoryStats(key, nodeId),
@@ -1035,10 +1045,10 @@ export class KeepaProvider implements SignalProvider {
 
     // Handle both known possible response formats
     if (Array.isArray(data.products) && data.products.length > 0) {
-      return data.products.map(p => p.asin).filter(Boolean).slice(0, 8)
+      return data.products.map(p => p.asin).filter(Boolean).slice(0, 20)
     }
     if (Array.isArray(data.asinList) && data.asinList.length > 0) {
-      return data.asinList.slice(0, 8)
+      return data.asinList.slice(0, 20)
     }
 
     console.log('Keepa search: empty or unknown response format', { query })
