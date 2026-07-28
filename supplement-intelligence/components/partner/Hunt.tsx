@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion'
 import { RotorSpinner } from './RotorSpinner'
 
@@ -31,6 +32,21 @@ const CHECKED_SET = [
 export function Hunt({ done }: { done: boolean }) {
   const reduce = useReducedMotion()
 
+  // Real elapsed clock (2026-07-28 E2E finding): a live production run took
+  // ~10 minutes wall-clock and this screen — four static lines, no time
+  // signal — read as frozen the entire time. Elapsed time is a REAL event
+  // (unlike the staged per-line progress this component's header comment
+  // rightly bans), so it's the honest fix: the user sees the run is alive
+  // and how long it's actually been.
+  const [elapsedS, setElapsedS] = useState(0)
+  useEffect(() => {
+    if (done) return
+    const t = setInterval(() => setElapsedS(s => s + 1), 1000)
+    return () => clearInterval(t)
+  }, [done])
+  const mm = Math.floor(elapsedS / 60)
+  const ss = String(elapsedS % 60).padStart(2, '0')
+
   return (
     <LazyMotion features={domAnimation} strict>
       <div
@@ -43,6 +59,11 @@ export function Hunt({ done }: { done: boolean }) {
           <p className="text-sm font-medium text-pi-ink">
             {done ? "Done — here's what I found." : "Reading the market on this one…"}
           </p>
+          {!done && elapsedS >= 1 && (
+            <span className="ml-auto shrink-0 font-mono text-xs tabular-nums text-pi-faint" aria-label="Elapsed time">
+              {mm}:{ss}
+            </span>
+          )}
         </div>
         <ul className="space-y-2.5">
           {CHECKED_SET.map((line, i) => (
@@ -63,7 +84,11 @@ export function Hunt({ done }: { done: boolean }) {
         </ul>
         {!done && (
           <p className="mt-5 text-xs text-pi-faint">
-            You can leave — the run completes on the server. I'll have it waiting for you.
+            {/* Expectation honesty (same E2E finding): most runs land within a
+                few minutes, but a crowded market was measured at ~10 — say so
+                instead of letting the silence imply something broke. */}
+            Most reads land within a few minutes; a crowded market can take up to ten.
+            You can leave — the run completes on the server, and I&apos;ll have it waiting for you.
           </p>
         )}
       </div>

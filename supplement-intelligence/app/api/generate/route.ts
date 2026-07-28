@@ -81,6 +81,16 @@ import type { MemoData, SignalMetadata } from '@/types/index'
 //      comfortably under both this ceiling and the platform's 300s; the
 //      budget guard ensures a 2nd/3rd attempt only ever starts when it can
 //      actually finish within 285s.
+//
+// OBSERVED REALITY AMENDMENT (2026-07-28 production E2E): under Vercel's
+// Fluid Compute runtime a real run completed at ~10 minutes WALL-CLOCK
+// without being killed at this 285s config — the platform's hard-kill
+// assumption above no longer holds as written. The internal budget guards
+// keyed to maxDuration are therefore CONSERVATIVE bounds (they stop new
+// LLM attempts early), which is safe — but do not rely on the platform
+// killing this function at 285s, and do not "fix" the guards to assume
+// more time without measuring billing impact first. The Hunt UI's
+// expectation copy was aligned to the measured reality in the same audit.
 export const maxDuration = 285
 
 const ai = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

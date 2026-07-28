@@ -93,7 +93,7 @@ export function CompetitiveReviews({
             why their buyers are disappointed, and what the winners get right.
           </p>
           <p className="mb-4 max-w-[60ch] text-[13px] leading-relaxed text-pi-sub">
-            This is a real run: it pulls live review data and takes about two minutes. It runs{' '}
+            This is a real run: it pulls live review data and takes a few minutes. It runs{' '}
             <strong className="font-semibold text-pi-ink">once</strong> for this analysis — the result is kept here permanently.
           </p>
           {phase.error && <p className="mb-3 text-[13px] text-pi-risk">{phase.error}</p>}
