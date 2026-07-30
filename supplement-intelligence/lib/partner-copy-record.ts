@@ -16,6 +16,7 @@
 
 import type { MemoData } from '@/types/index'
 import type { MarketReport } from '@/lib/competitive-review-engine'
+import { matchTrackedIngredient } from '@/lib/science-engine/tracked-ingredients'
 
 export interface RecordRow {
   claim: string
@@ -217,6 +218,20 @@ export interface EvidenceAppendixVM {
   // fields existed (no backfill — real provider cost).
   competitorRows: { brand: string; price: string; unitsLabel: string; revenueLabel: string }[]
   competitorsFootnote: string | null  // floor semantics + off-category exclusion disclosure
+  // Roadmap "Dynamic Science Coverage" (docs/RD_DYNAMIC_SCIENCE_COVERAGE.md):
+  // honest disclosure for a vocabulary-matched ingredient with no science
+  // signal yet — replaces silent absence with a real, disclosed "not yet
+  // available" state. Null whenever the query didn't match the ingredient
+  // vocabulary at all, or a science signal already exists.
+  //
+  // Review fix: wording deliberately avoids the word "queued" — this note
+  // also renders for one of the 3 benchmark tracked ingredients (berberine/
+  // creatine/magnesium), which shouldEnqueueScienceDemand (lib/science-engine/
+  // queue.ts) explicitly excludes from science_ingredient_queue (they already
+  // refresh nightly for free). Saying "queued" for that case would be
+  // literally false — they were never queued, just awaiting their existing
+  // nightly refresh cadence. The wording below is accurate for both cases.
+  scienceQueuedNote: string | null
 }
 
 export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
@@ -256,6 +271,16 @@ export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
         : '')
     : null
 
+  // Roadmap "Dynamic Science Coverage": re-derive the vocabulary match from
+  // the exact query string the user entered at generation time (not a new
+  // parameter — m.product_query already carries this) rather than threading
+  // a new field through. Additive: never touches coverageLine or any other
+  // field above.
+  const queuedIngredient = matchTrackedIngredient(m.product_query ?? '')
+  const scienceQueuedNote = queuedIngredient && !m.signal_evidence?.science
+    ? `Science evidence for ${queuedIngredient.charAt(0).toUpperCase()}${queuedIngredient.slice(1)} is not yet available — it will appear after the next automated science update.`
+    : null
+
   return {
     keywords,
     sources,
@@ -264,6 +289,7 @@ export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
     competitorsNote: 'Full per-competitor pricing and listing-age table: not yet surfaced here — the underlying data is real and already captured (see the Competition chapter for the category leader), a fast follow to this appendix.',
     competitorRows,
     competitorsFootnote,
+    scienceQueuedNote,
   }
 }
 

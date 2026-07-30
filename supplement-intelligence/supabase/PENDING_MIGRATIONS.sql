@@ -15,7 +15,13 @@
 --           · 028_lock_down_leaderboard_rls · 004_refund_slot
 --           · 011_remove_seed_data · 014_lock_discovery_cache_writes
 --           · 029_positions · 030_product_events
---           · 031_competitive_review_reports
+--           · 031_competitive_review_reports · 032_science_ingredient_queue
+--
+-- 2026-07-30: appended 032 (Dynamic Science Coverage's demand-tracking
+-- queue) — see supabase/migrations/032_science_ingredient_queue.sql. Passed
+-- a dedicated security review (RLS lockdown + increment_science_queue_demand()
+-- RPC's explicit revoke/grant) before being appended here. Not yet applied
+-- to production as of this note.
 --
 -- 2026-07-14: appended 020-026 after live production validation of M2.13
 -- discovered voc_problem_clusters (022) had never actually been applied to
@@ -993,3 +999,60 @@ do $$ begin
 end $$;
 
 create index if not exists competitive_review_reports_user_created_idx on public.competitive_review_reports (user_id, created_at desc);
+
+
+-- ── 032: SCIENCE INGREDIENT QUEUE — Dynamic Science Coverage ────────────────
+-- See supabase/migrations/032_science_ingredient_queue.sql. Global demand-
+-- tracking queue: when a user's query names a vocabulary-matched ingredient
+-- outside the 3 benchmark TRACKED_INGREDIENTS, the app records the demand
+-- here; the nightly science cron drains a bounded budget of it. No user_id
+-- by design (not user data). RLS enabled with ZERO client policies — service
+-- role bypasses RLS, anon/authenticated get nothing — same lockdown pattern
+-- as divergence_alerts (027), reviewed by a dedicated security pass.
+
+create table if not exists public.science_ingredient_queue (
+  ingredient          text primary key,
+
+  first_requested_at  timestamptz not null default now(),
+  last_requested_at   timestamptz not null default now(),
+  request_count       int not null default 1,
+
+  fetched_at          timestamptz null
+);
+
+alter table public.science_ingredient_queue enable row level security;
+-- No RLS policies -> service role bypasses RLS; all other roles denied.
+
+create index if not exists sciq_unfetched_oldest_idx
+  on public.science_ingredient_queue (first_requested_at asc)
+  where fetched_at is null;
+
+create index if not exists sciq_fetched_by_demand_idx
+  on public.science_ingredient_queue (request_count desc)
+  where fetched_at is not null;
+
+comment on table public.science_ingredient_queue is
+  'Roadmap "Dynamic Science Coverage": global demand-tracking queue of vocabulary-matched ingredients requested but not yet covered by the 3 benchmark tracked ingredients. Service-role-only (no anon/authenticated RLS policies); no user_id by design (not user data). Fed by app/api/generate/route.ts on vocabulary-match + science-cache-miss; drained by the science cron''s queue-drain phase (app/api/cron/science-pipeline/route.ts) within a bounded nightly budget, oldest-unfetched first then demand-weighted TTL re-refresh.';
+
+-- Atomic enqueue RPC — plain client-side upsert() can't atomically express
+-- "increment an existing row's counter, else insert at 1". security definer
+-- here is defense in depth, not the only protection — the explicit
+-- revoke/grant below is. create or replace + revoke/grant are naturally
+-- idempotent, safe to re-run.
+create or replace function public.increment_science_queue_demand(p_ingredient text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.science_ingredient_queue (ingredient, request_count, first_requested_at, last_requested_at, fetched_at)
+  values (p_ingredient, 1, now(), now(), null)
+  on conflict (ingredient) do update set
+    request_count     = science_ingredient_queue.request_count + 1,
+    last_requested_at = now();
+end;
+$$;
+
+revoke all on function public.increment_science_queue_demand(text) from public, anon, authenticated;
+grant execute on function public.increment_science_queue_demand(text) to service_role;

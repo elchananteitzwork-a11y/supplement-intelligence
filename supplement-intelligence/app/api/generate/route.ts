@@ -23,6 +23,7 @@ import { computeOpportunityQuality, computeMarketVerdict } from '@/lib/verdict-m
 import { computeKillCriteria } from '@/lib/kill-criteria'
 import { computeEvidenceDepthScore } from '@/lib/evidence-depth-score'
 import { matchTrackedIngredient } from '@/lib/science-engine/tracked-ingredients'
+import { shouldEnqueueScienceDemand } from '@/lib/science-engine/queue'
 import { normalizeQuery } from '@/lib/thesis-engine'
 import { synthesizeReviewNarrative } from '@/lib/review-narrative'
 import { fetchRealCompetitorRevenue, formatRealCompetitorRevenue } from '@/lib/real-competitor'
@@ -819,13 +820,41 @@ export async function POST(req: Request) {
   // ~558). Zero new fetch logic; never touches scoring or any verdict.
   if (!skipReason) {
     const science = signals?.science?.value
+    // Roadmap "Dynamic Science Coverage" (docs/RD_DYNAMIC_SCIENCE_COVERAGE.md,
+    // owner-approved 2026-07-28): matchTrackedIngredient's return type widened
+    // from the 3-item benchmark literal union to any recognized vocabulary
+    // ingredient. `ingredient_tracked` below now means "recognized in the
+    // full vocabulary" rather than just "one of the 3 benchmark ingredients"
+    // — a safe, disclosed semantic widening, not a Constitution-protected
+    // number changing: Evidence Depth Score is explicitly NOT part of
+    // scoring/verdict math (see lib/evidence-depth-score/index.ts's own
+    // header comment), so this stays coherent with that module's own design.
+    const matchedIngredient = matchTrackedIngredient(input.trim())
     memo.evidence_depth_score = computeEvidenceDepthScore({
-      ingredient_tracked:      matchTrackedIngredient(input.trim()) !== null,
+      ingredient_tracked:      matchedIngredient !== null,
       strongest_evidence_type: science?.strongest_evidence_type,
       market_dose_mg:          science?.market_dose_mg,
       regulatory:              science?.regulatory,
       competitors:             topCompetitors,
     })
+
+    // Roadmap "Dynamic Science Coverage": demand-queue enqueue. Vocabulary-
+    // matched ingredient outside the 3 benchmark tracked ones, with no
+    // science signal available yet (cache miss) — fire-and-forget upsert via
+    // the increment_science_queue_demand() RPC (migration 032), reusing this
+    // route's own supabaseServiceRole() factory. Never awaited in a way that
+    // could throw into the request path; any failure here must never block
+    // or fail the analysis.
+    if (shouldEnqueueScienceDemand(matchedIngredient, !!science)) {
+      void (async () => {
+        try {
+          const { error } = await supabaseServiceRole().rpc('increment_science_queue_demand', { p_ingredient: matchedIngredient })
+          if (error) console.error('Science queue enqueue failed (non-fatal)', error.message)
+        } catch {
+          // non-fatal — never affects the analysis response
+        }
+      })()
+    }
   }
   if (!skipReason && enrichedKeywordIntelligence) {
     const keywordAiInsights = await keywordInsightsPromise

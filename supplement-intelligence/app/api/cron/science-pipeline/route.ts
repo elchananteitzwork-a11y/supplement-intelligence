@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { runScienceIngestionPipeline } from '@/lib/science-engine/pipeline'
+import { runScienceIngestionPipeline, drainScienceIngredientQueue } from '@/lib/science-engine/pipeline'
 import { TRACKED_INGREDIENTS } from '@/lib/science-engine/tracked-ingredients'
 import { runDiscoveryDetection } from '@/lib/discovery-engine/run'
 import { runDivergenceDetection } from '@/lib/divergence-detector/run'
@@ -68,6 +68,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const startedAt = Date.now()
   const results = await runScienceIngestionPipeline()
 
+  // Roadmap "Dynamic Science Coverage": bounded demand-queue drain, AFTER
+  // the tracked-3 refresh above (that refresh keeps absolute priority — see
+  // docs/RD_DYNAMIC_SCIENCE_COVERAGE.md). Its own internal time guard leaves
+  // headroom before this route's 60s maxDuration for the Discovery/
+  // Divergence detection calls below.
+  const queueDrain = await drainScienceIngredientQueue(startedAt)
+
   const observationsByNicheKey = new Map<string, NicheSeries[]>()
   for (const nicheKey of TRACKED_INGREDIENTS) {
     observationsByNicheKey.set(nicheKey, await getRecentObservations(nicheKey))
@@ -79,7 +86,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const durationMs = Date.now() - startedAt
 
   const succeeded = results.filter(r => r.success).length
-  console.log('Science pipeline run complete', { succeeded, total: results.length, discovery, divergence, durationMs })
+  console.log('Science pipeline run complete', { succeeded, total: results.length, queueDrain, discovery, divergence, durationMs })
 
-  return NextResponse.json({ results, succeeded, total: results.length, discovery, divergence, durationMs })
+  return NextResponse.json({ results, succeeded, total: results.length, queueDrain, discovery, divergence, durationMs })
 }

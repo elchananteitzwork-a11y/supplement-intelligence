@@ -17,6 +17,7 @@ import { fetchMarketDoseDistribution } from './dsld'
 import { fetchRegulatoryIntelligence } from '@/lib/regulatory-engine'
 import { TRACKED_INGREDIENTS } from './tracked-ingredients'
 import { getIngredientProfile } from '@/lib/ingredient-registry'
+import { getUnfetchedQueueRows, getFetchedQueueRowsByDemand, markQueueRowFetched, getCacheExpiresAt } from './queue'
 import type { ScienceSignal } from '@/lib/signal-engine/types'
 
 export const SCIENCE_CACHE_TTL_MS = 30 * 60 * 60 * 1000  // 30h — outlives one missed nightly run, still honestly expires
@@ -171,4 +172,96 @@ export async function runScienceIngestionPipeline(now = new Date()): Promise<Sci
     results.push(await ingestScienceSignal(ingredient, now))
   }
   return results
+}
+
+// ── Queue drain — Roadmap "Dynamic Science Coverage" ────────────────────────
+//
+// docs/RD_DYNAMIC_SCIENCE_COVERAGE.md (owner-approved 2026-07-28). Runs AFTER
+// runScienceIngestionPipeline() above — the 3 benchmark tracked ingredients
+// keep absolute priority; this phase spends a small, bounded, disclosed
+// nightly budget draining the demand queue (science_ingredient_queue,
+// migration 032) using the exact same per-ingredient fetch path
+// (ingestScienceSignal), sequentially, never parallelized (same PubMed
+// rate-limit discipline as runScienceIngestionPipeline itself).
+
+// A stated, commented, initial value — the single knob if the ceiling ever
+// needs to move (see the R&D doc's §3 step 5 and §4 Risks).
+export const QUEUE_BUDGET_PER_NIGHT = 15
+
+// Roughly 20% of SCIENCE_CACHE_TTL_MS remaining — same "stated, commented,
+// initial value, not yet calibrated against real outcome data" convention as
+// VELOCITY_THRESHOLD_PCT above. A queue-driven ingredient fetched once would
+// otherwise silently expire and go dark again (R&D doc §4 Risks:
+// "provider_cache TTL vs queue-driven entries") unless re-refreshed before
+// its cache entry actually expires.
+export const QUEUE_NEAR_EXPIRY_MS = SCIENCE_CACHE_TTL_MS * 0.2   // ~6h
+
+// Review fix: `startedAt` (passed in by the route) is captured at ROUTE
+// START — BEFORE runScienceIngestionPipeline()'s tracked-3 refresh runs, not
+// at the start of this drain phase. withinTimeBudget() below measures
+// elapsed time from that same `startedAt`, so this constant is really a
+// ceiling on TOTAL elapsed time since route start (tracked-3 refresh AND
+// drain combined), not a drain-phase-only budget. Naming and value reflect
+// that honestly: 45s here, leaving ~15s of real headroom before the route's
+// 60s maxDuration for the Discovery/Divergence detection calls that run
+// after — comparable to the R&D doc's original ~20s headroom design intent
+// (tracked-3 refresh ~7s + queue drain ~32s ≈ 39s ⇒ ~20s headroom), now
+// expressed as a single elapsed-since-route-start ceiling instead of a
+// drain-only one. Tradeoff, intentional and disclosed: this protects the
+// real 60s maxDuration ceiling directly, at the cost of occasionally
+// draining fewer than QUEUE_BUDGET_PER_NIGHT ingredients on a night the
+// tracked-3 refresh itself runs long — never risk the route timing out.
+export const ROUTE_ELAPSED_CEILING_MS = 45 * 1000
+
+export interface QueueDrainResult {
+  drained:         string[]
+  // Rows that would have qualified (unfetched, or fetched-but-near-expiry)
+  // but the QUEUE_BUDGET_PER_NIGHT budget was already spent — observability
+  // only, never a failure.
+  skippedForBudget: number
+  // True when the drain stopped early on the elapsed-time guard rather than
+  // exhausting the count budget — observability only.
+  timeExhausted:   boolean
+}
+
+export async function drainScienceIngredientQueue(startedAt: number, now = new Date()): Promise<QueueDrainResult> {
+  const drained: string[] = []
+  let skippedForBudget = 0
+  let timeExhausted = false
+
+  const withinTimeBudget = () => Date.now() - startedAt < ROUTE_ELAPSED_CEILING_MS
+
+  // Pass 1: unfetched queue rows, oldest first_requested_at first — always
+  // takes priority over pass 2's demand-weighted re-refresh below.
+  const unfetched = await getUnfetchedQueueRows(QUEUE_BUDGET_PER_NIGHT * 2)
+  for (const row of unfetched) {
+    if (drained.length >= QUEUE_BUDGET_PER_NIGHT) { skippedForBudget++; continue }
+    if (!withinTimeBudget()) { timeExhausted = true; break }
+    const result = await ingestScienceSignal(row.ingredient, now)
+    if (result.success) {
+      await markQueueRowFetched(row.ingredient, now)
+      drained.push(row.ingredient)
+    }
+  }
+
+  // Pass 2: previously-fetched rows whose provider_cache entry is nearing
+  // its 30h TTL expiry, most-requested first — only when pass 1 didn't
+  // already spend the whole budget or the time guard.
+  if (!timeExhausted && drained.length < QUEUE_BUDGET_PER_NIGHT) {
+    const candidates = await getFetchedQueueRowsByDemand(QUEUE_BUDGET_PER_NIGHT * 4)
+    for (const row of candidates) {
+      if (drained.length >= QUEUE_BUDGET_PER_NIGHT) { skippedForBudget++; continue }
+      if (!withinTimeBudget()) { timeExhausted = true; break }
+      const expiresAt = await getCacheExpiresAt(`science:v1:${row.ingredient}`)
+      const nearExpiry = expiresAt !== null && expiresAt.getTime() - now.getTime() <= QUEUE_NEAR_EXPIRY_MS
+      if (!nearExpiry) continue   // not near expiry yet — real skip, not a budget/time exhaustion
+      const result = await ingestScienceSignal(row.ingredient, now)
+      if (result.success) {
+        await markQueueRowFetched(row.ingredient, now)
+        drained.push(row.ingredient)
+      }
+    }
+  }
+
+  return { drained, skippedForBudget, timeExhausted }
 }

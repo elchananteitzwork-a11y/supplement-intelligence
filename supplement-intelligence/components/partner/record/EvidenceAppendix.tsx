@@ -85,6 +85,10 @@ export function EvidenceAppendix({
         {vm.coverageLine && (
           <p className="border-t border-pi-hairline pt-6 text-[12px] leading-relaxed text-pi-faint">{vm.coverageLine}</p>
         )}
+
+        {vm.scienceQueuedNote && (
+          <p className="mt-2 text-[12px] leading-relaxed text-pi-faint">{vm.scienceQueuedNote}</p>
+        )}
       </div>
     </div>
   )

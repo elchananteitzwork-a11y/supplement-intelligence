@@ -238,6 +238,72 @@ describe('buildCompetitiveReviewsVM', () => {
   })
 })
 
+// ── Roadmap "Dynamic Science Coverage" (docs/RD_DYNAMIC_SCIENCE_COVERAGE.md)
+// §3 step 6 — the science-queued honesty line. Additive only: never touches
+// coverageLine or any other EvidenceAppendixVM field.
+describe('buildEvidenceAppendix — scienceQueuedNote', () => {
+  it('is present, capitalized, when the query matches the vocabulary and no science signal exists yet', () => {
+    const vm = buildEvidenceAppendix(memoWithEconomics({
+      product_query: 'Ashwagandha Gummies for Stress',
+      signal_evidence: undefined,
+    }))
+    expect(vm.scienceQueuedNote).toBe('Science evidence for Ashwagandha is not yet available — it will appear after the next automated science update.')
+  })
+
+  it('is null when the query does not match any tracked or vocabulary ingredient', () => {
+    const vm = buildEvidenceAppendix(memoWithEconomics({
+      product_query: 'a totally generic gummy vitamin brand',
+      signal_evidence: undefined,
+    }))
+    expect(vm.scienceQueuedNote).toBeNull()
+  })
+
+  it('is null when a real science signal already exists for the matched ingredient', () => {
+    const vm = buildEvidenceAppendix(memoWithEconomics({
+      product_query: 'Ashwagandha Gummies for Stress',
+      signal_evidence: {
+        providers_used: ['science'], overall_confidence: 0.7,
+        demand_verified: false, virality_verified: false, pricing_verified: false, growth_verified: false,
+        science: { value: { score: 5, confidence: 0.5, ingredient: 'ashwagandha' }, sources: ['science-pipeline'], primarySource: 'science-pipeline', confidence: 0.5 },
+      } as unknown as MemoData['signal_evidence'],
+    }))
+    expect(vm.scienceQueuedNote).toBeNull()
+  })
+
+  it('also renders for a tracked-3 ingredient with no science signal yet (matchTrackedIngredient matches it too)', () => {
+    const vm = buildEvidenceAppendix(memoWithEconomics({
+      product_query: 'Berberine for blood sugar',
+      signal_evidence: undefined,
+    }))
+    // 'berberine' is not in the demand queue at all (it's not enqueued —
+    // see shouldEnqueueScienceDemand) but matchTrackedIngredient still
+    // returns it, so the note DOES render for it today; this test documents
+    // that real, current behavior rather than asserting a stronger claim
+    // this milestone's scope doesn't cover (distinguishing the queue-table
+    // case from the "one of the 3 benchmark tracked ingredients, awaiting
+    // its existing nightly refresh" case is out of scope — see R&D doc §7).
+    // Review fix: wording no longer says "queued" for this reason — it was
+    // never literally queued (see the field's own doc comment above).
+    expect(vm.scienceQueuedNote).toBe('Science evidence for Berberine is not yet available — it will appear after the next automated science update.')
+  })
+
+  it('never touches coverageLine — additive only', () => {
+    const memo = memoWithEconomics({
+      product_query: 'Ashwagandha Gummies for Stress',
+      signal_evidence: undefined,
+      evidence_depth_score: {
+        available: true, score: 50, coverage: 0.5,
+        inputs_available: ['ingredient_canonicalization'],
+        contributions: [{ input: 'ingredient_canonicalization', score: 0 }],
+        methodology: 'test', version: 'v1',
+      } as unknown as MemoData['evidence_depth_score'],
+    })
+    const vm = buildEvidenceAppendix(memo)
+    expect(vm.coverageLine).toContain('1 of 6 deep-evidence clusters')
+    expect(vm.scienceQueuedNote).toBe('Science evidence for Ashwagandha is not yet available — it will appear after the next automated science update.')
+  })
+})
+
 describe('buildCompetitiveReviewsVM — niche fallback (live finding 2026-07-28)', () => {
   it('falls back to niche_gaps with honest 1-of-N labels when cross-product tiers are empty', () => {
     const report = marketReportFixture()

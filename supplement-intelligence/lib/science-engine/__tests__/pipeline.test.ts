@@ -10,7 +10,10 @@
 // documented in the roadmap completion note).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { computePublicationVelocity, ingestScienceSignal, runScienceIngestionPipeline } from '../pipeline'
+import {
+  computePublicationVelocity, ingestScienceSignal, runScienceIngestionPipeline,
+  drainScienceIngredientQueue, QUEUE_BUDGET_PER_NIGHT,
+} from '../pipeline'
 
 const fetchPublicationCountsByYear = vi.fn()
 const fetchTrialRegistrationsCount = vi.fn()
@@ -20,6 +23,10 @@ const fetchMarketDoseDistribution  = vi.fn()
 const fetchRegulatoryIntelligence  = vi.fn()
 const cacheSet = vi.fn().mockResolvedValue(undefined)
 const appendObservations = vi.fn().mockResolvedValue(undefined)
+const getUnfetchedQueueRows        = vi.fn()
+const getFetchedQueueRowsByDemand  = vi.fn()
+const markQueueRowFetched          = vi.fn().mockResolvedValue(undefined)
+const getCacheExpiresAt            = vi.fn()
 
 vi.mock('../pubmed', () => ({
   fetchPublicationCountsByYear: (...args: unknown[]) => fetchPublicationCountsByYear(...args),
@@ -33,6 +40,12 @@ vi.mock('../dsld', () => ({ fetchMarketDoseDistribution: (...args: unknown[]) =>
 vi.mock('@/lib/regulatory-engine', () => ({ fetchRegulatoryIntelligence: (...args: unknown[]) => fetchRegulatoryIntelligence(...args) }))
 vi.mock('@/lib/provider-cache', () => ({ cacheSet: (...args: unknown[]) => cacheSet(...args) }))
 vi.mock('@/lib/niche-timeseries/store', () => ({ appendObservations: (...args: unknown[]) => appendObservations(...args) }))
+vi.mock('../queue', () => ({
+  getUnfetchedQueueRows:       (...args: unknown[]) => getUnfetchedQueueRows(...args),
+  getFetchedQueueRowsByDemand: (...args: unknown[]) => getFetchedQueueRowsByDemand(...args),
+  markQueueRowFetched:         (...args: unknown[]) => markQueueRowFetched(...args),
+  getCacheExpiresAt:           (...args: unknown[]) => getCacheExpiresAt(...args),
+}))
 
 describe('computePublicationVelocity — real berberine PubMed data', () => {
   it('computes velocity from the last two complete years actually present (2024 vs 2023: 796 vs 683)', () => {
@@ -269,3 +282,115 @@ describe('runScienceIngestionPipeline', () => {
     expect(cacheSet).toHaveBeenCalledTimes(3)
   })
 })
+
+// Roadmap "Dynamic Science Coverage" (docs/RD_DYNAMIC_SCIENCE_COVERAGE.md) —
+// drainScienceIngredientQueue. Reuses ingestScienceSignal's real fetch path
+// (fetchPublicationCountsByYear/fetchTrialRegistrationsCount mocked, same as
+// every other test in this file); the queue itself is mocked at the module
+// boundary (lib/science-engine/queue.ts), same convention as this file's own
+// mocking of pubmed/clinicaltrials/dsld/regulatory-engine/provider-cache.
+function queueRow(ingredient: string, overrides: Partial<{ request_count: number; fetched_at: string | null; first_requested_at: string }> = {}) {
+  return {
+    ingredient,
+    first_requested_at: overrides.first_requested_at ?? '2026-07-01T00:00:00.000Z',
+    last_requested_at:  '2026-07-20T00:00:00.000Z',
+    request_count:      overrides.request_count ?? 1,
+    fetched_at:         overrides.fetched_at ?? null,
+  }
+}
+
+describe('drainScienceIngredientQueue', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    fetchPublicationCountsByYear.mockResolvedValue({ '2023': 100, '2024': 110 })
+    fetchTrialRegistrationsCount.mockResolvedValue(10)
+    fetchStrongestEvidenceType.mockResolvedValue(null)
+    fetchTrialDesignBreakdown.mockResolvedValue(null)
+    fetchMarketDoseDistribution.mockResolvedValue(null)
+    fetchRegulatoryIntelligence.mockResolvedValue(null)
+    cacheSet.mockResolvedValue(undefined)
+    appendObservations.mockResolvedValue(undefined)
+    getUnfetchedQueueRows.mockResolvedValue([])
+    getFetchedQueueRowsByDemand.mockResolvedValue([])
+    markQueueRowFetched.mockResolvedValue(undefined)
+    getCacheExpiresAt.mockResolvedValue(null)
+  })
+
+  it('never drains more than QUEUE_BUDGET_PER_NIGHT in one run, even when more unfetched rows exist', async () => {
+    const rows = Array.from({ length: QUEUE_BUDGET_PER_NIGHT + 10 }, (_, i) => queueRow(`ingredient-${i}`))
+    getUnfetchedQueueRows.mockResolvedValue(rows)
+
+    const result = await drainScienceIngredientQueue(Date.now())
+    expect(result.drained).toHaveLength(QUEUE_BUDGET_PER_NIGHT)
+    expect(markQueueRowFetched).toHaveBeenCalledTimes(QUEUE_BUDGET_PER_NIGHT)
+    expect(result.skippedForBudget).toBeGreaterThan(0)
+  })
+
+  it('drains unfetched rows oldest-first before touching the demand-weighted re-refresh pass', async () => {
+    const unfetched = [queueRow('unfetched-a'), queueRow('unfetched-b')]
+    const fetched = [queueRow('fetched-c', { fetched_at: '2026-07-01T00:00:00.000Z', request_count: 99 })]
+    getUnfetchedQueueRows.mockResolvedValue(unfetched)
+    getFetchedQueueRowsByDemand.mockResolvedValue(fetched)
+    getCacheExpiresAt.mockResolvedValue(new Date(Date.now() - 1000))   // already expired -> near-expiry
+
+    const result = await drainScienceIngredientQueue(Date.now())
+    expect(result.drained).toEqual(['unfetched-a', 'unfetched-b', 'fetched-c'])
+    // Pass 1 rows were drained before pass 2 was ever consulted for expiry.
+    const callOrder = markQueueRowFetched.mock.calls.map(c => c[0])
+    expect(callOrder).toEqual(['unfetched-a', 'unfetched-b', 'fetched-c'])
+  })
+
+  it('skips a previously-fetched row that is not yet near its cache TTL expiry', async () => {
+    const fetched = [queueRow('still-fresh', { fetched_at: '2026-07-20T00:00:00.000Z', request_count: 5 })]
+    getFetchedQueueRowsByDemand.mockResolvedValue(fetched)
+    // Far in the future — nowhere near the ~6h QUEUE_NEAR_EXPIRY_MS window.
+    getCacheExpiresAt.mockResolvedValue(new Date(Date.now() + 1000 * 60 * 60 * 24))
+
+    const result = await drainScienceIngredientQueue(Date.now())
+    expect(result.drained).toEqual([])
+    expect(markQueueRowFetched).not.toHaveBeenCalled()
+  })
+
+  it('re-refreshes previously-fetched rows nearing expiry, most-requested first', async () => {
+    const fetched = [
+      queueRow('low-demand', { fetched_at: '2026-07-20T00:00:00.000Z', request_count: 2 }),
+      queueRow('high-demand', { fetched_at: '2026-07-20T00:00:00.000Z', request_count: 40 }),
+    ]
+    // getFetchedQueueRowsByDemand already returns most-requested first (its
+    // own real ORDER BY request_count desc, mocked here to already reflect
+    // that ordering — this test asserts the drain preserves it).
+    getFetchedQueueRowsByDemand.mockResolvedValue([fetched[1], fetched[0]])
+    getCacheExpiresAt.mockResolvedValue(new Date(Date.now() + 1000))   // near expiry for both
+
+    const result = await drainScienceIngredientQueue(Date.now())
+    expect(result.drained).toEqual(['high-demand', 'low-demand'])
+  })
+
+  it('reports timeExhausted and stops early when the elapsed-time guard trips, without exceeding the count budget either', async () => {
+    const rows = Array.from({ length: 5 }, (_, i) => queueRow(`ingredient-${i}`))
+    getUnfetchedQueueRows.mockResolvedValue(rows)
+    // startedAt far enough in the past that the very first time-check fails.
+    const longAgo = Date.now() - 10 * 60 * 1000
+
+    const result = await drainScienceIngredientQueue(longAgo)
+    expect(result.timeExhausted).toBe(true)
+    expect(result.drained).toEqual([])
+    expect(markQueueRowFetched).not.toHaveBeenCalled()
+  })
+
+  it('never drains an ingredient whose real fetch failed (dishonest fetched_at is never set)', async () => {
+    fetchPublicationCountsByYear.mockResolvedValue(null)
+    fetchTrialRegistrationsCount.mockResolvedValue(null)
+    getUnfetchedQueueRows.mockResolvedValue([queueRow('will-fail')])
+
+    const result = await drainScienceIngredientQueue(Date.now())
+    expect(result.drained).toEqual([])
+    expect(markQueueRowFetched).not.toHaveBeenCalled()
+  })
+})
+
+// The tracked-3 refresh (runScienceIngestionPipeline) and the queue drain
+// (drainScienceIngredientQueue) are two separate, independently-tested
+// functions; app/api/cron/science-pipeline/route.ts's own sequencing (run
+// the tracked-3 refresh to completion, THEN start the drain) is verified at
+// the route level — see app/api/cron/science-pipeline/__tests__/route.test.ts.

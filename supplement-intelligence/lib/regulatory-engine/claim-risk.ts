@@ -92,7 +92,11 @@ export const CLAIM_RISK_DISCLAIMER =
   'Not medical or legal advice — always verify with qualified regulatory counsel before making ' +
   'claim-language decisions.'
 
-function escapeRegex(s: string): string {
+// Exported: reused by lib/science-engine/tracked-ingredients.ts for the same
+// purpose (safely building a `\b...\b` word-boundary regex from a real
+// string) — same cross-engine import precedent as
+// lib/science-engine/pipeline.ts importing fetchRegulatoryIntelligence.
+export function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
