@@ -274,7 +274,13 @@ export interface EvidenceBreadth {
 // time via reconstructKillSwitchEvaluation, never recomputed from this
 // module, so there is no "old vs. new score" comparison for this version
 // string to guard there.)
-export const SCORING_ENGINE_VERSION = '2.11.0'
+// 2.12.0 (2026-08-03): Entry Proof scoring bonus — computeMarketAccessibility
+// gains a bounded, positive-only, tier-scaled bonus when v2-bar entry-proof
+// members exist (docs/RD_ENTRY_PROOF_SCORING.md). Max +1.5 on the dimension
+// (~+2.7 on the 0-100 score) — deliberately modest: the signal's residual
+// blind spots (subsidized launches, mega-brand new listings) are priced in,
+// and no outcome data exists yet to justify more (M3.2 is the upgrade path).
+export const SCORING_ENGINE_VERSION = '2.12.0'
 
 export interface GroundedScore {
   score:       number   // 0-100
@@ -706,6 +712,14 @@ export function computeReviewMoatScore(m: MemoData): number | null {
 
 interface GatedResult extends RealResult { gateTier: BuildDecision | null }
 
+// Entry Proof bonus tiers (docs/RD_ENTRY_PROOF_SCORING.md) — disclosed,
+// uncalibrated initial values, same convention as the gateTier thresholds
+// below. Tier-scaled by observed v2-bar member count; see the bonus block
+// inside computeMarketAccessibility for the full rationale.
+export const ENTRY_PROOF_BONUS_SINGLE  = 0.5
+export const ENTRY_PROOF_BONUS_DUAL    = 1.0
+export const ENTRY_PROOF_BONUS_PATTERN = 1.5
+
 function computeMarketAccessibility(m: MemoData): GatedResult {
   const se = m.signal_evidence
   const subSignals: { score: number; weight: number; source: string }[] = []
@@ -731,8 +745,32 @@ function computeMarketAccessibility(m: MemoData): GatedResult {
 
   const totalW = subSignals.reduce((s, x) => s + x.weight, 0)
   const blended = subSignals.reduce((s, x) => s + x.score * (x.weight / totalW), 0)
-  const rawScore = Math.round(blended * 10) / 10
+
+  // Entry Proof bonus (docs/RD_ENTRY_PROOF_SCORING.md, SCORING_ENGINE_VERSION
+  // 2.12.0): bounded, positive-only, tier-scaled by how many v2-bar members
+  // were observed — real low-review recent listings moving real volume in
+  // THIS niche (direct counter-evidence to the review moat the sub-signals
+  // above measure the height of; this measures observed crossings, related
+  // but not the same measurement). Absence adds nothing and never subtracts
+  // (coverage gap, not evidence the market is closed). criteria_version ≥ 2
+  // is REQUIRED: scores are recomputed from stored memos at read time, and
+  // the v1 relative-only bar admitted mega-brands (real sampled case:
+  // Nature's Bounty at 5,787 reviews under a 6,957 median) — those stored
+  // rows must never earn this bonus retroactively. Constants are disclosed
+  // initial values, deliberately modest (max +1.5 here ≈ +2.7 on the 0-100
+  // composite): the signal's residual blind spots (ad-subsidized launches,
+  // a mega-brand's fresh low-review listing) are priced in, and no outcome
+  // data exists yet to justify more — M3.2 calibration is the upgrade path.
+  const ep = se?.revenue?.value?.entry_proof
+  const epMembers = (ep?.criteria_version ?? 0) >= 2 ? (ep?.members?.length ?? 0) : 0
+  const entryProofBonus =
+    epMembers >= 3 ? ENTRY_PROOF_BONUS_PATTERN :
+    epMembers === 2 ? ENTRY_PROOF_BONUS_DUAL :
+    epMembers === 1 ? ENTRY_PROOF_BONUS_SINGLE : 0
+
+  const rawScore = Math.round(Math.min(10, blended + entryProofBonus) * 10) / 10
   const sourceLabel = Array.from(new Set(subSignals.map(s => s.source))).join(' + ')
+    + (entryProofBonus > 0 ? ` + entry proof (${epMembers} recent low-review seller${epMembers === 1 ? '' : 's'} observed)` : '')
 
   // Partial gate — caps the final DECISION, never the score itself, and
   // never an additional penalty on top of the blend above. A catastrophic

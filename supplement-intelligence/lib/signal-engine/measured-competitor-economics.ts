@@ -154,8 +154,31 @@ export const ENTRY_PROOF_MIN_DISPROPORTION      = 2     // sales-share ÷ review
 export const ENTRY_PROOF_MIN_MEDIAN_SOLD_RATIO  = 0.25  // member sold ≥ quarter of niche median
 export const ENTRY_PROOF_ESTABLISHED_REVIEW_BASE = 1000 // same-brand other-product review base
 export const ENTRY_PROOF_PRICE_DUMP_RATIO       = 0.6   // price < 60% of median → disclose
-export const ENTRY_PROOF_RECENT_MONTHS          = 24    // corroboration only, never required
+export const ENTRY_PROOF_RECENT_MONTHS          = 24    // v2: REQUIRED for membership (see below)
 export const ENTRY_PROOF_PATTERN_COUNT          = 3     // members needed for the strongest ("pattern") wording
+// v2 bar (deep-research round, 2026-08-03): a 7-niche live Keepa sample
+// showed the v1 relative-only bar fired in 7/7 niches, and in mature niches
+// its "members" were mega-brands — Nature's Bounty at 5,787 reviews (below a
+// 6,957 median), Amazon Basics, NOW Foods. "Below median" alone admits
+// giants wherever the median is high, which is exactly the near-zero-
+// discriminating-power failure that got Manufacturing Feasibility removed
+// from scoring. v2 therefore ALSO requires genuinely-few reviews in the
+// absolute sense a new company could plausibly reach quickly. Sensitivity
+// checked on the sample: anchors 200-300 keep every genuine entrant
+// (94/86/66 reviews) and exclude every giant; 300 chosen, disclosed,
+// uncalibrated — first constant to calibrate once real outcomes exist.
+// KNOWN residual false positive (disclosed, unfixed): a mega-brand's NEW
+// low-review listing (e.g. a giant 6 months in at 250 reviews) passes —
+// the established-brand check only sees the ~25 products this analysis
+// fetched. This is priced into the deliberately modest scoring bonus
+// (lib/scoring.ts); a curated big-brand data file is the future option.
+export const ENTRY_PROOF_ABS_REVIEW_ANCHOR      = 300   // member reviews ≤ min(median, this)
+// Version stamp written onto entry_proof so the scoring bonus
+// (lib/scoring.ts, SCORING_ENGINE_VERSION 2.12.0) can refuse to score
+// rows produced by the weaker v1 bar — scores are recomputed from stored
+// memos at read time, so without this stamp the bonus would retroactively
+// reward v1's Nature's-Bounty-grade "members".
+export const ENTRY_PROOF_CRITERIA_VERSION       = 2
 
 // One fetched product's brand + review base, PRE-dedupe — the established-
 // brand check needs sibling listings that dedupeByBrand already collapsed.
@@ -193,6 +216,8 @@ export interface EntryProofHeadline extends EntryProofMember {
   niche_median_sold:    number
   niche_median_price:   number
   members?:             EntryProofMember[]
+  // ENTRY_PROOF_CRITERIA_VERSION at detection time — scoring only trusts ≥2.
+  criteria_version?:    number
 }
 
 function median(values: number[]): number {
@@ -231,6 +256,16 @@ export function detectEntryProof(
   const members: EntryProofMember[] = []
   for (const r of ranked) {
     if (r.review_count >= medianReviews) continue
+    // v2: genuinely-few reviews in the absolute sense too — "below median"
+    // alone admits 5,787-review giants wherever the median is higher (real
+    // sampled case: Nature's Bounty under a 6,957 median).
+    if (r.review_count > ENTRY_PROOF_ABS_REVIEW_ANCHOR) continue
+    // v2: recency is REQUIRED, not corroboration — the claim is "a NEW
+    // company entered", and a null/old listing age can't support it.
+    // Deliberately conservative on missing data: an age-less row loses
+    // membership (emphasis + scoring), never its place in the table —
+    // demanding complete evidence for a strong claim, disclosed here.
+    if (r.listing_age_months === null || r.listing_age_months > ENTRY_PROOF_RECENT_MONTHS) continue
     if (disproportion(r) < ENTRY_PROOF_MIN_DISPROPORTION) continue
     if (r.monthly_sold < medianSold * ENTRY_PROOF_MIN_MEDIAN_SOLD_RATIO) continue
     const brandKey = r.brand.trim().toLowerCase()
@@ -240,7 +275,6 @@ export function detectEntryProof(
       b.reviewCount >= ENTRY_PROOF_ESTABLISHED_REVIEW_BASE)
     if (established) continue
 
-    const recent = r.listing_age_months !== null && r.listing_age_months <= ENTRY_PROOF_RECENT_MONTHS
     const dumped = r.price < medianPrice * ENTRY_PROOF_PRICE_DUMP_RATIO
     members.push({
       productId:            r.productId,
@@ -248,8 +282,8 @@ export function detectEntryProof(
       monthly_sold:         r.monthly_sold,
       review_count:         r.review_count,
       price:                r.price,
-      ...(r.listing_age_months !== null && { listing_age_months: r.listing_age_months }),
-      ...(recent && { recent: true }),
+      listing_age_months:   r.listing_age_months,
+      recent:               true,   // by construction in v2 — kept for shape stability with stored v1 rows
       ...(dumped && { price_dump_suspected: true }),
     })
   }
@@ -261,5 +295,6 @@ export function detectEntryProof(
     niche_median_sold:    Math.round(medianSold),
     niche_median_price:   Math.round(medianPrice),
     members,
+    criteria_version:     ENTRY_PROOF_CRITERIA_VERSION,
   }
 }

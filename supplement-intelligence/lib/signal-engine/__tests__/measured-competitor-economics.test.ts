@@ -212,7 +212,7 @@ describe('detectEntryProof (Entry Proof headline — emphasis only, never exclus
   it('critique fix 3: deep-discount volume is disclosed, not hidden', () => {
     const rows = [
       row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 5000, price: 30 }),
-      row({ productId: 'DUMPER', brand: 'CheapCo',   review_count: 45,     monthly_sold: 3000, price: 9 }),
+      row({ productId: 'DUMPER', brand: 'CheapCo',   review_count: 45,     monthly_sold: 3000, price: 9, listing_age_months: 6 }),
       row({ productId: 'MID1',   brand: 'MidBrand',  review_count: 4000,   monthly_sold: 2000, price: 28 }),
     ]
     const ep = detectEntryProof(rows, [])
@@ -232,7 +232,7 @@ describe('detectEntryProof (Entry Proof headline — emphasis only, never exclus
   it('a real 0-review seller can headline (floored share, raw 0 preserved)', () => {
     const rows = [
       row({ productId: 'LEADER', brand: 'BigLeader', review_count: 9000, monthly_sold: 4000 }),
-      row({ productId: 'ZERO',   brand: 'BrandNew',  review_count: 0,    monthly_sold: 3000 }),
+      row({ productId: 'ZERO',   brand: 'BrandNew',  review_count: 0,    monthly_sold: 3000, listing_age_months: 2 }),
       row({ productId: 'MID1',   brand: 'MidBrand',  review_count: 5000, monthly_sold: 2500 }),
     ]
     const ep = detectEntryProof(rows, [])
@@ -270,9 +270,9 @@ describe('detectEntryProof ladder — members list + tier semantics', () => {
   it('returns ALL qualifying members ranked strongest-first, flat fields = strongest', () => {
     const rows = [
       row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 8000 }),
-      row({ productId: 'M1',     brand: 'FreshOne',  review_count: 45,     monthly_sold: 4000 }),
-      row({ productId: 'M2',     brand: 'FreshTwo',  review_count: 90,     monthly_sold: 3000 }),
-      row({ productId: 'M3',     brand: 'FreshThree', review_count: 150,   monthly_sold: 2500 }),
+      row({ productId: 'M1',     brand: 'FreshOne',  review_count: 45,     monthly_sold: 4000, listing_age_months: 4 }),
+      row({ productId: 'M2',     brand: 'FreshTwo',  review_count: 90,     monthly_sold: 3000, listing_age_months: 9 }),
+      row({ productId: 'M3',     brand: 'FreshThree', review_count: 150,   monthly_sold: 2500, listing_age_months: 20 }),
       row({ productId: 'MID',    brand: 'MidBrand',  review_count: 5000,   monthly_sold: 3000 }),
       row({ productId: 'MID2',   brand: 'OtherMid',  review_count: 3000,   monthly_sold: 2600 }),
     ]
@@ -299,7 +299,7 @@ describe('detectEntryProof ladder — members list + tier semantics', () => {
   it('member volume bar is ¼ median: a ⅓-median seller is a member, a tiny one is not', () => {
     const rows = [
       row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 6000 }),
-      row({ productId: 'THIRD',  brand: 'ThirdCo',   review_count: 60,     monthly_sold: 2000 }),  // ≥ ¼ of median
+      row({ productId: 'THIRD',  brand: 'ThirdCo',   review_count: 60,     monthly_sold: 2000, listing_age_months: 7 }),  // ≥ ¼ of median
       row({ productId: 'TINY',   brand: 'TinyCo',    review_count: 5,      monthly_sold: 200 }),   // < ¼ of median
       row({ productId: 'MID',    brand: 'MidBrand',  review_count: 4000,   monthly_sold: 3000 }),
     ]
@@ -310,8 +310,8 @@ describe('detectEntryProof ladder — members list + tier semantics', () => {
   it('a price-dumping member stays a member, flagged (disclosed, not excluded)', () => {
     const rows = [
       row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 6000, price: 30 }),
-      row({ productId: 'FAIR',   brand: 'FairCo',    review_count: 50,     monthly_sold: 3000, price: 29 }),
-      row({ productId: 'DUMP',   brand: 'DumpCo',    review_count: 40,     monthly_sold: 2500, price: 9 }),
+      row({ productId: 'FAIR',   brand: 'FairCo',    review_count: 50,     monthly_sold: 3000, price: 29, listing_age_months: 10 }),
+      row({ productId: 'DUMP',   brand: 'DumpCo',    review_count: 40,     monthly_sold: 2500, price: 9, listing_age_months: 12 }),
       row({ productId: 'MID',    brand: 'MidBrand',  review_count: 4000,   monthly_sold: 3000, price: 28 }),
     ]
     const ep = detectEntryProof(rows, [])!
@@ -320,5 +320,47 @@ describe('detectEntryProof ladder — members list + tier semantics', () => {
     expect(ids).toContain('DUMP')
     expect(ep.members!.find(m => m.productId === 'DUMP')!.price_dump_suspected).toBe(true)
     expect(ep.members!.find(m => m.productId === 'FAIR')!.price_dump_suspected).toBeUndefined()
+  })
+})
+
+// ── Entry Proof v2 bar (deep-research round, 2026-08-03) ────────────────────
+describe('detectEntryProof v2 bar — absolute anchor + required recency', () => {
+  it('the real Nature\'s Bounty case: below-median but >300 reviews is NOT a member', () => {
+    // Sampled live 2026-08-03: magnesium glycinate, median 6,957 reviews —
+    // Nature's Bounty at 5,787 reviews/80k sold qualified under the v1 bar.
+    const rows = [
+      row({ productId: 'MEGA1', brand: 'HugeCo A', review_count: 76_126, monthly_sold: 30_000 }),
+      row({ productId: 'NB',    brand: 'Big Household Name', review_count: 5_787, monthly_sold: 80_000, listing_age_months: 17 }),
+      row({ productId: 'MEGA2', brand: 'HugeCo B', review_count: 40_000, monthly_sold: 20_000 }),
+      row({ productId: 'MEGA3', brand: 'HugeCo C', review_count: 9_000,  monthly_sold: 15_000 }),
+    ]
+    expect(detectEntryProof(rows, [])).toBeNull()
+  })
+
+  it('a null listing age is never a member (conservative on missing data)', () => {
+    const rows = [
+      row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 5000 }),
+      row({ productId: 'NOAGE',  brand: 'FreshCo',   review_count: 45,     monthly_sold: 3000, listing_age_months: null }),
+      row({ productId: 'MID',    brand: 'MidBrand',  review_count: 4000,   monthly_sold: 2000 }),
+    ]
+    expect(detectEntryProof(rows, [])).toBeNull()
+  })
+
+  it('an old low-review listing is not a member (recency required, not corroboration)', () => {
+    const rows = [
+      row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 5000 }),
+      row({ productId: 'OLD',    brand: 'OldCo',     review_count: 45,     monthly_sold: 3000, listing_age_months: 35 }),
+      row({ productId: 'MID',    brand: 'MidBrand',  review_count: 4000,   monthly_sold: 2000 }),
+    ]
+    expect(detectEntryProof(rows, [])).toBeNull()
+  })
+
+  it('stamps criteria_version 2 on the result', () => {
+    const ep = detectEntryProof([
+      row({ productId: 'LEADER',   brand: 'BigLeader', review_count: 20_000, monthly_sold: 5000 }),
+      row({ productId: 'NEWCOMER', brand: 'FreshCo',   review_count: 45,     monthly_sold: 3000, listing_age_months: 8 }),
+      row({ productId: 'MID',      brand: 'MidBrand',  review_count: 4000,   monthly_sold: 2000 }),
+    ], [])!
+    expect(ep.criteria_version).toBe(2)
   })
 })

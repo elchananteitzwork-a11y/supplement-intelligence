@@ -113,6 +113,21 @@ counter-signal to "this market is locked up by incumbents."
      replaced the earlier ½-median headline bar: two different volume bars
      would create members that can't be shown alone (incoherent tier
      boundary); the ladder wording carries the strength signal instead.
+   - **v2 bar (deep-research round, 2026-08-03):** a 7-niche live Keepa
+     sample showed the relative-only bar fired in 7/7 niches and admitted
+     mega-brands in mature ones (Nature's Bounty at 5,787 reviews under a
+     6,957 median; Amazon Basics; NOW Foods) — the near-zero-
+     discriminating-power failure that got Manufacturing Feasibility
+     removed from scoring. v2 adds two member requirements: reviews ≤
+     min(median, 300) (absolute anchor, sensitivity-checked 200-300 on
+     the sample) and listing age ≤ 24 months REQUIRED (null age = not a
+     member; conservative on missing data, disclosed). Post-fix sample:
+     fires 2/7 niches, genuine entrants only. Results carry
+     criteria_version: 2 so the scoring bonus
+     (docs/RD_ENTRY_PROOF_SCORING.md) can refuse v1-bar stored data.
+     Known residual (disclosed): a mega-brand's fresh low-review listing
+     still passes; priced into the modest bonus, curated big-brand data
+     file is the future option.
    - `listing_age_months <= 24`, when present, marks an example
      `recent: true` (corroboration, never a requirement — listedSince
      is sometimes absent).

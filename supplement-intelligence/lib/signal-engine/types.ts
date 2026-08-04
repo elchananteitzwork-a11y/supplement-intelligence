@@ -166,6 +166,11 @@ export interface RevenueSignal extends SignalScore {
       recent?:               boolean
       price_dump_suspected?: boolean
     }[]
+    // ENTRY_PROOF_CRITERIA_VERSION at detection time. The scoring bonus
+    // (lib/scoring.ts) only trusts ≥2 — scores are recomputed from stored
+    // memos at read time, and v1-bar members (relative-only, admitted
+    // mega-brands) must never earn the bonus retroactively.
+    criteria_version?:     number
   }
   // Guard-1 disclosure: how many relevance-passing search results were
   // excluded for sitting in a minority second-level category (the OTC-drug
