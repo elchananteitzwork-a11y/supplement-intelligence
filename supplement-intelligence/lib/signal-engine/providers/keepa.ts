@@ -12,7 +12,7 @@ import type {
   SupplyVelocitySignal,
 } from '../types'
 import { checkKeywordRelevance } from '../../keyword-engine/relevance-guard'
-import { buildCompetitorRevenueTable, detectEntryProof, type MeasuredCompetitorInput, type BrandReviewBase } from '../measured-competitor-economics'
+import { buildCompetitorRevenueTable, detectEntryProof, computeEntryOutcomes, type MeasuredCompetitorInput, type BrandReviewBase } from '../measured-competitor-economics'
 import { scanForClaimRiskLanguage } from '../../regulatory-engine/claim-risk'
 import {
   fetchManufacturerRecallHistoryBatch,
@@ -1587,6 +1587,13 @@ export class KeepaProvider implements SignalProvider {
       ? detectEntryProof(competitorEconomics.rows, fetchedBrandBases)
       : null
 
+    // Entry Outcomes (docs/RD_ENTRY_OUTCOMES.md): fate of the VISIBLE young
+    // cohort — takes the RAW inputs (pre both-axes filter) because the whole
+    // point is seeing the listings the revenue table drops. Pure, zero new
+    // fetches, display-only (no scoring by design — see the R&D doc's
+    // external-research verdict).
+    const entryOutcomes = computeEntryOutcomes(measuredCompetitorInputs, fetchedBrandBases)
+
     // ── Revenue signal ──
     const fmt = (n: number) => n >= 1000 ? `$${Math.round(n / 1000)}k/mo` : `$${Math.round(n)}/mo`
     let revenue: RevenueSignal | undefined
@@ -1633,6 +1640,9 @@ export class KeepaProvider implements SignalProvider {
         // Entry Proof (docs/RD_ENTRY_PROOF.md): headline example only when
         // one earned emphasis — absence over a weak, misleading "proof".
         ...(entryProof && { entry_proof: entryProof }),
+        // Entry Outcomes (docs/RD_ENTRY_OUTCOMES.md): visible-young-cohort
+        // fate; absent when no young cohort is visible at all.
+        ...(entryOutcomes && { entry_outcomes: entryOutcomes }),
         ...(avgPrice !== null && avgPrice365 !== null && prices.length >= 3 && prices365.length >= 3 && {
           price_avg_90d:         Math.round(avgPrice * 100) / 100,
           price_avg_365d:        Math.round(avgPrice365 * 100) / 100,

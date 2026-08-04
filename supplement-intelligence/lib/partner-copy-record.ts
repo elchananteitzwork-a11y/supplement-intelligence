@@ -148,6 +148,34 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
       })
     }
   }
+  // Entry Outcomes (docs/RD_ENTRY_OUTCOMES.md): one state-dependent row on
+  // the visible young cohort. Every number traces to stored member lists
+  // (marker measured); 'insufficient' renders nothing (absence over weak
+  // claims); the visibility-floor caveat lives in the appendix footnote,
+  // not here. The no_small_entrants copy is an observation about review
+  // scale — never a brand-identity claim (critique rule).
+  const eo = revVal?.entry_outcomes
+  if (eo && eo.state !== 'insufficient') {
+    if (eo.state === 'welcoming') {
+      compRows.push({
+        claim: 'Young sellers here break through',
+        value: `${eo.broke_out.length} of ${eo.judgeable_count} small-scale young listings (6-24mo) are selling past ~${eo.stall_threshold_sold.toLocaleString()}/mo`,
+        marker: 'measured',
+      })
+    } else if (eo.state === 'contested') {
+      compRows.push({
+        claim: 'Young sellers here often stall',
+        value: `${eo.stalled.length} of ${eo.judgeable_count} small-scale young listings (6-24mo) are stuck at ~${eo.stall_threshold_sold.toLocaleString()}/mo or less by Amazon's own sales badge`,
+        marker: 'measured',
+      })
+    } else {
+      compRows.push({
+        claim: 'No small-scale young seller visible',
+        value: `Every young listing visible here (${eo.young_total}) already carries a 1,000+ review base`,
+        marker: 'measured',
+      })
+    }
+  }
   if (compRows.length > 0) {
     chapters.push({
       key: 'competition', title: 'Competition',
@@ -272,6 +300,10 @@ export interface EvidenceAppendixVM {
   // slot was absent (never a fabricated 0).
   competitorRows: { brand: string; price: string; unitsLabel: string; revenueLabel: string; reviewsLabel: string }[]
   competitorsFootnote: string | null  // floor semantics + off-category exclusion disclosure
+  // Entry Outcomes visibility caveat (docs/RD_ENTRY_OUTCOMES.md): rendered
+  // whenever a young-cohort claim was made — the invisible graveyard stays
+  // invisible and the reader must know it.
+  entryOutcomesCaveat: string | null
   // Roadmap "Dynamic Science Coverage" (docs/RD_DYNAMIC_SCIENCE_COVERAGE.md):
   // honest disclosure for a vocabulary-matched ingredient with no science
   // signal yet — replaces silent absence with a real, disclosed "not yet
@@ -338,6 +370,15 @@ export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
     ? `Science evidence for ${queuedIngredient.charAt(0).toUpperCase()}${queuedIngredient.slice(1)} is not yet available — it will appear after the next automated science update.`
     : null
 
+  // Entry Outcomes visibility caveat — rendered whenever the Record made a
+  // young-cohort claim (state !== insufficient). Listings that failed and
+  // lost search visibility never appear in our sample; every count is a
+  // floor (docs/RD_ENTRY_OUTCOMES.md §2, external-research finding).
+  const eoState = m.signal_evidence?.revenue?.value?.entry_outcomes?.state
+  const entryOutcomesCaveat = eoState && eoState !== 'insufficient'
+    ? 'Young-seller outcomes reflect visible top-search results only — listings that failed and lost visibility don\'t appear here, so failure counts are floors, and their absence is never evidence of safety.'
+    : null
+
   return {
     keywords,
     sources,
@@ -347,6 +388,7 @@ export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
     competitorRows,
     competitorsFootnote,
     scienceQueuedNote,
+    entryOutcomesCaveat,
   }
 }
 

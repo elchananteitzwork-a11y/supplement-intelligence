@@ -364,3 +364,129 @@ describe('detectEntryProof v2 bar — absolute anchor + required recency', () =>
     expect(ep.criteria_version).toBe(2)
   })
 })
+
+// ── Entry Outcomes — docs/RD_ENTRY_OUTCOMES.md ──────────────────────────────
+import { computeEntryOutcomes } from '../measured-competitor-economics'
+
+describe('computeEntryOutcomes (visible-young-cohort fate)', () => {
+  // input() default: reviewCount null, listingAgeMonths null — override per fixture.
+  const inp = (id: string, brand: string, age: number | null, sold: number | null, reviews: number | null) =>
+    input({ productId: id, brand, listingAgeMonths: age, monthlySold: sold, reviewCount: reviews })
+
+  it('welcoming: most small-scale judgeable young listings broke out (real creatine-gummies shape)', () => {
+    const eo = computeEntryOutcomes([
+      inp('A', 'FreshA', 8, 6000, 200), inp('B', 'FreshB', 15, 5000, 400),
+      inp('C', 'FreshC', 10, 5000, 660), inp('D', 'FreshD', 7, 2000, 130),
+      inp('E', 'FreshE', 16, 2000, 199), inp('OLD', 'OldCo', 60, 9000, 5000),
+    ], [])!
+    expect(eo.state).toBe('welcoming')
+    expect(eo.judgeable_count).toBe(5)
+    expect(eo.broke_out).toHaveLength(5)
+    expect(eo.stalled).toHaveLength(0)
+  })
+
+  it('contested: stalled share ≥ 0.34 (real berberine shape, dual-anchored bar)', () => {
+    // median sold of deduped measured set drives the relative anchor.
+    const eo = computeEntryOutcomes([
+      inp('A', 'B1', 11, 3000, 700), inp('B', 'B2', 9, 1000, 366),
+      inp('C', 'B3', 14, 800, 235), inp('D', 'B4', 16, 600, 258),
+      inp('E', 'B5', 19, 200, 102), inp('F', 'B6', 12, 100, 235),
+      inp('G', 'B7', 20, 100, 339), inp('H', 'B8', 12, 50, 67),
+    ], [])!
+    expect(eo.state).toBe('contested')
+    // median sold = (200+600)/2=400 → bar = min(200, 100) = 100
+    expect(eo.stall_threshold_sold).toBe(100)
+    expect(eo.stalled.map(s => s.productId).sort()).toEqual(['F', 'G', 'H'])
+  })
+
+  it('critique fix: dual anchor protects low-volume niches from absolute-bar mislabeling', () => {
+    // Median 400 → bar 100: a 200/mo seller is NOT stalled here even though
+    // 200 ≤ the absolute anchor.
+    const eo = computeEntryOutcomes([
+      inp('A', 'B1', 10, 400, 100), inp('B', 'B2', 12, 400, 90),
+      inp('C', 'B3', 9, 200, 80), inp('D', 'B4', 14, 300, 70),
+    ], [])!
+    expect(eo.stall_threshold_sold).toBeLessThan(200)
+    expect(eo.stalled).toHaveLength(0)
+    expect(eo.state).toBe('welcoming')
+  })
+
+  it('no_small_entrants_visible: young cohort exists but every member has a 1,000+ review base — with NO brand-identity claim encoded', () => {
+    const eo = computeEntryOutcomes([
+      inp('A', 'BigA', 17, 80000, 5788), inp('B', 'BigB', 15, 80000, 2976),
+      inp('C', 'BigC', 14, 10000, 1799),
+    ], [])!
+    expect(eo.state).toBe('no_small_entrants_visible')
+    expect(eo.small_scale_count).toBe(0)
+    expect(eo.young_total).toBe(3)
+  })
+
+  it('critique fix: a successful small-scale entrant with a big OWN review base still counts as large_base (we cannot distinguish it from a giant — observation only)', () => {
+    // Inner Brightness case: 11mo, 1,838 reviews. It is counted large_base
+    // (review-scale observation), NOT misdescribed as a brand-identity fact.
+    const eo = computeEntryOutcomes([
+      inp('IB', 'Inner Brightness', 11, 7000, 1838),
+      inp('A', 'FreshA', 8, 900, 120), inp('B', 'FreshB', 9, 800, 90),
+      inp('C', 'FreshC', 12, 700, 60), inp('D', 'FreshD', 10, 600, 50),
+    ], [])!
+    expect(eo.large_base_count).toBe(1)
+    expect(eo.judgeable_count).toBe(4)
+  })
+
+  it('large_base via same-brand base elsewhere in fetched data (entry-proof machinery reused)', () => {
+    const eo = computeEntryOutcomes([
+      inp('NEW', 'MegaBrand', 7, 900, 150),
+      inp('A', 'FreshA', 8, 900, 120), inp('B', 'FreshB', 9, 800, 90),
+      inp('C', 'FreshC', 12, 700, 60), inp('D', 'FreshD', 10, 600, 50),
+    ], [{ productId: 'OTHER', brand: 'megabrand', reviewCount: 50_000 }])!
+    expect(eo.large_base_count).toBe(1)
+    expect(eo.judgeable_count).toBe(4)
+  })
+
+  it('insufficient: judgeable cohort below the minimum renders no claim state', () => {
+    const eo = computeEntryOutcomes([
+      inp('A', 'FreshA', 3, 300, 28), inp('B', 'FreshB', 2, 100, 15),
+    ], [])!
+    expect(eo.state).toBe('insufficient')
+  })
+
+  it('null listing age is excluded from the young cohort (conservative on missing data); no young cohort at all → null', () => {
+    expect(computeEntryOutcomes([
+      inp('A', 'A', null, 5000, 100), inp('B', 'B', 60, 3000, 4000),
+    ], [])).toBeNull()
+  })
+
+  it('badge-absent young listings count as stalled (below ~50/mo by the badge), never as broke-out', () => {
+    const eo = computeEntryOutcomes([
+      inp('A', 'B1', 10, 3000, 700), inp('B', 'B2', 12, 2000, 366),
+      inp('C', 'NoBadge1', 9, null, 12), inp('D', 'NoBadge2', 14, null, 8),
+    ], [])!
+    expect(eo.stalled.map(s => s.productId).sort()).toEqual(['C', 'D'])
+    expect(eo.state).toBe('contested')   // 2 of 4 stalled = 50% ≥ 34%
+  })
+
+  it('internal consistency: broke_out + stalled always equals judgeable_count', () => {
+    const eo = computeEntryOutcomes([
+      inp('A', 'B1', 11, 3000, 700), inp('B', 'B2', 9, 1000, 366),
+      inp('C', 'B3', 14, 100, 235), inp('D', 'B4', 16, 600, 258),
+      inp('E', 'B5', 4, 900, 40),   // young but too new to judge
+    ], [])!
+    expect(eo.broke_out.length + eo.stalled.length).toBe(eo.judgeable_count)
+    expect(eo.judgeable_count).toBe(4)
+  })
+
+  it('coexists with detectEntryProof on the same niche (a winner AND stalls is real information)', () => {
+    const inputs = [
+      inp('LEADER', 'BigLeader', 60, 8000, 20000),
+      inp('MID', 'MidBrand', 60, 3000, 5000),
+      inp('STAR', 'FreshStar', 8, 4000, 90),
+      inp('S1', 'Stall1', 10, 100, 300), inp('S2', 'Stall2', 12, 100, 250),
+      inp('S3', 'Stall3', 14, 100, 220),
+    ]
+    const table = buildCompetitorRevenueTable(inputs)!
+    const ep = detectEntryProof(table.rows, [])
+    const eo = computeEntryOutcomes(inputs, [])!
+    expect(ep?.brand).toBe('FreshStar')
+    expect(eo.state).toBe('contested')   // 3 of 4 judgeable small-scale young are stalled
+  })
+})

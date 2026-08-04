@@ -1,6 +1,6 @@
 # Truth Audit findings — 2026-08-04
 
-Audited 5 recent analyses · 190 checks · 0 findings.
+Audited 3 recent analyses · 116 checks · 0 findings.
 External free checks ON; live-spend checks OFF (owner-gated default).
 Method: docs/RD_TRUTH_AUDIT.md. Every number independently recomputed from raw stored provider fields — never by re-running the display formatter alone.
 

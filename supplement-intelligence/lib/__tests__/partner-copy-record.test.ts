@@ -491,3 +491,55 @@ describe('Entry Proof ladder — tier wording scales with member count', () => {
     expect(row.value).toContain('— incl. one at $9 vs typical $27')
   })
 })
+
+// ── Entry Outcomes (docs/RD_ENTRY_OUTCOMES.md) — display surfaces ──────────
+describe('Entry Outcomes — state-dependent Competition row + appendix caveat', () => {
+  function memoWithOutcomes(eo: Record<string, unknown> | undefined): MemoData {
+    return {
+      ...REQUIRED_MEMO_SCAFFOLD,
+      biggest_competitor: { name: 'Someone', revenue: '', gap: '' },
+      signal_evidence: {
+        providers_used: ['keepa'], overall_confidence: 0.7,
+        demand_verified: true, virality_verified: false, pricing_verified: true, growth_verified: true,
+        revenue: {
+          value: { score: 6, confidence: 0.7, ...(eo && { entry_outcomes: eo }) },
+          sources: ['keepa'], primarySource: 'keepa', confidence: 0.7,
+        },
+      } as unknown as MemoData['signal_evidence'],
+    } as unknown as MemoData
+  }
+  const M = (id: string, sold: number | null) => ({ productId: id, brand: id, monthly_sold: sold, review_count: 50, listing_age_months: 10, price: 25 })
+  const base = { young_total: 6, large_base_count: 1, small_scale_count: 5, judgeable_count: 5, stall_threshold_sold: 200 }
+  const outcomesRow = (m: MemoData) =>
+    buildRecordChapters(m).find(c => c.key === 'competition')?.rows
+      .find(r => ['Young sellers here break through', 'Young sellers here often stall', 'No small-scale young seller visible'].includes(r.claim))
+
+  it('welcoming renders the breakout ratio, measured', () => {
+    const row = outcomesRow(memoWithOutcomes({ ...base, state: 'welcoming', broke_out: [M('A',5000),M('B',3000),M('C',2000),M('D',900),M('E',800)], stalled: [] }))!
+    expect(row.marker).toBe('measured')
+    expect(row.value).toBe('5 of 5 small-scale young listings (6-24mo) are selling past ~200/mo')
+  })
+
+  it('contested renders the stall ratio with the actual computed bar', () => {
+    const row = outcomesRow(memoWithOutcomes({ ...base, state: 'contested', stall_threshold_sold: 100, broke_out: [M('A',5000),M('B',3000)], stalled: [M('C',100),M('D',50),M('E',null)] }))!
+    expect(row.value).toBe("3 of 5 small-scale young listings (6-24mo) are stuck at ~100/mo or less by Amazon's own sales badge")
+  })
+
+  it('no_small_entrants_visible renders the review-scale observation (no brand-identity claim)', () => {
+    const row = outcomesRow(memoWithOutcomes({ ...base, state: 'no_small_entrants_visible', young_total: 4, small_scale_count: 0, judgeable_count: 0, broke_out: [], stalled: [] }))!
+    expect(row.value).toBe('Every young listing visible here (4) already carries a 1,000+ review base')
+  })
+
+  it('insufficient renders no row; absent entry_outcomes renders no row', () => {
+    expect(outcomesRow(memoWithOutcomes({ ...base, state: 'insufficient', broke_out: [], stalled: [] }))).toBeUndefined()
+    expect(outcomesRow(memoWithOutcomes(undefined))).toBeUndefined()
+  })
+
+  it('appendix caveat renders exactly when a claim was made', () => {
+    const withClaim = buildEvidenceAppendix(memoWithOutcomes({ ...base, state: 'contested', broke_out: [], stalled: [M('C',100)] }))
+    expect(withClaim.entryOutcomesCaveat).toContain('visible top-search results only')
+    const noClaim = buildEvidenceAppendix(memoWithOutcomes({ ...base, state: 'insufficient', broke_out: [], stalled: [] }))
+    expect(noClaim.entryOutcomesCaveat).toBeNull()
+    expect(buildEvidenceAppendix(memoWithOutcomes(undefined)).entryOutcomesCaveat).toBeNull()
+  })
+})

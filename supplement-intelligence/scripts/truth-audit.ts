@@ -253,6 +253,34 @@ function auditFamily1(id: string, name: string, m: MemoData, chapters: ReturnTyp
     }
   }
 
+  // C10 — Entry Outcomes (docs/RD_ENTRY_OUTCOMES.md): internal consistency
+  // + displayed row vs recompute from stored member lists.
+  const eo = revVal?.entry_outcomes
+  if (eo) {
+    add('C10a outcomes consistency', eo.broke_out.length + eo.stalled.length === eo.judgeable_count, {
+      severity: 'HIGH',
+      displayed: `judgeable=${eo.judgeable_count}`,
+      source: `broke_out(${eo.broke_out.length}) + stalled(${eo.stalled.length})`,
+      location: 'lib/signal-engine/measured-competitor-economics.ts (computeEntryOutcomes)',
+      detail: 'Stored entry_outcomes counts are internally inconsistent.',
+    })
+    const eoRow = chapters.find(c => c.key === 'competition')?.rows.find(r =>
+      ['Young sellers here break through', 'Young sellers here often stall', 'No small-scale young seller visible'].includes(r.claim))
+    if (eoRow) {
+      const expected =
+        eo.state === 'welcoming' ? `${eo.broke_out.length} of ${eo.judgeable_count} small-scale young listings (6-24mo) are selling past ~${eo.stall_threshold_sold.toLocaleString()}/mo` :
+        eo.state === 'contested' ? `${eo.stalled.length} of ${eo.judgeable_count} small-scale young listings (6-24mo) are stuck at ~${eo.stall_threshold_sold.toLocaleString()}/mo or less by Amazon's own sales badge` :
+        `Every young listing visible here (${eo.young_total}) already carries a 1,000+ review base`
+      add('C10b outcomes row vs stored members', eoRow.value === expected, {
+        severity: 'HIGH',
+        displayed: eoRow.value,
+        source: expected,
+        location: 'lib/partner-copy-record.ts (entry outcomes row)',
+        detail: 'Displayed young-cohort claim diverges from stored entry_outcomes data.',
+      })
+    }
+  }
+
   return results
 }
 

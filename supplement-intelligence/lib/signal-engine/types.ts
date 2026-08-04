@@ -172,6 +172,27 @@ export interface RevenueSignal extends SignalScore {
     // mega-brands) must never earn the bonus retroactively.
     criteria_version?:     number
   }
+  // Entry Outcomes (docs/RD_ENTRY_OUTCOMES.md): fate of the VISIBLE young
+  // cohort (6-24mo, post-guards). Display-only by design — no scoring
+  // input (no failure base rates exist anywhere; the badge has confirmed
+  // false negatives — external-research verdict). Every count is a floor
+  // scoped to visible top-search results; the appendix carries the caveat.
+  entry_outcomes?: {
+    state: 'welcoming' | 'contested' | 'no_small_entrants_visible' | 'insufficient'
+    young_total:          number
+    large_base_count:     number
+    small_scale_count:    number
+    judgeable_count:      number
+    broke_out: {
+      productId: string; brand: string; monthly_sold: number | null
+      review_count: number | null; listing_age_months: number; price: number | null
+    }[]
+    stalled: {
+      productId: string; brand: string; monthly_sold: number | null
+      review_count: number | null; listing_age_months: number; price: number | null
+    }[]
+    stall_threshold_sold: number
+  }
   // Guard-1 disclosure: how many relevance-passing search results were
   // excluded for sitting in a minority second-level category (the OTC-drug
   // contamination case). Absent when zero — never a fabricated 0.

@@ -298,3 +298,128 @@ export function detectEntryProof(
     criteria_version:     ENTRY_PROOF_CRITERIA_VERSION,
   }
 }
+
+// ── Entry Outcomes — docs/RD_ENTRY_OUTCOMES.md ──────────────────────────────
+//
+// What happened to the VISIBLE young cohort (né "Graveyard" — renamed by the
+// evidence). The original idea (count young no-badge listings as failures)
+// was killed by a live 7-niche probe: failing listings essentially never
+// appear in top-20 search (1 of 42 young listings lacked a badge, and it was
+// 0 months old). What DOES discriminate is the fate of the visible young
+// cohort — see the R&D doc's 4-state taxonomy. Everything here is scoped to
+// what is visible; the invisible graveyard stays invisible and the display
+// layer carries that caveat (appendix footnote).
+//
+// Two critique-round rules baked in:
+//   - NO brand-identity claims: our data cannot distinguish a mega-brand's
+//     young listing from a successful independent entrant (real probe case:
+//     Inner Brightness, 11mo, 1,838 reviews). `large_base` is an observation
+//     about review scale only, and copy must phrase it that way.
+//   - Dual-anchored stall bar (the lesson Entry Proof taught twice): an
+//     absolute-only bar would call a near-median seller "stalled" in a
+//     low-volume niche.
+// All constants disclosed, uncalibrated (no failure base rates exist
+// anywhere — the external-research verdict; this signal is display-only).
+
+export const OUTCOMES_MIN_JUDGE_AGE_MONTHS   = 6     // younger than this = too early to judge (launch-window folklore clusters 1-6mo; judgment call)
+export const OUTCOMES_STALL_MAX_SOLD         = 200   // absolute anchor — a real Amazon badge band
+export const OUTCOMES_STALL_MEDIAN_RATIO     = 0.25  // relative anchor — stall bar = min(200, ¼ × niche median sold)
+export const OUTCOMES_MIN_COHORT             = 4     // fewer judgeable listings than this = no claim (absence over weak claims)
+export const OUTCOMES_CONTESTED_STALL_SHARE  = 0.34  // stalled share at/above this = contested
+export const OUTCOMES_MIN_YOUNG_FOR_VISIBILITY_STATE = 3  // young cohort needed before "no small entrants visible" is claimable
+
+export interface EntryOutcomeMember {
+  productId:          string
+  brand:              string
+  monthly_sold:       number | null   // null = Amazon's badge absent (likely under ~50/mo; badge is a ~90%-accurate pilot, never "provably zero")
+  review_count:       number | null
+  listing_age_months: number
+  price:              number | null
+}
+
+export interface EntryOutcomes {
+  state: 'welcoming' | 'contested' | 'no_small_entrants_visible' | 'insufficient'
+  young_total:          number   // visible young (≤24mo, known age) after guards
+  large_base_count:     number   // young listings with a ≥1000-review scale (own or same-brand elsewhere in fetched data)
+  small_scale_count:    number
+  judgeable_count:      number   // small-scale AND old enough to judge (≥6mo)
+  broke_out:            EntryOutcomeMember[]
+  stalled:              EntryOutcomeMember[]
+  stall_threshold_sold: number   // the actual bar used — display must state it, not the constant
+}
+
+// Pure. inputs = the RAW measuredCompetitorInputs (pre both-axes filter —
+// the whole point is seeing listings the revenue table drops);
+// fetchedBrandBases = every fetched product pre-dedupe (same array Entry
+// Proof uses). Returns null when no young cohort is visible at all.
+export function computeEntryOutcomes(
+  inputs: MeasuredCompetitorInput[],
+  fetchedBrandBases: BrandReviewBase[],
+): EntryOutcomes | null {
+  const { kept } = filterToDominantCategory(inputs)
+  const deduped = dedupeByBrand(kept)
+
+  const young = deduped.filter(
+    (p): p is MeasuredCompetitorInput & { listingAgeMonths: number } =>
+      p.listingAgeMonths !== null && p.listingAgeMonths <= ENTRY_PROOF_RECENT_MONTHS,
+  )
+  if (young.length === 0) return null
+
+  const hasLargeBase = (p: MeasuredCompetitorInput) => {
+    if ((p.reviewCount ?? 0) >= ENTRY_PROOF_ESTABLISHED_REVIEW_BASE) return true
+    const brandKey = p.brand.trim().toLowerCase()
+    return brandKey !== '' && fetchedBrandBases.some(b =>
+      b.productId !== p.productId &&
+      b.brand.trim().toLowerCase() === brandKey &&
+      b.reviewCount >= ENTRY_PROOF_ESTABLISHED_REVIEW_BASE)
+  }
+  const largeBase  = young.filter(hasLargeBase)
+  const smallScale = young.filter(p => !hasLargeBase(p))
+  const judgeable  = smallScale.filter(p => p.listingAgeMonths! >= OUTCOMES_MIN_JUDGE_AGE_MONTHS)
+
+  // Dual-anchored stall bar; median over the deduped measured (badge-bearing)
+  // set — the same numbers the revenue table is built from.
+  const soldValues = deduped
+    .map(p => p.monthlySold)
+    .filter((s): s is number => s !== null && s > 0)
+    .sort((a, b) => a - b)
+  const medianSold = soldValues.length >= 2
+    ? (soldValues.length % 2
+        ? soldValues[Math.floor(soldValues.length / 2)]
+        : (soldValues[soldValues.length / 2 - 1] + soldValues[soldValues.length / 2]) / 2)
+    : null
+  const stallBar = medianSold !== null
+    ? Math.min(OUTCOMES_STALL_MAX_SOLD, Math.round(medianSold * OUTCOMES_STALL_MEDIAN_RATIO))
+    : OUTCOMES_STALL_MAX_SOLD
+
+  const toMember = (p: MeasuredCompetitorInput): EntryOutcomeMember => ({
+    productId:          p.productId,
+    brand:              p.brand || '(no brand listed)',
+    monthly_sold:       p.monthlySold,
+    review_count:       p.reviewCount,
+    listing_age_months: p.listingAgeMonths!,
+    price:              p.price,
+  })
+  const stalled  = judgeable.filter(p => p.monthlySold === null || p.monthlySold <= stallBar).map(toMember)
+  const brokeOut = judgeable.filter(p => p.monthlySold !== null && p.monthlySold > stallBar).map(toMember)
+
+  const state: EntryOutcomes['state'] =
+    young.length >= OUTCOMES_MIN_YOUNG_FOR_VISIBILITY_STATE && smallScale.length === 0
+      ? 'no_small_entrants_visible' :
+    judgeable.length < OUTCOMES_MIN_COHORT
+      ? 'insufficient' :
+    stalled.length / judgeable.length >= OUTCOMES_CONTESTED_STALL_SHARE
+      ? 'contested'
+      : 'welcoming'
+
+  return {
+    state,
+    young_total:          young.length,
+    large_base_count:     largeBase.length,
+    small_scale_count:    smallScale.length,
+    judgeable_count:      judgeable.length,
+    broke_out:            brokeOut,
+    stalled,
+    stall_threshold_sold: stallBar,
+  }
+}
