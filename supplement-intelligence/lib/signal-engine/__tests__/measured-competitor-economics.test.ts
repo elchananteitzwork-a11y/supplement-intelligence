@@ -19,6 +19,7 @@ function input(over: Partial<MeasuredCompetitorInput>): MeasuredCompetitorInput 
     productId: 'B000000000', brand: 'BrandA', price: 20, monthlySold: 1000,
     categoryLevel1Id: SUPPLEMENTS_CAT,
     reviewCount: null, listingAgeMonths: null,
+    ratingCurrent: null, ratingAvg365: null, priceAvg365: null, buyBoxIsAmazon: null,
     ...over,
   }
 }
@@ -156,6 +157,7 @@ function row(over: Partial<CompetitorRevenueRow>): CompetitorRevenueRow {
     productId: 'B00ROW', brand: 'BrandA', price, monthly_sold: sold,
     est_monthly_revenue_mo: Math.round(price * sold),
     review_count: 1000, listing_age_months: 60,
+    rating_current: null, rating_avg365: null, price_avg365: null,
     ...over,
   }
 }
@@ -488,5 +490,85 @@ describe('computeEntryOutcomes (visible-young-cohort fate)', () => {
     const eo = computeEntryOutcomes(inputs, [])!
     expect(ep?.brand).toBe('FreshStar')
     expect(eo.state).toBe('contested')   // 3 of 4 judgeable small-scale young are stalled
+  })
+})
+
+// ── Wounded Leader + Amazon Presence — docs/RD_WOUNDED_LEADER_AMAZON_PRESENCE.md
+import { detectWoundedLeader, detectAmazonPresence } from '../measured-competitor-economics'
+import { matchAmazonBrand } from '../amazon-brands'
+
+describe('detectWoundedLeader (single-leader, display-only)', () => {
+  it('rating slide: leader current ≥0.2 below its own yearly average', () => {
+    const wl = detectWoundedLeader([
+      row({ productId: 'L', brand: 'Leader', rating_current: 4.2, rating_avg365: 4.5 }),
+      row({ productId: 'P1', brand: 'P1', rating_current: 4.5 }),
+    ])!
+    expect(wl.brand).toBe('Leader')
+    expect(wl.wounds).toEqual([{ type: 'rating_slide', now: 4.2, baseline: 4.5 }])
+  })
+
+  it('rating gap fires only with ≥4 rated peers (critique fix: unstable small medians)', () => {
+    const peers3 = [
+      row({ productId: 'P1', brand: 'P1', rating_current: 4.5 }),
+      row({ productId: 'P2', brand: 'P2', rating_current: 4.5 }),
+      row({ productId: 'P3', brand: 'P3', rating_current: 4.4 }),
+    ]
+    const leader = row({ productId: 'L', brand: 'Leader', rating_current: 4.0, rating_avg365: 4.0 })
+    expect(detectWoundedLeader([leader, ...peers3])).toBeNull()   // 3 peers — not enough
+    const wl = detectWoundedLeader([leader, ...peers3, row({ productId: 'P4', brand: 'P4', rating_current: 4.4 })])!
+    expect(wl.wounds).toEqual([{ type: 'rating_gap', now: 4.0, baseline: 4.5 }])
+  })
+
+  it('price climb uses the leader row\'s own same-slot yearly average', () => {
+    const wl = detectWoundedLeader([
+      row({ productId: 'L', brand: 'Leader', price: 33, price_avg365: 29 }),
+      row({ productId: 'P1', brand: 'P1' }),
+    ])!
+    expect(wl.wounds).toEqual([{ type: 'price_climb', now: 33, baseline: 29 }])
+  })
+
+  it('healthy leader (probe shape: +0.1 drift, stable price) → null; missing historicals → null', () => {
+    expect(detectWoundedLeader([
+      row({ productId: 'L', brand: 'Leader', rating_current: 4.7, rating_avg365: 4.6, price: 25, price_avg365: 25 }),
+      row({ productId: 'P1', brand: 'P1', rating_current: 4.6 }),
+    ])).toBeNull()
+    expect(detectWoundedLeader([row({ productId: 'L', brand: 'Leader' }), row({ productId: 'P', brand: 'P' })])).toBeNull()
+    expect(detectWoundedLeader([])).toBeNull()
+  })
+
+  it('multiple wounds stack on one leader', () => {
+    const wl = detectWoundedLeader([
+      row({ productId: 'L', brand: 'Leader', rating_current: 4.1, rating_avg365: 4.4, price: 34, price_avg365: 28 }),
+      row({ productId: 'P1', brand: 'P1', rating_current: 4.5 }),
+      row({ productId: 'P2', brand: 'P2', rating_current: 4.5 }),
+      row({ productId: 'P3', brand: 'P3', rating_current: 4.6 }),
+      row({ productId: 'P4', brand: 'P4', rating_current: 4.4 }),
+    ])!
+    expect(wl.wounds.map(w => w.type).sort()).toEqual(['price_climb', 'rating_gap', 'rating_slide'])
+  })
+})
+
+describe('detectAmazonPresence (facts, never a verdict)', () => {
+  it('detects house brands via the curated list incl. aliases, sorted by volume', () => {
+    const ap = detectAmazonPresence([
+      input({ productId: 'A', brand: 'Amazon Basics', monthlySold: 9000 }),
+      input({ productId: 'B', brand: 'Revly', monthlySold: 200 }),   // alias of Amazon Elements
+      input({ productId: 'C', brand: 'FreshCo', monthlySold: 5000 }),
+    ], matchAmazonBrand)!
+    expect(ap.house_brands.map(h => h.brand)).toEqual(['Amazon Basics', 'Revly'])
+  })
+
+  it('live-validation fix: 1P buybox is NOT reported (biased denominator without buybox=1)', () => {
+    const ap = detectAmazonPresence([
+      input({ productId: 'A', brand: 'Amazon Basics', monthlySold: 900, buyBoxIsAmazon: true }),
+    ], matchAmazonBrand)!
+    expect(ap).toEqual({ house_brands: [{ productId: 'A', brand: 'Amazon Basics', monthly_sold: 900 }] })
+  })
+
+  it('returns null when no house brand is present — even with 1P buybox flags set', () => {
+    expect(detectAmazonPresence([
+      input({ productId: 'A', brand: 'FreshCo', buyBoxIsAmazon: true }),
+      input({ productId: 'B', brand: 'OtherCo', buyBoxIsAmazon: true }),
+    ], matchAmazonBrand)).toBeNull()
   })
 })

@@ -91,6 +91,10 @@ export function EvidenceAppendix({
           <p className="mt-2 text-[12px] leading-relaxed text-pi-faint">{vm.entryOutcomesCaveat}</p>
         )}
 
+        {vm.amazonPresenceContext && (
+          <p className="mt-2 text-[12px] leading-relaxed text-pi-faint">{vm.amazonPresenceContext}</p>
+        )}
+
         {vm.scienceQueuedNote && (
           <p className="mt-2 text-[12px] leading-relaxed text-pi-faint">{vm.scienceQueuedNote}</p>
         )}

@@ -30,6 +30,15 @@ export interface MeasuredCompetitorInput {
   // zero (a brand-new listing), never conflated with missing.
   reviewCount:      number | null
   listingAgeMonths: number | null
+  // Wounded Leader / Amazon Presence (docs/RD_WOUNDED_LEADER_AMAZON_PRESENCE.md):
+  // historical stats already fetched (stats=365&rating=1), formerly unread.
+  // priceAvg365 comes from the SAME price slot the avg90 chain picked
+  // (critique fix: mixing slots compares different price types). Ratings are
+  // decimal stars (4.7). null = slot absent, never fabricated.
+  ratingCurrent:    number | null
+  ratingAvg365:     number | null
+  priceAvg365:      number | null
+  buyBoxIsAmazon:   boolean | null
 }
 
 export interface CompetitorRevenueRow {
@@ -43,6 +52,9 @@ export interface CompetitorRevenueRow {
   // headline logic below only ever chooses emphasis, never visibility.
   review_count:           number | null
   listing_age_months:     number | null
+  rating_current:         number | null
+  rating_avg365:          number | null
+  price_avg365:           number | null
 }
 
 export interface CompetitorRevenueTable {
@@ -108,6 +120,9 @@ export function buildCompetitorRevenueTable(products: MeasuredCompetitorInput[])
       est_monthly_revenue_mo: Math.round(p.price * p.monthlySold),
       review_count:           p.reviewCount,
       listing_age_months:     p.listingAgeMonths,
+      rating_current:         p.ratingCurrent,
+      rating_avg365:          p.ratingAvg365,
+      price_avg365:           p.priceAvg365,
     }))
     .sort((a, b) => b.est_monthly_revenue_mo - a.est_monthly_revenue_mo)
 
@@ -422,4 +437,109 @@ export function computeEntryOutcomes(
     stalled,
     stall_threshold_sold: stallBar,
   }
+}
+
+// ── Wounded Leader — docs/RD_WOUNDED_LEADER_AMAZON_PRESENCE.md ──────────────
+//
+// Practitioner heuristic: attack when the king is weak. Single-leader signal
+// (top_competitor_revenues[0], the guarded revenue leader — deliberately NOT
+// biggest_competitor, a different definition). Three wounds, each rendered
+// with its real numbers, display-only. Every threshold is a disclosed
+// judgment call — the external research (Floyd et al. 2014 meta-analysis)
+// confirms rating→sales causality is real but found NO source-grounded
+// cutoff anywhere; vendor numbers (Pattern.com etc.) have no public
+// methodology. Review-velocity wound deliberately ABSENT in v1: live probe
+// caught Amazon review purges / variation splits producing −26k swings that
+// a naive velocity metric would misread as demand collapse.
+
+export const WOUND_RATING_DRIFT     = 0.2   // current at least this far below own 365-day avg
+export const WOUND_RATING_GAP       = 0.3   // at least this far below the peers' median rating
+export const WOUND_MIN_RATED_PEERS  = 4     // critique fix: a 2-3-row median can't indict a leader
+export const WOUND_PRICE_CLIMB_PCT  = 0.10  // price at least this far above own 365-day avg (same slot)
+
+export interface LeaderWound {
+  type: 'rating_slide' | 'rating_gap' | 'price_climb'
+  // The real numbers behind the wound — display renders these, never the
+  // constants.
+  now:      number
+  baseline: number   // own 365-day avg (slide/climb) or peers' median (gap)
+}
+
+export interface WoundedLeader {
+  productId: string
+  brand:     string
+  wounds:    LeaderWound[]   // ≥1 by construction (null returned otherwise)
+}
+
+// Pure. rows = buildCompetitorRevenueTable().rows (revenue-sorted, guarded).
+// Each wound skips null-safe when its inputs are absent — silence can mean
+// "healthy" OR "no data"; the display makes no health claim on silence.
+export function detectWoundedLeader(rows: CompetitorRevenueRow[]): WoundedLeader | null {
+  const leader = rows[0]
+  if (!leader) return null
+  const wounds: LeaderWound[] = []
+
+  if (leader.rating_current !== null && leader.rating_avg365 !== null &&
+      leader.rating_avg365 - leader.rating_current >= WOUND_RATING_DRIFT) {
+    wounds.push({ type: 'rating_slide', now: leader.rating_current, baseline: leader.rating_avg365 })
+  }
+
+  const peerRatings = rows.slice(1)
+    .map(r => r.rating_current)
+    .filter((r): r is number => r !== null)
+    .sort((a, b) => a - b)
+  if (leader.rating_current !== null && peerRatings.length >= WOUND_MIN_RATED_PEERS) {
+    const mid = Math.floor(peerRatings.length / 2)
+    const peerMedian = peerRatings.length % 2 ? peerRatings[mid] : (peerRatings[mid - 1] + peerRatings[mid]) / 2
+    if (peerMedian - leader.rating_current >= WOUND_RATING_GAP) {
+      wounds.push({ type: 'rating_gap', now: leader.rating_current, baseline: Math.round(peerMedian * 10) / 10 })
+    }
+  }
+
+  if (leader.price_avg365 !== null && leader.price_avg365 > 0 &&
+      leader.price >= leader.price_avg365 * (1 + WOUND_PRICE_CLIMB_PCT)) {
+    wounds.push({ type: 'price_climb', now: leader.price, baseline: leader.price_avg365 })
+  }
+
+  if (wounds.length === 0) return null
+  return { productId: leader.productId, brand: leader.brand, wounds }
+}
+
+// ── Amazon First-Party Presence — same R&D doc ──────────────────────────────
+//
+// Two DISTINCT facts, never conflated (critique fix): (1) an Amazon HOUSE
+// BRAND sells in this niche (curated-list brand match, lib/signal-engine/
+// amazon-brands.ts); (2) Amazon is the RETAILER (1P buybox) for some top
+// listings — vendor-supplied brands, i.e. Amazon's retail power here, NOT
+// Amazon competing with its own product. Display states facts with real
+// numbers; the "should you enter" conclusion is explicitly not made — the
+// research verdict is that the seller veto is half-folklore (documented
+// self-preferencing, but house brands ≈1% of Amazon sales overall).
+
+export interface AmazonPresence {
+  house_brands: { productId: string; brand: string; monthly_sold: number | null }[]
+  // 1P-buybox share was designed in and REMOVED by live validation
+  // (2026-08-04): without the buybox=1 request param Keepa populates
+  // buyBoxIsAmazon for only 1-4 of ~15 rows — and ~100% of those were
+  // Amazon in every probed niche, a biased denominator that would have
+  // rendered "Amazon holds the buybox on all known listings" everywhere.
+  // Reliable 1P share needs buybox=1 (real token cost) — future work.
+}
+
+// matchBrand injected (the curated matcher from amazon-brands.ts) so this
+// module stays pure data-in/data-out with no cross-file data dependency.
+export function detectAmazonPresence(
+  inputs: MeasuredCompetitorInput[],
+  matchBrand: (brand: string) => string | null,
+): AmazonPresence | null {
+  const { kept } = filterToDominantCategory(inputs)
+  const deduped = dedupeByBrand(kept)
+
+  const house = deduped
+    .filter(p => matchBrand(p.brand) !== null)
+    .map(p => ({ productId: p.productId, brand: p.brand, monthly_sold: p.monthlySold }))
+    .sort((a, b) => (b.monthly_sold ?? 0) - (a.monthly_sold ?? 0))
+
+  if (house.length === 0) return null
+  return { house_brands: house }
 }

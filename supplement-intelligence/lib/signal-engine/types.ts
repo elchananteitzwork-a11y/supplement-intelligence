@@ -193,6 +193,23 @@ export interface RevenueSignal extends SignalScore {
     }[]
     stall_threshold_sold: number
   }
+  // Wounded Leader (docs/RD_WOUNDED_LEADER_AMAZON_PRESENCE.md): the revenue
+  // leader's real cracks — display-only; every threshold is a disclosed
+  // judgment call (no source-grounded cutoffs exist). Absent = no wound
+  // detected OR data missing; the display makes no health claim on absence.
+  wounded_leader?: {
+    productId: string
+    brand:     string
+    wounds: { type: 'rating_slide' | 'rating_gap' | 'price_climb'; now: number; baseline: number }[]
+  }
+  // Amazon First-Party Presence: two DISTINCT facts (house brand selling
+  // here / Amazon-as-retailer buybox share) — never conflated, never a
+  // "don't enter" verdict (the seller veto is half-folklore per research).
+  amazon_presence?: {
+    house_brands: { productId: string; brand: string; monthly_sold: number | null }[]
+    // 1P-buybox share removed by live validation — biased denominator
+    // without the buybox=1 param; see measured-competitor-economics.ts.
+  }
   // Guard-1 disclosure: how many relevance-passing search results were
   // excluded for sitting in a minority second-level category (the OTC-drug
   // contamination case). Absent when zero — never a fabricated 0.

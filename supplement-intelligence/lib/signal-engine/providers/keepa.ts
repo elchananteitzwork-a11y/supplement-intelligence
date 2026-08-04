@@ -12,7 +12,8 @@ import type {
   SupplyVelocitySignal,
 } from '../types'
 import { checkKeywordRelevance } from '../../keyword-engine/relevance-guard'
-import { buildCompetitorRevenueTable, detectEntryProof, computeEntryOutcomes, type MeasuredCompetitorInput, type BrandReviewBase } from '../measured-competitor-economics'
+import { buildCompetitorRevenueTable, detectEntryProof, computeEntryOutcomes, detectWoundedLeader, detectAmazonPresence, type MeasuredCompetitorInput, type BrandReviewBase } from '../measured-competitor-economics'
+import { matchAmazonBrand } from '../amazon-brands'
 import { scanForClaimRiskLanguage } from '../../regulatory-engine/claim-risk'
 import {
   fetchManufacturerRecallHistoryBatch,
@@ -1549,11 +1550,20 @@ export class KeepaProvider implements SignalProvider {
         // B0DJDQCJX2) NEW[1] is the ONLY populated price slot; FBA/buybox/
         // amazon are all -1 without the offers request param. A real
         // observed price, lowest-priority fallback only.
-        const priceDollars =
-          keepaPrice(statVal(s, 'avg90', CSV.NEW_FBA) ?? undefined) ??
-          keepaPrice(statVal(s, 'avg90', CSV.BUYBOX_PRICE) ?? undefined) ??
-          keepaPrice(statVal(s, 'avg90', CSV.AMAZON_PRICE) ?? undefined) ??
-          keepaPrice(statVal(s, 'avg90', CSV.MARKETPLACE_NEW) ?? undefined)
+        // Wounded Leader critique fix (docs/RD_WOUNDED_LEADER_AMAZON_PRESENCE
+        // .md): pick the winning price SLOT first, then read BOTH horizons
+        // from that same slot — mixing an avg90 pick from one slot with
+        // avg365 from another compares different price types and fabricates
+        // price-climb wounds. Same chain order as before; priceDollars
+        // behavior is byte-identical for the existing consumers.
+        const PRICE_SLOTS = [CSV.NEW_FBA, CSV.BUYBOX_PRICE, CSV.AMAZON_PRICE, CSV.MARKETPLACE_NEW]
+        const priceSlot = PRICE_SLOTS.find(slot => keepaPrice(statVal(s, 'avg90', slot) ?? undefined) !== null)
+        const priceDollars = priceSlot !== undefined
+          ? keepaPrice(statVal(s, 'avg90', priceSlot) ?? undefined)
+          : null
+        const priceAvg365Dollars = priceSlot !== undefined
+          ? keepaPrice(statVal(s, 'avg365', priceSlot) ?? undefined)
+          : null
         const tree = p.categoryTree as Array<{ catId: number; name: string }> | undefined
         return {
           productId:        p.asin,
@@ -1568,6 +1578,15 @@ export class KeepaProvider implements SignalProvider {
           listingAgeMonths: typeof p.listedSince === 'number'
             ? listedSinceToAgeMonths(p.listedSince)
             : null,
+          // Wounded Leader / Amazon Presence (docs/
+          // RD_WOUNDED_LEADER_AMAZON_PRESENCE.md): historicals this fetch
+          // already paid for, unread until now (0 avg90/avg365 readers of
+          // RATING/COUNT_REVIEWS existed — architecture audit). Ratings in
+          // decimal stars (Keepa stores tenths).
+          ratingCurrent:    statVal(s, 'current', CSV.RATING) !== null ? (statVal(s, 'current', CSV.RATING)! / 10) : null,
+          ratingAvg365:     statVal(s, 'avg365', CSV.RATING) !== null ? (statVal(s, 'avg365', CSV.RATING)! / 10) : null,
+          priceAvg365:      priceAvg365Dollars,
+          buyBoxIsAmazon:   typeof s?.buyBoxIsAmazon === 'boolean' ? s.buyBoxIsAmazon : null,
         }
       })
     const competitorEconomics = buildCompetitorRevenueTable(measuredCompetitorInputs)
@@ -1593,6 +1612,11 @@ export class KeepaProvider implements SignalProvider {
     // fetches, display-only (no scoring by design — see the R&D doc's
     // external-research verdict).
     const entryOutcomes = computeEntryOutcomes(measuredCompetitorInputs, fetchedBrandBases)
+
+    // Wounded Leader + Amazon Presence (docs/RD_WOUNDED_LEADER_AMAZON_
+    // PRESENCE.md): both pure, both display-only, zero new fetches.
+    const woundedLeader = competitorEconomics ? detectWoundedLeader(competitorEconomics.rows) : null
+    const amazonPresence = detectAmazonPresence(measuredCompetitorInputs, matchAmazonBrand)
 
     // ── Revenue signal ──
     const fmt = (n: number) => n >= 1000 ? `$${Math.round(n / 1000)}k/mo` : `$${Math.round(n)}/mo`
@@ -1643,6 +1667,9 @@ export class KeepaProvider implements SignalProvider {
         // Entry Outcomes (docs/RD_ENTRY_OUTCOMES.md): visible-young-cohort
         // fate; absent when no young cohort is visible at all.
         ...(entryOutcomes && { entry_outcomes: entryOutcomes }),
+        // Wounded Leader / Amazon Presence — absent when nothing detected.
+        ...(woundedLeader && { wounded_leader: woundedLeader }),
+        ...(amazonPresence && { amazon_presence: amazonPresence }),
         ...(avgPrice !== null && avgPrice365 !== null && prices.length >= 3 && prices365.length >= 3 && {
           price_avg_90d:         Math.round(avgPrice * 100) / 100,
           price_avg_365d:        Math.round(avgPrice365 * 100) / 100,

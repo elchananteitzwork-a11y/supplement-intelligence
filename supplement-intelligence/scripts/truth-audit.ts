@@ -281,6 +281,39 @@ function auditFamily1(id: string, name: string, m: MemoData, chapters: ReturnTyp
     }
   }
 
+  // C11 — Wounded Leader: displayed row vs recompute from stored wounds.
+  const wl = revVal?.wounded_leader
+  if (wl && wl.wounds.length > 0) {
+    const wlRow = chapters.find(c => c.key === 'competition')?.rows.find(r => r.claim === 'The revenue leader shows cracks')
+    const parts = wl.wounds.map(w =>
+      w.type === 'rating_slide' ? `rating ${w.now.toFixed(1)}, down from ${w.baseline.toFixed(1)} a year ago` :
+      w.type === 'rating_gap'   ? `rating ${w.now.toFixed(1)} vs ${w.baseline.toFixed(1)} typical here` :
+      `price up ${Math.round((w.now / w.baseline - 1) * 100)}% vs its yearly average`)
+    add('C11 wounded-leader row vs stored wounds', wlRow?.value === `${wl.brand}: ${parts.join('; ')}`, {
+      severity: 'HIGH',
+      displayed: wlRow?.value ?? '(row missing)',
+      source: `${wl.brand}: ${parts.join('; ')}`,
+      location: 'lib/partner-copy-record.ts (wounded leader row)',
+      detail: 'Displayed leader-cracks claim diverges from stored wound data.',
+    })
+  }
+
+  // C12 — Amazon presence: displayed house-brand row vs stored fact.
+  const ap = revVal?.amazon_presence
+  if (ap && ap.house_brands.length > 0) {
+    const apRow = chapters.find(c => c.key === 'competition')?.rows.find(r => r.claim === "Amazon's own brand sells here")
+    const hb = ap.house_brands[0]
+    const sold = hb.monthly_sold !== null ? ` at ~${hb.monthly_sold.toLocaleString()}/mo` : ''
+    const more = ap.house_brands.length > 1 ? ` (+${ap.house_brands.length - 1} more Amazon brand${ap.house_brands.length > 2 ? 's' : ''})` : ''
+    add('C12 amazon-presence row vs stored fact', apRow?.value === `${hb.brand}${sold}${more}`, {
+      severity: 'HIGH',
+      displayed: apRow?.value ?? '(row missing)',
+      source: `${hb.brand}${sold}${more}`,
+      location: 'lib/partner-copy-record.ts (amazon presence row)',
+      detail: 'Displayed Amazon-presence claim diverges from stored data.',
+    })
+  }
+
   return results
 }
 

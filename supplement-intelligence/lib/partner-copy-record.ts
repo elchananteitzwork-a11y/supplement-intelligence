@@ -176,6 +176,39 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
       })
     }
   }
+  // Wounded Leader (docs/RD_WOUNDED_LEADER_AMAZON_PRESENCE.md): the revenue
+  // leader's real cracks, numbers only, no attack advice. Absent = no wound
+  // detected or data missing — no health claim is made on silence.
+  const wl = revVal?.wounded_leader
+  if (wl && wl.wounds.length > 0) {
+    const parts = wl.wounds.map(w =>
+      w.type === 'rating_slide' ? `rating ${w.now.toFixed(1)}, down from ${w.baseline.toFixed(1)} a year ago` :
+      w.type === 'rating_gap'   ? `rating ${w.now.toFixed(1)} vs ${w.baseline.toFixed(1)} typical here` :
+      `price up ${Math.round((w.now / w.baseline - 1) * 100)}% vs its yearly average`)
+    compRows.push({
+      claim: 'The revenue leader shows cracks',
+      value: `${wl.brand}: ${parts.join('; ')}`,
+      marker: 'measured',
+    })
+  }
+  // Amazon First-Party Presence: two DISTINCT facts, never conflated
+  // (critique rule) — a house brand selling here vs Amazon-as-retailer
+  // (vendor-supplied brands). Facts with real numbers; the "should you
+  // enter" conclusion is deliberately not made (the veto is half-folklore
+  // — research context lives in the appendix line).
+  const ap = revVal?.amazon_presence
+  if (ap) {
+    if (ap.house_brands.length > 0) {
+      const hb = ap.house_brands[0]
+      const sold = hb.monthly_sold !== null ? ` at ~${hb.monthly_sold.toLocaleString()}/mo` : ''
+      const more = ap.house_brands.length > 1 ? ` (+${ap.house_brands.length - 1} more Amazon brand${ap.house_brands.length > 2 ? 's' : ''})` : ''
+      compRows.push({
+        claim: "Amazon's own brand sells here",
+        value: `${hb.brand}${sold}${more}`,
+        marker: 'measured',
+      })
+    }
+  }
   if (compRows.length > 0) {
     chapters.push({
       key: 'competition', title: 'Competition',
@@ -304,6 +337,11 @@ export interface EvidenceAppendixVM {
   // whenever a young-cohort claim was made — the invisible graveyard stays
   // invisible and the reader must know it.
   entryOutcomesCaveat: string | null
+  // Amazon-presence research context (docs/RD_WOUNDED_LEADER_AMAZON_
+  // PRESENCE.md): rendered only when an Amazon-presence fact was shown —
+  // both halves of the evidence, so the fact never silently implies a
+  // verdict.
+  amazonPresenceContext: string | null
   // Roadmap "Dynamic Science Coverage" (docs/RD_DYNAMIC_SCIENCE_COVERAGE.md):
   // honest disclosure for a vocabulary-matched ingredient with no science
   // signal yet — replaces silent absence with a real, disclosed "not yet
@@ -379,6 +417,10 @@ export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
     ? 'Young-seller outcomes reflect visible top-search results only — listings that failed and lost visibility don\'t appear here, so failure counts are floors, and their absence is never evidence of safety.'
     : null
 
+  const amazonPresenceContext = m.signal_evidence?.revenue?.value?.amazon_presence
+    ? "On Amazon's own presence here: research documents real ranking advantages for Amazon's brands and retail listings, but Amazon's house brands are only ~1% of its overall sales — whether to compete alongside them is your call, not a verdict this report makes."
+    : null
+
   return {
     keywords,
     sources,
@@ -389,6 +431,7 @@ export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
     competitorsFootnote,
     scienceQueuedNote,
     entryOutcomesCaveat,
+    amazonPresenceContext,
   }
 }
 

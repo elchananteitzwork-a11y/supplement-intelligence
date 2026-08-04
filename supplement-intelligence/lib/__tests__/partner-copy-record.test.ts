@@ -543,3 +543,49 @@ describe('Entry Outcomes — state-dependent Competition row + appendix caveat',
     expect(buildEvidenceAppendix(memoWithOutcomes(undefined)).entryOutcomesCaveat).toBeNull()
   })
 })
+
+// ── Wounded Leader + Amazon Presence — display (docs/RD_WOUNDED_LEADER_AMAZON_PRESENCE.md)
+describe('Wounded Leader + Amazon Presence rows', () => {
+  function memoWith(fields: Record<string, unknown>): MemoData {
+    return {
+      ...REQUIRED_MEMO_SCAFFOLD,
+      biggest_competitor: { name: 'Someone', revenue: '', gap: '' },
+      signal_evidence: {
+        providers_used: ['keepa'], overall_confidence: 0.7,
+        demand_verified: true, virality_verified: false, pricing_verified: true, growth_verified: true,
+        revenue: { value: { score: 6, confidence: 0.7, ...fields }, sources: ['keepa'], primarySource: 'keepa', confidence: 0.7 },
+      } as unknown as MemoData['signal_evidence'],
+    } as unknown as MemoData
+  }
+  const compRow = (m: MemoData, claim: string) =>
+    buildRecordChapters(m).find(c => c.key === 'competition')?.rows.find(r => r.claim === claim)
+
+  it('wounded leader row lists each wound with its real numbers', () => {
+    const m = memoWith({ wounded_leader: { productId: 'L', brand: 'Create', wounds: [
+      { type: 'rating_gap', now: 4.0, baseline: 4.5 },
+      { type: 'price_climb', now: 33, baseline: 29 },
+    ] } })
+    const row = compRow(m, 'The revenue leader shows cracks')!
+    expect(row.marker).toBe('measured')
+    expect(row.value).toBe('Create: rating 4.0 vs 4.5 typical here; price up 14% vs its yearly average')
+  })
+
+  it('amazon presence renders the house-brand fact with real volume + appendix context', () => {
+    const m = memoWith({ amazon_presence: {
+      house_brands: [{ productId: 'A', brand: 'Amazon Basics', monthly_sold: 9000 }],
+    } })
+    expect(compRow(m, "Amazon's own brand sells here")!.value).toBe('Amazon Basics at ~9,000/mo')
+    expect(buildEvidenceAppendix(m).amazonPresenceContext).toContain('~1% of its overall sales')
+  })
+
+  it('volume-less house brand renders without a number; absence renders nothing', () => {
+    const m = memoWith({ amazon_presence: {
+      house_brands: [{ productId: 'A', brand: 'Solimo', monthly_sold: null }],
+    } })
+    expect(compRow(m, "Amazon's own brand sells here")!.value).toBe('Solimo')
+    const empty = memoWith({})
+    expect(compRow(empty, "Amazon's own brand sells here")).toBeUndefined()
+    expect(compRow(empty, 'The revenue leader shows cracks')).toBeUndefined()
+    expect(buildEvidenceAppendix(empty).amazonPresenceContext).toBeNull()
+  })
+})
