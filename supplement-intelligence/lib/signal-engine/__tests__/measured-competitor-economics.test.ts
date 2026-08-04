@@ -18,6 +18,7 @@ function input(over: Partial<MeasuredCompetitorInput>): MeasuredCompetitorInput 
   return {
     productId: 'B000000000', brand: 'BrandA', price: 20, monthlySold: 1000,
     categoryLevel1Id: SUPPLEMENTS_CAT,
+    reviewCount: null, listingAgeMonths: null,
     ...over,
   }
 }
@@ -137,5 +138,129 @@ describe('buildCompetitorRevenueTable', () => {
     ])!
     expect(table.rows).toHaveLength(3)
     expect(table.off_category_excluded_count).toBe(1)
+  })
+})
+
+// ── Entry Proof — docs/RD_ENTRY_PROOF.md ────────────────────────────────────
+import {
+  detectEntryProof,
+  ENTRY_PROOF_ESTABLISHED_REVIEW_BASE,
+  type CompetitorRevenueRow,
+  type BrandReviewBase,
+} from '../measured-competitor-economics'
+
+function row(over: Partial<CompetitorRevenueRow>): CompetitorRevenueRow {
+  const price = over.price ?? 25
+  const sold  = over.monthly_sold ?? 1000
+  return {
+    productId: 'B00ROW', brand: 'BrandA', price, monthly_sold: sold,
+    est_monthly_revenue_mo: Math.round(price * sold),
+    review_count: 1000, listing_age_months: 60,
+    ...over,
+  }
+}
+
+describe('detectEntryProof (Entry Proof headline — emphasis only, never exclusion)', () => {
+  // A classic niche: an entrenched leader with a huge review base, a
+  // disproportionate low-review newcomer moving real volume, and mid-pack.
+  const NICHE: CompetitorRevenueRow[] = [
+    row({ productId: 'LEADER',   brand: 'BigLeader', review_count: 20_000, monthly_sold: 5000 }),
+    row({ productId: 'NEWCOMER', brand: 'FreshCo',   review_count: 45,     monthly_sold: 3000, listing_age_months: 8 }),
+    row({ productId: 'MID1',     brand: 'MidBrand',  review_count: 4000,   monthly_sold: 2000 }),
+    row({ productId: 'MID2',     brand: 'OtherMid',  review_count: 3000,   monthly_sold: 1500 }),
+  ]
+
+  it('headlines the disproportionate low-review seller with real numbers + niche medians', () => {
+    const ep = detectEntryProof(NICHE, [])
+    expect(ep).not.toBeNull()
+    expect(ep!.productId).toBe('NEWCOMER')
+    expect(ep!.brand).toBe('FreshCo')
+    expect(ep!.monthly_sold).toBe(3000)
+    expect(ep!.review_count).toBe(45)
+    expect(ep!.recent).toBe(true)              // 8 months ≤ 24
+    expect(ep!.niche_median_reviews).toBe(3500) // median of 20000/45/4000/3000
+    expect(ep!.price_dump_suspected).toBeUndefined() // same price as niche
+  })
+
+  it('critique fix 1: a tiny-volume seller cannot headline on ratio alone', () => {
+    // 60/mo with 5 reviews is maximally disproportionate but far below half
+    // the niche median volume — the owner's criterion is a NICE volume.
+    const rows = [
+      row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 5000 }),
+      row({ productId: 'TINY',   brand: 'TinyCo',    review_count: 5,      monthly_sold: 60 }),
+      row({ productId: 'MID1',   brand: 'MidBrand',  review_count: 4000,   monthly_sold: 2000 }),
+    ]
+    expect(detectEntryProof(rows, [])).toBeNull()
+  })
+
+  it('critique fix 2: an established brand\'s low-review line extension is skipped', () => {
+    const bases: BrandReviewBase[] = [
+      // FreshCo has ANOTHER product in the fetched data with a big review base
+      { productId: 'OTHER-ASIN', brand: 'freshco', reviewCount: ENTRY_PROOF_ESTABLISHED_REVIEW_BASE },
+    ]
+    const ep = detectEntryProof(NICHE, bases)
+    expect(ep).toBeNull()   // no other row qualifies in this fixture
+  })
+
+  it('critique fix 2 (negative): the candidate\'s own listing never marks its brand established', () => {
+    const bases: BrandReviewBase[] = [
+      { productId: 'NEWCOMER', brand: 'FreshCo', reviewCount: 45 },
+    ]
+    expect(detectEntryProof(NICHE, bases)?.productId).toBe('NEWCOMER')
+  })
+
+  it('critique fix 3: deep-discount volume is disclosed, not hidden', () => {
+    const rows = [
+      row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 5000, price: 30 }),
+      row({ productId: 'DUMPER', brand: 'CheapCo',   review_count: 45,     monthly_sold: 3000, price: 9 }),
+      row({ productId: 'MID1',   brand: 'MidBrand',  review_count: 4000,   monthly_sold: 2000, price: 28 }),
+    ]
+    const ep = detectEntryProof(rows, [])
+    expect(ep?.productId).toBe('DUMPER')
+    expect(ep?.price_dump_suspected).toBe(true)
+    expect(ep?.niche_median_price).toBe(28)
+  })
+
+  it('rows with null review_count are ineligible but never crash detection', () => {
+    const rows = [
+      row({ productId: 'A', brand: 'A', review_count: null, monthly_sold: 5000 }),
+      row({ productId: 'B', brand: 'B', review_count: null, monthly_sold: 3000 }),
+    ]
+    expect(detectEntryProof(rows, [])).toBeNull()   // <2 eligible rows
+  })
+
+  it('a real 0-review seller can headline (floored share, raw 0 preserved)', () => {
+    const rows = [
+      row({ productId: 'LEADER', brand: 'BigLeader', review_count: 9000, monthly_sold: 4000 }),
+      row({ productId: 'ZERO',   brand: 'BrandNew',  review_count: 0,    monthly_sold: 3000 }),
+      row({ productId: 'MID1',   brand: 'MidBrand',  review_count: 5000, monthly_sold: 2500 }),
+    ]
+    const ep = detectEntryProof(rows, [])
+    expect(ep?.productId).toBe('ZERO')
+    expect(ep?.review_count).toBe(0)
+  })
+
+  it('returns null when nobody beats the niche pattern (no forced example)', () => {
+    const rows = [
+      row({ productId: 'A', brand: 'A', review_count: 5000, monthly_sold: 3000 }),
+      row({ productId: 'B', brand: 'B', review_count: 4800, monthly_sold: 2900 }),
+      row({ productId: 'C', brand: 'C', review_count: 5100, monthly_sold: 3100 }),
+    ]
+    expect(detectEntryProof(rows, [])).toBeNull()
+  })
+})
+
+describe('buildCompetitorRevenueTable — entry-proof fields pass through', () => {
+  it('carries review_count and listing_age_months onto every row', () => {
+    const table = buildCompetitorRevenueTable([
+      input({ productId: 'A1', brand: 'A', reviewCount: 45, listingAgeMonths: 8 }),
+      input({ productId: 'B1', brand: 'B', reviewCount: null, listingAgeMonths: null }),
+    ])
+    expect(table).not.toBeNull()
+    const byId = Object.fromEntries(table!.rows.map(r => [r.productId, r]))
+    expect(byId['A1'].review_count).toBe(45)
+    expect(byId['A1'].listing_age_months).toBe(8)
+    expect(byId['B1'].review_count).toBeNull()
+    expect(byId['B1'].listing_age_months).toBeNull()
   })
 })

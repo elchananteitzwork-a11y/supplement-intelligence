@@ -53,6 +53,7 @@ export function EvidenceAppendix({
                 <div key={i} className="flex items-baseline justify-between gap-3 py-2.5 text-[13px]">
                   <span className="min-w-0 truncate text-pi-ink">{c.brand}</span>
                   <span className="flex shrink-0 gap-3 whitespace-nowrap font-mono tabular-nums text-pi-ink">
+                    <span className="text-pi-faint">{c.reviewsLabel}</span>
                     <span className="text-pi-faint">{c.price}</span>
                     <span className="text-pi-faint">{c.unitsLabel}</span>
                     <span className="font-semibold">{c.revenueLabel}</span>

@@ -12,7 +12,7 @@ import type {
   SupplyVelocitySignal,
 } from '../types'
 import { checkKeywordRelevance } from '../../keyword-engine/relevance-guard'
-import { buildCompetitorRevenueTable, type MeasuredCompetitorInput } from '../measured-competitor-economics'
+import { buildCompetitorRevenueTable, detectEntryProof, type MeasuredCompetitorInput, type BrandReviewBase } from '../measured-competitor-economics'
 import { scanForClaimRiskLanguage } from '../../regulatory-engine/claim-risk'
 import {
   fetchManufacturerRecallHistoryBatch,
@@ -1561,9 +1561,31 @@ export class KeepaProvider implements SignalProvider {
           price:            priceDollars,
           monthlySold:      typeof p.monthlySold === 'number' && p.monthlySold > 0 ? p.monthlySold : null,
           categoryLevel1Id: Array.isArray(tree) && typeof tree[1]?.catId === 'number' ? tree[1].catId : null,
+          // Entry Proof (docs/RD_ENTRY_PROOF.md): stop discarding two fields
+          // this same fetch already paid for. statVal null = stats slot
+          // absent (stays null, never fabricated); a real 0 passes through.
+          reviewCount:      statVal(s, 'current', CSV.COUNT_REVIEWS),
+          listingAgeMonths: typeof p.listedSince === 'number'
+            ? listedSinceToAgeMonths(p.listedSince)
+            : null,
         }
       })
     const competitorEconomics = buildCompetitorRevenueTable(measuredCompetitorInputs)
+
+    // Entry Proof headline detection (docs/RD_ENTRY_PROOF.md) — pure, over
+    // the already-guarded table rows. The established-brand check needs the
+    // PRE-dedupe view of every fetched product (bestsellers + search), since
+    // dedupeByBrand collapses exactly the sibling listings it looks for.
+    const fetchedBrandBases: BrandReviewBase[] = [...bestsellerProducts, ...queryProducts]
+      .filter(p => p.brand?.trim())
+      .map(p => ({
+        productId:   p.asin,
+        brand:       p.brand!.trim(),
+        reviewCount: statVal(p.stats, 'current', CSV.COUNT_REVIEWS) ?? 0,
+      }))
+    const entryProof = competitorEconomics
+      ? detectEntryProof(competitorEconomics.rows, fetchedBrandBases)
+      : null
 
     // ── Revenue signal ──
     const fmt = (n: number) => n >= 1000 ? `$${Math.round(n / 1000)}k/mo` : `$${Math.round(n)}/mo`
@@ -1608,6 +1630,9 @@ export class KeepaProvider implements SignalProvider {
             ? competitorEconomics.off_category_excluded_count
             : undefined,
         }),
+        // Entry Proof (docs/RD_ENTRY_PROOF.md): headline example only when
+        // one earned emphasis — absence over a weak, misleading "proof".
+        ...(entryProof && { entry_proof: entryProof }),
         ...(avgPrice !== null && avgPrice365 !== null && prices.length >= 3 && prices365.length >= 3 && {
           price_avg_90d:         Math.round(avgPrice * 100) / 100,
           price_avg_365d:        Math.round(avgPrice365 * 100) / 100,

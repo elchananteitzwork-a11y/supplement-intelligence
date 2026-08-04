@@ -24,6 +24,12 @@ export interface MeasuredCompetitorInput {
   price:            number | null   // dollars, extracted by the provider (fba → buybox → amazon avg90)
   monthlySold:      number | null   // Amazon's rounded-down band; null when the badge is absent
   categoryLevel1Id: number | null   // categoryTree[1].catId; null when the tree is missing/shallow
+  // Entry Proof (docs/RD_ENTRY_PROOF.md): real per-ASIN COUNT_REVIEWS and
+  // listedSince-derived age — already fetched (rating=1/stats=365), formerly
+  // discarded here. null = the stats slot was absent; 0 is a real observed
+  // zero (a brand-new listing), never conflated with missing.
+  reviewCount:      number | null
+  listingAgeMonths: number | null
 }
 
 export interface CompetitorRevenueRow {
@@ -32,6 +38,11 @@ export interface CompetitorRevenueRow {
   price:                  number
   monthly_sold:           number
   est_monthly_revenue_mo: number    // price × monthly_sold — a floor (see header)
+  // Entry Proof (docs/RD_ENTRY_PROOF.md): carried on EVERY row so the
+  // appendix table always shows the full review-count continuum — the
+  // headline logic below only ever chooses emphasis, never visibility.
+  review_count:           number | null
+  listing_age_months:     number | null
 }
 
 export interface CompetitorRevenueTable {
@@ -95,6 +106,8 @@ export function buildCompetitorRevenueTable(products: MeasuredCompetitorInput[])
       price:                  p.price,
       monthly_sold:           p.monthlySold,
       est_monthly_revenue_mo: Math.round(p.price * p.monthlySold),
+      review_count:           p.reviewCount,
+      listing_age_months:     p.listingAgeMonths,
     }))
     .sort((a, b) => b.est_monthly_revenue_mo - a.est_monthly_revenue_mo)
 
@@ -107,4 +120,119 @@ export function buildCompetitorRevenueTable(products: MeasuredCompetitorInput[])
     revenue_concentration_top1:  Math.round((rows[0].est_monthly_revenue_mo / total) * 100) / 100,
     off_category_excluded_count: excludedCount,
   }
+}
+
+// ── Entry Proof — docs/RD_ENTRY_PROOF.md ─────────────────────────────────────
+//
+// Owner criterion (2026-08-02): a seller with FEW reviews moving a NICE
+// monthly volume is direct, measured evidence the niche is penetrable
+// without a review moat. Design constraints from the owner + the
+// adversarial critique round:
+//   - Niche-relative and cliff-free: no absolute thresholds anywhere; the
+//     constants below choose which example gets the Record HEADLINE row —
+//     they never exclude a product from the appendix table, which always
+//     shows every row's real review count.
+//   - Volume floor is relative (≥ half the niche median sold) so a
+//     60-units/mo seller in a huge niche can't headline on ratio alone.
+//   - A low-review listing from a brand that has ANOTHER ≥1000-review
+//     product in this same analysis's fetched data is an established
+//     brand's line extension (brand equity + ad budget), not proof a new
+//     company can enter — skipped as headline, kept in the table. Best
+//     effort: we can only see brands inside our own fetched sets.
+//   - Deep-discount volume (price < 60% of niche median) is disclosed on
+//     the headline, never hidden and never silently excluded.
+// All four constants are disclosed initial values, same convention as
+// VELOCITY_THRESHOLD_PCT — not calibrated (no outcome data yet, M3.2).
+
+export const ENTRY_PROOF_MIN_DISPROPORTION      = 2     // sales-share ÷ review-share
+export const ENTRY_PROOF_MIN_MEDIAN_SOLD_RATIO  = 0.5   // headline sold ≥ half niche median
+export const ENTRY_PROOF_ESTABLISHED_REVIEW_BASE = 1000 // same-brand other-product review base
+export const ENTRY_PROOF_PRICE_DUMP_RATIO       = 0.6   // price < 60% of median → disclose
+export const ENTRY_PROOF_RECENT_MONTHS          = 24    // corroboration only, never required
+
+// One fetched product's brand + review base, PRE-dedupe — the established-
+// brand check needs sibling listings that dedupeByBrand already collapsed.
+export interface BrandReviewBase {
+  productId:   string
+  brand:       string
+  reviewCount: number
+}
+
+export interface EntryProofHeadline {
+  productId:            string
+  brand:                string
+  monthly_sold:         number   // floor (rounded-down band)
+  review_count:         number
+  price:                number
+  listing_age_months?:  number
+  recent?:              boolean  // listing_age_months ≤ ENTRY_PROOF_RECENT_MONTHS
+  // Niche context — real medians over the measured rows, so the display
+  // can state "only 45 reviews (typical here: 1,200)" honestly.
+  niche_median_reviews: number
+  niche_median_sold:    number
+  niche_median_price:   number
+  price_dump_suspected?: boolean
+}
+
+function median(values: number[]): number {
+  const s = [...values].sort((a, b) => a - b)
+  const m = Math.floor(s.length / 2)
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
+}
+
+// Pure. rows = buildCompetitorRevenueTable().rows (already category-filtered
+// and brand-deduped); fetchedBrandBases = every fetched product pre-dedupe.
+// Returns the single headline example, or null when no row earns emphasis —
+// absence over a weak, misleading "proof".
+export function detectEntryProof(
+  rows: CompetitorRevenueRow[],
+  fetchedBrandBases: BrandReviewBase[],
+): EntryProofHeadline | null {
+  const eligible = rows.filter(
+    (r): r is CompetitorRevenueRow & { review_count: number } =>
+      r.review_count !== null && r.monthly_sold > 0,
+  )
+  if (eligible.length < 2) return null   // shares/medians need ≥2 measured rows
+
+  const totalSold    = eligible.reduce((s, r) => s + r.monthly_sold, 0)
+  // Reviews floored at 1 in the share denominator so a real 0-review row
+  // (brand-new listing) doesn't divide by zero — the raw 0 stays displayed.
+  const totalReviews = eligible.reduce((s, r) => s + Math.max(r.review_count, 1), 0)
+  const medianReviews = median(eligible.map(r => r.review_count))
+  const medianSold    = median(eligible.map(r => r.monthly_sold))
+  const medianPrice   = median(eligible.map(r => r.price))
+
+  const disproportion = (r: CompetitorRevenueRow & { review_count: number }) =>
+    (r.monthly_sold / totalSold) / (Math.max(r.review_count, 1) / totalReviews)
+
+  const ranked = [...eligible].sort((a, b) => disproportion(b) - disproportion(a))
+
+  for (const r of ranked) {
+    if (r.review_count >= medianReviews) continue
+    if (disproportion(r) < ENTRY_PROOF_MIN_DISPROPORTION) continue
+    if (r.monthly_sold < medianSold * ENTRY_PROOF_MIN_MEDIAN_SOLD_RATIO) continue
+    const brandKey = r.brand.trim().toLowerCase()
+    const established = brandKey !== '' && fetchedBrandBases.some(b =>
+      b.productId !== r.productId &&
+      b.brand.trim().toLowerCase() === brandKey &&
+      b.reviewCount >= ENTRY_PROOF_ESTABLISHED_REVIEW_BASE)
+    if (established) continue
+
+    const recent = r.listing_age_months !== null && r.listing_age_months <= ENTRY_PROOF_RECENT_MONTHS
+    const dumped = r.price < medianPrice * ENTRY_PROOF_PRICE_DUMP_RATIO
+    return {
+      productId:            r.productId,
+      brand:                r.brand,
+      monthly_sold:         r.monthly_sold,
+      review_count:         r.review_count,
+      price:                r.price,
+      ...(r.listing_age_months !== null && { listing_age_months: r.listing_age_months }),
+      ...(recent && { recent: true }),
+      niche_median_reviews: Math.round(medianReviews),
+      niche_median_sold:    Math.round(medianSold),
+      niche_median_price:   Math.round(medianPrice),
+      ...(dumped && { price_dump_suspected: true }),
+    }
+  }
+  return null
 }

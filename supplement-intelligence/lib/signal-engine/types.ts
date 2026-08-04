@@ -128,9 +128,32 @@ export interface RevenueSignal extends SignalScore {
     price:                  number
     monthly_sold:           number   // Amazon's rounded-down band — a floor
     est_monthly_revenue_mo: number   // price × monthly_sold — therefore also a floor
+    // Entry Proof (docs/RD_ENTRY_PROOF.md) — real per-ASIN COUNT_REVIEWS and
+    // listedSince age, carried on every row so the appendix shows the full
+    // continuum. null = stats slot absent; 0 = real observed zero. Optional
+    // (absent on rows stored before this milestone — no backfill).
+    review_count?:          number | null
+    listing_age_months?:    number | null
   }[]
   measured_revenue_total_mo?:   number  // sum over top_competitor_revenues
   revenue_concentration_top1?:  number  // 0–1: leader's share of that total
+  // Entry Proof headline (docs/RD_ENTRY_PROOF.md): the one low-review
+  // high-volume example that earned Record emphasis — measured evidence the
+  // niche is penetrable without a review moat. Present only when detection
+  // found one (see detectEntryProof's header for the emphasis-only rules).
+  entry_proof?: {
+    productId:             string
+    brand:                 string
+    monthly_sold:          number   // floor
+    review_count:          number
+    price:                 number
+    listing_age_months?:   number
+    recent?:               boolean  // listed within the last 24 months
+    niche_median_reviews:  number
+    niche_median_sold:     number
+    niche_median_price:    number
+    price_dump_suspected?: boolean  // price < 60% of niche median — disclosed on display
+  }
   // Guard-1 disclosure: how many relevance-passing search results were
   // excluded for sitting in a minority second-level category (the OTC-drug
   // contamination case). Absent when zero — never a fabricated 0.

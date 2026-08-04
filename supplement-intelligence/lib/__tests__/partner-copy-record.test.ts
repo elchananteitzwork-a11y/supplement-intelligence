@@ -179,8 +179,8 @@ describe('Item ב — measured competitor revenue surfaces', () => {
   it('appendix: real table rows + floor/exclusion footnote when fields exist', () => {
     const vm = buildEvidenceAppendix(memoWithCompetitorRevenues())
     expect(vm.competitorRows).toEqual([
-      { brand: 'Big Brand', price: '$37', unitsLabel: '~20,000/mo', revenueLabel: '~$740k/mo' },
-      { brand: 'Mid Brand', price: '$30', unitsLabel: '~3,000/mo', revenueLabel: '~$90k/mo' },
+      { brand: 'Big Brand', price: '$37', unitsLabel: '~20,000/mo', revenueLabel: '~$740k/mo', reviewsLabel: '—' },
+      { brand: 'Mid Brand', price: '$30', unitsLabel: '~3,000/mo', revenueLabel: '~$90k/mo', reviewsLabel: '—' },
     ])
     expect(vm.competitorsFootnote).toContain('rounded-down bands')
     expect(vm.competitorsFootnote).toContain('2 search results from a different product category')
@@ -316,5 +316,116 @@ describe('buildCompetitiveReviewsVM — niche fallback (live finding 2026-07-28)
     const vm = buildCompetitiveReviewsVM(report)
     expect(vm.gaps).toHaveLength(2)
     expect(vm.gaps[0].prevalenceLabel).toBe('1 of the 3 top brands')
+  })
+})
+
+// ── Truth audit 2026-08-02 (docs/RD_TRUTH_AUDIT.md) — marker honesty ────────
+// LLM-written memo fields must never carry the 'measured' marker; the leader
+// rows follow signal_metadata.competitor_revenue_verified (the real-data
+// override flag set by lib/real-competitor.ts), not the field name.
+describe('marker honesty — LLM-written fields are never labeled measured', () => {
+  function memoWithAiFields(overrides: Partial<MemoData> = {}): MemoData {
+    return {
+      ...REQUIRED_MEMO_SCAFFOLD,
+      biggest_competitor: { name: 'BrandX', revenue: '$1M/mo', gap: 'no gummies' },
+      market_saturation: { dominant_brands: 'BrandX, BrandY' },
+      product_recommendation: {
+        format: '', dosing: '', formula: [], avoid: [],
+        cogs_estimate: '$3.20/unit', retail_price: '$29.99', gross_margin: '89%',
+      },
+      customer_language: { frustrations: ['pills too large'], desires: [], fears: [], ad_phrases: [] },
+      ...overrides,
+    } as unknown as MemoData
+  }
+  const allRows = (m: MemoData) => buildRecordChapters(m).flatMap(c => c.rows)
+  const markerOf = (m: MemoData, claim: string) => allRows(m).find(r => r.claim === claim)?.marker
+
+  it('labels cogs/retail/dominant-brands/top-frustration as judgment', () => {
+    const m = memoWithAiFields()
+    expect(markerOf(m, 'Landed unit cost')).toBe('judgment')
+    expect(markerOf(m, 'Comparable retail price')).toBe('judgment')
+    expect(markerOf(m, 'Dominant brands')).toBe('judgment')
+    expect(markerOf(m, 'Top frustration')).toBe('judgment')
+  })
+
+  it('labels leader rows judgment when competitor_revenue_verified is absent/false', () => {
+    const m = memoWithAiFields()
+    expect(markerOf(m, 'Category leader')).toBe('judgment')
+    expect(markerOf(m, "Leader's revenue")).toBe('judgment')
+  })
+
+  it('labels leader rows measured when the real-data override ran', () => {
+    const m = memoWithAiFields({
+      signal_metadata: { competitor_revenue_verified: true } as MemoData['signal_metadata'],
+    })
+    expect(markerOf(m, 'Category leader')).toBe('measured')
+    expect(markerOf(m, "Leader's revenue")).toBe('measured')
+  })
+})
+
+// ── Entry Proof (docs/RD_ENTRY_PROOF.md) — display surfaces ────────────────
+describe('Entry Proof — Competition row + appendix reviews column', () => {
+  function memoWithEntryProof(entryProofOverride?: Record<string, unknown>): MemoData {
+    return {
+      ...REQUIRED_MEMO_SCAFFOLD,
+      signal_evidence: {
+        providers_used: ['keepa'], overall_confidence: 0.7,
+        demand_verified: true, virality_verified: false, pricing_verified: true, growth_verified: true,
+        revenue: {
+          value: {
+            score: 6, confidence: 0.7,
+            top_competitor_revenues: [
+              { productId: 'LEADER', brand: 'BigLeader', price: 30, monthly_sold: 5000, est_monthly_revenue_mo: 150000, review_count: 20000, listing_age_months: 90 },
+              { productId: 'FRESH',  brand: 'FreshCo',   price: 28, monthly_sold: 3000, est_monthly_revenue_mo: 84000,  review_count: 45,    listing_age_months: 8 },
+            ],
+            measured_revenue_total_mo: 234000,
+            revenue_concentration_top1: 0.64,
+            entry_proof: {
+              productId: 'FRESH', brand: 'FreshCo', monthly_sold: 3000, review_count: 45,
+              price: 28, listing_age_months: 8, recent: true,
+              niche_median_reviews: 10023, niche_median_sold: 4000, niche_median_price: 29,
+              ...entryProofOverride,
+            },
+          },
+          sources: ['keepa'], primarySource: 'keepa', confidence: 0.7,
+        },
+      } as unknown as MemoData['signal_evidence'],
+    } as unknown as MemoData
+  }
+
+  const competitionRows = (m: MemoData) =>
+    buildRecordChapters(m).find(c => c.key === 'competition')?.rows ?? []
+
+  it('renders the headline row, measured, with both real numbers and the niche median', () => {
+    const row = competitionRows(memoWithEntryProof())
+      .find(r => r.claim === 'Proof of entry — low-review seller moving volume')!
+    expect(row).toBeDefined()
+    expect(row.marker).toBe('measured')
+    expect(row.value).toBe('FreshCo: ~3,000/mo with only 45 reviews (typical here: 10,023)')
+  })
+
+  it('appends the price-dump disclosure when suspected', () => {
+    const row = competitionRows(memoWithEntryProof({ price: 9, price_dump_suspected: true }))
+      .find(r => r.claim === 'Proof of entry — low-review seller moving volume')!
+    expect(row.value).toContain('— at $9 vs typical $29')
+  })
+
+  it('renders no row when entry_proof is absent (legacy analyses unaffected)', () => {
+    const m = memoWithEntryProof()
+    const se = m.signal_evidence as unknown as { revenue: { value: Record<string, unknown> } }
+    delete se.revenue.value.entry_proof
+    expect(competitionRows(m).some(r => r.claim.startsWith('Proof of entry'))).toBe(false)
+  })
+
+  it('appendix rows always carry a reviews label — real count or an honest dash', () => {
+    const m = memoWithEntryProof()
+    const vm = buildEvidenceAppendix(m)
+    expect(vm.competitorRows[0].reviewsLabel).toBe('20,000 reviews')
+    expect(vm.competitorRows[1].reviewsLabel).toBe('45 reviews')
+
+    const legacy = memoWithEntryProof()
+    const se = legacy.signal_evidence as unknown as { revenue: { value: { top_competitor_revenues: Record<string, unknown>[] } } }
+    delete se.revenue.value.top_competitor_revenues[0].review_count
+    expect(buildEvidenceAppendix(legacy).competitorRows[0].reviewsLabel).toBe('—')
   })
 })

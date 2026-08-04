@@ -86,12 +86,19 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
   // ── Competition ─────────────────────────────────────────────────────
   const compRows: RecordRow[] = []
   if (m.biggest_competitor?.name) {
-    compRows.push({ claim: 'Category leader', value: m.biggest_competitor.name, marker: 'measured' })
-    if (m.biggest_competitor.revenue) compRows.push({ claim: "Leader's revenue", value: m.biggest_competitor.revenue, marker: 'measured' })
+    // biggest_competitor is an LLM-written memo field UNLESS the server-side
+    // real-data override ran (lib/real-competitor.ts sets
+    // signal_metadata.competitor_revenue_verified when name/revenue were
+    // replaced with real Apify+Keepa values) — the marker must follow the
+    // flag, not the field name (truth audit 2026-08-02, RD_TRUTH_AUDIT.md).
+    const leaderMarker: RecordRow['marker'] = m.signal_metadata?.competitor_revenue_verified ? 'measured' : 'judgment'
+    compRows.push({ claim: 'Category leader', value: m.biggest_competitor.name, marker: leaderMarker })
+    if (m.biggest_competitor.revenue) compRows.push({ claim: "Leader's revenue", value: m.biggest_competitor.revenue, marker: leaderMarker })
     if (m.biggest_competitor.gap) compRows.push({ claim: 'The gap they leave open', value: m.biggest_competitor.gap, marker: 'judgment' })
   }
   if (m.market_saturation?.dominant_brands) {
-    compRows.push({ claim: 'Dominant brands', value: m.market_saturation.dominant_brands, marker: 'measured' })
+    // LLM-written field — never 'measured' (truth audit 2026-08-02).
+    compRows.push({ claim: 'Dominant brands', value: m.market_saturation.dominant_brands, marker: 'judgment' })
   }
   // Item ב: leader's share of the measured per-competitor revenue (only
   // present when ≥2 niche search products were measured on both axes).
@@ -100,6 +107,21 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
     compRows.push({
       claim: "Leader's share of measured revenue",
       value: `~${Math.round(revVal.revenue_concentration_top1 * 100)}%`,
+      marker: 'measured',
+    })
+  }
+  // Entry Proof (docs/RD_ENTRY_PROOF.md): the one low-review seller moving
+  // real volume — measured (both numbers are raw Keepa fields; the tilde is
+  // the monthlySold floor convention). The niche median gives honest scale;
+  // suspected deep-discount volume is disclosed inline, never hidden.
+  const ep = revVal?.entry_proof
+  if (ep) {
+    const dump = ep.price_dump_suspected
+      ? ` — at $${Math.round(ep.price)} vs typical $${ep.niche_median_price}`
+      : ''
+    compRows.push({
+      claim: 'Proof of entry — low-review seller moving volume',
+      value: `${ep.brand}: ~${ep.monthly_sold.toLocaleString()}/mo with only ${ep.review_count.toLocaleString()} reviews (typical here: ${ep.niche_median_reviews.toLocaleString()})${dump}`,
       marker: 'measured',
     })
   }
@@ -124,8 +146,11 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
       marker: 'measured',
     })
   }
-  if (m.product_recommendation?.cogs_estimate) econRows.push({ claim: 'Landed unit cost', value: m.product_recommendation.cogs_estimate, marker: 'measured' })
-  if (m.product_recommendation?.retail_price) econRows.push({ claim: 'Comparable retail price', value: m.product_recommendation.retail_price, marker: 'measured' })
+  // product_recommendation.* are LLM-written memo fields — never 'measured'
+  // (truth audit 2026-08-02, RD_TRUTH_AUDIT.md; previously the top item on
+  // the dormant fee-honesty list).
+  if (m.product_recommendation?.cogs_estimate) econRows.push({ claim: 'Landed unit cost', value: m.product_recommendation.cogs_estimate, marker: 'judgment' })
+  if (m.product_recommendation?.retail_price) econRows.push({ claim: 'Comparable retail price', value: m.product_recommendation.retail_price, marker: 'judgment' })
   // Real Amazon fee schedule for this category's top sellers, mirrored by
   // Keepa per product and averaged at fetch time (docs/RD_V4_MEASURED_FEES.md).
   // Placed between price and margin so the reading order is cost → price →
@@ -154,7 +179,9 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
   // ── Customers ───────────────────────────────────────────────────────
   const custRows: RecordRow[] = []
   const cl = m.customer_language
-  if (cl?.frustrations?.length) custRows.push({ claim: 'Top frustration', value: cl.frustrations[0], marker: 'measured' })
+  // customer_language is LLM-synthesized from real reviews — a paraphrase,
+  // not a verbatim measured quote, so 'judgment' (truth audit 2026-08-02).
+  if (cl?.frustrations?.length) custRows.push({ claim: 'Top frustration', value: cl.frustrations[0], marker: 'judgment' })
   if (cl?.desires?.length) custRows.push({ claim: 'What they want instead', value: cl.desires[0], marker: 'judgment' })
   if (custRows.length > 0) {
     chapters.push({
@@ -216,7 +243,11 @@ export interface EvidenceAppendixVM {
   // Item ב: the per-competitor measured revenue table the note above always
   // promised as "a fast follow". Empty for analyses generated before the
   // fields existed (no backfill — real provider cost).
-  competitorRows: { brand: string; price: string; unitsLabel: string; revenueLabel: string }[]
+  // reviewsLabel (Entry Proof, docs/RD_ENTRY_PROOF.md): real per-ASIN review
+  // count on EVERY row — the full continuum stays visible no matter what the
+  // headline logic picked. '—' when the row predates the field or the stats
+  // slot was absent (never a fabricated 0).
+  competitorRows: { brand: string; price: string; unitsLabel: string; revenueLabel: string; reviewsLabel: string }[]
   competitorsFootnote: string | null  // floor semantics + off-category exclusion disclosure
   // Roadmap "Dynamic Science Coverage" (docs/RD_DYNAMIC_SCIENCE_COVERAGE.md):
   // honest disclosure for a vocabulary-matched ingredient with no science
@@ -262,6 +293,9 @@ export function buildEvidenceAppendix(m: MemoData): EvidenceAppendixVM {
     price:        `$${Math.round(r.price)}`,
     unitsLabel:   `~${r.monthly_sold.toLocaleString()}/mo`,
     revenueLabel: fmtMeasuredMonthly(r.est_monthly_revenue_mo),
+    reviewsLabel: r.review_count !== null && r.review_count !== undefined
+      ? `${r.review_count.toLocaleString()} reviews`
+      : '—',
   }))
   const excludedCount = m.signal_evidence?.revenue?.value?.off_category_excluded_count
   const competitorsFootnote = competitorRows.length
