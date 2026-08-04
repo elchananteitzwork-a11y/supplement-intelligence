@@ -95,6 +95,24 @@ counter-signal to "this market is locked up by incumbents."
      below 60% of the niche median price, the display appends the real
      prices ("at $9 — typical here $24") — volume bought by deep
      discounting is disclosed, not hidden and not silently excluded.
+   - **Ladder amendment (owner design 2026-08-03, second critique round):**
+     detection returns ALL qualifying members (ranked, each passing the
+     full member bar: below-median reviews + disproportion ≥ 2 + volume ≥
+     ¼ median + not established; price-dumping flagged, not excluded), and
+     the display wording scales with the count — 1 = single example, 2 =
+     "two independent low-review sellers", ≥3 = "Entry pattern" (the
+     owner's strongest tier). The second critique round found and fixed a
+     real flaw in the naive "at least 3" version: (a) "below median
+     reviews" alone is a relative tautology (half of ANY niche is below
+     median — a 3,800-review seller in a 5k-median mature niche is not an
+     entry proof), so members must pass the disproportion test too; (b) a
+     rigorous member bar makes "exactly 3" rare even in penetrable niches
+     (real creatine-gummies data: only 2 pass), so tiers state the literal
+     count found rather than gating on 3 — the bar never gets loosened
+     just to reach a number. One unified member volume bar (¼ median)
+     replaced the earlier ½-median headline bar: two different volume bars
+     would create members that can't be shown alone (incoherent tier
+     boundary); the ladder wording carries the strength signal instead.
    - `listing_age_months <= 24`, when present, marks an example
      `recent: true` (corroboration, never a requirement — listedSince
      is sometimes absent).

@@ -264,3 +264,61 @@ describe('buildCompetitorRevenueTable — entry-proof fields pass through', () =
     expect(byId['B1'].listing_age_months).toBeNull()
   })
 })
+
+// ── Entry Proof ladder (owner design 2026-08-03) ────────────────────────────
+describe('detectEntryProof ladder — members list + tier semantics', () => {
+  it('returns ALL qualifying members ranked strongest-first, flat fields = strongest', () => {
+    const rows = [
+      row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 8000 }),
+      row({ productId: 'M1',     brand: 'FreshOne',  review_count: 45,     monthly_sold: 4000 }),
+      row({ productId: 'M2',     brand: 'FreshTwo',  review_count: 90,     monthly_sold: 3000 }),
+      row({ productId: 'M3',     brand: 'FreshThree', review_count: 150,   monthly_sold: 2500 }),
+      row({ productId: 'MID',    brand: 'MidBrand',  review_count: 5000,   monthly_sold: 3000 }),
+      row({ productId: 'MID2',   brand: 'OtherMid',  review_count: 3000,   monthly_sold: 2600 }),
+    ]
+    const ep = detectEntryProof(rows, [])!
+    expect(ep).not.toBeNull()
+    expect(ep.members!.map(m => m.productId)).toEqual(['M1', 'M2', 'M3'])
+    expect(ep.productId).toBe('M1')   // flat fields mirror members[0]
+    expect(ep.monthly_sold).toBe(4000)
+  })
+
+  it('critique fix: the relative-tautology mature-niche case produces NO members', () => {
+    // All "below median" sellers here have 3-4k reviews selling roughly in
+    // proportion — below-median alone would call them low-review entrants;
+    // the disproportion requirement correctly rejects the whole set.
+    const rows = [
+      row({ productId: 'A', brand: 'A', review_count: 6000, monthly_sold: 3200 }),
+      row({ productId: 'B', brand: 'B', review_count: 5500, monthly_sold: 3000 }),
+      row({ productId: 'C', brand: 'C', review_count: 4000, monthly_sold: 2200 }),
+      row({ productId: 'D', brand: 'D', review_count: 3800, monthly_sold: 2100 }),
+    ]
+    expect(detectEntryProof(rows, [])).toBeNull()
+  })
+
+  it('member volume bar is ¼ median: a ⅓-median seller is a member, a tiny one is not', () => {
+    const rows = [
+      row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 6000 }),
+      row({ productId: 'THIRD',  brand: 'ThirdCo',   review_count: 60,     monthly_sold: 2000 }),  // ≥ ¼ of median
+      row({ productId: 'TINY',   brand: 'TinyCo',    review_count: 5,      monthly_sold: 200 }),   // < ¼ of median
+      row({ productId: 'MID',    brand: 'MidBrand',  review_count: 4000,   monthly_sold: 3000 }),
+    ]
+    const ep = detectEntryProof(rows, [])!
+    expect(ep.members!.map(m => m.productId)).toEqual(['THIRD'])
+  })
+
+  it('a price-dumping member stays a member, flagged (disclosed, not excluded)', () => {
+    const rows = [
+      row({ productId: 'LEADER', brand: 'BigLeader', review_count: 20_000, monthly_sold: 6000, price: 30 }),
+      row({ productId: 'FAIR',   brand: 'FairCo',    review_count: 50,     monthly_sold: 3000, price: 29 }),
+      row({ productId: 'DUMP',   brand: 'DumpCo',    review_count: 40,     monthly_sold: 2500, price: 9 }),
+      row({ productId: 'MID',    brand: 'MidBrand',  review_count: 4000,   monthly_sold: 3000, price: 28 }),
+    ]
+    const ep = detectEntryProof(rows, [])!
+    const ids = ep.members!.map(m => m.productId)
+    expect(ids).toContain('FAIR')
+    expect(ids).toContain('DUMP')
+    expect(ep.members!.find(m => m.productId === 'DUMP')!.price_dump_suspected).toBe(true)
+    expect(ep.members!.find(m => m.productId === 'FAIR')!.price_dump_suspected).toBeUndefined()
+  })
+})

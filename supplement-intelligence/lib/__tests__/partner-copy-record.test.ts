@@ -401,7 +401,7 @@ describe('Entry Proof — Competition row + appendix reviews column', () => {
       .find(r => r.claim === 'Proof of entry — low-review seller moving volume')!
     expect(row).toBeDefined()
     expect(row.marker).toBe('measured')
-    expect(row.value).toBe('FreshCo: ~3,000/mo with only 45 reviews (typical here: 10,023)')
+    expect(row.value).toBe('FreshCo: ~3,000/mo with only 45 reviews (typical here: 10,023 reviews)')
   })
 
   it('appends the price-dump disclosure when suspected', () => {
@@ -427,5 +427,67 @@ describe('Entry Proof — Competition row + appendix reviews column', () => {
     const se = legacy.signal_evidence as unknown as { revenue: { value: { top_competitor_revenues: Record<string, unknown>[] } } }
     delete se.revenue.value.top_competitor_revenues[0].review_count
     expect(buildEvidenceAppendix(legacy).competitorRows[0].reviewsLabel).toBe('—')
+  })
+})
+
+// ── Entry Proof ladder wording (owner design 2026-08-03) ────────────────────
+describe('Entry Proof ladder — tier wording scales with member count', () => {
+  function memoWithMembers(members: Record<string, unknown>[]): MemoData {
+    const m = {
+      ...REQUIRED_MEMO_SCAFFOLD,
+      signal_evidence: {
+        providers_used: ['keepa'], overall_confidence: 0.7,
+        demand_verified: true, virality_verified: false, pricing_verified: true, growth_verified: true,
+        revenue: {
+          value: {
+            score: 6, confidence: 0.7,
+            entry_proof: {
+              ...members[0],
+              niche_median_reviews: 201, niche_median_sold: 5000, niche_median_price: 27,
+              members,
+            },
+          },
+          sources: ['keepa'], primarySource: 'keepa', confidence: 0.7,
+        },
+      } as unknown as MemoData['signal_evidence'],
+    } as unknown as MemoData
+    return m
+  }
+  const entryRow = (m: MemoData) =>
+    buildRecordChapters(m).find(c => c.key === 'competition')?.rows
+      .find(r => r.claim.startsWith('Proof of entry') || r.claim.startsWith('Entry pattern'))
+
+  const M = (id: string, brand: string, sold: number, reviews: number, extra: Record<string, unknown> = {}) =>
+    ({ productId: id, brand, monthly_sold: sold, review_count: reviews, price: 26, ...extra })
+
+  it('3+ members → "Entry pattern" wording with count, max reviews, min volume', () => {
+    const row = entryRow(memoWithMembers([
+      M('A', 'FreshOne', 5000, 86), M('B', 'FreshTwo', 2000, 66), M('C', 'FreshThree', 2000, 134),
+    ]))!
+    expect(row.claim).toBe('Entry pattern — multiple low-review sellers moving volume')
+    expect(row.value).toBe('3 different brands, each ≤134 reviews, each moving ~2,000+/mo (typical here: 201 reviews)')
+    expect(row.marker).toBe('measured')
+  })
+
+  it('2 members → "two independent" wording naming both brands', () => {
+    const row = entryRow(memoWithMembers([
+      M('A', 'FreshOne', 5000, 86), M('B', 'FreshTwo', 2000, 66),
+    ]))!
+    expect(row.claim).toBe('Proof of entry — two independent low-review sellers')
+    expect(row.value).toBe('FreshOne + FreshTwo: each ≤86 reviews, each moving ~2,000+/mo (typical here: 201 reviews)')
+  })
+
+  it('1 member → single-example wording (same as legacy)', () => {
+    const row = entryRow(memoWithMembers([M('A', 'FreshOne', 5000, 86)]))!
+    expect(row.claim).toBe('Proof of entry — low-review seller moving volume')
+    expect(row.value).toBe('FreshOne: ~5,000/mo with only 86 reviews (typical here: 201 reviews)')
+  })
+
+  it('a dump-suspected member adds the inline price disclosure to the tier line', () => {
+    const row = entryRow(memoWithMembers([
+      M('A', 'FreshOne', 5000, 86), M('B', 'CheapCo', 2000, 66, { price: 9, price_dump_suspected: true }),
+      M('C', 'FreshThree', 2000, 134),
+    ]))!
+    expect(row.value).toContain('— incl. one at $9 vs typical $27')
   })
 })

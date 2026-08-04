@@ -110,20 +110,43 @@ export function buildRecordChapters(m: MemoData): RecordChapterVM[] {
       marker: 'measured',
     })
   }
-  // Entry Proof (docs/RD_ENTRY_PROOF.md): the one low-review seller moving
-  // real volume — measured (both numbers are raw Keepa fields; the tilde is
-  // the monthlySold floor convention). The niche median gives honest scale;
+  // Entry Proof ladder (docs/RD_ENTRY_PROOF.md): wording scales with how
+  // many low-review sellers are genuinely moving volume — 1 example / 2
+  // independent examples / 3+ = "pattern" (the owner's strongest tier).
+  // Every number is a raw Keepa field (marker measured); the tilde is the
+  // monthlySold floor convention; the niche median gives honest scale;
   // suspected deep-discount volume is disclosed inline, never hidden.
+  // Rows stored before the ladder existed have no `members` — they render
+  // the single-example wording unchanged.
   const ep = revVal?.entry_proof
   if (ep) {
-    const dump = ep.price_dump_suspected
-      ? ` — at $${Math.round(ep.price)} vs typical $${ep.niche_median_price}`
-      : ''
-    compRows.push({
-      claim: 'Proof of entry — low-review seller moving volume',
-      value: `${ep.brand}: ~${ep.monthly_sold.toLocaleString()}/mo with only ${ep.review_count.toLocaleString()} reviews (typical here: ${ep.niche_median_reviews.toLocaleString()})${dump}`,
-      marker: 'measured',
-    })
+    const members = ep.members ?? []
+    const typical = `(typical here: ${ep.niche_median_reviews.toLocaleString()} reviews)`
+    if (members.length >= 2) {
+      const minSold     = Math.min(...members.map(m => m.monthly_sold))
+      const maxReviews  = Math.max(...members.map(m => m.review_count))
+      const dumped      = members.find(m => m.price_dump_suspected)
+      const dumpNote    = dumped ? ` — incl. one at $${Math.round(dumped.price)} vs typical $${ep.niche_median_price}` : ''
+      const isPattern   = members.length >= 3
+      compRows.push({
+        claim: isPattern
+          ? 'Entry pattern — multiple low-review sellers moving volume'
+          : 'Proof of entry — two independent low-review sellers',
+        value: isPattern
+          ? `${members.length} different brands, each ≤${maxReviews.toLocaleString()} reviews, each moving ~${minSold.toLocaleString()}+/mo ${typical}${dumpNote}`
+          : `${members[0].brand} + ${members[1].brand}: each ≤${maxReviews.toLocaleString()} reviews, each moving ~${minSold.toLocaleString()}+/mo ${typical}${dumpNote}`,
+        marker: 'measured',
+      })
+    } else {
+      const dump = ep.price_dump_suspected
+        ? ` — at $${Math.round(ep.price)} vs typical $${ep.niche_median_price}`
+        : ''
+      compRows.push({
+        claim: 'Proof of entry — low-review seller moving volume',
+        value: `${ep.brand}: ~${ep.monthly_sold.toLocaleString()}/mo with only ${ep.review_count.toLocaleString()} reviews ${typical}${dump}`,
+        marker: 'measured',
+      })
+    }
   }
   if (compRows.length > 0) {
     chapters.push({

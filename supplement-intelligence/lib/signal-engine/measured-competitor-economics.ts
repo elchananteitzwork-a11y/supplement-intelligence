@@ -144,11 +144,18 @@ export function buildCompetitorRevenueTable(products: MeasuredCompetitorInput[])
 // All four constants are disclosed initial values, same convention as
 // VELOCITY_THRESHOLD_PCT — not calibrated (no outcome data yet, M3.2).
 
-export const ENTRY_PROOF_MIN_DISPROPORTION      = 2     // sales-share ÷ review-share
-export const ENTRY_PROOF_MIN_MEDIAN_SOLD_RATIO  = 0.5   // headline sold ≥ half niche median
+export const ENTRY_PROOF_MIN_DISPROPORTION      = 2     // sales-share ÷ review-share — required of EVERY member (critique 2026-08-03: without it, "below median reviews" is a relative tautology that fires on 4k-review sellers in a 5k-median mature niche)
+// Owner ladder design 2026-08-03: ONE member bar (¼ median), not the earlier
+// ½-median headline bar — two different volume bars would create members that
+// can't be shown alone (an incoherent tier boundary). The ladder wording
+// (1 → 2 → 3+ members) carries the strength signal instead; every member's
+// real numbers are displayed, so a modest-volume singleton reads as exactly
+// what it is.
+export const ENTRY_PROOF_MIN_MEDIAN_SOLD_RATIO  = 0.25  // member sold ≥ quarter of niche median
 export const ENTRY_PROOF_ESTABLISHED_REVIEW_BASE = 1000 // same-brand other-product review base
 export const ENTRY_PROOF_PRICE_DUMP_RATIO       = 0.6   // price < 60% of median → disclose
 export const ENTRY_PROOF_RECENT_MONTHS          = 24    // corroboration only, never required
+export const ENTRY_PROOF_PATTERN_COUNT          = 3     // members needed for the strongest ("pattern") wording
 
 // One fetched product's brand + review base, PRE-dedupe — the established-
 // brand check needs sibling listings that dedupeByBrand already collapsed.
@@ -158,7 +165,11 @@ export interface BrandReviewBase {
   reviewCount: number
 }
 
-export interface EntryProofHeadline {
+// One qualifying member of the entry-proof ladder — every field is a real
+// Keepa observation; a member passes ALL the emphasis tests (below-median
+// reviews, disproportion, volume floor, not an established brand's line
+// extension), price-dumping is flagged rather than excluded.
+export interface EntryProofMember {
   productId:            string
   brand:                string
   monthly_sold:         number   // floor (rounded-down band)
@@ -166,12 +177,22 @@ export interface EntryProofHeadline {
   price:                number
   listing_age_months?:  number
   recent?:              boolean  // listing_age_months ≤ ENTRY_PROOF_RECENT_MONTHS
+  price_dump_suspected?: boolean
+}
+
+// Ladder result (owner design 2026-08-03): the flat top-level fields are the
+// STRONGEST member (kept flat for back-compat with entry_proof rows stored
+// before the ladder existed); `members` ranks every qualifying seller,
+// strongest first — display wording scales with members.length (1 example /
+// 2 independent examples / ≥ENTRY_PROOF_PATTERN_COUNT = "pattern"), so a
+// rigorous bar never pressures anyone to loosen it just to "reach 3".
+export interface EntryProofHeadline extends EntryProofMember {
   // Niche context — real medians over the measured rows, so the display
   // can state "only 45 reviews (typical here: 1,200)" honestly.
   niche_median_reviews: number
   niche_median_sold:    number
   niche_median_price:   number
-  price_dump_suspected?: boolean
+  members?:             EntryProofMember[]
 }
 
 function median(values: number[]): number {
@@ -182,8 +203,8 @@ function median(values: number[]): number {
 
 // Pure. rows = buildCompetitorRevenueTable().rows (already category-filtered
 // and brand-deduped); fetchedBrandBases = every fetched product pre-dedupe.
-// Returns the single headline example, or null when no row earns emphasis —
-// absence over a weak, misleading "proof".
+// Returns the ladder (strongest member flat + full ranked member list), or
+// null when no row earns emphasis — absence over a weak, misleading "proof".
 export function detectEntryProof(
   rows: CompetitorRevenueRow[],
   fetchedBrandBases: BrandReviewBase[],
@@ -207,6 +228,7 @@ export function detectEntryProof(
 
   const ranked = [...eligible].sort((a, b) => disproportion(b) - disproportion(a))
 
+  const members: EntryProofMember[] = []
   for (const r of ranked) {
     if (r.review_count >= medianReviews) continue
     if (disproportion(r) < ENTRY_PROOF_MIN_DISPROPORTION) continue
@@ -220,7 +242,7 @@ export function detectEntryProof(
 
     const recent = r.listing_age_months !== null && r.listing_age_months <= ENTRY_PROOF_RECENT_MONTHS
     const dumped = r.price < medianPrice * ENTRY_PROOF_PRICE_DUMP_RATIO
-    return {
+    members.push({
       productId:            r.productId,
       brand:                r.brand,
       monthly_sold:         r.monthly_sold,
@@ -228,11 +250,16 @@ export function detectEntryProof(
       price:                r.price,
       ...(r.listing_age_months !== null && { listing_age_months: r.listing_age_months }),
       ...(recent && { recent: true }),
-      niche_median_reviews: Math.round(medianReviews),
-      niche_median_sold:    Math.round(medianSold),
-      niche_median_price:   Math.round(medianPrice),
       ...(dumped && { price_dump_suspected: true }),
-    }
+    })
   }
-  return null
+  if (members.length === 0) return null
+
+  return {
+    ...members[0],
+    niche_median_reviews: Math.round(medianReviews),
+    niche_median_sold:    Math.round(medianSold),
+    niche_median_price:   Math.round(medianPrice),
+    members,
+  }
 }

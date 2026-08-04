@@ -137,10 +137,13 @@ export interface RevenueSignal extends SignalScore {
   }[]
   measured_revenue_total_mo?:   number  // sum over top_competitor_revenues
   revenue_concentration_top1?:  number  // 0–1: leader's share of that total
-  // Entry Proof headline (docs/RD_ENTRY_PROOF.md): the one low-review
-  // high-volume example that earned Record emphasis — measured evidence the
-  // niche is penetrable without a review moat. Present only when detection
-  // found one (see detectEntryProof's header for the emphasis-only rules).
+  // Entry Proof ladder (docs/RD_ENTRY_PROOF.md): low-review high-volume
+  // sellers that earned Record emphasis — measured evidence the niche is
+  // penetrable without a review moat. Flat fields = the strongest member
+  // (back-compat with rows stored before the ladder); `members` ranks every
+  // qualifying seller and the display wording scales with its length
+  // (1 example / 2 independent / 3+ = "pattern"). Present only when
+  // detection found at least one (see detectEntryProof's header).
   entry_proof?: {
     productId:             string
     brand:                 string
@@ -153,6 +156,16 @@ export interface RevenueSignal extends SignalScore {
     niche_median_sold:     number
     niche_median_price:    number
     price_dump_suspected?: boolean  // price < 60% of niche median — disclosed on display
+    members?: {
+      productId:             string
+      brand:                 string
+      monthly_sold:          number
+      review_count:          number
+      price:                 number
+      listing_age_months?:   number
+      recent?:               boolean
+      price_dump_suspected?: boolean
+    }[]
   }
   // Guard-1 disclosure: how many relevance-passing search results were
   // excluded for sitting in a minority second-level category (the OTC-drug
