@@ -366,6 +366,21 @@ describe('drainScienceIngredientQueue', () => {
     expect(result.drained).toEqual(['high-demand', 'low-demand'])
   })
 
+  it('LIVE-FOUND BUG FIX 2026-08-04: a fetched row whose cache entry was purged (null expiresAt) IS re-refreshed, never permanently dark', async () => {
+    // Production evidence: ashwagandha missed one re-refresh (the 6h
+    // knife-edge), its cache expired, and one lazy purge away it would
+    // never have been re-refreshed again under the old
+    // `expiresAt !== null &&` guard.
+    getFetchedQueueRowsByDemand.mockResolvedValue([
+      queueRow('purged-cache', { fetched_at: '2026-07-30T00:00:00.000Z', request_count: 5 }),
+    ])
+    getCacheExpiresAt.mockResolvedValue(null)   // cache row gone entirely
+
+    const result = await drainScienceIngredientQueue(Date.now())
+    expect(result.drained).toEqual(['purged-cache'])
+    expect(markQueueRowFetched).toHaveBeenCalledWith('purged-cache', expect.any(Date))
+  })
+
   it('reports timeExhausted and stops early when the elapsed-time guard trips, without exceeding the count budget either', async () => {
     const rows = Array.from({ length: 5 }, (_, i) => queueRow(`ingredient-${i}`))
     getUnfetchedQueueRows.mockResolvedValue(rows)

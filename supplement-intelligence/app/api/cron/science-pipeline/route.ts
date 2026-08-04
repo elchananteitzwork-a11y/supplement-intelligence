@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runScienceIngestionPipeline, drainScienceIngredientQueue } from '@/lib/science-engine/pipeline'
 import { TRACKED_INGREDIENTS } from '@/lib/science-engine/tracked-ingredients'
+import { getFetchedQueueRowsByDemand } from '@/lib/science-engine/queue'
 import { runDiscoveryDetection } from '@/lib/discovery-engine/run'
 import { runDivergenceDetection } from '@/lib/divergence-detector/run'
 import { getRecentObservations, type NicheSeries } from '@/lib/discovery-engine/service-store'
+
+// ── Dynamic Detection Coverage (docs/RD_DYNAMIC_DETECTION_COVERAGE.md) ──────
+// The detectors' candidate list widens beyond the tracked-3 to queue-drained
+// ingredients — a call-site wiring choice, exactly as both detectors' own
+// header comments designed for. Both constants are disclosed, uncalibrated
+// initial values (same convention as QUEUE_BUDGET_PER_NIGHT).
+//
+// The freshness window is load-bearing correctness, not just a bound:
+// alerts dedupe on (niche_key, source, metric, detected_at) with
+// detectedAt = now, so an UNCHANGED series that once crossed a threshold
+// would re-record the identical alert every night until its next refresh.
+// Only ingredients whose data actually refreshed recently get scanned —
+// which also aligns the effective nightly candidate count with the drain's
+// real ~15/night refresh capacity.
+const DETECTION_QUEUE_CANDIDATES_PER_NIGHT = 30
+const DETECTION_FRESH_WINDOW_MS = 48 * 60 * 60 * 1000
 
 // ── Science pipeline — nightly batch entry point (Roadmap M2.5) ─────────────
 //
@@ -75,18 +92,33 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Divergence detection calls below.
   const queueDrain = await drainScienceIngredientQueue(startedAt)
 
+  // Dynamic Detection Coverage: tracked-3 always (benchmark continuity),
+  // plus freshly-refreshed queue ingredients — most-demanded first, capped.
+  // If the route is already past the drain's own elapsed ceiling, fall back
+  // to tracked-3 only rather than risk the 60s maxDuration; queue-read
+  // failure degrades the same way (getFetchedQueueRowsByDemand returns []
+  // on any error — never fails the route).
+  const trackedSet = new Set<string>(TRACKED_INGREDIENTS)
+  const pastCeiling = queueDrain.timeExhausted
+  const freshnessCutoff = Date.now() - DETECTION_FRESH_WINDOW_MS
+  const queueCandidates = pastCeiling ? [] : (await getFetchedQueueRowsByDemand(DETECTION_QUEUE_CANDIDATES_PER_NIGHT))
+    .filter(r => r.fetched_at !== null && new Date(r.fetched_at).getTime() >= freshnessCutoff)
+    .map(r => r.ingredient)
+    .filter(i => !trackedSet.has(i))
+  const detectionCandidates = [...TRACKED_INGREDIENTS, ...queueCandidates]
+
   const observationsByNicheKey = new Map<string, NicheSeries[]>()
-  for (const nicheKey of TRACKED_INGREDIENTS) {
+  for (const nicheKey of detectionCandidates) {
     observationsByNicheKey.set(nicheKey, await getRecentObservations(nicheKey))
   }
 
   const detectionNow = new Date()
-  const discovery = await runDiscoveryDetection([...TRACKED_INGREDIENTS], detectionNow, observationsByNicheKey)
-  const divergence = await runDivergenceDetection([...TRACKED_INGREDIENTS], detectionNow, observationsByNicheKey)
+  const discovery = await runDiscoveryDetection(detectionCandidates, detectionNow, observationsByNicheKey)
+  const divergence = await runDivergenceDetection(detectionCandidates, detectionNow, observationsByNicheKey)
   const durationMs = Date.now() - startedAt
 
   const succeeded = results.filter(r => r.success).length
-  console.log('Science pipeline run complete', { succeeded, total: results.length, queueDrain, discovery, divergence, durationMs })
+  console.log('Science pipeline run complete', { succeeded, total: results.length, queueDrain, detectionCandidates: detectionCandidates.length, queueCandidatesSkippedForCeiling: pastCeiling, discovery, divergence, durationMs })
 
-  return NextResponse.json({ results, succeeded, total: results.length, queueDrain, discovery, divergence, durationMs })
+  return NextResponse.json({ results, succeeded, total: results.length, queueDrain, detectionCandidates, discovery, divergence, durationMs })
 }

@@ -188,13 +188,20 @@ export async function runScienceIngestionPipeline(now = new Date()): Promise<Sci
 // needs to move (see the R&D doc's §3 step 5 and §4 Risks).
 export const QUEUE_BUDGET_PER_NIGHT = 15
 
-// Roughly 20% of SCIENCE_CACHE_TTL_MS remaining — same "stated, commented,
+// Roughly 30% of SCIENCE_CACHE_TTL_MS remaining — same "stated, commented,
 // initial value, not yet calibrated against real outcome data" convention as
 // VELOCITY_THRESHOLD_PCT above. A queue-driven ingredient fetched once would
 // otherwise silently expire and go dark again (R&D doc §4 Risks:
 // "provider_cache TTL vs queue-driven entries") unless re-refreshed before
-// its cache entry actually expires.
-export const QUEUE_NEAR_EXPIRY_MS = SCIENCE_CACHE_TTL_MS * 0.2   // ~6h
+// its cache entry actually expires. Raised 0.2 → 0.3 (6h → 9h) in the
+// Dynamic Detection Coverage critique round (docs/
+// RD_DYNAMIC_DETECTION_COVERAGE.md): the 24h cron cadence against the 30h
+// TTL leaves EXACTLY 6h to expiry at scan time — a knife-edge equality
+// where minutes of Vercel cron jitter skip a whole night's re-refresh (and
+// with it that night's niche_timeseries observation). 9h gives the nightly
+// re-refresh real margin; still at most one refresh per night, so PubMed
+// volume is unchanged.
+export const QUEUE_NEAR_EXPIRY_MS = SCIENCE_CACHE_TTL_MS * 0.3   // ~9h
 
 // Review fix: `startedAt` (passed in by the route) is captured at ROUTE
 // START — BEFORE runScienceIngestionPipeline()'s tracked-3 refresh runs, not
@@ -252,9 +259,18 @@ export async function drainScienceIngredientQueue(startedAt: number, now = new D
     for (const row of candidates) {
       if (drained.length >= QUEUE_BUDGET_PER_NIGHT) { skippedForBudget++; continue }
       if (!withinTimeBudget()) { timeExhausted = true; break }
+      // LIVE-FOUND BUG FIX (2026-08-04, docs/RD_DYNAMIC_DETECTION_COVERAGE.md
+      // validation): a null expiresAt for a FETCHED queue row means the
+      // cache entry expired and was purged (lazy delete on read, or the
+      // daily pruning job) — the WORST staleness case, not a skip. The old
+      // `expiresAt !== null &&` guard made such rows permanently dark:
+      // fetched_at set, cache gone, never re-refreshed again. Production
+      // evidence: ashwagandha's nightly observations stopped 2026-08-03
+      // when the re-refresh missed once (the 6h knife-edge, fixed above)
+      // and its cache expired — one lazy purge away from permanent dark.
       const expiresAt = await getCacheExpiresAt(`science:v1:${row.ingredient}`)
-      const nearExpiry = expiresAt !== null && expiresAt.getTime() - now.getTime() <= QUEUE_NEAR_EXPIRY_MS
-      if (!nearExpiry) continue   // not near expiry yet — real skip, not a budget/time exhaustion
+      const nearExpiry = expiresAt === null || expiresAt.getTime() - now.getTime() <= QUEUE_NEAR_EXPIRY_MS
+      if (!nearExpiry) continue   // genuinely fresh cache — real skip, not a budget/time exhaustion
       const result = await ingestScienceSignal(row.ingredient, now)
       if (result.success) {
         await markQueueRowFetched(row.ingredient, now)
